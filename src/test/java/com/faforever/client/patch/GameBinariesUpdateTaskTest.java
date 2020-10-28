@@ -45,7 +45,7 @@ public class GameBinariesUpdateTaskTest {
     instance = new GameBinariesUpdateTaskImpl(i18n, preferencesService, platformService, new ClientProperties());
 
     Path faPath = faDirectory.getRoot().toPath();
-    java.nio.file.Files.createDirectories(faPath.resolve("bin"));
+    java.nio.file.Files.createDirectories(faPath);
 
     Preferences preferences = new Preferences();
     preferences.getForgedAlliance().setInstallationPath(faPath);

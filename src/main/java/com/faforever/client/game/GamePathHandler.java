@@ -58,21 +58,14 @@ public class GamePathHandler implements InitializingBean {
    */
   @Subscribe
   public void onGameDirectoryChosenEvent(GameDirectoryChosenEvent event) {
-    Path path = event.getPath();
+    Path gamePath = event.getPath();
     Optional<CompletableFuture<Path>> future = event.getFuture();
 
-    if (path == null) {
+    if (gamePath == null) {
       notificationService.addNotification(new ImmediateNotification(i18n.get("gameSelect.select.invalidPath"), i18n.get("gamePath.select.noneChosen"), Severity.WARN));
       future.ifPresent(pathCompletableFuture -> pathCompletableFuture.completeExceptionally(new CancellationException("User cancelled")));
       return;
     }
-
-    Path pathWithBin = path.resolve("bin");
-    if (Files.isDirectory(pathWithBin)) {
-      path = pathWithBin;
-    }
-    // At this point, path points to the "bin" directory
-    Path gamePath = path.getParent();
 
     String gamePathValidWithError;
     try {

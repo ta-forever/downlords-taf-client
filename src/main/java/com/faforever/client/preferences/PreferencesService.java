@@ -67,20 +67,19 @@ import static com.github.nocatch.NoCatch.noCatch;
 @Service
 public class PreferencesService implements InitializingBean {
 
-  public static final String SUPREME_COMMANDER_EXE = "SupremeCommander.exe";
-  public static final String FORGED_ALLIANCE_EXE = "ForgedAlliance.exe";
+  public static final String TOTAL_ANNIHILATION_EXE = "TotalA.exe";
 
   /**
    * Points to the FAF data directory where log files, config files and others are held. The returned value varies
    * depending on the operating system.
    */
-  private static final Path FAF_DATA_DIRECTORY;
+  private static final Path TAF_DATA_DIRECTORY;
   private static final Logger logger;
   private static final long STORE_DELAY = 1000;
   private static final Charset CHARSET = StandardCharsets.UTF_8;
   private static final String PREFS_FILE_NAME = "client.prefs";
-  private static final String APP_DATA_SUB_FOLDER = "Forged Alliance Forever";
-  private static final String USER_HOME_SUB_FOLDER = ".faforever";
+  private static final String APP_DATA_SUB_FOLDER = "Total Annihilation Forever";
+  private static final String USER_HOME_SUB_FOLDER = ".taforever";
   private static final String REPLAYS_SUB_FOLDER = "replays";
   private static final String CORRUPTED_REPLAYS_SUB_FOLDER = "corrupt";
   private static final String CACHE_SUB_FOLDER = "cache";
@@ -91,19 +90,19 @@ public class PreferencesService implements InitializingBean {
 
   static {
     if (org.bridj.Platform.isWindows()) {
-      FAF_DATA_DIRECTORY = Paths.get(Shell32Util.getFolderPath(ShlObj.CSIDL_COMMON_APPDATA), "FAForever");
+      TAF_DATA_DIRECTORY = Paths.get(Shell32Util.getFolderPath(ShlObj.CSIDL_COMMON_APPDATA), "TAForever");
     } else {
-      FAF_DATA_DIRECTORY = Paths.get(System.getProperty("user.home")).resolve(USER_HOME_SUB_FOLDER);
+      TAF_DATA_DIRECTORY = Paths.get(System.getProperty("user.home")).resolve(USER_HOME_SUB_FOLDER);
     }
-    CACHE_DIRECTORY = FAF_DATA_DIRECTORY.resolve(CACHE_SUB_FOLDER);
+    CACHE_DIRECTORY = TAF_DATA_DIRECTORY.resolve(CACHE_SUB_FOLDER);
 
-    System.setProperty("logging.file.name", PreferencesService.FAF_DATA_DIRECTORY
+    System.setProperty("logging.file.name", PreferencesService.TAF_DATA_DIRECTORY
         .resolve("logs")
         .resolve("client.log")
         .toString());
     // duplicated, see getFafLogDirectory; make getFafLogDirectory or log dir static?
 
-    System.setProperty("ICE_ADVANCED_LOG", PreferencesService.FAF_DATA_DIRECTORY
+    System.setProperty("ICE_ADVANCED_LOG", PreferencesService.TAF_DATA_DIRECTORY
         .resolve("logs/iceAdapterLogs")
         .resolve("advanced-ice-adapter.log")
         .toString());
@@ -203,11 +202,11 @@ public class PreferencesService implements InitializingBean {
   }
 
   public Path getFafBinDirectory() {
-    return getFafDataDirectory().resolve("bin");
+    return getFafDataDirectory();
   }
 
   public Path getFafDataDirectory() {
-    return FAF_DATA_DIRECTORY;
+    return TAF_DATA_DIRECTORY;
   }
 
   public Path getIceAdapterLogDirectory() {
@@ -221,11 +220,11 @@ public class PreferencesService implements InitializingBean {
    * @see com.faforever.client.vault.VaultFileSystemLocationChecker
    */
   public Path getSecondaryVaultLocation() {
-    return Paths.get(FAF_DATA_DIRECTORY.toAbsolutePath().toString(), "user", "My Games", "Gas Powered Games", "Supreme Commander Forged Alliance");
+    return Paths.get(TAF_DATA_DIRECTORY.toAbsolutePath().toString(), "user", "My Games", "Gas Powered Games", "Supreme Commander Forged Alliance");
   }
 
   public Path getPrimaryVaultLocation() {
-    return ForgedAlliancePrefs.GPG_FA_PATH;
+    return ForgedAlliancePrefs.CAVEDOG_TA_PATH;
   }
 
   public Path getPatchReposDirectory() {
@@ -374,25 +373,11 @@ public class PreferencesService implements InitializingBean {
   }
 
   public String isGamePathValidWithError(Path installationPath) throws IOException, NoSuchAlgorithmException {
-    boolean valid = installationPath != null && isGamePathValid(installationPath.resolve("bin"));
+    boolean valid = installationPath != null && isGamePathValid(installationPath);
     if (!valid) {
       return "gamePath.select.noValidExe";
     }
-    Path binPath = installationPath.resolve("bin");
-    String exeHash;
-    if (Files.exists(binPath.resolve(FORGED_ALLIANCE_EXE))) {
-      exeHash = sha256OfFile(binPath.resolve(FORGED_ALLIANCE_EXE));
-    } else {
-      exeHash = sha256OfFile(binPath.resolve(SUPREME_COMMANDER_EXE));
-    }
-    for (String hash : clientProperties.getVanillaGameHashes()) {
-      logger.debug("Hash of Supreme Commander.exe in selected User directory: " + exeHash);
-      if (hash.equals(exeHash)) {
-        return "gamePath.select.vanillaGameSelected";
-      }
-    }
-
-    if (binPath.equals(getFafBinDirectory())) {
+    if (installationPath.equals(getFafBinDirectory())) {
       return "gamePath.select.fafDataSelected";
     }
 
@@ -418,8 +403,7 @@ public class PreferencesService implements InitializingBean {
 
   public boolean isGamePathValid(Path binPath) {
     return binPath != null
-        && (Files.isRegularFile(binPath.resolve(FORGED_ALLIANCE_EXE))
-        || Files.isRegularFile(binPath.resolve(SUPREME_COMMANDER_EXE))
+        && (Files.isRegularFile(binPath.resolve(TOTAL_ANNIHILATION_EXE))
     );
   }
 

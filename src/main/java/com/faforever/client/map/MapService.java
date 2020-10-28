@@ -65,6 +65,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
@@ -144,12 +145,36 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   @VisibleForTesting
-  Set<String> officialMaps = ImmutableSet.of(
-      "SCMP_001", "SCMP_002", "SCMP_003", "SCMP_004", "SCMP_005", "SCMP_006", "SCMP_007", "SCMP_008", "SCMP_009", "SCMP_010", "SCMP_011",
-      "SCMP_012", "SCMP_013", "SCMP_014", "SCMP_015", "SCMP_016", "SCMP_017", "SCMP_018", "SCMP_019", "SCMP_020", "SCMP_021", "SCMP_022",
-      "SCMP_023", "SCMP_024", "SCMP_025", "SCMP_026", "SCMP_027", "SCMP_028", "SCMP_029", "SCMP_030", "SCMP_031", "SCMP_032", "SCMP_033",
-      "SCMP_034", "SCMP_035", "SCMP_036", "SCMP_037", "SCMP_038", "SCMP_039", "SCMP_040", "X1MP_001", "X1MP_002", "X1MP_003", "X1MP_004",
-      "X1MP_005", "X1MP_006", "X1MP_007", "X1MP_008", "X1MP_009", "X1MP_010", "X1MP_011", "X1MP_012", "X1MP_014", "X1MP_017"
+  Set<String> otaMaps = ImmutableSet.of(
+      "Anteer Straight", "Ashap Plateau", "Caldera's Rim", "Coast To Coast", "Dark Side", "Etorrep Glacier", "Evad River Confluence",
+      "Fox Holes", "Full Moon", "Gods of War", "Great Divide", "Greenhaven", "Hundred Isles", "Kill The Middle", "King of the Hill",
+      "Lava & Two Hills", "Lava Alley", "Lava Highground", "Lava Mania", "Lava Run", "Metal Heck", "Over Crude Water", "Painted Desert",
+      "Pincushion", "Red Hot Lava", "Red Planet", "Red Triangle", "Ring Atol", "Rock Alley", "Seven Islands", "SHERWOOD",
+      "Shore to Shore", "The Cold Place", "The Desert Triad", "The Pass", "Two Continents", "Yerrot Mountains"
+  );
+
+  @VisibleForTesting
+  Set<String> ccMaps = ImmutableSet.of(
+      "Acid Foursome", "Acid Pools", "Acid Trip", "Assault on Suburbia", "Biggie Biggs", "Block Wars", "Brain Coral", "Cavedog Links CC",
+      "Checker Ponds", "Cluster Freak", "Comet Catcher", "Core Prime Industrial Area", "Crater Islands", "Crystal Cracked",
+      "Crystal Isles", "Crystal Maze", "Crystal Treasure Island", "Dire Straits", "East Indeez", "Eastside Westside",
+      "Expanded Confluence", "Flooded Glaciers", "Gasbag Forests", "Gasplant Plain", "Higher Ground", "Ice Scream", "Icy Bergs",
+      "John's Pass", "Lake Shore", "Lusch Puppy", "Luschaven", "Metal Isles", "Moon Quartet", "Ooooweeee", "Pillopeens",
+      "Plains and Passes", "Polar Range", "Poly Fields", "Red River North", "Red River", "Ror Shock", "Sail Away", "Sector 410b",
+      "Show Down", "Slate Gordon", "Slated Fate", "Steel Jungle", "Surface Meltdown", "Temblorian Mist", "The Barrier Reef", "The Bayou",
+      "Town & Country", "Trout Farm"
+  );
+
+  @VisibleForTesting
+  Set<String> btMaps = ImmutableSet.of(
+      "Aqua Verdigris", "Brilliant Cut Lake", "Canal Crossing", "Coremageddon", "Metal Gridlock", "Wretched Ridges"
+  );
+
+  @VisibleForTesting
+  Set<String> cdMaps = ImmutableSet.of(
+      "A Plethora of Ponds", "Abysmal Lake", "Ancient Issaquah", "Cloudious Prime", "Comet Catcher", "Long Lakes", "LUSCHIE",
+      "Luschinfloggen", "Luschious", "Metal Isles", "Mounds of Mars", "PC Games' Evad River Delta", "Plains and Passes",
+      "Starfish Isles", "Thundurlok Rok", "Tropical Paradise"
   );
 
   private static URL getDownloadUrl(String mapName, String baseUrl) {
@@ -218,26 +243,34 @@ public class MapService implements InitializingBean, DisposableBean {
 
       protected Void call() {
         updateTitle(i18n.get("mapVault.loadingMaps"));
-        Path officialMapsPath = forgedAlliancePreferences.getInstallationPath().resolve("maps");
-        try (Stream<Path> customMapsDirectoryStream = list(forgedAlliancePreferences.getCustomMapsDirectory())) {
-          List<Path> mapPaths = new ArrayList<>();
-          customMapsDirectoryStream.collect(toCollection(() -> mapPaths));
-          officialMaps.stream()
-              .map(officialMapsPath::resolve)
-              .collect(toCollection(() -> mapPaths));
 
-          long totalMaps = mapPaths.size();
-          long mapsRead = 0;
-          for (Path mapPath : mapPaths) {
-            if (mapPath.getFileName().toString().equals(DEBUG)) {
-              continue;
-            }
-            updateProgress(++mapsRead, totalMaps);
-            addInstalledMap(mapPath);
+        Path installationPath = forgedAlliancePreferences.getInstallationPath();
+        Path officialMapsPath = installationPath.resolve("maps");
+
+        if (installationPath.resolve("total2.hpi").toFile().exists()) {
+          for (String map : otaMaps) {
+            addInstalledMap(Paths.get(map));
           }
-        } catch (IOException e) {
-          logger.warn("Maps could not be read from: " + forgedAlliancePreferences.getCustomMapsDirectory(), e);
         }
+        updateProgress(1, 4);
+        if (installationPath.resolve("ccmaps.ccx").toFile().exists()) {
+          for (String map : ccMaps) {
+            addInstalledMap(Paths.get(map));
+          }
+        }
+        updateProgress(2, 4);
+        if (installationPath.resolve("btmaps.ccx").toFile().exists()) {
+          for (String map : btMaps) {
+            addInstalledMap(Paths.get(map));
+          }
+        }
+        updateProgress(3, 4);
+        if (installationPath.resolve("cdmaps.ccx").toFile().exists()) {
+          for (String map : cdMaps) {
+            addInstalledMap(Paths.get(map));
+          }
+        }
+        updateProgress(4, 4);
         return null;
       }
     });
@@ -267,37 +300,15 @@ public class MapService implements InitializingBean, DisposableBean {
 
   @NotNull
   public MapBean readMap(Path mapFolder) throws MapLoadException {
-    if (!Files.isDirectory(mapFolder)) {
-      throw new MapLoadException("Not a folder: " + mapFolder.toAbsolutePath());
-    }
-
-    try (Stream<Path> mapFolderFilesStream = list(mapFolder)) {
-      Path scenarioLuaPath = mapFolderFilesStream
-          .filter(file -> file.getFileName().toString().endsWith("_scenario.lua"))
-          .findFirst()
-          .orElseThrow(() -> new MapLoadException("Map folder does not contain a *_scenario.lua: " + mapFolder.toAbsolutePath()));
-
-      LuaValue luaRoot = noCatch(() -> loadFile(scenarioLuaPath), MapLoadException.class);
-      LuaValue scenarioInfo = luaRoot.get("ScenarioInfo");
-      LuaValue size = scenarioInfo.get("size");
-
       MapBean mapBean = new MapBean();
-      mapBean.setFolderName(mapFolder.getFileName().toString());
-      mapBean.setDisplayName(scenarioInfo.get("name").toString());
-      mapBean.setDescription(FaStrings.removeLocalizationTag(scenarioInfo.get("description").toString()));
-      mapBean.setType(Type.fromString(scenarioInfo.get("type").toString()));
-      mapBean.setSize(MapSize.valueOf(size.get(1).toint(), size.get(2).toint()));
-      mapBean.setPlayers(scenarioInfo.get("Configurations").get("standard").get("teams").get(1).get("armies").length());
-
-      LuaValue mapVersion = scenarioInfo.get("map_version");
-      if (!mapVersion.isnil()) {
-        mapBean.setVersion(new ComparableVersion(mapVersion.toString()));
-      }
+      mapBean.setFolderName(mapFolder.toString());
+      mapBean.setDisplayName(mapFolder.toString());
+      mapBean.setDescription(mapFolder.toString());
+      mapBean.setType(Type.SKIRMISH);
+      mapBean.setSize(MapSize.valueOf(512, 512));
+      mapBean.setPlayers(10);
 
       return mapBean;
-    } catch (IOException | LuaError e) {
-      throw new MapLoadException(e);
-    }
   }
 
   @SneakyThrows(IOException.class)
@@ -327,6 +338,11 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   public boolean isOfficialMap(String mapName) {
+    Set<String> officialMaps = new HashSet<String>();
+    officialMaps.addAll(otaMaps);
+    officialMaps.addAll(ccMaps);
+    officialMaps.addAll(btMaps);
+    officialMaps.addAll(cdMaps);
     return officialMaps.stream().anyMatch(name -> name.equalsIgnoreCase(mapName));
   }
 

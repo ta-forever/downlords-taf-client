@@ -17,22 +17,15 @@ import java.nio.file.Paths;
 
 public class ForgedAlliancePrefs {
 
-  public static final Path GPG_FA_PATH;
-  public static final Path STEAM_FA_PATH;
-  public static final Path LOCAL_FA_DATA_PATH;
+  public static final Path CAVEDOG_TA_PATH;
   public static final String INIT_FILE_NAME = "init.lua";
 
   static {
     if (org.bridj.Platform.isWindows()) {
-      GPG_FA_PATH = Paths.get(Shell32Util.getFolderPath(ShlObj.CSIDL_PERSONAL), "My Games", "Gas Powered Games", "Supreme Commander Forged Alliance");
-      //If steam is every swapped to a 64x client, needs to be updated to proper directory or handling must be put in place.
-      STEAM_FA_PATH = Paths.get(Shell32Util.getFolderPath(ShlObj.CSIDL_PROGRAM_FILESX86), "Steam", "steamapps", "common", "Supreme Commander Forged Alliance");
-      LOCAL_FA_DATA_PATH = Paths.get(Shell32Util.getFolderPath(ShlObj.CSIDL_LOCAL_APPDATA), "Gas Powered Games", "Supreme Commander Forged Alliance");
+      CAVEDOG_TA_PATH = Paths.get("C:", "CAVEDOG", "TOTALA");
     } else {
       String userHome = System.getProperty("user.home");
-      GPG_FA_PATH = Paths.get(userHome, "My Games", "Gas Powered Games", "Supreme Commander Forged Alliance");
-      STEAM_FA_PATH = Paths.get(".");
-      LOCAL_FA_DATA_PATH = Paths.get(userHome, ".wine", "drive_c", "users", System.getProperty("user.name"), "Application Data", "Gas Powered Games", "Supreme Commander Forged Alliance");
+      CAVEDOG_TA_PATH = Paths.get(userHome, ".wine", "drive_c", "CAVEDOG", "TOTALA");
     }
   }
 
@@ -69,16 +62,16 @@ public class ForgedAlliancePrefs {
 
   public ForgedAlliancePrefs() {
     forceRelay = new SimpleBooleanProperty(false);
-    if (Files.isRegularFile(STEAM_FA_PATH.resolve("bin").resolve(PreferencesService.SUPREME_COMMANDER_EXE))) {
-      path = new SimpleObjectProperty<>(STEAM_FA_PATH);
+    if (Files.isRegularFile(CAVEDOG_TA_PATH.resolve(PreferencesService.TOTAL_ANNIHILATION_EXE))) {
+      path = new SimpleObjectProperty<>(CAVEDOG_TA_PATH);
     } else {
       path = new SimpleObjectProperty<>();
     }
     installationPath = new SimpleObjectProperty<>();
-    vaultBaseDirectory = new SimpleObjectProperty<>(GPG_FA_PATH);
+    vaultBaseDirectory = new SimpleObjectProperty<>(CAVEDOG_TA_PATH);
     customMapsDirectory = new SimpleObjectProperty<>();
     modsDirectory = new SimpleObjectProperty<>();
-    preferencesFile = new SimpleObjectProperty<>(LOCAL_FA_DATA_PATH.resolve("Game.prefs"));
+    preferencesFile = new SimpleObjectProperty<>(CAVEDOG_TA_PATH.resolve("Game.prefs"));
     autoDownloadMaps = new SimpleBooleanProperty(true);
     executableDecorator = new SimpleStringProperty();
     executionDirectory = new SimpleObjectProperty<>();

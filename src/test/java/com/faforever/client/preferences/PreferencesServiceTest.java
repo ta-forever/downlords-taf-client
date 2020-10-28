@@ -41,7 +41,7 @@ public class PreferencesServiceTest {
 
   @Test
   public void testGetFafBinDirectory() throws Exception {
-    assertThat(instance.getFafBinDirectory(), is(instance.getFafDataDirectory().resolve("bin")));
+    assertThat(instance.getFafBinDirectory(), is(instance.getFafDataDirectory()));
   }
 
   @Test

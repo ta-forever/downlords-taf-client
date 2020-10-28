@@ -30,7 +30,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.stream.Stream;
 
-import static com.faforever.client.preferences.PreferencesService.FORGED_ALLIANCE_EXE;
+import static com.faforever.client.preferences.PreferencesService.TOTAL_ANNIHILATION_EXE;
 import static com.github.nocatch.NoCatch.noCatch;
 import static java.nio.file.Files.copy;
 import static java.nio.file.Files.createDirectories;
@@ -83,7 +83,7 @@ public class GameBinariesUpdateTaskImpl extends CompletableTask<Void> implements
     Assert.checkNullIllegalState(version, "Field 'version' must not be null");
     logger.info("Updating binaries to {}", version);
 
-    Path exePath = preferencesService.getFafBinDirectory().resolve(FORGED_ALLIANCE_EXE);
+    Path exePath = preferencesService.getFafBinDirectory().resolve(TOTAL_ANNIHILATION_EXE);
 
     copyGameFilesToFafBinDirectory();
     downloadFafExeIfNecessary(exePath);

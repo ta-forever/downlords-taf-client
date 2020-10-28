@@ -3,7 +3,7 @@ package com.faforever.client.game;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.discord.DiscordRichPresenceService;
 import com.faforever.client.fa.CloseGameEvent;
-import com.faforever.client.fa.ForgedAllianceService;
+import com.faforever.client.fa.TotalAnnihilationService;
 import com.faforever.client.fa.RatingMode;
 import com.faforever.client.fa.relay.event.RehostRequestEvent;
 import com.faforever.client.fa.relay.ice.IceAdapter;
@@ -125,7 +125,7 @@ public class GameService implements InitializingBean {
   private final ObservableMap<Integer, Game> uidToGameInfoBean;
 
   private final FafService fafService;
-  private final ForgedAllianceService forgedAllianceService;
+  private final TotalAnnihilationService totalAnnihilationService;
   private final MapService mapService;
   private final PreferencesService preferencesService;
   private final GameUpdater gameUpdater;
@@ -156,7 +156,7 @@ public class GameService implements InitializingBean {
   @Inject
   public GameService(ClientProperties clientProperties,
                      FafService fafService,
-                     ForgedAllianceService forgedAllianceService,
+                     TotalAnnihilationService totalAnnihilationService,
                      MapService mapService,
                      PreferencesService preferencesService,
                      GameUpdater gameUpdater,
@@ -173,7 +173,7 @@ public class GameService implements InitializingBean {
                      ReplayServer replayServer,
                      ReconnectTimerService reconnectTimerService) {
     this.fafService = fafService;
-    this.forgedAllianceService = forgedAllianceService;
+    this.totalAnnihilationService = totalAnnihilationService;
     this.mapService = mapService;
     this.preferencesService = preferencesService;
     this.gameUpdater = gameUpdater;
@@ -330,7 +330,8 @@ public class GameService implements InitializingBean {
     Map<String, Integer> featuredModVersions = game.getFeaturedModVersions();
     Set<String> simModUIds = game.getSimMods().keySet();
 
-    return modService.getFeaturedMod(game.getFeaturedMod())
+    return
+        modService.getFeaturedMod(game.getFeaturedMod())
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, null, featuredModVersions, simModUIds))
         .thenAccept(aVoid -> {
           try {
@@ -357,10 +358,11 @@ public class GameService implements InitializingBean {
   }
 
   private CompletableFuture<Void> downloadMapIfNecessary(String mapFolderName) {
-    if (mapService.isInstalled(mapFolderName)) {
-      return completedFuture(null);
-    }
-    return mapService.download(mapFolderName);
+    return CompletableFuture.completedFuture(null);
+//    if (mapService.isInstalled(mapFolderName)) {
+//      return completedFuture(null);
+//    }
+//    return mapService.download(mapFolderName);
   }
 
   /**
@@ -383,7 +385,7 @@ public class GameService implements InitializingBean {
         .thenCompose(aVoid -> downloadMapIfNecessary(mapName).handleAsync((ignoredResult, throwable) -> askWhetherToStartWithOutMap(throwable)))
         .thenRun(() -> {
           try {
-            process = forgedAllianceService.startReplay(path, replayId);
+            process = totalAnnihilationService.startReplay(path, replayId);
             setGameRunning(true);
             this.ratingMode = NONE;
             spawnTerminationListener(process);
@@ -457,7 +459,7 @@ public class GameService implements InitializingBean {
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, null, modVersions, simModUids))
         .thenCompose(aVoid -> downloadMapIfNecessary(mapName))
         .thenRun(() -> noCatch(() -> {
-          process = forgedAllianceService.startReplay(replayUrl, gameId, getCurrentPlayer());
+          process = totalAnnihilationService.startReplay(replayUrl, gameId, getCurrentPlayer());
           setGameRunning(true);
           this.ratingMode = NONE;
           spawnTerminationListener(process);
@@ -497,10 +499,12 @@ public class GameService implements InitializingBean {
 
     searching1v1.set(true);
 
-    return modService.getFeaturedMod(LADDER_1V1.getTechnicalName())
+    return
+        modService.getFeaturedMod(LADDER_1V1.getTechnicalName())
         .thenAccept(featuredModBean -> updateGameIfNecessary(featuredModBean, null, emptyMap(), emptySet()))
         .thenCompose(aVoid -> fafService.startSearchLadder1v1(faction))
-        .thenAccept((gameLaunchMessage) -> downloadMapIfNecessary(gameLaunchMessage.getMapname())
+        .thenAccept((gameLaunchMessage) ->
+            downloadMapIfNecessary(gameLaunchMessage.getMapname())
             .thenRun(() -> {
               gameLaunchMessage.setArgs(new ArrayList<>(gameLaunchMessage.getArgs()));
 
@@ -546,7 +550,8 @@ public class GameService implements InitializingBean {
   }
 
   private CompletableFuture<Void> updateGameIfNecessary(FeaturedMod featuredMod, @Nullable Integer version, @NotNull Map<String, Integer> featuredModVersions, @NotNull Set<String> simModUids) {
-    return gameUpdater.update(featuredMod, version, featuredModVersions, simModUids);
+    return CompletableFuture.completedFuture(null);
+    //return gameUpdater.update(featuredMod, version, featuredModVersions, simModUids);
   }
 
   public boolean isGameRunning() {
@@ -580,7 +585,7 @@ public class GameService implements InitializingBean {
         })
         .thenAccept(adapterPort -> {
           List<String> args = fixMalformedArgs(gameLaunchMessage.getArgs());
-          process = noCatch(() -> forgedAllianceService.startGame(gameLaunchMessage.getUid(), faction, args, ratingMode,
+          process = noCatch(() -> totalAnnihilationService.startGame(gameLaunchMessage.getUid(), faction, args, ratingMode,
               adapterPort, localReplayPort, rehostRequested, getCurrentPlayer()));
           setGameRunning(true);
 
@@ -618,7 +623,6 @@ public class GameService implements InitializingBean {
 
     for (String combinedArg : gameLaunchMessage) {
       String[] split = combinedArg.split(" ");
-
       Collections.addAll(fixedArgs, split);
     }
     return fixedArgs;
@@ -890,7 +894,7 @@ public class GameService implements InitializingBean {
         .thenCompose(aVoid -> downloadMapIfNecessary(mapVersion.getFolderName()))
         .thenAccept(aVoid -> {
           List<String> args = Arrays.asList("/map", technicalMapName);
-          process = noCatch(() -> forgedAllianceService.startGameOffline(args));
+          process = noCatch(() -> totalAnnihilationService.startGameOffline(args));
           setGameRunning(true);
           spawnTerminationListener(process, false);
         })

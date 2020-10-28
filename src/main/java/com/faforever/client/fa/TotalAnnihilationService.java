@@ -12,22 +12,25 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.invoke.MethodHandles;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 
-import static com.faforever.client.preferences.PreferencesService.TOTAL_ANNIHILATION_EXE;
-
 /**
- * Knows how to starts/stop Forged Alliance with proper parameters. Downloading maps, mods and updates as well as
+ * Knows how to starts/stop Total Annihilation with proper parameters. Downloading maps, mods and updates as well as
  * notifying the server about whether the preferences is running or not is <strong>not</strong> this service's
  * responsibility.
  */
 @Lazy
 @Service
 @RequiredArgsConstructor
-public class ForgedAllianceService {
+public class TotalAnnihilationService {
 
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -35,42 +38,22 @@ public class ForgedAllianceService {
 
   public Process startGameOffline(List<String> args) throws IOException {
     Path executable = getExecutable();
-    List<String> launchCommand = LaunchCommandBuilder.create()
-        .executableDecorator(preferencesService.getPreferences().getForgedAlliance().getExecutableDecorator())
-        .executable(executable)
-        .additionalArgs(args)
-        .logFile(preferencesService.getNewGameLogFile(0))
-
-        .build();
-
+    List<String> launchCommand = defaultLaunchCommand().build();
     return launch(executable, launchCommand);
   }
 
   public Process startGame(int uid, @Nullable Faction faction, @Nullable List<String> additionalArgs,
                            RatingMode ratingMode, int gpgPort, int localReplayPort, boolean rehost, Player currentPlayer) throws IOException {
+
     Path executable = getExecutable();
-
-    float deviation;
-    float mean;
-
-    switch (ratingMode) {
-      case LADDER_1V1:
-        deviation = currentPlayer.getLeaderboardRatingDeviation();
-        mean = currentPlayer.getLeaderboardRatingMean();
-        break;
-      default:
-        deviation = currentPlayer.getGlobalRatingDeviation();
-        mean = currentPlayer.getGlobalRatingMean();
-    }
-
     List<String> launchCommand = defaultLaunchCommand()
         .executable(executable)
         .uid(uid)
         .faction(faction)
         .clan(currentPlayer.getClan())
         .country(currentPlayer.getCountry())
-        .deviation(deviation)
-        .mean(mean)
+        .deviation(100.0f)
+        .mean(1500.0f)
         .username(currentPlayer.getUsername())
         .additionalArgs(additionalArgs)
         .logFile(preferencesService.getNewGameLogFile(uid))
@@ -85,34 +68,26 @@ public class ForgedAllianceService {
 
   public Process startReplay(Path path, @Nullable Integer replayId) throws IOException {
     Path executable = getExecutable();
-
-    List<String> launchCommand = defaultLaunchCommand()
-        .executable(executable)
-        .replayFile(path)
-        .replayId(replayId)
-        .logFile(preferencesService.getNewGameLogFile(replayId))
-        .build();
-
+    List<String> launchCommand = defaultLaunchCommand().build();
     return launch(executable, launchCommand);
   }
 
 
   public Process startReplay(URI replayUri, Integer replayId, Player currentPlayer) throws IOException {
     Path executable = getExecutable();
-
-    List<String> launchCommand = defaultLaunchCommand()
-        .executable(executable)
-        .replayUri(replayUri)
-        .replayId(replayId)
-        .logFile(preferencesService.getFafLogDirectory().resolve("replay.log"))
-        .username(currentPlayer.getUsername())
-        .build();
-
+    List<String> launchCommand = defaultLaunchCommand().build();
     return launch(executable, launchCommand);
   }
 
   private Path getExecutable() {
-    return preferencesService.getFafBinDirectory().resolve(TOTAL_ANNIHILATION_EXE);
+    if (false) {
+      return Paths.get("D:\\games\\pause.bat");
+    }
+    else {
+      String nativeDir = System.getProperty("nativeDir", "lib");
+      Path jdplay = Paths.get(nativeDir).resolve("gpgnet4ta").resolve("gpgnet4ta.exe");
+      return jdplay;
+    }
   }
 
   private LaunchCommandBuilder defaultLaunchCommand() {
@@ -121,19 +96,18 @@ public class ForgedAllianceService {
   }
 
   @NotNull
+  //private Process launch(Path executablePath) throws IOException {
   private Process launch(Path executablePath, List<String> launchCommand) throws IOException {
-    Path executeDirectory = preferencesService.getPreferences().getForgedAlliance().getExecutionDirectory();
-    if (executeDirectory == null) {
-      executeDirectory = executablePath.getParent();
-    }
-
+    Path executeDirectory = executablePath.getParent();
     ProcessBuilder processBuilder = new ProcessBuilder();
     processBuilder.inheritIO();
     processBuilder.directory(executeDirectory.toFile());
     processBuilder.command(launchCommand);
 
-    logger.info("Starting Forged Alliance with command: {} in directory: {}", processBuilder.command(), executeDirectory);
+    logger.info("Starting Total Annihilation with command: {}", String.join(" ", processBuilder.command()));
+    processBuilder.command(launchCommand);
+    Process process = processBuilder.start();
 
-    return processBuilder.start();
+    return process;
   }
 }

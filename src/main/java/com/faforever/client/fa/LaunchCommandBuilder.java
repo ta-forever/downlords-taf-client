@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static com.faforever.client.util.Assert.checkNullIllegalState;
 
@@ -141,37 +142,36 @@ public class LaunchCommandBuilder {
 
     List<String> command = new ArrayList<>();
     command.addAll(split(String.format(executableDecorator, "\"" + executable.toAbsolutePath().toString() + "\"")));
-    command.addAll(Arrays.asList(
-        "/init", ForgedAlliancePrefs.INIT_FILE_NAME,
-        "/nobugreport"
-    ));
 
+/*
     if (faction != null) {
-      command.add(String.format("/%s", faction.getString()));
+      command.add(String.format("--faction"));
+      command.add(faction.getString());
     }
 
     if (logFile != null) {
       command.add("/log");
       command.add(logFile.toAbsolutePath().toString());
     }
+*/
 
     String localIp = Inet4Address.getLoopbackAddress().getHostAddress();
     if (localGpgPort != null) {
-      command.add("/gpgnet");
+      command.add("--gpgnet");
       command.add(localIp + ":" + localGpgPort);
     }
 
     if (mean != null) {
-      command.add("/mean");
+      command.add("--mean");
       command.add(String.valueOf(mean));
     }
 
     if (deviation != null) {
-      command.add("/deviation");
+      command.add("--deviation");
       command.add(String.valueOf(deviation));
     }
 
-    if (replayFile != null) {
+/*    if (replayFile != null) {
       command.add("/replay");
       command.add(replayFile.toAbsolutePath().toString());
     } else if (replayUri != null) {
@@ -182,17 +182,19 @@ public class LaunchCommandBuilder {
     if (uid != null && localReplayPort != null) {
       command.add("/savereplay");
       command.add("gpgnet://" + localIp + ":" + localReplayPort + "/" + uid + "/" + username + ".SCFAreplay");
-    }
+    }*/
 
-    if (country != null) {
-      command.add("/country");
+    if (country != null && !country.isEmpty()) {
+      command.add("--country");
       command.add(country);
     }
 
+/*
     if (!StringUtils.isEmpty(clan)) {
       command.add("/clan");
       command.add(clan);
     }
+
 
     if (replayId != null) {
       command.add("/replayid");
@@ -201,10 +203,25 @@ public class LaunchCommandBuilder {
 
     if (rehost) {
       command.add("/rehost");
-    }
+    }*/
 
     if (additionalArgs != null) {
-      command.addAll(additionalArgs);
+      List<String> args = additionalArgs.stream()
+          .map((String arg) -> arg.replace("/", "--"))
+          .collect(Collectors.toList());
+
+      List<String> allowedArgs = Arrays.asList("--numgames", "--players");
+      List<String> validArgs = new ArrayList<String>();
+      boolean isValid = false;
+      for(String arg: args) {
+        if (arg.length()>2 && arg.substring(0, 2).equals("--")) {
+          isValid = allowedArgs.contains(arg);
+        }
+        if (isValid) {
+          validArgs.add(arg);
+        }
+      }
+      command.addAll(validArgs);
     }
 
     return command;

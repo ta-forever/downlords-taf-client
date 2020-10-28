@@ -34,7 +34,6 @@ public class ClientProperties {
   private boolean showIceAdapterDebugWindow;
   private String statusPageUrl;
   private Map<String, String> links = new HashMap<>();
-  private List<String> vanillaGameHashes = new ArrayList<>();
 
   @Data
   public static class News {
