@@ -64,9 +64,9 @@ public class JoinGameHelper {
     Player currentPlayer = playerService.getCurrentPlayer().orElseThrow(() -> new IllegalStateException("Player has not been set"));
     int playerRating = RatingUtil.getRoundedGlobalRating(currentPlayer);
 
-    if (!preferencesService.isGamePathValid()) {
+    if (!preferencesService.isGamePathValid(game.getFeaturedMod())) {
       CompletableFuture<Path> gameDirectoryFuture = new CompletableFuture<>();
-      eventBus.post(new GameDirectoryChooseEvent(gameDirectoryFuture));
+      eventBus.post(new GameDirectoryChooseEvent(game.getFeaturedMod(), gameDirectoryFuture));
       gameDirectoryFuture.thenAccept(path -> Optional.ofNullable(path).ifPresent(path1 -> join(game, password, ignoreRating)));
       return;
     }

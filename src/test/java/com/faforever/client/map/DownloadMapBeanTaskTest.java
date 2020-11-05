@@ -1,9 +1,11 @@
 package com.faforever.client.map;
 
+import com.faforever.client.fx.PlatformService;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
-import com.faforever.client.preferences.ForgedAlliancePrefs;
 import com.faforever.client.preferences.Preferences;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.test.AbstractPlainJavaFxTest;
 
 import org.junit.Before;
@@ -17,7 +19,6 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import java.net.URL;
 import java.nio.file.Files;
-
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
@@ -38,15 +39,17 @@ public class DownloadMapBeanTaskTest extends AbstractPlainJavaFxTest {
   @Mock
   private Preferences preferences;
   @Mock
-  private ForgedAlliancePrefs forgedAlliance;
+  private TotalAnnihilationPrefs totalAnnihilation;
+  @Mock
+  private PlatformService platformService;
 
   @Before
   public void setUp() throws Exception {
-    instance = new DownloadMapTask(preferencesService, i18n);
+    instance = new DownloadMapTask(platformService, preferencesService, i18n);
 
     when(preferencesService.getPreferences()).thenReturn(preferences);
-    when(preferences.getForgedAlliance()).thenReturn(forgedAlliance);
-    when(forgedAlliance.getCustomMapsDirectory()).thenReturn(customMapsDirectory.getRoot().toPath());
+    when(preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(totalAnnihilation);
+    when(totalAnnihilation.getInstalledPath()).thenReturn(customMapsDirectory.getRoot().toPath());
   }
 
   @Test

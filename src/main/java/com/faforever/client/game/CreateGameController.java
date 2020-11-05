@@ -160,11 +160,18 @@ public class CreateGameController implements Controller<Pane> {
       selectLastOrDefaultGameType();
     }));
 
-    if (preferencesService.getPreferences().getForgedAlliance().getInstallationPath() == null) {
-      preferenceUpdateListener = preferences -> {
-        if (!initialized && preferencesService.getPreferences().getForgedAlliance().getInstallationPath() != null) {
-          initialized = true;
+    final String activeMod;
+    if (featuredModListView.getFocusModel().getFocusedItem() == null) {
+      activeMod = KnownFeaturedMod.DEFAULT.getTechnicalName();
+    }
+     else {
+      activeMod = featuredModListView.getFocusModel().getFocusedItem().getTechnicalName();
+    }
 
+    if (preferencesService.getTotalAnnihilation(activeMod).getInstalledPath() == null) {
+      preferenceUpdateListener = preferences -> {
+        if (!initialized && preferencesService.getTotalAnnihilation(activeMod).getInstalledPath() != null ) {
+          initialized = true;
           Platform.runLater(this::init);
         }
       };
@@ -259,7 +266,13 @@ public class CreateGameController implements Controller<Pane> {
     preferencesService.getPreferences().getLastGamePrefs().setLastMap(newValue.getFolderName());
     preferencesService.storeInBackground();
 
-    Image largePreview = mapService.loadPreview(newValue.getFolderName(), PreviewSize.LARGE);
+    String activeMod = KnownFeaturedMod.DEFAULT.getTechnicalName();
+    if (featuredModListView.getFocusModel().getFocusedItem() != null)
+    {
+      activeMod = featuredModListView.getFocusModel().getFocusedItem().getTechnicalName();
+    }
+
+    Image largePreview = mapService.loadPreview(activeMod, newValue.getFolderName(), PreviewSize.LARGE);
     mapPreviewPane.setBackground(new Background(new BackgroundImage(largePreview, NO_REPEAT, NO_REPEAT, CENTER,
         new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, true, false))));
 

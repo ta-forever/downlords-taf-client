@@ -5,9 +5,9 @@ import com.faforever.client.chat.ChatFormat;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
-import com.faforever.client.fx.NodeListCell;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.fx.StringListCell;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.NavigationItem;
 import com.faforever.client.notification.Action;
@@ -15,6 +15,7 @@ import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.PersistentNotification;
 import com.faforever.client.notification.Severity;
 import com.faforever.client.notification.TransientNotification;
+import com.faforever.client.player.Player;
 import com.faforever.client.preferences.LocalizationPrefs;
 import com.faforever.client.preferences.NotificationsPrefs;
 import com.faforever.client.preferences.Preferences;
@@ -22,6 +23,7 @@ import com.faforever.client.preferences.Preferences.UnitDataBaseType;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TimeInfo;
 import com.faforever.client.preferences.ToastPosition;
+import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.preferences.WindowPrefs;
 import com.faforever.client.settings.LanguageItemController;
 import com.faforever.client.theme.Theme;
@@ -36,24 +38,37 @@ import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableArray;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.Cell;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.PasswordField;
+import javafx.scene.control.TableColumn.CellEditEvent;
+import javafx.scene.control.TablePosition;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TableColumn;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
+import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.util.StringConverter;
@@ -65,7 +80,9 @@ import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.NumberFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -97,7 +114,10 @@ public class SettingsController implements Controller<Node> {
   public Toggle defaultColorsToggle;
   public CheckBox hideFoeToggle;
   public CheckBox forceRelayToggle;
-  public TextField gameLocationTextField;
+  public TableView<TotalAnnihilationPrefs> gameLocationTableView;
+  public TableColumn<TotalAnnihilationPrefs, String> gameLocationModTableColumn;
+  public TableColumn<TotalAnnihilationPrefs, String> gameLocationExecutableTableColumn;
+  public TableColumn<TotalAnnihilationPrefs, String> gameLocationCommandLineOptionsTableColumn;
   public CheckBox autoDownloadMapsToggle;
   public TextField maxMessagesTextField;
   public CheckBox imagePreviewToggle;
@@ -294,12 +314,25 @@ public class SettingsController implements Controller<Node> {
 
     notifyOnAtMentionOnlyToggle.selectedProperty().bindBidirectional(preferences.getNotification().notifyOnAtMentionOnlyEnabledProperty());
     enableSoundsToggle.selectedProperty().bindBidirectional(preferences.getNotification().soundsEnabledProperty());
-    forceRelayToggle.selectedProperty().bindBidirectional(preferences.getForgedAlliance().forceRelayProperty());
-    gameLocationTextField.textProperty().bindBidirectional(preferences.getForgedAlliance().installationPathProperty(), PATH_STRING_CONVERTER);
-    autoDownloadMapsToggle.selectedProperty().bindBidirectional(preferences.getForgedAlliance().autoDownloadMapsProperty());
+    gameLocationModTableColumn.setCellValueFactory(new PropertyValueFactory<>("getModName"));
+    gameLocationExecutableTableColumn.setCellValueFactory(new PropertyValueFactory<>("getInstalledPath"));
+    gameLocationCommandLineOptionsTableColumn.setCellValueFactory(new PropertyValueFactory<>("getCommandLineOptions"));
 
-    executableDecoratorField.textProperty().bindBidirectional(preferences.getForgedAlliance().executableDecoratorProperty());
-    executionDirectoryField.textProperty().bindBidirectional(preferences.getForgedAlliance().executionDirectoryProperty(), PATH_STRING_CONVERTER);
+//    gameLocationExecutableTableColumn.setCellFactory(TextFieldTableCell.forTableColumn());
+//    gameLocationExecutableTableColumn.setOnEditCommit(
+//        t -> t.getTableView()
+//            .getItems()
+//            .get(t.getTablePosition().getRow())
+//            .setInstalledPath(Paths.get(t.getNewValue())));
+//
+//    gameLocationCommandLineOptionsTableColumn.setCellFactory(TextFieldTableCell.forTableColumn());
+//    gameLocationCommandLineOptionsTableColumn.setOnEditCommit(
+//       t -> t.getTableView()
+//            .getItems()
+//            .get(t.getTablePosition().getRow())
+//            .setCommandLineOptions(t.getNewValue()));
+
+    updateGameLocationTable();
 
     backgroundImageLocation.textProperty().bindBidirectional(preferences.getMainWindow().backgroundImagePathProperty(), PATH_STRING_CONVERTER);
 
@@ -312,12 +345,6 @@ public class SettingsController implements Controller<Node> {
     autoChannelListView.getItems().addListener((ListChangeListener<String>) c -> preferencesService.storeInBackground());
     autoChannelListView.managedProperty().bind(autoChannelListView.visibleProperty());
     autoChannelListView.visibleProperty().bind(Bindings.createBooleanBinding(() -> !autoChannelListView.getItems().isEmpty(), autoChannelListView.getItems()));
-
-    secondaryVaultLocationToggle.setSelected(preferences.getForgedAlliance().getVaultBaseDirectory().equals(preferencesService.getSecondaryVaultLocation()));
-    secondaryVaultLocationToggle.selectedProperty().addListener(observable -> {
-      Path vaultBaseDirectory = secondaryVaultLocationToggle.isSelected() ? preferencesService.getSecondaryVaultLocation() : preferencesService.getPrimaryVaultLocation();
-      preferences.getForgedAlliance().setVaultBaseDirectory(vaultBaseDirectory);
-    });
 
     advancedIceLogToggle.selectedProperty().bindBidirectional(preferences.advancedIceLogEnabledProperty());
 
@@ -333,6 +360,11 @@ public class SettingsController implements Controller<Node> {
     String username = userService.getUsername();
     notifyAtMentionTitle.setText(i18n.get("settings.chat.notifyOnAtMentionOnly", "@" + username));
     notifyAtMentionDescription.setText(i18n.get("settings.chat.notifyOnAtMentionOnly.description", "@" + username));
+  }
+
+  public void updateGameLocationTable()
+  {
+    gameLocationTableView.setItems(preferencesService.getTotalAnnihilationAllMods());
   }
 
   private void configureStartTab(Preferences preferences) {
@@ -466,7 +498,15 @@ public class SettingsController implements Controller<Node> {
   }
 
   public void onSelectGameLocation() {
-    eventBus.post(new GameDirectoryChooseEvent());
+    int index = gameLocationTableView.getSelectionModel().selectedIndexProperty().get();
+    final String modTechnical;
+    if (gameLocationModTableColumn.getCellObservableValue(index) == null) {
+      modTechnical = KnownFeaturedMod.DEFAULT.getTechnicalName();
+    }
+    else {
+      modTechnical = ((SimpleStringProperty)gameLocationModTableColumn.getCellObservableValue(index)).get();
+    }
+    eventBus.post(new GameDirectoryChooseEvent(modTechnical));
   }
 
   public void onSelectExecutionDirectory() {

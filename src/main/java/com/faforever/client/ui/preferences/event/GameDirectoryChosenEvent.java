@@ -11,5 +11,7 @@ import java.util.concurrent.CompletableFuture;
 public class GameDirectoryChosenEvent {
   @Nullable
   private Path path;
+  String commandLineOptions;
   private Optional<CompletableFuture<Path>> future;
+  private String modTechnicalName;
 }

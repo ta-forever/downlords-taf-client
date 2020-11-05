@@ -3,15 +3,16 @@ package com.faforever.client.rankedmatch;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.game.Faction;
 import com.faforever.client.game.GameService;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.LeaderboardEntry;
 import com.faforever.client.leaderboard.LeaderboardService;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
-import com.faforever.client.preferences.ForgedAlliancePrefs;
 import com.faforever.client.preferences.Ladder1v1Prefs;
 import com.faforever.client.preferences.Preferences;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.preferences.event.MissingGamePathEvent;
 import com.faforever.client.rankedmatch.MatchmakerInfoMessage.MatchmakerQueue.QueueName;
 import com.faforever.client.remote.FafService;
@@ -42,7 +43,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
-
 import static com.faforever.client.theme.UiService.LADDER_LOADING_GIF;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -79,7 +79,7 @@ public class Ladder1V1ControllerTest extends AbstractPlainJavaFxTest {
   @Mock
   private Ladder1v1Prefs ladder1V1Prefs;
   @Mock
-  private ForgedAlliancePrefs forgedAlliancePrefs;
+  private TotalAnnihilationPrefs totalAnnihilationPrefs;
   @Mock
   private FafService fafService;
 
@@ -113,7 +113,7 @@ public class Ladder1V1ControllerTest extends AbstractPlainJavaFxTest {
     when(preferencesService.getPreferences()).thenReturn(preferences);
     when(preferences.getLadder1v1Prefs()).thenReturn(ladder1V1Prefs);
     when(ladder1V1Prefs.getFactions()).thenReturn(factionList);
-    when(preferences.getForgedAlliance()).thenReturn(forgedAlliancePrefs);
+    when(preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(totalAnnihilationPrefs);
     when(playerService.getCurrentPlayer()).thenReturn(Optional.ofNullable(currentPlayerProperty.get()));
     when(playerService.currentPlayerProperty()).thenReturn(currentPlayerProperty);
     when(uiService.getThemeFile(LADDER_LOADING_GIF)).thenReturn(new ClassPathResource(LADDER_LOADING_GIF).getURL().toString());
@@ -164,7 +164,7 @@ public class Ladder1V1ControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testOnPlayButtonClicked() throws Exception {
-    when(forgedAlliancePrefs.getInstallationPath()).thenReturn(Paths.get("."));
+    when(totalAnnihilationPrefs.getInstalledPath()).thenReturn(Paths.get("."));
 
     instance.aeonButton.setSelected(true);
     instance.onFactionButtonClicked();
@@ -184,12 +184,12 @@ public class Ladder1V1ControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testOnPlayButtonClickedWithNoGamePath() throws Exception {
-    when(forgedAlliancePrefs.getInstallationPath()).thenReturn(null);
+    when(totalAnnihilationPrefs.getInstalledPath()).thenReturn(null);
 
     instance.onPlayButtonClicked();
 
     verify(gameService, never()).startSearchLadder1v1(any());
-    verify(eventBus).post(new MissingGamePathEvent(true));
+    verify(eventBus).post(new MissingGamePathEvent(true, KnownFeaturedMod.DEFAULT.getTechnicalName()));
 
     assertThat(instance.cancelButton.isVisible(), is(false));
     assertThat(instance.playButton.isVisible(), is(true));

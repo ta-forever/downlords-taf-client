@@ -17,6 +17,7 @@ import com.sun.jna.platform.win32.Shell32Util;
 import com.sun.jna.platform.win32.ShlObj;
 import javafx.application.Platform;
 import javafx.beans.property.Property;
+import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
@@ -61,13 +62,12 @@ import java.util.concurrent.CountDownLatch;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import static com.faforever.client.preferences.TotalAnnihilationPrefs.TOTAL_ANNIHILATION_EXE;
 import static com.github.nocatch.NoCatch.noCatch;
 
 @Lazy
 @Service
 public class PreferencesService implements InitializingBean {
-
-  public static final String TOTAL_ANNIHILATION_EXE = "TotalA.exe";
 
   /**
    * Points to the FAF data directory where log files, config files and others are held. The returned value varies
@@ -161,13 +161,6 @@ public class PreferencesService implements InitializingBean {
     } else {
       preferences = new Preferences();
     }
-
-    Path gamePrefs = preferences.getForgedAlliance().getPreferencesFile();
-    if (Files.notExists(gamePrefs)) {
-      logger.info("Initializing game preferences file: {}", gamePrefs);
-      Files.createDirectories(gamePrefs.getParent());
-      Files.copy(getClass().getResourceAsStream("/game.prefs"), gamePrefs);
-    }
   }
 
   /**
@@ -175,11 +168,19 @@ public class PreferencesService implements InitializingBean {
    * migrations.
    */
   private void migratePreferences(Preferences preferences) {
-    if (preferences.getForgedAlliance().getPath() != null) {
-      preferences.getForgedAlliance().setInstallationPath(preferences.getForgedAlliance().getPath());
-      preferences.getForgedAlliance().setPath(null);
-    }
-    storeInBackground();
+
+//    preferences.getTotalAnnihilationAllMods().forEach(
+//        (TotalAnnihilationPrefs prefs) -> {
+//          if (prefs.getInstalledPath() != null) {
+//            TotalAnnihilationPrefs thisPrefs = this.getTotalAnnihilation(prefs.getModName());
+//            thisPrefs.setModName(prefs.getModName());
+//            thisPrefs.setInstalledPath(prefs.getInstalledPath());
+//            thisPrefs.setCommandLineOptions(prefs.getCommandLineOptions());
+//          }
+//        }
+//    );
+//
+//    storeInBackground();
   }
 
   public static void configureLogging() {
@@ -211,20 +212,6 @@ public class PreferencesService implements InitializingBean {
 
   public Path getIceAdapterLogDirectory() {
     return getFafLogDirectory().resolve("iceAdapterLogs");
-  }
-
-  /**
-   * This is the fall back location for the vault, it is set when for some reasons the game can not find the files in
-   * the "My Documents" folder.
-   *
-   * @see com.faforever.client.vault.VaultFileSystemLocationChecker
-   */
-  public Path getSecondaryVaultLocation() {
-    return Paths.get(TAF_DATA_DIRECTORY.toAbsolutePath().toString(), "user", "My Games", "Gas Powered Games", "Supreme Commander Forged Alliance");
-  }
-
-  public Path getPrimaryVaultLocation() {
-    return ForgedAlliancePrefs.CAVEDOG_TA_PATH;
   }
 
   public Path getPatchReposDirectory() {
@@ -263,9 +250,6 @@ public class PreferencesService implements InitializingBean {
 
     }
 
-    if (preferences != null) {
-      preferences.getForgedAlliance().bindVaultPath();
-    }
   }
 
   public Preferences getPreferences() {
@@ -368,8 +352,8 @@ public class PreferencesService implements InitializingBean {
   }
 
   @SneakyThrows
-  public boolean isGamePathValid() {
-    return isGamePathValidWithError(preferences.getForgedAlliance().getInstallationPath()) == null;
+  public boolean isGamePathValid(String modTechnicalName) {
+    return isGamePathValidWithError(preferences.getTotalAnnihilation(modTechnicalName).getInstalledPath()) == null;
   }
 
   public String isGamePathValidWithError(Path installationPath) throws IOException, NoSuchAlgorithmException {
@@ -439,5 +423,15 @@ public class PreferencesService implements InitializingBean {
         throw new CompletionException(e);
       }
     });
+  }
+
+  public TotalAnnihilationPrefs getTotalAnnihilation(String modTechnical) {
+    TotalAnnihilationPrefs prefs = preferences.getTotalAnnihilation(modTechnical);
+    logger.info("getTotalAnnihilation({}) -> prefs.getModName():{}", modTechnical, prefs.getModName());
+    return prefs;
+  }
+
+  public ObservableList<TotalAnnihilationPrefs> getTotalAnnihilationAllMods() {
+    return preferences.getTotalAnnihilationAllMods();
   }
 }

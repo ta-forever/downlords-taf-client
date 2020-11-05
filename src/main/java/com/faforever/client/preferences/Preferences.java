@@ -1,6 +1,7 @@
 package com.faforever.client.preferences;
 
 import com.faforever.client.game.GamesTilesContainerController.TilesSortingOrder;
+import com.faforever.client.game.KnownFeaturedMod;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ListProperty;
 import javafx.beans.property.MapProperty;
@@ -17,9 +18,9 @@ import javafx.collections.ObservableMap;
 import javafx.scene.control.TableColumn.SortType;
 import javafx.util.Pair;
 import lombok.Getter;
-
 import java.net.HttpCookie;
 import java.net.URI;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 
 import static javafx.collections.FXCollections.observableArrayList;
@@ -30,7 +31,7 @@ public class Preferences {
 
   private final WindowPrefs mainWindow;
   private final GeneratorPrefs generatorPrefs;
-  private final ForgedAlliancePrefs forgedAlliance;
+  private final ListProperty<TotalAnnihilationPrefs> totalAnnihilation;
   private final LoginPrefs login;
   private final ChatPrefs chat;
   private final NotificationsPrefs notification;
@@ -63,7 +64,7 @@ public class Preferences {
     localization = new LocalizationPrefs();
     lastGamePrefs = new LastGamePrefs();
     mainWindow = new WindowPrefs();
-    forgedAlliance = new ForgedAlliancePrefs();
+    totalAnnihilation = new SimpleListProperty<TotalAnnihilationPrefs>(FXCollections.observableArrayList());
     themeName = new SimpleStringProperty(DEFAULT_THEME_NAME);
     ignoredNotifications = new SimpleListProperty<>(observableArrayList());
     notification = new NotificationsPrefs();
@@ -128,8 +129,23 @@ public class Preferences {
     return localization;
   }
 
-  public ForgedAlliancePrefs getForgedAlliance() {
-    return forgedAlliance;
+  public ObservableList<TotalAnnihilationPrefs> getTotalAnnihilationAllMods() { return totalAnnihilation; }
+
+  public TotalAnnihilationPrefs getTotalAnnihilation(String modTechnical) {
+
+    String baseGameName = KnownFeaturedMod.fromString(modTechnical).getBaseGameName();
+    if (baseGameName == null) {
+      baseGameName = modTechnical;
+    }
+
+    for (TotalAnnihilationPrefs pref: totalAnnihilation) {
+      if (pref.getModName().equals(baseGameName)) {
+        return pref;
+      }
+    }
+    TotalAnnihilationPrefs pref = new TotalAnnihilationPrefs(baseGameName, null, "");
+    totalAnnihilation.add(pref);
+    return pref;
   }
 
   public LoginPrefs getLogin() {

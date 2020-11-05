@@ -5,10 +5,15 @@ import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.Severity;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.preferences.event.MissingGamePathEvent;
 import com.faforever.client.ui.preferences.event.GameDirectoryChosenEvent;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
+import com.sun.jna.Platform;
+import com.sun.jna.platform.win32.Advapi32Util;
+import com.sun.jna.platform.win32.WinReg;
+import javafx.scene.control.TextInputDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
@@ -26,13 +31,18 @@ import java.util.concurrent.CompletableFuture;
 
 @Component
 public class GamePathHandler implements InitializingBean {
+  private static final String DIRECTPLAY_TOTAL_ANNIHILATION_REGKEY = "SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Applications\\Total Annihilation";
+
   private static final Collection<Path> USUAL_GAME_PATHS = Arrays.asList(
-      Paths.get(System.getenv("ProgramFiles") + "\\THQ\\Gas Powered Games\\Supreme Commander - Forged Alliance"),
-      Paths.get(System.getenv("ProgramFiles") + " (x86)\\THQ\\Gas Powered Games\\Supreme Commander - Forged Alliance"),
-      Paths.get(System.getenv("ProgramFiles") + " (x86)\\Steam\\steamapps\\common\\supreme commander forged alliance"),
-      Paths.get(System.getProperty("user.home"), ".steam", "steam", "steamapps", "common", "Supreme Commander Forged Alliance"),
-      Paths.get(System.getenv("ProgramFiles") + "\\Supreme Commander - Forged Alliance")
-  );
+      Platform.isWindows() && Advapi32Util.registryKeyExists(WinReg.HKEY_LOCAL_MACHINE, DIRECTPLAY_TOTAL_ANNIHILATION_REGKEY) ?
+          Paths.get(Advapi32Util.registryGetStringValue(WinReg.HKEY_LOCAL_MACHINE, DIRECTPLAY_TOTAL_ANNIHILATION_REGKEY, "Path")) : null,
+      Platform.isWindows() && Advapi32Util.registryKeyExists(WinReg.HKEY_LOCAL_MACHINE, DIRECTPLAY_TOTAL_ANNIHILATION_REGKEY) ?
+          Paths.get(Advapi32Util.registryGetStringValue(WinReg.HKEY_LOCAL_MACHINE, DIRECTPLAY_TOTAL_ANNIHILATION_REGKEY, "CurrentDirectory")) : null,
+      Paths.get(System.getProperty("user.home"), "GOG Games", "Total Annihilation"), // @todo verify default GOG install path
+      Paths.get(System.getProperty("user.home"), ".steam", "steam", "steamapps", "common", "Total Annihilation"), // @todo verify default steam install path
+      Paths.get("C:\\CAVEDOG\\TOTALA"),
+      Paths.get("D:\\CAVEDOG\\TOTALA")
+      );
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private final NotificationService notificationService;
   private final I18n i18n;
@@ -58,7 +68,10 @@ public class GamePathHandler implements InitializingBean {
    */
   @Subscribe
   public void onGameDirectoryChosenEvent(GameDirectoryChosenEvent event) {
-    Path gamePath = event.getPath();
+    final String modTechnical = event.getModTechnicalName();
+    final Path gamePath = event.getPath();
+    final String commandLineOptions = event.getCommandLineOptions();
+
     Optional<CompletableFuture<Path>> future = event.getFuture();
 
     if (gamePath == null) {
@@ -81,31 +94,33 @@ public class GamePathHandler implements InitializingBean {
       return;
     }
 
-
     logger.info("Found game path at {}", gamePath);
-    preferencesService.getPreferences().getForgedAlliance().setInstallationPath(gamePath);
+    final TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
+    prefs.setInstalledPath(gamePath);
+    prefs.setCommandLineOptions(commandLineOptions);
+
     preferencesService.storeInBackground();
     future.ifPresent(pathCompletableFuture -> pathCompletableFuture.complete(gamePath));
   }
 
 
-  private void detectGamePath() {
+  private void detectGamePath(String modTechnical) {
     for (Path path : USUAL_GAME_PATHS) {
-      if (preferencesService.isGamePathValid(path.resolve("bin"))) {
-        onGameDirectoryChosenEvent(new GameDirectoryChosenEvent(path, Optional.empty()));
+      if (path != null && preferencesService.isGamePathValid(path)) {
+        onGameDirectoryChosenEvent(new GameDirectoryChosenEvent(path, "", Optional.empty(), modTechnical));
         return;
       }
     }
 
     logger.info("Game path could not be detected");
-    eventBus.post(new MissingGamePathEvent());
+    eventBus.post(new MissingGamePathEvent(modTechnical));
   }
 
-  public void detectAndUpdateGamePath() {
-    Path faPath = preferencesService.getPreferences().getForgedAlliance().getInstallationPath();
-    if (faPath == null || Files.notExists(faPath)) {
+  public void detectAndUpdateGamePath(String modTechnical) {
+    Path taExePath = preferencesService.getTotalAnnihilation(modTechnical).getExecutable();
+    if (taExePath == null || Files.notExists(taExePath)) {
       logger.info("Game path is not specified or non-existent, trying to detect");
-      detectGamePath();
+      detectGamePath(modTechnical);
     }
   }
 }

@@ -14,7 +14,7 @@
                 <Tab fx:id="ladderTab" text="%play.ranked1v1">
                     <fx:include fx:id="ladder" source="ranked_1v1.fxml" />
                 </Tab>
-                <Tab fx:id="coopTab" text="%play.coop">
+                <Tab fx:id="coopTab" disable="true" text="%play.coop">
                     <fx:include fx:id="coop" source="coop/coop.fxml" />
                 </Tab>
             </tabs>

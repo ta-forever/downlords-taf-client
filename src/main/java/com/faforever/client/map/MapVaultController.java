@@ -1,6 +1,7 @@
 package com.faforever.client.map;
 
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.main.event.OpenMapVaultEvent;
@@ -115,7 +116,7 @@ public class MapVaultController extends VaultEntityController<MapBean> {
   public void onUploadButtonClicked() {
     Platform.runLater(() -> {
       DirectoryChooser directoryChooser = new DirectoryChooser();
-      directoryChooser.setInitialDirectory(preferencesService.getPreferences().getForgedAlliance().getCustomMapsDirectory().toFile());
+      directoryChooser.setInitialDirectory(preferencesService.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).getInstalledPath().toFile());
       directoryChooser.setTitle(i18n.get("mapVault.upload.chooseDirectory"));
       File result = directoryChooser.showDialog(getRoot().getScene().getWindow());
 

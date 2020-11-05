@@ -105,7 +105,7 @@ public class GameTileController implements Controller<Node> {
 
     // TODO display "unknown map" image first since loading may take a while
     mapImageView.imageProperty().bind(createObjectBinding(
-        () -> mapService.loadPreview(game.getMapFolderName(), PreviewSize.SMALL),
+        () -> mapService.loadPreview(game.getFeaturedMod(), game.getMapFolderName(), PreviewSize.SMALL),
         game.mapFolderNameProperty()
     ));
 

@@ -4,7 +4,7 @@ import com.faforever.client.game.KnownFeaturedMod;
 import lombok.Getter;
 
 public enum RatingMode {
-  GLOBAL("userInfo.ratingHistory.global", KnownFeaturedMod.FAF),
+  GLOBAL("userInfo.ratingHistory.global", KnownFeaturedMod.TACC),
   LADDER_1V1("userInfo.ratingHistory.1v1", KnownFeaturedMod.LADDER_1V1),
   NONE("", null);
 

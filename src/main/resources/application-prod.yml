@@ -1,31 +1,31 @@
 faf-client:
   server:
-    host: lobby.faforever.com
+    host: lobby.taforever.com
 
   irc:
-    host: irc.faforever.com
+    host: irc.taforever.com
 
   vault:
-    base-url: https://content.faforever.com
-    replay-download-url-format: https://replay.faforever.com/%s
+    base-url: https://content.taforever.com
+    replay-download-url-format: https://replay.taforever.com/%s
 
   news:
-    feed-url: https://direct.faforever.com/news/feed
+    feed-url: https://direct.taforever.com/news/feed
 
   replay:
-    remote-host: lobby.faforever.com
+    remote-host: lobby.taforever.com
 
   website:
-    base-url: https://www.faforever.com
+    base-url: https://www.taforever.com
 
   api:
-    base-url: https://api.faforever.com
+    base-url: https://api.taforever.com
     client-id: 3bc8282c-7730-11e5-8bcf-feff819cdc9f
     client-secret: 6035bd78-7730-11e5-8bcf-feff819cdc9f
 
-  status-page-url: https://statuspage.faforever.com
+  status-page-url: https://statuspage.taforever.com
 
   forged-alliance:
-    exe-url: https://content.faforever.com/faf/updaterNew/updates_faf_files/ForgedAlliance.exe
+    exe-url: https://content.taforever.com/faf/updaterNew/updates_faf_files/ForgedAlliance.exe
 
   use-remote-preferences: true

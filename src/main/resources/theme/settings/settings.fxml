@@ -13,6 +13,8 @@
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.ToggleGroup?>
 <?import javafx.scene.layout.ColumnConstraints?>
@@ -486,7 +488,7 @@
                             <content>
                         <VBox styleClass="view-content">
                            <children>
-                              <GridPane styleClass="setting-container">
+                              <GridPane styleClass="setting-container" visible="false">
                                  <columnConstraints>
                                     <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
                                     <ColumnConstraints halignment="RIGHT" hgrow="SOMETIMES" minWidth="10.0" />
@@ -511,12 +513,16 @@
                                     <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
                                  </rowConstraints>
                                  <children>
-                                    <Label contentDisplay="RIGHT" maxWidth="1.7976931348623157E308" styleClass="setting-title" text="%settings.fa.gameLocation" />
-                                              <TextField fx:id="gameLocationTextField" promptText="%settings.fa.useDefault" GridPane.rowIndex="1" />
-                                              <Button mnemonicParsing="false" onAction="#onSelectGameLocation" text="%settings.fa.chooseDirectory" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                                    <TableView fx:id="gameLocationTableView" onMouseClicked="#onSelectGameLocation" prefHeight="200.0" prefWidth="200.0">
+                                      <columns>
+                                        <TableColumn fx:id="gameLocationModTableColumn" editable="false" prefWidth="75.0" text="Mod" />
+                                        <TableColumn fx:id="gameLocationExecutableTableColumn" editable="false" prefWidth="277.0" text="Installed Path" />
+                                          <TableColumn fx:id="gameLocationCommandLineOptionsTableColumn" editable="false" prefWidth="217.0" text="Command Line Options" />
+                                      </columns>
+                                    </TableView>
                                  </children>
                               </GridPane>
-                              <GridPane styleClass="setting-container">
+                              <GridPane styleClass="setting-container" visible="false">
                                  <columnConstraints>
                                     <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
                                     <ColumnConstraints halignment="RIGHT" hgrow="SOMETIMES" minWidth="10.0" />
@@ -531,7 +537,7 @@
                                               <CheckBox fx:id="autoDownloadMapsToggle" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" GridPane.columnIndex="1" />
                                  </children>
                               </GridPane>
-                              <GridPane styleClass="setting-container">
+                              <GridPane styleClass="setting-container" visible="false">
                                  <columnConstraints>
                                     <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
                                  </columnConstraints>
@@ -546,7 +552,7 @@
                                               <TextField fx:id="executableDecoratorField" promptText="&quot;%s&quot;" GridPane.rowIndex="2" />
                                  </children>
                               </GridPane>
-                              <GridPane hgap="10.0" styleClass="setting-container">
+                              <GridPane hgap="10.0" styleClass="setting-container" visible="false">
                                  <columnConstraints>
                                     <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
                                     <ColumnConstraints minWidth="10.0" />

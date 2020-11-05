@@ -33,7 +33,6 @@ import org.testfx.util.WaitForAsyncUtils;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
-
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -96,11 +95,11 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
     mapList = FXCollections.observableArrayList();
 
     preferences = new Preferences();
-    preferences.getForgedAlliance().setInstallationPath(Paths.get("."));
+    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledPath(Paths.get("."));
     when(preferencesService.getPreferences()).thenReturn(preferences);
     when(mapService.getInstalledMaps()).thenReturn(mapList);
     when(modService.getFeaturedMods()).thenReturn(CompletableFuture.completedFuture(emptyList()));
-    when(mapService.loadPreview(anyString(), any())).thenReturn(new Image("/theme/images/default_achievement.png"));
+    when(mapService.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), anyString(), any())).thenReturn(new Image("/theme/images/default_achievement.png"));
     when(i18n.get(any(), any())).then(invocation -> invocation.getArgument(0));
     when(i18n.number(anyInt())).then(invocation -> invocation.getArgument(0).toString());
     when(fafService.connectionStateProperty()).thenReturn(new SimpleObjectProperty<>(ConnectionState.CONNECTED));
@@ -181,7 +180,7 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
   @Test
   public void testSetLastGameTitle() {
     preferences.getLastGamePrefs().setLastGameTitle("testGame");
-    preferences.getForgedAlliance().setInstallationPath(Paths.get(""));
+    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledPath(Paths.get(""));
 
     WaitForAsyncUtils.asyncFx(() -> instance.initialize());
     WaitForAsyncUtils.waitForFxEvents();
@@ -194,7 +193,7 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
   public void testButtonBindingIfFeaturedModNotSet() {
     preferences.getLastGamePrefs().setLastGameTitle("123");
     when(i18n.get("game.create.featuredModMissing")).thenReturn("Mod missing");
-    preferences.getForgedAlliance().setInstallationPath(Paths.get(""));
+    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledPath(Paths.get(""));
     WaitForAsyncUtils.asyncFx(() -> instance.initialize());
     WaitForAsyncUtils.waitForFxEvents();
 
@@ -206,7 +205,7 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
   public void testButtonBindingIfTitleNotSet() {
 
     when(i18n.get("game.create.titleMissing")).thenReturn("title missing");
-    preferences.getForgedAlliance().setInstallationPath(Paths.get(""));
+    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledPath(Paths.get(""));
     WaitForAsyncUtils.asyncFx(() -> instance.initialize());
     WaitForAsyncUtils.waitForFxEvents();
 
@@ -218,7 +217,7 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
   public void testButtonBindingIfNotConnected() {
     when(fafService.connectionStateProperty()).thenReturn(new SimpleObjectProperty<>(ConnectionState.DISCONNECTED));
     when(i18n.get("game.create.disconnected")).thenReturn("disconnected");
-    preferences.getForgedAlliance().setInstallationPath(Paths.get(""));
+    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledPath(Paths.get(""));
     WaitForAsyncUtils.asyncFx(() -> instance.initialize());
     WaitForAsyncUtils.waitForFxEvents();
 
@@ -230,7 +229,7 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
   public void testButtonBindingIfNotConnecting() {
     when(fafService.connectionStateProperty()).thenReturn(new SimpleObjectProperty<>(ConnectionState.CONNECTING));
     when(i18n.get("game.create.connecting")).thenReturn("connecting");
-    preferences.getForgedAlliance().setInstallationPath(Paths.get(""));
+    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledPath(Paths.get(""));
     WaitForAsyncUtils.asyncFx(() -> instance.initialize());
     WaitForAsyncUtils.waitForFxEvents();
 

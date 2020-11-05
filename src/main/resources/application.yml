@@ -44,7 +44,7 @@ faf-client:
     minSupportedMajorVersion: 0
 
   translation-project-url: https://poeditor.com/join/project/2oWfdaZQZj
-  client-config-url: https://content.faforever.com/dfc-config.json
+  client-config-url: https://content.taforever.com/dfc-config.json
   client-config-connect-timeout: 10s
   show-ice-adapter-debug-Window: ${SHOW_ICE_ADAPTER_DEBUG_WINDOW:false}
 

@@ -68,6 +68,7 @@ import static com.faforever.client.game.Faction.AEON;
 import static com.faforever.client.game.Faction.CYBRAN;
 import static com.faforever.client.game.Faction.SERAPHIM;
 import static com.faforever.client.game.Faction.UEF;
+import static com.faforever.client.game.KnownFeaturedMod.LADDER_1V1;
 
 @Component
 @Lazy
@@ -154,7 +155,7 @@ public class Ladder1v1Controller extends AbstractViewController<Node> implements
     playButton.setDisable(factionsToButtons.values().stream().noneMatch(ToggleButton::isSelected));
 
     preferenceUpdateListener = preferences -> {
-      if (preferencesService.getPreferences().getForgedAlliance().getInstallationPath() == null) {
+      if (preferencesService.getTotalAnnihilation(LADDER_1V1.getTechnicalName()).getInstalledPath() == null) {
         onCancelButtonClicked();
       }
     };
@@ -228,8 +229,8 @@ public class Ladder1v1Controller extends AbstractViewController<Node> implements
   }
 
   public void onPlayButtonClicked() {
-    if (preferencesService.getPreferences().getForgedAlliance().getInstallationPath() == null) {
-      eventBus.post(new MissingGamePathEvent(true));
+    if (preferencesService.getTotalAnnihilation(LADDER_1V1.getTechnicalName()).getInstalledPath() == null) {
+      eventBus.post(new MissingGamePathEvent(true, LADDER_1V1.getTechnicalName()));
       return;
     }
 

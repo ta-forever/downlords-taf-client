@@ -1,6 +1,7 @@
 package com.faforever.client.vault.replay;
 
 import com.faforever.client.fx.AbstractViewController;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.LocalReplaysChangedEvent;
 import com.faforever.client.main.event.NavigateEvent;
@@ -201,7 +202,6 @@ public class ReplayVaultController extends AbstractViewController<Node> {
       @Override
       protected void updateItem(MapBean map, boolean empty) {
         super.updateItem(map, empty);
-
         if (empty) {
           setText(null);
           setGraphic(null);
@@ -209,7 +209,7 @@ public class ReplayVaultController extends AbstractViewController<Node> {
           setGraphic(null);
           setText(i18n.get("map.unknown"));
         } else {
-          imageView.setImage(mapService.loadPreview(map.getFolderName(), PreviewSize.SMALL));
+          imageView.setImage(mapService.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), map.getFolderName(), PreviewSize.SMALL));
           setGraphic(imageView);
           setText(map.getDisplayName());
         }

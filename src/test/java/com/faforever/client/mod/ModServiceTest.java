@@ -1,12 +1,13 @@
 package com.faforever.client.mod;
 
 import com.faforever.client.fx.PlatformService;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.mod.ModVersion.ModType;
 import com.faforever.client.notification.NotificationService;
-import com.faforever.client.preferences.ForgedAlliancePrefs;
 import com.faforever.client.preferences.Preferences;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.remote.AssetService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.task.TaskService;
@@ -37,13 +38,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -80,7 +77,7 @@ public class ModServiceTest {
   @Mock
   private Preferences preferences;
   @Mock
-  private ForgedAlliancePrefs forgedAlliancePrefs;
+  private TotalAnnihilationPrefs totalAnnihilationPrefs;
   @Mock
   private ApplicationContext applicationContext;
   @Mock
@@ -108,10 +105,9 @@ public class ModServiceTest {
     gamePrefsPath = faDataDirectory.getRoot().toPath().resolve("game.prefs");
 
     when(preferencesService.getPreferences()).thenReturn(preferences);
-    when(preferences.getForgedAlliance()).thenReturn(forgedAlliancePrefs);
-    when(forgedAlliancePrefs.getPreferencesFile()).thenReturn(gamePrefsPath);
-    when(forgedAlliancePrefs.getModsDirectory()).thenReturn(modsDirectory.getRoot().toPath());
-    when(forgedAlliancePrefs.modsDirectoryProperty()).thenReturn(new SimpleObjectProperty<>(modsDirectory.getRoot().toPath()));
+    when(preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(totalAnnihilationPrefs);
+    when(totalAnnihilationPrefs.getInstalledPath()).thenReturn(modsDirectory.getRoot().toPath());
+    when(totalAnnihilationPrefs.getInstalledPathProperty()).thenReturn(new SimpleObjectProperty<>(modsDirectory.getRoot().toPath()));
     // FIXME how did that happen... I see this line many times but it doesn't seem to do anything useful
     doAnswer(invocation -> invocation.getArgument(0)).when(taskService).submitTask(any());
 
@@ -244,48 +240,6 @@ public class ModServiceTest {
   }
 
   @Test
-  public void testEnableSimModsClean() throws Exception {
-    Files.createFile(gamePrefsPath);
-
-    HashSet<String> simMods = new HashSet<>();
-    simMods.add("9e8ea941-c306-4751-b367-f00000000005");
-    simMods.add("9e8ea941-c306-4751-b367-a11000000502");
-    instance.enableSimMods(simMods);
-
-    List<String> lines = Files.readAllLines(gamePrefsPath);
-
-    assertThat(lines, contains(
-        "active_mods = {",
-        "    ['9e8ea941-c306-4751-b367-f00000000005'] = true,",
-        "    ['9e8ea941-c306-4751-b367-a11000000502'] = true",
-        "}"
-    ));
-  }
-
-  @Test
-  public void testEnableSimModsModDisableUnselectedMods() throws Exception {
-    Iterable<? extends CharSequence> lines = Arrays.asList(
-        "active_mods = {",
-        "    ['9e8ea941-c306-4751-b367-f00000000005'] = true,",
-        "    ['9e8ea941-c306-4751-b367-a11000000502'] = true",
-        "}"
-    );
-    Files.write(gamePrefsPath, lines);
-
-    HashSet<String> simMods = new HashSet<>();
-    simMods.add("9e8ea941-c306-4751-b367-a11000000502");
-    instance.enableSimMods(simMods);
-
-    lines = Files.readAllLines(gamePrefsPath);
-
-    assertThat(lines, contains(
-        "active_mods = {",
-        "    ['9e8ea941-c306-4751-b367-a11000000502'] = true",
-        "}"
-    ));
-  }
-
-  @Test
   public void testExtractModInfo() throws Exception {
     copyMod("BlackopsSupport", BLACKOPS_SUPPORT_MOD_INFO);
     copyMod("EM", ECO_MANAGER_MOD_INFO);
@@ -404,7 +358,7 @@ public class ModServiceTest {
   }
 
   private InstallModTask stubInstallModTask() {
-    return new InstallModTask(preferencesService, i18n) {
+    return new InstallModTask(platformService, preferencesService, i18n) {
       @Override
       protected Void call() {
         return null;

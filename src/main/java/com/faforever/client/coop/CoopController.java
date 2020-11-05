@@ -166,7 +166,7 @@ public class CoopController extends AbstractViewController<Node> {
         Platform.runLater(selectionModel::selectFirst);
       }
     }).exceptionally(throwable -> {
-      notificationService.addPersistentErrorNotification(throwable, "coop.couldNotLoad", throwable.getLocalizedMessage());
+      //notificationService.addPersistentErrorNotification(throwable, "coop.couldNotLoad", throwable.getLocalizedMessage());
       return null;
     });
   }
@@ -252,7 +252,7 @@ public class CoopController extends AbstractViewController<Node> {
   private void setSelectedMission(CoopMission mission) {
     Platform.runLater(() -> {
       descriptionWebView.getEngine().loadContent(mission.getDescription());
-      mapImageView.setImage(mapService.loadPreview(mission.getMapFolderName(), PreviewSize.SMALL));
+      mapImageView.setImage(mapService.loadPreview(COOP.getTechnicalName(), mission.getMapFolderName(), PreviewSize.SMALL));
     });
 
     loadLeaderboard();

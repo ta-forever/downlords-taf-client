@@ -2,6 +2,7 @@ package com.faforever.client.map.generator;
 
 import com.faforever.client.config.CacheNames;
 import com.faforever.client.config.ClientProperties;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.io.FileUtils;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.task.TaskService;
@@ -36,7 +37,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-
 import static com.github.nocatch.NoCatch.noCatch;
 
 @Lazy
@@ -89,7 +89,7 @@ public class MapGeneratorService implements InitializingBean {
 
     seedGenerator = new Random();
 
-    customMapsDirectory = this.preferencesService.getPreferences().getForgedAlliance().getCustomMapsDirectory();
+    customMapsDirectory = this.preferencesService.getPreferences().getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).getInstalledPath();
 
     try {
       generatedMapPreviewImage = new Image(new ClassPathResource("/images/generatedMapIcon.png").getURL().toString(), true);

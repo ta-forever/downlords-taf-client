@@ -115,7 +115,8 @@ public class GamesTableController implements Controller<Node> {
     mapPreviewColumn.setCellFactory(param -> new MapPreviewTableCell(uiService));
     passwordProtectionColumn.setVisible(preferencesService.getPreferences().isShowPasswordProtectedGames());
     mapPreviewColumn.setCellValueFactory(param -> Bindings.createObjectBinding(
-        () -> mapService.loadPreview(param.getValue().getMapFolderName(), PreviewSize.SMALL),
+        () -> mapService
+            .loadPreview(param.getValue().getFeaturedMod(), param.getValue().getMapFolderName(), PreviewSize.SMALL),
         param.getValue().mapFolderNameProperty()
     ));
 

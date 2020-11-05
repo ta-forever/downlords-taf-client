@@ -54,40 +54,7 @@ public class MapUploadTask extends CompletableTask<Void> implements Initializing
 
   @Override
   protected Void call() throws Exception {
-    Validator.notNull(mapPath, "mapPath must not be null");
-    Validator.notNull(isRanked, "isRanked must not be null");
-
-    ResourceLocks.acquireUploadLock();
-    Path cacheDirectory = preferencesService.getCacheDirectory();
-    Files.createDirectories(cacheDirectory);
-    Path tmpFile = createTempFile(cacheDirectory, "map", ".zip");
-
-    try {
-      logger.debug("Zipping map {} to {}", mapPath, tmpFile);
-      updateTitle(i18n.get("mapVault.upload.compressing"));
-
-      Locale locale = i18n.getUserSpecificLocale();
-      ByteCountListener byteListener = (written, total) -> {
-        updateMessage(i18n.get("bytesProgress", formatSize(written, locale), formatSize(total, locale)));
-        updateProgress(written, total);
-      };
-
-      try (OutputStream outputStream = newOutputStream(tmpFile)) {
-        Zipper.of(mapPath)
-            .to(outputStream)
-            .listener(byteListener)
-            .zip();
-      }
-
-      logger.debug("Uploading map {} as {}", mapPath, tmpFile);
-      updateTitle(i18n.get("mapVault.upload.uploading"));
-
-      fafApiAccessor.uploadMap(tmpFile, isRanked, byteListener);
       return null;
-    } finally {
-      Files.delete(tmpFile);
-      ResourceLocks.freeUploadLock();
-    }
   }
 
   public void setMapPath(Path mapPath) {

@@ -44,7 +44,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     lastTab = ladder1v1LeaderboardTab;
     lastTabController = ladder1v1LeaderboardController;
     ladder1v1LeaderboardController.setRatingType(KnownFeaturedMod.LADDER_1V1);
-    globalLeaderboardController.setRatingType(KnownFeaturedMod.FAF);
+    globalLeaderboardController.setRatingType(KnownFeaturedMod.TACC);
 
     leaderboardRoot.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
       if (isHandlingEvent) {

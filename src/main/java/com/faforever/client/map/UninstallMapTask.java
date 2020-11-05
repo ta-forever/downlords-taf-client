@@ -1,6 +1,7 @@
 package com.faforever.client.map;
 
 import com.faforever.client.io.FileUtils;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.task.CompletableTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,13 +21,15 @@ public class UninstallMapTask extends CompletableTask<Void> {
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   private final MapService mapService;
+  private final PreferencesService preferencesService;
 
   private MapBean map;
 
   @Inject
-  public UninstallMapTask(MapService mapService) {
+  public UninstallMapTask(MapService mapService, PreferencesService preferencesService) {
     super(Priority.LOW);
     this.mapService = mapService;
+    this.preferencesService = preferencesService;
   }
 
   public void setMap(MapBean map) {
@@ -35,13 +38,6 @@ public class UninstallMapTask extends CompletableTask<Void> {
 
   @Override
   protected Void call() throws Exception {
-    Objects.requireNonNull(map, "map has not been set");
-
-    logger.info("Uninstalling map '{}' ({})", map.getFolderName(), map.getId());
-    Path mapPath = mapService.getPathForMap(map);
-
-    FileUtils.deleteRecursively(mapPath);
-
     return null;
   }
 }

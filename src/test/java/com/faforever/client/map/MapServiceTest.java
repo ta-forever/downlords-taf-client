@@ -1,13 +1,14 @@
 package com.faforever.client.map;
 
 import com.faforever.client.config.ClientProperties;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapService.PreviewSize;
 import com.faforever.client.map.generator.MapGeneratorService;
 import com.faforever.client.player.PlayerService;
-import com.faforever.client.preferences.ForgedAlliancePrefs;
 import com.faforever.client.preferences.Preferences;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.remote.AssetService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.task.CompletableTask;
@@ -19,8 +20,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.collections.ObservableList;
 import javafx.scene.image.Image;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.junit.Before;
@@ -39,9 +38,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.isEmptyOrNullString;
@@ -76,7 +73,7 @@ public class MapServiceTest extends AbstractPlainJavaFxTest {
   @Mock
   private Preferences preferences;
   @Mock
-  private ForgedAlliancePrefs forgedAlliancePrefs;
+  private TotalAnnihilationPrefs totalAnnihilationPrefs;
   @Mock
   private ObjectProperty<Path> customMapsDirectoryProperty;
   @Mock
@@ -104,12 +101,9 @@ public class MapServiceTest extends AbstractPlainJavaFxTest {
     clientProperties.getVault().setMapPreviewUrlFormat("http://127.0.0.1:65534/preview/%s/%s");
 
     mapsDirectory = gameDirectory.newFolder("maps").toPath();
-    when(forgedAlliancePrefs.getCustomMapsDirectory()).thenReturn(customMapsDirectory.getRoot().toPath());
-    when(forgedAlliancePrefs.customMapsDirectoryProperty()).thenReturn(customMapsDirectoryProperty);
-    when(forgedAlliancePrefs.getInstallationPath()).thenReturn(gameDirectory.getRoot().toPath());
-    when(forgedAlliancePrefs.installationPathProperty()).thenReturn(new SimpleObjectProperty<>());
+    when(totalAnnihilationPrefs.getInstalledPath()).thenReturn(gameDirectory.getRoot().toPath());
     when(preferencesService.getPreferences()).thenReturn(preferences);
-    when(preferences.getForgedAlliance()).thenReturn(forgedAlliancePrefs);
+    when(preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(totalAnnihilationPrefs);
     instance = new MapService(preferencesService, taskService, applicationContext,
         fafService, assetService, i18n, uiService, mapGeneratorService, clientProperties, eventBus, playerService);
     instance.afterPropertiesSet();
@@ -207,7 +201,7 @@ public class MapServiceTest extends AbstractPlainJavaFxTest {
     for (PreviewSize previewSize : PreviewSize.values()) {
       Path cacheSubDir = Paths.get("maps").resolve(previewSize.folderName);
       when(assetService.loadAndCacheImage(any(URL.class), eq(cacheSubDir), any())).thenReturn(new Image("theme/images/unknown_map.png"));
-      instance.loadPreview("preview", previewSize);
+      instance.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), "preview", previewSize);
       verify(assetService).loadAndCacheImage(any(URL.class), eq(cacheSubDir), any());
     }
   }

@@ -155,7 +155,7 @@ public class GameDetailController implements Controller<Pane> {
         game.maxPlayersProperty()
     ));
     mapImageView.imageProperty().bind(createObjectBinding(
-        () -> mapService.loadPreview(game.getMapFolderName(), PreviewSize.LARGE),
+        () -> mapService.loadPreview(game.getFeaturedMod(), game.getMapFolderName(), PreviewSize.LARGE),
         game.mapFolderNameProperty()
     ));
 

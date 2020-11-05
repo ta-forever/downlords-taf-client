@@ -3,6 +3,7 @@ package com.faforever.client.fa;
 import com.faforever.client.game.Faction;
 import com.faforever.client.player.Player;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -36,21 +37,34 @@ public class TotalAnnihilationService {
 
   private final PreferencesService preferencesService;
 
-  public Process startGameOffline(List<String> args) throws IOException {
-    Path executable = getExecutable();
-    List<String> launchCommand = defaultLaunchCommand().build();
-    return launch(executable, launchCommand);
+
+  public Process startGameOffline(String modTechnical, List<String> args) throws IOException {
+
+    TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
+    Path launcherExecutable = getLauncherExectuable();
+    List<String> launchCommand = defaultLaunchCommand()
+        .gpgnet4taExecutable(launcherExecutable)
+        .modTechnical(modTechnical)
+        .gameInstalledPath(prefs.getInstalledPath())
+        .gameExecutable(prefs.TOTAL_ANNIHILATION_EXE)
+        .gameCommandLineOptions(prefs.getCommandLineOptions())
+        .build();
+    return launch(launcherExecutable.getParent(), launchCommand);
   }
 
-  public Process startGame(int uid, @Nullable Faction faction, @Nullable List<String> additionalArgs,
+
+  public Process startGame(String modTechnical, int uid, @Nullable Faction faction, @Nullable List<String> additionalArgs,
                            RatingMode ratingMode, int gpgPort, int localReplayPort, boolean rehost, Player currentPlayer) throws IOException {
 
-    Path executable = getExecutable();
+    TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
+    Path launcherExecutable = getLauncherExectuable();
     List<String> launchCommand = defaultLaunchCommand()
-        .executable(executable)
+        .gpgnet4taExecutable(launcherExecutable)
+        .modTechnical(modTechnical)
+        .gameInstalledPath(prefs.getInstalledPath())
+        .gameExecutable(prefs.TOTAL_ANNIHILATION_EXE)
+        .gameCommandLineOptions(prefs.getCommandLineOptions())
         .uid(uid)
-        .faction(faction)
-        .clan(currentPlayer.getClan())
         .country(currentPlayer.getCountry())
         .deviation(100.0f)
         .mean(1500.0f)
@@ -58,28 +72,42 @@ public class TotalAnnihilationService {
         .additionalArgs(additionalArgs)
         .logFile(preferencesService.getNewGameLogFile(uid))
         .localGpgPort(gpgPort)
-        .localReplayPort(localReplayPort)
-        .rehost(rehost)
         .build();
 
-    return launch(executable, launchCommand);
+    return launch(launcherExecutable.getParent(), launchCommand);
   }
 
 
-  public Process startReplay(Path path, @Nullable Integer replayId) throws IOException {
-    Path executable = getExecutable();
-    List<String> launchCommand = defaultLaunchCommand().build();
-    return launch(executable, launchCommand);
+  public Process startReplay(String modTechnical, Path path, @Nullable Integer replayId) throws IOException {
+
+    TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
+    Path launcherExecutable = getLauncherExectuable();
+    List<String> launchCommand = defaultLaunchCommand()
+        .gpgnet4taExecutable(launcherExecutable)
+        .modTechnical(modTechnical)
+        .gameInstalledPath(prefs.getInstalledPath())
+        .gameExecutable(prefs.TOTAL_ANNIHILATION_EXE)
+        .gameCommandLineOptions(prefs.getCommandLineOptions())
+        .build();
+    return launch(launcherExecutable.getParent(), launchCommand);
   }
 
 
-  public Process startReplay(URI replayUri, Integer replayId, Player currentPlayer) throws IOException {
-    Path executable = getExecutable();
-    List<String> launchCommand = defaultLaunchCommand().build();
-    return launch(executable, launchCommand);
+  public Process startReplay(String modTechnical, URI replayUri, Integer replayId, Player currentPlayer) throws IOException {
+
+    TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
+    Path launcherExecutable = getLauncherExectuable();
+    List<String> launchCommand = defaultLaunchCommand().modTechnical(modTechnical)
+        .gpgnet4taExecutable(launcherExecutable)
+        .modTechnical(modTechnical)
+        .gameInstalledPath(prefs.getInstalledPath())
+        .gameExecutable(prefs.TOTAL_ANNIHILATION_EXE)
+        .gameCommandLineOptions(prefs.getCommandLineOptions())
+        .build();
+    return launch(launcherExecutable.getParent(), launchCommand);
   }
 
-  private Path getExecutable() {
+  private Path getLauncherExectuable() {
     if (false) {
       return Paths.get("D:\\games\\pause.bat");
     }
@@ -91,20 +119,18 @@ public class TotalAnnihilationService {
   }
 
   private LaunchCommandBuilder defaultLaunchCommand() {
-    return LaunchCommandBuilder.create()
-        .executableDecorator(preferencesService.getPreferences().getForgedAlliance().getExecutableDecorator());
+    return LaunchCommandBuilder.create();
   }
 
   @NotNull
   //private Process launch(Path executablePath) throws IOException {
-  private Process launch(Path executablePath, List<String> launchCommand) throws IOException {
-    Path executeDirectory = executablePath.getParent();
+  private Process launch(Path launchWorkingDirectory, List<String> launchCommand) throws IOException {
     ProcessBuilder processBuilder = new ProcessBuilder();
     processBuilder.inheritIO();
-    processBuilder.directory(executeDirectory.toFile());
+    processBuilder.directory(launchWorkingDirectory.toFile());
     processBuilder.command(launchCommand);
 
-    logger.info("Starting Total Annihilation with command: {}", String.join(" ", processBuilder.command()));
+    logger.info("Starting Total Annihilation Launcher with command: {}", String.join(" ", processBuilder.command()));
     processBuilder.command(launchCommand);
     Process process = processBuilder.start();
 

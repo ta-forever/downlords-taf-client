@@ -84,7 +84,7 @@ public class LiveReplayController extends AbstractViewController<Node> {
 
     mapPreviewColumn.setCellFactory(param -> new MapPreviewTableCell(uiService));
     mapPreviewColumn.setCellValueFactory(param -> Bindings.createObjectBinding(
-        () -> mapService.loadPreview(param.getValue().getMapFolderName(), PreviewSize.SMALL),
+        () -> mapService.loadPreview(param.getValue().getFeaturedMod(), param.getValue().getMapFolderName(), PreviewSize.SMALL),
         param.getValue().mapFolderNameProperty()
     ));
 

@@ -48,39 +48,7 @@ public class ModUploadTask extends CompletableTask<Void> {
 
   @Override
   protected Void call() throws Exception {
-    Validator.notNull(modPath, "modPath must not be null");
-
-    ResourceLocks.acquireUploadLock();
-    Path cacheDirectory = preferencesService.getCacheDirectory();
-    Files.createDirectories(cacheDirectory);
-    Path tmpFile = createTempFile(cacheDirectory, "mod", ".zip");
-
-    try {
-      logger.debug("Zipping mod {} to {}", modPath, tmpFile);
-      updateTitle(i18n.get("modVault.upload.compressing"));
-
-      Locale locale = i18n.getUserSpecificLocale();
-      ByteCountListener byteListener = (written, total) -> {
-        updateMessage(i18n.get("bytesProgress", formatSize(written, locale), formatSize(total, locale)));
-        updateProgress(written, total);
-      };
-
-      try (OutputStream outputStream = newOutputStream(tmpFile)) {
-        Zipper.of(modPath)
-            .to(outputStream)
-            .listener(byteListener)
-            .zip();
-      }
-
-      logger.debug("Uploading mod {} as {}", modPath, tmpFile);
-      updateTitle(i18n.get("modVault.upload.uploading"));
-
-      fafService.uploadMod(tmpFile, byteListener);
-      return null;
-    } finally {
-      Files.delete(tmpFile);
-      ResourceLocks.freeUploadLock();
-    }
+    return null;
   }
 
   public void setModPath(Path modPath) {

@@ -3,16 +3,15 @@ package com.faforever.client.map;
 import com.faforever.client.config.CacheNames;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.config.ClientProperties.Vault;
-import com.faforever.client.fa.FaStrings;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapBean.Type;
-import com.faforever.client.map.generator.MapGeneratedEvent;
 import com.faforever.client.map.generator.MapGeneratorService;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
-import com.faforever.client.preferences.ForgedAlliancePrefs;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.remote.AssetService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.task.CompletableTask;
@@ -25,7 +24,6 @@ import com.faforever.client.vault.search.SearchController.SearchConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
-import com.google.common.eventbus.Subscribe;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
@@ -33,11 +31,8 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.image.Image;
 import lombok.SneakyThrows;
-import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.luaj.vm2.LuaError;
-import org.luaj.vm2.LuaValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
@@ -58,7 +53,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -67,15 +61,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Stream;
-
-import static com.faforever.client.util.LuaUtil.loadFile;
 import static com.github.nocatch.NoCatch.noCatch;
 import static com.google.common.net.UrlEscapers.urlFragmentEscaper;
 import static java.lang.String.format;
-import static java.nio.file.Files.list;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
-import static java.util.stream.Collectors.toCollection;
 
 
 @Lazy
@@ -83,7 +72,6 @@ import static java.util.stream.Collectors.toCollection;
 public class MapService implements InitializingBean, DisposableBean {
 
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-  public static final String DEBUG = "debug";
 
   private final PreferencesService preferencesService;
   private final TaskService taskService;
@@ -95,7 +83,6 @@ public class MapService implements InitializingBean, DisposableBean {
   private final MapGeneratorService mapGeneratorService;
   private final ClientProperties clientProperties;
   private final EventBus eventBus;
-  private final ForgedAlliancePrefs forgedAlliancePreferences;
   private final PlayerService playerService;
 
   private final String mapDownloadUrlFormat;
@@ -126,7 +113,6 @@ public class MapService implements InitializingBean, DisposableBean {
     this.mapGeneratorService = mapGeneratorService;
     this.clientProperties = clientProperties;
     this.eventBus = eventBus;
-    forgedAlliancePreferences = preferencesService.getPreferences().getForgedAlliance();
     this.playerService = playerService;
     Vault vault = clientProperties.getVault();
     this.mapDownloadUrlFormat = vault.getMapDownloadUrlFormat();
@@ -188,20 +174,14 @@ public class MapService implements InitializingBean, DisposableBean {
   @Override
   public void afterPropertiesSet() {
     eventBus.register(this);
-    JavaFxUtil.addListener(forgedAlliancePreferences.installationPathProperty(), observable -> tryLoadMaps());
-    JavaFxUtil.addListener(forgedAlliancePreferences.customMapsDirectoryProperty(), observable -> tryLoadMaps());
-    tryLoadMaps();
+    JavaFxUtil.addListener(preferencesService.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).getInstalledPathProperty(), observable -> tryLoadMaps(KnownFeaturedMod.DEFAULT.getTechnicalName()));
+    tryLoadMaps(KnownFeaturedMod.DEFAULT.getTechnicalName());
   }
 
-  private void tryLoadMaps() {
-    if (forgedAlliancePreferences.getInstallationPath() == null) {
-      logger.warn("Could not load maps: installation path is not set");
-      return;
-    }
-
-    Path mapsDirectory = forgedAlliancePreferences.getCustomMapsDirectory();
+  private void tryLoadMaps(String modelTechnical) {
+    Path mapsDirectory = preferencesService.getTotalAnnihilation(modelTechnical).getInstalledPath();
     if (mapsDirectory == null) {
-      logger.warn("Could not load maps: custom map directory is not set");
+      logger.warn(String.format("Could not load maps: installation path is not set for mod: %s",modelTechnical));
       return;
     }
 
@@ -215,13 +195,14 @@ public class MapService implements InitializingBean, DisposableBean {
     }
 
     installedMaps.clear();
-    loadInstalledMaps();
+    loadInstalledMaps(modelTechnical);
   }
 
   private Thread startDirectoryWatcher(Path mapsDirectory) {
     Thread thread = new Thread(() -> noCatch(() -> {
       try (WatchService watcher = mapsDirectory.getFileSystem().newWatchService()) {
-        forgedAlliancePreferences.getCustomMapsDirectory().register(watcher, ENTRY_DELETE);
+        // beware potential bug: this used to register with forgedAlliancePreferences.getCustomMapsDirectory() ...
+        mapsDirectory.register(watcher, ENTRY_DELETE);
         while (!Thread.interrupted()) {
           WatchKey key = watcher.take();
           key.pollEvents().stream()
@@ -238,14 +219,14 @@ public class MapService implements InitializingBean, DisposableBean {
     return thread;
   }
 
-  private void loadInstalledMaps() {
+
+  private void loadInstalledMaps(String modTechnicalName) {
     taskService.submitTask(new CompletableTask<Void>(Priority.LOW) {
 
       protected Void call() {
         updateTitle(i18n.get("mapVault.loadingMaps"));
 
-        Path installationPath = forgedAlliancePreferences.getInstallationPath();
-        Path officialMapsPath = installationPath.resolve("maps");
+        Path installationPath = preferencesService.getTotalAnnihilation(modTechnicalName).getInstalledPath();
 
         if (installationPath.resolve("total2.hpi").toFile().exists()) {
           for (String map : otaMaps) {
@@ -277,7 +258,7 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   private void removeMap(Path path) {
-    installedMaps.remove(pathToMap.remove(path));
+//    installedMaps.remove(pathToMap.remove(path));
   }
 
   private void addInstalledMap(Path path) throws MapLoadException {
@@ -290,11 +271,6 @@ public class MapService implements InitializingBean, DisposableBean {
     } catch (MapLoadException e) {
       logger.warn("Map could not be read: " + path.getFileName(), e);
     }
-  }
-
-  @Subscribe
-  public void onMapGenerated(MapGeneratedEvent event) {
-    addInstalledMap(getPathForMap(event.getMapName()));
   }
 
 
@@ -314,9 +290,9 @@ public class MapService implements InitializingBean, DisposableBean {
   @SneakyThrows(IOException.class)
   @NotNull
   @Cacheable(value = CacheNames.MAP_PREVIEW, unless = "#result == null")
-  public Image loadPreview(String mapName, PreviewSize previewSize) {
+  public Image loadPreview(String modTechnicalName, String mapName, PreviewSize previewSize) {
     if (mapGeneratorService.isGeneratedMap(mapName)) {
-      Path previewPath = forgedAlliancePreferences.getCustomMapsDirectory().resolve(mapName).resolve(mapName + "_preview.png");
+      Path previewPath = preferencesService.getTotalAnnihilation(modTechnicalName).getInstalledPath().resolve(mapName).resolve(mapName + "_preview.png");
       if (Files.exists(previewPath)) {
         return new Image(Files.newInputStream(previewPath));
       } else {
@@ -338,7 +314,7 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   public boolean isOfficialMap(String mapName) {
-    Set<String> officialMaps = new HashSet<String>();
+    Set<String> officialMaps = new HashSet<>();
     officialMaps.addAll(otaMaps);
     officialMaps.addAll(ccMaps);
     officialMaps.addAll(btMaps);
@@ -356,14 +332,14 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
 
-  public CompletableFuture<Void> download(String technicalMapName) {
+  public CompletableFuture<Void> download(String modTechnicalname, String technicalMapName) {
     URL mapUrl = getDownloadUrl(technicalMapName, mapDownloadUrlFormat);
-    return downloadAndInstallMap(technicalMapName, mapUrl, null, null);
+    return downloadAndInstallMap(modTechnicalname, technicalMapName, mapUrl, null, null);
   }
 
 
-  public CompletableFuture<Void> downloadAndInstallMap(MapBean map, @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
-    return downloadAndInstallMap(map.getFolderName(), map.getDownloadUrl(), progressProperty, titleProperty);
+  public CompletableFuture<Void> downloadAndInstallMap(String modTechnicalName, MapBean map, @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
+    return downloadAndInstallMap(modTechnicalName, map.getFolderName(), map.getDownloadUrl(), progressProperty, titleProperty);
   }
 
   public CompletableFuture<Tuple<List<MapBean>, Integer>> getRecommendedMapsWithPageCount(int count, int page) {
@@ -426,27 +402,24 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
 
-  public Path getPathForMap(MapBean map) {
-    return getPathForMapInsensitive(map.getFolderName());
+  public Path getPathForMap(Path localMapPath, MapBean map) {
+    return getPathForMapInsensitive(localMapPath, map.getFolderName());
   }
 
-  private Path getMapsDirectory(String technicalName) {
-    if (isOfficialMap(technicalName)) {
-      return forgedAlliancePreferences.getInstallationPath().resolve("maps");
-    }
-    return forgedAlliancePreferences.getCustomMapsDirectory();
+  private Path getMapsDirectory(String modTechnicalName) {
+    return preferencesService.getTotalAnnihilation(modTechnicalName).getInstalledPath();
   }
 
-  public Path getPathForMap(String technicalName) {
-    Path path = getMapsDirectory(technicalName).resolve(technicalName);
+  public Path getPathForMap(Path localMapsPath, String technicalName) {
+    Path path = localMapsPath.resolve(technicalName);
     if (Files.notExists(path)) {
       return null;
     }
     return path;
   }
 
-  public Path getPathForMapInsensitive(String approxName) {
-    for (Path entry : noCatch(() -> Files.newDirectoryStream(getMapsDirectory(approxName)))) {
+  public Path getPathForMapInsensitive(Path localMapPath, String approxName) {
+    for (Path entry : noCatch(() -> Files.newDirectoryStream(localMapPath))) {
       if (entry.getFileName().toString().equalsIgnoreCase(approxName)) {
         return entry;
       }
@@ -508,7 +481,7 @@ public class MapService implements InitializingBean, DisposableBean {
     return fafService.getLadder1v1MapsWithPageCount(loadMoreCount, page);
   }
 
-  private CompletableFuture<Void> downloadAndInstallMap(String folderName, URL downloadUrl, @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
+  private CompletableFuture<Void> downloadAndInstallMap(String modTechnicalName, String folderName, URL downloadUrl, @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
     if (mapGeneratorService.isGeneratedMap(folderName)) {
       return mapGeneratorService.generateMap(folderName).thenRun(() -> {
       });
@@ -525,8 +498,9 @@ public class MapService implements InitializingBean, DisposableBean {
       titleProperty.bind(task.titleProperty());
     }
 
+    Path localMapPath = this.getMapsDirectory(modTechnicalName);
     return taskService.submitTask(task).getFuture()
-        .thenAccept(aVoid -> noCatch(() -> addInstalledMap(getPathForMapInsensitive(folderName))));
+        .thenAccept(aVoid -> noCatch(() -> addInstalledMap(getPathForMapInsensitive(localMapPath, folderName))));
   }
 
   public CompletableFuture<Tuple<List<MapBean>, Integer>> getOwnedMapsWithPageCount(int loadMoreCount, int page) {

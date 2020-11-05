@@ -5,7 +5,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/FAForever/downlords-faf-client/badge.svg?branch=develop)](https://coveralls.io/github/FAForever/downlords-faf-client?branch=develop)
 
 
-The official client for [Forged Alliance Forever (FAF)](https://www.faforever.com/)
+The official client for [TA Forever (TAF)](https://www.taforever.com/)
 
 ## Support development
 

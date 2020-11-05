@@ -2,6 +2,7 @@ package com.faforever.client.patch;
 
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.fx.PlatformService;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.task.CompletableTask;
@@ -29,8 +30,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.stream.Stream;
-
-import static com.faforever.client.preferences.PreferencesService.TOTAL_ANNIHILATION_EXE;
+import static com.faforever.client.preferences.TotalAnnihilationPrefs.TOTAL_ANNIHILATION_EXE;
 import static com.github.nocatch.NoCatch.noCatch;
 import static java.nio.file.Files.copy;
 import static java.nio.file.Files.createDirectories;
@@ -123,7 +123,7 @@ public class GameBinariesUpdateTaskImpl extends CompletableTask<Void> implements
     Path fafBinDirectory = preferencesService.getFafBinDirectory();
     createDirectories(fafBinDirectory);
 
-    Path faBinPath = preferencesService.getPreferences().getForgedAlliance().getInstallationPath().resolve("bin");
+    Path faBinPath = preferencesService.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).getInstalledPath();
 
     try (Stream<Path> faBinPathStream = Files.list(faBinPath)) {
       faBinPathStream

@@ -1,5 +1,6 @@
 package com.faforever.client.map;
 
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.HostGameEvent;
 import com.faforever.client.notification.NotificationService;
@@ -26,7 +27,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
@@ -68,7 +68,7 @@ public class MapDetailControllerTest extends AbstractPlainJavaFxTest {
 
   @Before
   public void setUp() throws Exception {
-    when(mapService.downloadAndInstallMap(any(), any(DoubleProperty.class), any(StringProperty.class))).thenReturn(CompletableFuture.runAsync(() -> {
+    when(mapService.downloadAndInstallMap(KnownFeaturedMod.DEFAULT.getTechnicalName(), any(), any(DoubleProperty.class), any(StringProperty.class))).thenReturn(CompletableFuture.runAsync(() -> {
     }));
     when(i18n.get(anyString(), anyInt(), anyInt())).thenReturn("map size");
     when(mapService.hasPlayedMap(anyInt(), anyString())).thenReturn(CompletableFuture.completedFuture(true));
@@ -115,7 +115,7 @@ public class MapDetailControllerTest extends AbstractPlainJavaFxTest {
 
     instance.onCreateGameButtonClicked();
     WaitForAsyncUtils.waitForFxEvents();
-    verify(mapService).downloadAndInstallMap(any(), any(DoubleProperty.class), any(StringProperty.class));
+    verify(mapService).downloadAndInstallMap(KnownFeaturedMod.DEFAULT.getTechnicalName(), any(), any(DoubleProperty.class), any(StringProperty.class));
     verify(eventBus).post(any(HostGameEvent.class));
     assertThat(instance.uninstallButton.isVisible(), is(true));
     assertThat(instance.installButton.isVisible(), is(false));

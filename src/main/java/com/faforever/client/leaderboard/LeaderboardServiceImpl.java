@@ -54,7 +54,7 @@ public class LeaderboardServiceImpl implements LeaderboardService {
   @Override
   public CompletableFuture<List<LeaderboardEntry>> getEntries(KnownFeaturedMod ratingType) {
     switch (ratingType) {
-      case FAF:
+      case TACC:
         return fafService.getGlobalLeaderboard();
       case LADDER_1V1:
         return fafService.getLadder1v1Leaderboard();

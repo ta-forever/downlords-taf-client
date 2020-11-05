@@ -8,17 +8,14 @@ import java.util.Map;
  * the client should rely as little as possible on this static definition.
  */
 public enum KnownFeaturedMod {
-  FAF("faf"),
-  FAF_BETA("fafbeta"),
-  FAF_DEVELOP("fafdevelop"),
-  BALANCE_TESTING("balancetesting"),
-  LADDER_1V1("ladder1v1"),
-  COOP("coop"),
-  GALACTIC_WAR("gw"),
-  MATCHMAKER("matchmaker"),
-  TUTORIALS("tutorials");
+  TACC("tacc", "tacc"),
+  LADDER_1V1("ladder1v1", "tacc"),
+  TAESC("taesc", "taesc"),
+  TAZERO("tazero", "tazero"),
+  TAMAYHEM("tamayhem", "tamayhem"),
+  COOP("coop", "coop");
 
-  public static final KnownFeaturedMod DEFAULT = FAF;
+  public static final KnownFeaturedMod DEFAULT = TACC;
 
   private static final Map<String, KnownFeaturedMod> fromString;
 
@@ -30,9 +27,11 @@ public enum KnownFeaturedMod {
   }
 
   private final String technicalName;
+  private final String baseGameName;
 
-  KnownFeaturedMod(String technicalName) {
+  KnownFeaturedMod(String technicalName, String baseGameName) {
     this.technicalName = technicalName;
+    this.baseGameName = baseGameName;
   }
 
   public static KnownFeaturedMod fromString(String string) {
@@ -42,4 +41,5 @@ public enum KnownFeaturedMod {
   public String getTechnicalName() {
     return technicalName;
   }
+  public String getBaseGameName() { return baseGameName; }
 }

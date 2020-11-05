@@ -90,7 +90,6 @@ import java.util.regex.Pattern;
 
 import static com.faforever.client.fa.RatingMode.NONE;
 import static com.faforever.client.game.KnownFeaturedMod.LADDER_1V1;
-import static com.faforever.client.game.KnownFeaturedMod.TUTORIALS;
 import static com.github.nocatch.NoCatch.noCatch;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
@@ -299,8 +298,9 @@ public class GameService implements InitializingBean {
       return completedFuture(null);
     }
 
-    if (!preferencesService.isGamePathValid()) {
-      CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent();
+    String modTechnicalName = newGameInfo.getFeaturedMod().getTechnicalName();
+    if (!preferencesService.isGamePathValid(modTechnicalName)) {
+      CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(modTechnicalName);
       return gameDirectoryFuture.thenCompose(path -> hostGame(newGameInfo));
     }
 
@@ -309,7 +309,7 @@ public class GameService implements InitializingBean {
     return updateGameIfNecessary(newGameInfo.getFeaturedMod(), null, emptyMap(), newGameInfo.getSimMods())
         .thenCompose(aVoid -> downloadMapIfNecessary(newGameInfo.getMap()))
         .thenCompose(aVoid -> fafService.requestHostGame(newGameInfo))
-        .thenAccept(gameLaunchMessage -> startGame(gameLaunchMessage, gameLaunchMessage.getFaction(), RatingMode.GLOBAL));
+        .thenAccept(gameLaunchMessage -> startGame(modTechnicalName, gameLaunchMessage, gameLaunchMessage.getFaction(), RatingMode.GLOBAL));
   }
 
   public CompletableFuture<Void> joinGame(Game game, String password) {
@@ -318,8 +318,8 @@ public class GameService implements InitializingBean {
       return completedFuture(null);
     }
 
-    if (!preferencesService.isGamePathValid()) {
-      CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent();
+    if (!preferencesService.isGamePathValid(game.getFeaturedMod())) {
+      CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(game.getFeaturedMod());
       return gameDirectoryFuture.thenCompose(path -> joinGame(game, password));
     }
 
@@ -333,13 +333,6 @@ public class GameService implements InitializingBean {
     return
         modService.getFeaturedMod(game.getFeaturedMod())
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, null, featuredModVersions, simModUIds))
-        .thenAccept(aVoid -> {
-          try {
-            modService.enableSimMods(simModUIds);
-          } catch (IOException e) {
-            log.warn("SimMods could not be enabled", e);
-          }
-        })
         .thenCompose(aVoid -> downloadMapIfNecessary(game.getMapFolderName()))
         .thenCompose(aVoid -> fafService.requestJoinGame(game.getId(), password))
         .thenAccept(gameLaunchMessage -> {
@@ -348,7 +341,7 @@ public class GameService implements InitializingBean {
             game.setPassword(password);
             currentGame.set(game);
           }
-          startGame(gameLaunchMessage, null, RatingMode.GLOBAL);
+          startGame(game.getFeaturedMod(), gameLaunchMessage, null, RatingMode.GLOBAL);
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be joined", throwable);
@@ -374,8 +367,8 @@ public class GameService implements InitializingBean {
       return;
     }
 
-    if (!preferencesService.isGamePathValid()) {
-      CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent();
+    if (!preferencesService.isGamePathValid(featuredMod)) {
+      CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(featuredMod);
       gameDirectoryFuture.thenAccept(pathSet -> runWithReplay(path, replayId, featuredMod, version, modVersions, simMods, mapName));
       return;
     }
@@ -385,7 +378,7 @@ public class GameService implements InitializingBean {
         .thenCompose(aVoid -> downloadMapIfNecessary(mapName).handleAsync((ignoredResult, throwable) -> askWhetherToStartWithOutMap(throwable)))
         .thenRun(() -> {
           try {
-            process = totalAnnihilationService.startReplay(path, replayId);
+            process = totalAnnihilationService.startReplay(featuredMod, path, replayId);
             setGameRunning(true);
             this.ratingMode = NONE;
             spawnTerminationListener(process);
@@ -400,9 +393,9 @@ public class GameService implements InitializingBean {
   }
 
   @NotNull
-  private CompletableFuture<Path> postGameDirectoryChooseEvent() {
+  private CompletableFuture<Path> postGameDirectoryChooseEvent(String modTechnicalName) {
     CompletableFuture<Path> gameDirectoryFuture = new CompletableFuture<>();
-    eventBus.post(new GameDirectoryChooseEvent(gameDirectoryFuture));
+    eventBus.post(new GameDirectoryChooseEvent(modTechnicalName, gameDirectoryFuture));
     return gameDirectoryFuture;
   }
 
@@ -445,8 +438,9 @@ public class GameService implements InitializingBean {
       return completedFuture(null);
     }
 
-    if (!preferencesService.isGamePathValid()) {
-      CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent();
+    String modTechnicalName = modService.getFeaturedMod(gameType).join().getTechnicalName();
+    if (!preferencesService.isGamePathValid(modTechnicalName)) {
+      CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(modTechnicalName);
       return gameDirectoryFuture.thenCompose(path -> runWithLiveReplay(replayUrl, gameId, gameType, mapName));
     }
 
@@ -459,7 +453,7 @@ public class GameService implements InitializingBean {
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, null, modVersions, simModUids))
         .thenCompose(aVoid -> downloadMapIfNecessary(mapName))
         .thenRun(() -> noCatch(() -> {
-          process = totalAnnihilationService.startReplay(replayUrl, gameId, getCurrentPlayer());
+          process = totalAnnihilationService.startReplay(modTechnicalName, replayUrl, gameId, getCurrentPlayer());
           setGameRunning(true);
           this.ratingMode = NONE;
           spawnTerminationListener(process);
@@ -492,8 +486,8 @@ public class GameService implements InitializingBean {
       return completedFuture(null);
     }
 
-    if (!preferencesService.isGamePathValid()) {
-      CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent();
+    if (!preferencesService.isGamePathValid(LADDER_1V1.getTechnicalName())) {
+      CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(LADDER_1V1.getTechnicalName());
       return gameDirectoryFuture.thenCompose(path -> startSearchLadder1v1(faction));
     }
 
@@ -512,7 +506,7 @@ public class GameService implements InitializingBean {
               gameLaunchMessage.getArgs().add("/players " + gameLaunchMessage.getExpectedPlayers());
               gameLaunchMessage.getArgs().add("/startspot " + gameLaunchMessage.getMapPosition());
 
-              startGame(gameLaunchMessage, faction, RatingMode.LADDER_1V1);
+              startGame(LADDER_1V1.getTechnicalName(), gameLaunchMessage, faction, RatingMode.LADDER_1V1);
             }))
         .exceptionally(throwable -> {
           if (throwable instanceof CancellationException) {
@@ -570,7 +564,7 @@ public class GameService implements InitializingBean {
    * Actually starts the game, including relay and replay server. Call this method when everything else is prepared
    * (mod/map download, connectivity check etc.)
    */
-  private void startGame(GameLaunchMessage gameLaunchMessage, Faction faction, RatingMode ratingMode) {
+  private void startGame(String modTechnical, GameLaunchMessage gameLaunchMessage, Faction faction, RatingMode ratingMode) {
     if (isRunning()) {
       log.warn("Forged Alliance is already running, not starting game");
       return;
@@ -585,7 +579,7 @@ public class GameService implements InitializingBean {
         })
         .thenAccept(adapterPort -> {
           List<String> args = fixMalformedArgs(gameLaunchMessage.getArgs());
-          process = noCatch(() -> totalAnnihilationService.startGame(gameLaunchMessage.getUid(), faction, args, ratingMode,
+          process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, gameLaunchMessage.getUid(), faction, args, ratingMode,
               adapterPort, localReplayPort, rehostRequested, getCurrentPlayer()));
           setGameRunning(true);
 
@@ -881,28 +875,4 @@ public class GameService implements InitializingBean {
     killGame();
   }
 
-  public void launchTutorial(MapBean mapVersion, String technicalMapName) {
-
-    if (!preferencesService.isGamePathValid()) {
-      CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent();
-      gameDirectoryFuture.thenAccept(path -> launchTutorial(mapVersion, technicalMapName));
-      return;
-    }
-
-    modService.getFeaturedMod(TUTORIALS.getTechnicalName())
-        .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, null, emptyMap(), emptySet()))
-        .thenCompose(aVoid -> downloadMapIfNecessary(mapVersion.getFolderName()))
-        .thenAccept(aVoid -> {
-          List<String> args = Arrays.asList("/map", technicalMapName);
-          process = noCatch(() -> totalAnnihilationService.startGameOffline(args));
-          setGameRunning(true);
-          spawnTerminationListener(process, false);
-        })
-        .exceptionally(throwable -> {
-          notificationService.addImmediateErrorNotification(throwable, "tutorial.launchFailed");
-          log.error("Launching tutorials failed", throwable);
-          return null;
-        });
-
-  }
 }

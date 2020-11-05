@@ -51,9 +51,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
 
   private static final Collection<String> HIDDEN_FEATURED_MODS = Arrays.asList(
       KnownFeaturedMod.COOP.getTechnicalName(),
-      KnownFeaturedMod.LADDER_1V1.getTechnicalName(),
-      KnownFeaturedMod.GALACTIC_WAR.getTechnicalName(),
-      KnownFeaturedMod.MATCHMAKER.getTechnicalName()
+      KnownFeaturedMod.LADDER_1V1.getTechnicalName()
   );
 
   private static final Predicate<Game> OPEN_CUSTOM_GAMES_PREDICATE = gameInfoBean ->
@@ -205,9 +203,10 @@ public class CustomGamesController extends AbstractViewController<Node> {
   }
 
   private void onCreateGame(@Nullable String mapFolderName) {
-    if (preferencesService.getPreferences().getForgedAlliance().getInstallationPath() == null) {
+    if (!preferencesService.isGamePathValid(KnownFeaturedMod.DEFAULT.getTechnicalName()))
+    {
       CompletableFuture<Path> gameDirectoryFuture = new CompletableFuture<>();
-      eventBus.post(new GameDirectoryChooseEvent(gameDirectoryFuture));
+      eventBus.post(new GameDirectoryChooseEvent(KnownFeaturedMod.DEFAULT.getTechnicalName(), gameDirectoryFuture));
       gameDirectoryFuture.thenAccept(path -> Optional.ofNullable(path).ifPresent(path1 -> onCreateGame(null)));
       return;
     }

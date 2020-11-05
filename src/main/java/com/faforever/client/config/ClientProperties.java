@@ -66,7 +66,7 @@ public class ClientProperties {
      * @deprecated shouldn't be known by the client but sent from the server.
      */
     @Deprecated
-    private String defaultChannel = "#aeolus";
+    private String defaultChannel = "#coreprime";
     private int reconnectDelay = (int) Duration.ofSeconds(5).toMillis();
   }
 

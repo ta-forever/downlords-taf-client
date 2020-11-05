@@ -40,7 +40,7 @@ public class GamePathHandlerTest {
   @Test
   public void testNotificationOnEmptyString() throws Exception {
     CompletableFuture<Path> completableFuture = new CompletableFuture<>();
-    instance.onGameDirectoryChosenEvent(new GameDirectoryChosenEvent(null, Optional.of(completableFuture)));
+    instance.onGameDirectoryChosenEvent(new GameDirectoryChosenEvent(null, "", Optional.of(completableFuture), KnownFeaturedMod.DEFAULT.getTechnicalName()));
     verify(notificationService).addNotification(any(ImmediateNotification.class));
     assertThat(completableFuture.isCompletedExceptionally(), is(true));
   }
@@ -48,7 +48,7 @@ public class GamePathHandlerTest {
   @Test
   public void testNotificationOnNull() throws Exception {
     CompletableFuture<Path> completableFuture = new CompletableFuture<>();
-    instance.onGameDirectoryChosenEvent(new GameDirectoryChosenEvent(null, Optional.of(completableFuture)));
+    instance.onGameDirectoryChosenEvent(new GameDirectoryChosenEvent(null, "", Optional.of(completableFuture), KnownFeaturedMod.DEFAULT.getTechnicalName()));
     verify(notificationService).addNotification(any(ImmediateNotification.class));
     assertThat(completableFuture.isCompletedExceptionally(), is(true));
   }

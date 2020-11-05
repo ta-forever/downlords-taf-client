@@ -253,7 +253,7 @@ public class PircBotXChatService implements ChatService, InitializingBean, Dispo
       if (containsIgnoreCase(message, config.getNickservOnSuccess()) || containsIgnoreCase(message, "registered under your account")) {
         onIdentified();
       } else if (message.contains("isn't registered")) {
-        pircBotX.sendIRC().message(config.getNickservNick(), format("register %s %s@users.faforever.com", getPassword(), userService.getUsername()));
+        pircBotX.sendIRC().message(config.getNickservNick(), format("register %s %s@users.taforever.com", getPassword(), userService.getUsername()));
       } else if (message.contains(" registered")) {
         // We just registered and are now identified
         onIdentified();

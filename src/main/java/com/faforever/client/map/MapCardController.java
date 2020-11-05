@@ -2,6 +2,7 @@ package com.faforever.client.map;
 
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapService.PreviewSize;
 import com.faforever.client.notification.ImmediateErrorNotification;
@@ -120,7 +121,7 @@ public class MapCardController implements Controller<Node> {
   }
 
   public void onInstallButtonClicked() {
-    mapService.downloadAndInstallMap(map, null, null)
+    mapService.downloadAndInstallMap(KnownFeaturedMod.DEFAULT.getTechnicalName(), map, null, null)
         .thenRun(() -> setInstalled(true))
         .exceptionally(throwable -> {
           notificationService.addNotification(new ImmediateErrorNotification(

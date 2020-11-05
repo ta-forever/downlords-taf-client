@@ -68,7 +68,6 @@ public class ModManagerController implements Controller<Parent> {
 
   public void onReloadModsButtonClicked() {
     modService.loadInstalledMods();
-    loadActivatedMods();
   }
 
   @Override
@@ -81,25 +80,7 @@ public class ModManagerController implements Controller<Parent> {
     modListView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
     modListView.setCellFactory(modListCellFactory());
 
-    viewToggleGroup.selectToggle(uiModsButton);
-
-    loadActivatedMods();
-
     modListView.scrollTo(modListView.getSelectionModel().getSelectedItem());
-  }
-
-  private void loadActivatedMods() {
-    ObservableList<ModVersion> installedModVersions = modService.getInstalledModVersions();
-    try {
-      List<ModVersion> activatedSimAndUIMods = modService.getActivatedSimAndUIMods();
-      installedModVersions.forEach(modVersion -> modToSelectedMap.put(modVersion, activatedSimAndUIMods.contains(modVersion)));
-    } catch (IOException e) {
-      log.error("Activated mods could not be loaded", e);
-    }
-    modVersionFilteredList = new FilteredList<>(installedModVersions);
-    modVersionFilteredList.setPredicate(viewToggleGroup.getSelectedToggle() == uiModsButton ? UI_FILTER : SIM_FILTER);
-    modListView.setItems(modVersionFilteredList);
-    filterModList();
   }
 
   private void filterModList() {
@@ -141,11 +122,6 @@ public class ModManagerController implements Controller<Parent> {
         .filter(Entry::getValue)
         .map(Entry::getKey)
         .collect(Collectors.toList());
-    try {
-      modService.overrideActivatedMods(mods);
-    } catch (IOException e) {
-      log.warn("Activated mods could not be updated", e);
-    }
     return mods;
   }
 }

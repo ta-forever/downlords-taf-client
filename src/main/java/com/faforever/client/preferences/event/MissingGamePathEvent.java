@@ -7,8 +7,10 @@ import lombok.Value;
 @AllArgsConstructor
 public class MissingGamePathEvent {
   private boolean immediateUserActionRequired;
+  String modTechnicalName;
 
-  public MissingGamePathEvent() {
-    this(false);
+  public MissingGamePathEvent(String modTechnicalName) {
+    this.immediateUserActionRequired = false;
+    this.modTechnicalName = modTechnicalName;
   }
 }

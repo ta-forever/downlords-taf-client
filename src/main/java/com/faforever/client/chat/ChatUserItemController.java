@@ -489,7 +489,7 @@ public class ChatUserItemController implements Controller<Node> {
       playerStatusIndicator.setVisible(true);
       playerStatusIndicator.setImage(getPlayerStatusIcon(player.getStatus()));
       playerMapImage.setVisible(true);
-      playerMapImage.setImage(mapService.loadPreview(player.getGame().getMapFolderName(), PreviewSize.SMALL));
+      playerMapImage.setImage(mapService.loadPreview(player.getGame().getFeaturedMod(), player.getGame().getMapFolderName(), PreviewSize.SMALL));
     }
   }
 

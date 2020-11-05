@@ -24,11 +24,7 @@
                   <children>
                           <MenuButton focusTraversable="false" mnemonicParsing="false" styleClass="main-menu-button">
                               <items>
-                                  <MenuItem onAction="#onRevealLogFolder" text="%menu.revealLogFolder" />
-                                  <MenuItem onAction="#onRevealMapFolder" text="%menu.revealMapFolder" />
-                                  <MenuItem onAction="#onRevealModFolder" text="%menu.revealModFolder" />
-                                  <MenuItem onAction="#onRevealReplayFolder" text="%menu.revealReplayFolder" />
-                                  <MenuItem onAction="#onRevealGamePrefsFolder" text="%menu.revealGamePrefsFile" />
+                                  <MenuItem onAction="#onRevealGamePaths" text="%menu.revealModFolder" />
                                   <SeparatorMenuItem mnemonicParsing="false" />
                                   <MenuItem disable="true" text="%menu.feedback" />
                                   <MenuItem onAction="#onLinksAndHelp" text="%help.title" />
@@ -45,11 +41,11 @@
                           </ToggleButton>
                           <ToggleButton fx:id="chatButton" minWidth="-Infinity" mnemonicParsing="false" onAction="#onChat" styleClass="main-navigation-button" text="%main.chat" toggleGroup="$mainNavigation" />
                           <ToggleButton fx:id="playButton" minWidth="-Infinity" mnemonicParsing="false" onAction="#onNavigateButtonClicked" styleClass="main-navigation-button" text="%main.play" toggleGroup="$mainNavigation" />
-                          <ToggleButton fx:id="vaultButton" minWidth="-Infinity" mnemonicParsing="false" onAction="#onNavigateButtonClicked" styleClass="main-navigation-button" text="%main.vault" toggleGroup="$mainNavigation" />
+                          <ToggleButton fx:id="vaultButton" disable="true" minWidth="-Infinity" mnemonicParsing="false" onAction="#onNavigateButtonClicked" styleClass="main-navigation-button" text="%main.vault" toggleGroup="$mainNavigation"/>
                           <ToggleButton fx:id="leaderboardsButton" minWidth="-Infinity" mnemonicParsing="false" onAction="#onNavigateButtonClicked" styleClass="main-navigation-button" text="%main.leaderboards" toggleGroup="$mainNavigation" />
-                          <ToggleButton fx:id="tournamentsButton" minWidth="-Infinity" mnemonicParsing="false" onAction="#onNavigateButtonClicked" styleClass="main-navigation-button" text="%main.tournaments" toggleGroup="$mainNavigation" />
-                          <ToggleButton fx:id="unitsButton" minWidth="-Infinity" mnemonicParsing="false" onAction="#onNavigateButtonClicked" styleClass="main-navigation-button" text="%main.units" toggleGroup="$mainNavigation" />
-                          <ToggleButton fx:id="tutorialsButton" minWidth="-Infinity" mnemonicParsing="false" onAction="#onNavigateButtonClicked" styleClass="main-navigation-button" text="%main.tutorials" toggleGroup="$mainNavigation" />
+                          <ToggleButton fx:id="tournamentsButton" disable="true" minWidth="-Infinity" mnemonicParsing="false" onAction="#onNavigateButtonClicked" styleClass="main-navigation-button" text="%main.tournaments" toggleGroup="$mainNavigation" />
+                          <ToggleButton fx:id="unitsButton" disable="true" minWidth="-Infinity" mnemonicParsing="false" onAction="#onNavigateButtonClicked" styleClass="main-navigation-button" text="%main.units" toggleGroup="$mainNavigation" />
+                          <ToggleButton fx:id="tutorialsButton" disable="true" minWidth="-Infinity" mnemonicParsing="false" onAction="#onNavigateButtonClicked" styleClass="main-navigation-button" text="%main.tutorials" toggleGroup="$mainNavigation" />
                   </children>
                </HBox>
                <MenuButton fx:id="navigationDropdown" minHeight="-Infinity" minWidth="-Infinity" />

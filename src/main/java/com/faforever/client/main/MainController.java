@@ -10,6 +10,7 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.game.GamePathHandler;
 import com.faforever.client.game.GameService;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.login.LoginController;
 import com.faforever.client.main.event.NavigateEvent;
@@ -41,7 +42,6 @@ import com.faforever.client.ui.tray.event.UpdateApplicationBadgeEvent;
 import com.faforever.client.user.event.LoggedInEvent;
 import com.faforever.client.user.event.LoggedOutEvent;
 import com.faforever.client.user.event.LoginSuccessEvent;
-import com.faforever.client.vault.VaultFileSystemLocationChecker;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -118,7 +118,6 @@ public class MainController implements Controller<Node> {
   private final EventBus eventBus;
   private final GamePathHandler gamePathHandler;
   private final PlatformService platformService;
-  private final VaultFileSystemLocationChecker vaultFileSystemLocationChecker;
   private final ApplicationEventPublisher applicationEventPublisher;
   private final String mainWindowTitle;
   private final int ratingBeta;
@@ -154,7 +153,6 @@ public class MainController implements Controller<Node> {
                         NotificationService notificationService, PlayerService playerService,
                         GameService gameService, UiService uiService, EventBus eventBus,
                         GamePathHandler gamePathHandler, PlatformService platformService,
-                        VaultFileSystemLocationChecker vaultFileSystemLocationChecker,
                         ClientProperties clientProperties, ApplicationEventPublisher applicationEventPublisher) {
     this.preferencesService = preferencesService;
     this.i18n = i18n;
@@ -165,7 +163,6 @@ public class MainController implements Controller<Node> {
     this.eventBus = eventBus;
     this.gamePathHandler = gamePathHandler;
     this.platformService = platformService;
-    this.vaultFileSystemLocationChecker = vaultFileSystemLocationChecker;
     this.applicationEventPublisher = applicationEventPublisher;
     this.viewCache = CacheBuilder.newBuilder().build();
     this.mainWindowTitle = clientProperties.getMainWindowTitle();
@@ -224,7 +221,6 @@ public class MainController implements Controller<Node> {
     // Always load chat immediately so messages or joined channels don't need to be cached until we display them.
     getView(NavigationItem.CHAT);
 
-    vaultFileSystemLocationChecker.checkVaultFileSystemLocation();
     notificationButton.managedProperty().bind(notificationButton.visibleProperty());
 
     navigationDropdown.getItems().setAll(createMenuItemsFromNavigation());
@@ -490,7 +486,8 @@ public class MainController implements Controller<Node> {
 
     applicationEventPublisher.publishEvent(new LoggedInEvent());
 
-    gamePathHandler.detectAndUpdateGamePath();
+
+    gamePathHandler.detectAndUpdateGamePath(KnownFeaturedMod.DEFAULT.getTechnicalName());
     openStartTab();
   }
 
@@ -588,29 +585,10 @@ public class MainController implements Controller<Node> {
     return noCatch(() -> viewCache.get(item, () -> uiService.loadFxml(item.getFxmlFile())));
   }
 
-  public void onRevealMapFolder() {
-    Path mapPath = preferencesService.getPreferences().getForgedAlliance().getCustomMapsDirectory();
-    this.platformService.reveal(mapPath);
-  }
-
-  public void onRevealModFolder() {
-    Path modPath = preferencesService.getPreferences().getForgedAlliance().getModsDirectory();
-    this.platformService.reveal(modPath);
-  }
-
-  public void onRevealLogFolder() {
-    Path logPath = preferencesService.getFafLogDirectory();
-    this.platformService.reveal(logPath);
-  }
-
-  public void onRevealReplayFolder() {
-    Path replayPath = preferencesService.getReplaysDirectory();
-    this.platformService.reveal(replayPath);
-  }
-
-  public void onRevealGamePrefsFolder() {
-    Path gamePrefsPath = preferencesService.getPreferences().getForgedAlliance().getPreferencesFile();
-    this.platformService.reveal(gamePrefsPath);
+  public void onRevealGamePaths() {
+    preferencesService.getPreferences().getTotalAnnihilationAllMods().forEach(
+        (prefs) -> this.platformService.reveal(prefs.getExecutable())
+    );
   }
 
   public void onChat(ActionEvent actionEvent) {

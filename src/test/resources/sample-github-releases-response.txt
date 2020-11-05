@@ -19,19 +19,19 @@ Connection: close
         {
             "name": "Production",
             "lobby": {
-                "host": "lobby.faforever.com",
+                "host": "lobby.taforever.com",
                 "port": 8001
             },
             "irc": {
-                "host": "irc.faforever.com",
+                "host": "irc.taforever.com",
                 "port": 6697
             },
             "liveReplay": {
-                "host": "livereplay.faforever.com",
+                "host": "livereplay.taforever.com",
                 "port": 15000
             },
             "api": {
-                "url": "https://api.faforever.com"
+                "url": "https://api.taforever.com"
             }
         }
     ]

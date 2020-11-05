@@ -3,6 +3,7 @@ package com.faforever.client.map;
 import com.faforever.client.fa.FaStrings;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.HostGameEvent;
 import com.faforever.client.map.MapService.PreviewSize;
@@ -255,7 +256,7 @@ public class MapDetailController implements Controller<Node> {
   }
 
   public CompletableFuture<Void> installMap(){
-    return mapService.downloadAndInstallMap(map, progressBar.progressProperty(), progressLabel.textProperty())
+    return mapService.downloadAndInstallMap(KnownFeaturedMod.DEFAULT.getTechnicalName(), map, progressBar.progressProperty(), progressLabel.textProperty())
         .thenRun(() -> setInstalled(true))
         .exceptionally(throwable -> {
           notificationService.addNotification(new ImmediateErrorNotification(
