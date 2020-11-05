@@ -1,23 +1,17 @@
-# Downlord's FAF Client
+# Downlord's TAF Client
 <img src="https://steamuserimages-a.akamaihd.net/ugc/961979645585692753/48588B65300A3EDE35622C75922E863B1D5CAE9A/" width="512">
 
 [![Build Status](https://travis-ci.org/FAForever/downlords-faf-client.svg?branch=master)](https://travis-ci.org/FAForever/downlords-faf-client)
 [![Coverage Status](https://coveralls.io/repos/github/FAForever/downlords-faf-client/badge.svg?branch=develop)](https://coveralls.io/github/FAForever/downlords-faf-client?branch=develop)
 
 
-The official client for [TA Forever (TAF)](https://www.taforever.com/)
-
-## Support development
-
-Post a bounty on Issue Hunt. You can reward and financially help developers that solve the issue. Concerning new features it can be helpful to first ask on whether other people also see your change as an improvement in order to not found feature that will not be accepted.
-
-[![Issue hunt](https://github.com/BoostIO/issuehunt-materials/raw/master/v1/issuehunt-button-v1.svg?sanitize=true)](https://issuehunt.io/r/FAForever/downlords-faf-client)
+The official client for [TA Forever (TAF)](https://www.taforever.com/), forked from [FA Forever (FAF)](https://www.faforever.com/) to support Total Annihilation.
 
 ## How to run
 1. Use [AdoptOpenJDK](https://adoptopenjdk.net/) 14 or Oracle JDK 14 (others might not work)
 1. Clone the project with Git
-    - using SSH: `git clone git@github.com:FAForever/downlords-faf-client.git`
-    - using HTTPS: `https://github.com/FAForever/downlords-faf-client.git`
+    - using SSH: `git clone git@github.com:ta-forever/downlords-faf-client.git`
+    - using HTTPS: `https://github.com/ta-forever/downlords-taf-client.git`
 1. Open the project into [IntelliJ IDEA](https://www.jetbrains.com/idea/) Ultimate or Community (free)
 1. Make sure you have the IntelliJ IDEA [Lombok plugin](https://plugins.jetbrains.com/idea/plugin/6317-lombok-plugin) installed
 1. Make sure you have `Enable annotation processing` enabled in the settings
@@ -30,6 +24,8 @@ If you want to use the Scene Builder, please import [jfoenix](https://www.youtub
 ### Linux
 Learn how to install the client on Linux [here](https://github.com/FAForever/downlords-faf-client/wiki/Install-on-Linux)
 
+(NB: Linux support is mostly likely broken since forking from FAF)
+
 ## Open Source licenses 
 |                |                               |
 |----------------|-------------------------------|
@@ -39,8 +35,8 @@ Learn how to install the client on Linux [here](https://github.com/FAForever/dow
 
 
 ## Contribute
-Please take a look at the [contribution guidelines](https://github.com/FAForever/java-guidelines/wiki/Contribution-Guidelines) before creating a pull request
+Please take a look at (FAF's) [contribution guidelines](https://github.com/FAForever/java-guidelines/wiki/Contribution-Guidelines) before creating a pull request
 
-Have a look at our [wiki](https://github.com/FAForever/downlords-faf-client/wiki).
+Have a look at (FAF's) [wiki](https://github.com/FAForever/downlords-faf-client/wiki).
 
 
