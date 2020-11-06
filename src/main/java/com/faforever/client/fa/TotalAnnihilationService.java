@@ -13,14 +13,10 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.lang.invoke.MethodHandles;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -44,7 +40,7 @@ public class TotalAnnihilationService {
     Path launcherExecutable = getLauncherExectuable();
     List<String> launchCommand = defaultLaunchCommand()
         .gpgnet4taExecutable(launcherExecutable)
-        .modTechnical(modTechnical)
+        .baseModName(prefs.getModName())
         .gameInstalledPath(prefs.getInstalledPath())
         .gameExecutable(prefs.TOTAL_ANNIHILATION_EXE)
         .gameCommandLineOptions(prefs.getCommandLineOptions())
@@ -60,7 +56,7 @@ public class TotalAnnihilationService {
     Path launcherExecutable = getLauncherExectuable();
     List<String> launchCommand = defaultLaunchCommand()
         .gpgnet4taExecutable(launcherExecutable)
-        .modTechnical(modTechnical)
+        .baseModName(prefs.getModName())
         .gameInstalledPath(prefs.getInstalledPath())
         .gameExecutable(prefs.TOTAL_ANNIHILATION_EXE)
         .gameCommandLineOptions(prefs.getCommandLineOptions())
@@ -84,7 +80,7 @@ public class TotalAnnihilationService {
     Path launcherExecutable = getLauncherExectuable();
     List<String> launchCommand = defaultLaunchCommand()
         .gpgnet4taExecutable(launcherExecutable)
-        .modTechnical(modTechnical)
+        .baseModName(prefs.getModName())
         .gameInstalledPath(prefs.getInstalledPath())
         .gameExecutable(prefs.TOTAL_ANNIHILATION_EXE)
         .gameCommandLineOptions(prefs.getCommandLineOptions())
@@ -97,9 +93,9 @@ public class TotalAnnihilationService {
 
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
     Path launcherExecutable = getLauncherExectuable();
-    List<String> launchCommand = defaultLaunchCommand().modTechnical(modTechnical)
+    List<String> launchCommand = defaultLaunchCommand().baseModName(modTechnical)
         .gpgnet4taExecutable(launcherExecutable)
-        .modTechnical(modTechnical)
+        .baseModName(prefs.getModName())
         .gameInstalledPath(prefs.getInstalledPath())
         .gameExecutable(prefs.TOTAL_ANNIHILATION_EXE)
         .gameCommandLineOptions(prefs.getCommandLineOptions())

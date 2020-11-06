@@ -1,7 +1,5 @@
 package com.faforever.client.fa;
 
-import com.faforever.client.game.Faction;
-import com.google.common.base.Strings;
 import org.springframework.util.Assert;
 
 import java.net.Inet4Address;
@@ -22,7 +20,7 @@ public class LaunchCommandBuilder {
   private static final String QUOTED_STRING_DECORATOR = "\"%s\"";
 
   private Path gpgnet4taExecutable;
-  private String modTechnical;
+  private String baseModName;
   private Path gameInstalledPath;
   private String gameExecutable;
   private String gameCommandLineOptions;
@@ -56,8 +54,8 @@ public class LaunchCommandBuilder {
     return this;
   }
 
-    public LaunchCommandBuilder modTechnical(String modTechnical) {
-    this.modTechnical = modTechnical;
+    public LaunchCommandBuilder baseModName(String modName) {
+    this.baseModName = modName;
     return this;
   }
 
@@ -129,9 +127,9 @@ public class LaunchCommandBuilder {
     List<String> command = new ArrayList<>();
     command.add(String.format(QUOTED_STRING_DECORATOR, gpgnet4taExecutable.toAbsolutePath().toString()));
 
-    if (modTechnical != null) {
+    if (baseModName != null) {
       command.add("--gamemod");
-      command.add(modTechnical);
+      command.add(baseModName);
     }
 
     if (gameInstalledPath != null) {
