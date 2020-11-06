@@ -13,7 +13,6 @@ import com.google.common.eventbus.Subscribe;
 import com.sun.jna.Platform;
 import com.sun.jna.platform.win32.Advapi32Util;
 import com.sun.jna.platform.win32.WinReg;
-import javafx.scene.control.TextInputDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
@@ -43,6 +42,7 @@ public class GamePathHandler implements InitializingBean {
       Paths.get("C:\\CAVEDOG\\TOTALA"),
       Paths.get("D:\\CAVEDOG\\TOTALA")
       );
+
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private final NotificationService notificationService;
   private final I18n i18n;
@@ -68,13 +68,13 @@ public class GamePathHandler implements InitializingBean {
    */
   @Subscribe
   public void onGameDirectoryChosenEvent(GameDirectoryChosenEvent event) {
-    final String modTechnical = event.getModTechnicalName();
-    final Path gamePath = event.getPath();
+    final String baseGameName = event.getBaseGameName();
+    final Path gameExecutablePath = event.getExecutablePath();
     final String commandLineOptions = event.getCommandLineOptions();
 
     Optional<CompletableFuture<Path>> future = event.getFuture();
 
-    if (gamePath == null) {
+    if (gameExecutablePath == null) {
       notificationService.addNotification(new ImmediateNotification(i18n.get("gameSelect.select.invalidPath"), i18n.get("gamePath.select.noneChosen"), Severity.WARN));
       future.ifPresent(pathCompletableFuture -> pathCompletableFuture.completeExceptionally(new CancellationException("User cancelled")));
       return;
@@ -82,7 +82,7 @@ public class GamePathHandler implements InitializingBean {
 
     String gamePathValidWithError;
     try {
-      gamePathValidWithError = preferencesService.isGamePathValidWithError(gamePath);
+      gamePathValidWithError = preferencesService.isGameExeValidWithError(gameExecutablePath);
     } catch (Exception e) {
       notificationService.addImmediateErrorNotification(e, "gamePath.select.error");
       future.ifPresent(pathCompletableFuture -> pathCompletableFuture.completeExceptionally(e));
@@ -94,33 +94,35 @@ public class GamePathHandler implements InitializingBean {
       return;
     }
 
-    logger.info("Found game path at {}", gamePath);
-    final TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
-    prefs.setInstalledPath(gamePath);
+    logger.info("Found game at {}", gameExecutablePath);
+    final TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(baseGameName);
+    prefs.setInstalledExePath(gameExecutablePath);
     prefs.setCommandLineOptions(commandLineOptions);
 
     preferencesService.storeInBackground();
-    future.ifPresent(pathCompletableFuture -> pathCompletableFuture.complete(gamePath));
+    future.ifPresent(pathCompletableFuture -> pathCompletableFuture.complete(gameExecutablePath));
   }
 
 
-  private void detectGamePath(String modTechnical) {
+  private void detectGamePath(String baseGameName, String expectedExeName) {
     for (Path path : USUAL_GAME_PATHS) {
-      if (path != null && preferencesService.isGamePathValid(path)) {
-        onGameDirectoryChosenEvent(new GameDirectoryChosenEvent(path, "", Optional.empty(), modTechnical));
+      if (path == null) continue;
+      Path executable = path.resolve(expectedExeName);
+      if (preferencesService.isGameExeValid(executable)) {
+        onGameDirectoryChosenEvent(new GameDirectoryChosenEvent(executable, "", Optional.empty(), baseGameName));
         return;
       }
     }
 
     logger.info("Game path could not be detected");
-    eventBus.post(new MissingGamePathEvent(modTechnical));
+    eventBus.post(new MissingGamePathEvent(baseGameName));
   }
 
-  public void detectAndUpdateGamePath(String modTechnical) {
-    Path taExePath = preferencesService.getTotalAnnihilation(modTechnical).getExecutable();
+  public void detectAndUpdateGamePath(String baseGameName, String hintExeName) {
+    Path taExePath = preferencesService.getTotalAnnihilation(baseGameName).getInstalledExePath();
     if (taExePath == null || Files.notExists(taExePath)) {
       logger.info("Game path is not specified or non-existent, trying to detect");
-      detectGamePath(modTechnical);
+      detectGamePath(baseGameName, hintExeName);
     }
   }
 }

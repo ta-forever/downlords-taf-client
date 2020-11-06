@@ -11,7 +11,6 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.ShowReplayEvent;
-import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.mod.ModService;
@@ -299,7 +298,7 @@ public class GameService implements InitializingBean {
     }
 
     String modTechnicalName = newGameInfo.getFeaturedMod().getTechnicalName();
-    if (!preferencesService.isGamePathValid(modTechnicalName)) {
+    if (!preferencesService.isGameExeValid(modTechnicalName)) {
       CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(modTechnicalName);
       return gameDirectoryFuture.thenCompose(path -> hostGame(newGameInfo));
     }
@@ -318,7 +317,7 @@ public class GameService implements InitializingBean {
       return completedFuture(null);
     }
 
-    if (!preferencesService.isGamePathValid(game.getFeaturedMod())) {
+    if (!preferencesService.isGameExeValid(game.getFeaturedMod())) {
       CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(game.getFeaturedMod());
       return gameDirectoryFuture.thenCompose(path -> joinGame(game, password));
     }
@@ -367,7 +366,7 @@ public class GameService implements InitializingBean {
       return;
     }
 
-    if (!preferencesService.isGamePathValid(featuredMod)) {
+    if (!preferencesService.isGameExeValid(featuredMod)) {
       CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(featuredMod);
       gameDirectoryFuture.thenAccept(pathSet -> runWithReplay(path, replayId, featuredMod, version, modVersions, simMods, mapName));
       return;
@@ -439,7 +438,7 @@ public class GameService implements InitializingBean {
     }
 
     String modTechnicalName = modService.getFeaturedMod(gameType).join().getTechnicalName();
-    if (!preferencesService.isGamePathValid(modTechnicalName)) {
+    if (!preferencesService.isGameExeValid(modTechnicalName)) {
       CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(modTechnicalName);
       return gameDirectoryFuture.thenCompose(path -> runWithLiveReplay(replayUrl, gameId, gameType, mapName));
     }
@@ -486,7 +485,7 @@ public class GameService implements InitializingBean {
       return completedFuture(null);
     }
 
-    if (!preferencesService.isGamePathValid(LADDER_1V1.getTechnicalName())) {
+    if (!preferencesService.isGameExeValid(LADDER_1V1.getTechnicalName())) {
       CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(LADDER_1V1.getTechnicalName());
       return gameDirectoryFuture.thenCompose(path -> startSearchLadder1v1(faction));
     }

@@ -11,7 +11,6 @@ import com.faforever.client.map.MapBean.Type;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewSize;
 import com.faforever.client.map.MapSize;
-import com.faforever.client.map.generator.MapGeneratorService;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.mod.ModManagerController;
 import com.faforever.client.mod.ModService;
@@ -80,8 +79,7 @@ public class CreateGameController implements Controller<Pane> {
   private final NotificationService notificationService;
   private final ReportingService reportingService;
   private final FafService fafService;
-  private final MapGeneratorService mapGeneratorService;
-  private final UiService uiService;
+    private final UiService uiService;
   public Label mapSizeLabel;
   public Label mapPlayersLabel;
   public Label mapDescriptionLabel;
@@ -361,37 +359,7 @@ public class CreateGameController implements Controller<Pane> {
   }
 
   private void onGenerateMap() {
-    try {
-      mapGeneratorService.setGeneratorVersion(mapGeneratorService.queryMaxSupportedVersion());
-      // Check if generated map is major version 0 which does not support options
-      if (mapGeneratorService.getGeneratorVersion().compareTo(new ComparableVersion("1")) < 0) {
-        mapGeneratorService.generateMap().thenAccept(mapName -> {
-          Platform.runLater(() -> {
-            initMapSelection();
-            mapListView.getItems().stream()
-                .filter(mapBean -> mapBean.getFolderName().equalsIgnoreCase(mapName))
-                .findAny()
-                .ifPresent(mapBean -> {
-                  mapListView.getSelectionModel().select(mapBean);
-                  mapListView.scrollTo(mapBean);
-                  setSelectedMap(mapBean);
-                });
-          });
-        });
-      } else {
-        GenerateMapController generateMapController = uiService.loadFxml("theme/play/generate_map.fxml");
 
-        Pane root = generateMapController.getRoot();
-        generateMapController.setCreateGameController(this);
-        Dialog dialog = uiService.showInDialog(gamesRoot, root, i18n.get("game.generateMap.dialog"));
-        generateMapController.setOnCloseButtonClickedListener(dialog::close);
-
-        root.requestFocus();
-      }
-    } catch (Exception e) {
-      notificationService.addImmediateErrorNotification(e, "mapGenerator.generationFailed");
-      log.error("Map generation failed", e);
-    }
   }
 
   public void onCreateButtonClicked() {

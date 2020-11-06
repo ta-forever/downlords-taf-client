@@ -7,11 +7,9 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapBean.Type;
-import com.faforever.client.map.generator.MapGeneratorService;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
-import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.remote.AssetService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.task.CompletableTask;
@@ -80,7 +78,6 @@ public class MapService implements InitializingBean, DisposableBean {
   private final AssetService assetService;
   private final I18n i18n;
   private final UiService uiService;
-  private final MapGeneratorService mapGeneratorService;
   private final ClientProperties clientProperties;
   private final EventBus eventBus;
   private final PlayerService playerService;
@@ -100,7 +97,6 @@ public class MapService implements InitializingBean, DisposableBean {
                     AssetService assetService,
                     I18n i18n,
                     UiService uiService,
-                    MapGeneratorService mapGeneratorService,
                     ClientProperties clientProperties,
                     EventBus eventBus, PlayerService playerService) {
     this.preferencesService = preferencesService;
@@ -110,7 +106,6 @@ public class MapService implements InitializingBean, DisposableBean {
     this.assetService = assetService;
     this.i18n = i18n;
     this.uiService = uiService;
-    this.mapGeneratorService = mapGeneratorService;
     this.clientProperties = clientProperties;
     this.eventBus = eventBus;
     this.playerService = playerService;
@@ -174,7 +169,7 @@ public class MapService implements InitializingBean, DisposableBean {
   @Override
   public void afterPropertiesSet() {
     eventBus.register(this);
-    JavaFxUtil.addListener(preferencesService.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).getInstalledPathProperty(), observable -> tryLoadMaps(KnownFeaturedMod.DEFAULT.getTechnicalName()));
+    JavaFxUtil.addListener(preferencesService.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).getInstalledExePathProperty(), observable -> tryLoadMaps(KnownFeaturedMod.DEFAULT.getTechnicalName()));
     tryLoadMaps(KnownFeaturedMod.DEFAULT.getTechnicalName());
   }
 
@@ -287,18 +282,10 @@ public class MapService implements InitializingBean, DisposableBean {
       return mapBean;
   }
 
-  @SneakyThrows(IOException.class)
+  @SneakyThrows()
   @NotNull
   @Cacheable(value = CacheNames.MAP_PREVIEW, unless = "#result == null")
   public Image loadPreview(String modTechnicalName, String mapName, PreviewSize previewSize) {
-    if (mapGeneratorService.isGeneratedMap(mapName)) {
-      Path previewPath = preferencesService.getTotalAnnihilation(modTechnicalName).getInstalledPath().resolve(mapName).resolve(mapName + "_preview.png");
-      if (Files.exists(previewPath)) {
-        return new Image(Files.newInputStream(previewPath));
-      } else {
-        return mapGeneratorService.getGeneratedMapPreviewImage();
-      }
-    }
     return loadPreview(getPreviewUrl(mapName, mapPreviewUrlFormat, previewSize), previewSize);
   }
 
@@ -482,11 +469,6 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   private CompletableFuture<Void> downloadAndInstallMap(String modTechnicalName, String folderName, URL downloadUrl, @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
-    if (mapGeneratorService.isGeneratedMap(folderName)) {
-      return mapGeneratorService.generateMap(folderName).thenRun(() -> {
-      });
-    }
-
     DownloadMapTask task = applicationContext.getBean(DownloadMapTask.class);
     task.setMapUrl(downloadUrl);
     task.setFolderName(folderName);

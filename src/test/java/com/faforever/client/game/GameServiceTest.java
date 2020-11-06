@@ -150,7 +150,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
     Preferences preferences = new Preferences();
 
     when(preferencesService.getPreferences()).thenReturn(preferences);
-    when(preferencesService.isGamePathValid(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(true);
+    when(preferencesService.isGameExeValid(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(true);
     when(fafService.connectionStateProperty()).thenReturn(new SimpleObjectProperty<>());
     when(replayService.start(anyInt(), any())).thenReturn(completedFuture(LOCAL_REPLAY_PORT));
     when(iceAdapter.start()).thenReturn(completedFuture(GPG_PORT));
@@ -542,35 +542,35 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testGameHostIfNoGameSet() {
-    when(preferencesService.isGamePathValid(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(false);
+    when(preferencesService.isGameExeValid(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(false);
     instance.hostGame(null);
     verify(eventBus).post(any(GameDirectoryChooseEvent.class));
   }
 
   @Test
   public void runWithLiveReplayIfNoGameSet() {
-    when(preferencesService.isGamePathValid(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(false);
+    when(preferencesService.isGameExeValid(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(false);
     instance.runWithLiveReplay(null, null, null, null);
     verify(eventBus).post(any(GameDirectoryChooseEvent.class));
   }
 
   @Test
   public void startSearchLadder1v1IfNoGameSet() {
-    when(preferencesService.isGamePathValid(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(false);
+    when(preferencesService.isGameExeValid(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(false);
     instance.startSearchLadder1v1(null);
     verify(eventBus).post(any(GameDirectoryChooseEvent.class));
   }
 
   @Test
   public void joinGameIfNoGameSet() {
-    when(preferencesService.isGamePathValid(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(false);
+    when(preferencesService.isGameExeValid(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(false);
     instance.joinGame(null, null);
     verify(eventBus).post(any(GameDirectoryChooseEvent.class));
   }
 
   @Test
   public void runWithReplayIfNoGameSet() {
-    when(preferencesService.isGamePathValid(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(false);
+    when(preferencesService.isGameExeValid(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(false);
     instance.runWithReplay(null, null, null, null, null, null, null);
     verify(eventBus).post(any(GameDirectoryChooseEvent.class));
   }

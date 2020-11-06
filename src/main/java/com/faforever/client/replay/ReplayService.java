@@ -10,7 +10,6 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.LocalReplaysChangedEvent;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.generator.MapGeneratorService;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.Action;
@@ -136,7 +135,6 @@ public class ReplayService {
   private final ModService modService;
   private final MapService mapService;
   private final ApplicationEventPublisher publisher;
-  private final MapGeneratorService mapGeneratorService;
   private final ExecutorService executorService;
   private Thread directoryWatcherThread;
   private WatchService watchService;
@@ -521,9 +519,6 @@ public class ReplayService {
     // from replay data, and DB does not contain generated maps.
     if (StringUtils.equalsIgnoreCase(mapName, "None")) {
       String maybeMapGen = parseMapName(rawReplayBytes).replaceAll(".scmap", "");
-      if (mapGeneratorService.isGeneratedMap(maybeMapGen)) {
-        mapName = maybeMapGen;
-      }
     }
 
     Set<String> simMods = replayInfo.getSimMods() != null ? replayInfo.getSimMods().keySet() : emptySet();

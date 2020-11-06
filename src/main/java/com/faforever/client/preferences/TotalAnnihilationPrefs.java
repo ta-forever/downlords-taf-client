@@ -10,10 +10,8 @@ import java.nio.file.Paths;
 
 public class TotalAnnihilationPrefs {
 
-
-
-  private final StringProperty modName;
-  private final ObjectProperty<Path> installedPath;
+  private final StringProperty baseGameName;
+  private final ObjectProperty<Path> installedExePath;
   private final StringProperty commandLineOptions;
 
   public static final String TOTAL_ANNIHILATION_EXE = "TotalA.exe";
@@ -28,36 +26,37 @@ public class TotalAnnihilationPrefs {
     }
   }
 
-  public TotalAnnihilationPrefs(String modName, Path installedPath, String commandLineOptions) {
-    this.modName = new SimpleStringProperty(modName);
-    this.installedPath = new SimpleObjectProperty<>(installedPath);
+  public TotalAnnihilationPrefs(String baseGameName, Path installedExePath, String commandLineOptions) {
+    this.baseGameName = new SimpleStringProperty(baseGameName);
+    this.installedExePath = new SimpleObjectProperty<>(installedExePath);
     this.commandLineOptions = new SimpleStringProperty(commandLineOptions);
   }
 
   private TotalAnnihilationPrefs() {
-    this.modName = new SimpleStringProperty();
-    this.installedPath = new SimpleObjectProperty<>();
+    this.baseGameName = new SimpleStringProperty();
+    this.installedExePath = new SimpleObjectProperty<>();
     this.commandLineOptions = new SimpleStringProperty();
   }
 
-  public StringProperty getModNameProperty() { return modName; }
-  public String getModName() {
-    return modName.get();
+  public StringProperty getModNameProperty() { return baseGameName; }
+  public String getBaseGameName() {
+    return baseGameName.get();
   }
-  public void setModName(String modName) { this.modName.set(modName); }
+  public void setBaseGameName(String baseGameName) { this.baseGameName.set(baseGameName); }
 
-  public ObjectProperty<Path> getInstalledPathProperty() { return installedPath; }
-  public Path getInstalledPath() { return this.installedPath.get(); }
-  public void setInstalledPath(Path installedPath) { this.installedPath.set(installedPath); }
+  public ObjectProperty<Path> getInstalledExePathProperty() { return installedExePath; }
+  public Path getInstalledExePath() { return this.installedExePath.get(); }
+  public void setInstalledExePath(Path installedExePath) { this.installedExePath.set(installedExePath); }
 
   public StringProperty getCommandLineOptionsProperty() { return commandLineOptions; }
   public String getCommandLineOptions() { return this.commandLineOptions.get(); }
   public void setCommandLineOptions(String commandLineOptions) { this.commandLineOptions.set(commandLineOptions); }
 
-  public Path getExecutable() {
-    if (installedPath.get() != null) {
-      return this.installedPath.get().resolve(TOTAL_ANNIHILATION_EXE);
-    } else {
+  public Path getInstalledPath() {
+    if (this.installedExePath.get() != null) {
+      return this.installedExePath.get().getParent();
+    }
+    else {
       return null;
     }
   }

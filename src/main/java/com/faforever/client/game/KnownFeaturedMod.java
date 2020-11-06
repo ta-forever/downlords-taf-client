@@ -8,12 +8,12 @@ import java.util.Map;
  * the client should rely as little as possible on this static definition.
  */
 public enum KnownFeaturedMod {
-  TACC("tacc", "tacc"),
-  LADDER_1V1("ladder1v1", "tacc"),
-  TAESC("taesc", "taesc"),
-  TAZERO("tazero", "tazero"),
-  TAMAYHEM("tamayhem", "tamayhem"),
-  COOP("coop", "coop");
+  TACC("tacc", "tacc", "TotalA.exe"),
+  LADDER_1V1("ladder1v1", "tacc", "TotalA.exe"),
+  TAESC("taesc", "taesc", "TotalA.exe"),
+  TAZERO("tazero", "tazero", "TotalA.exe"),
+  TAMAYHEM("tamayhem", "tamayhem", "TotalA.exe"),
+  COOP("coop", "coop", "TotalA.exe");
 
   public static final KnownFeaturedMod DEFAULT = TACC;
 
@@ -28,10 +28,12 @@ public enum KnownFeaturedMod {
 
   private final String technicalName;
   private final String baseGameName;
+  private final String executableFileName;
 
-  KnownFeaturedMod(String technicalName, String baseGameName) {
+  KnownFeaturedMod(String technicalName, String baseGameName, String executableFileName) {
     this.technicalName = technicalName;
     this.baseGameName = baseGameName;
+    this.executableFileName = executableFileName;
   }
 
   public static KnownFeaturedMod fromString(String string) {
@@ -42,4 +44,5 @@ public enum KnownFeaturedMod {
     return technicalName;
   }
   public String getBaseGameName() { return baseGameName; }
+  public String getExecutableFileName() { return executableFileName; }
 }

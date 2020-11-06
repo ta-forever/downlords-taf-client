@@ -54,6 +54,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
@@ -62,7 +65,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import static com.faforever.client.preferences.TotalAnnihilationPrefs.TOTAL_ANNIHILATION_EXE;
 import static com.github.nocatch.NoCatch.noCatch;
 
 @Lazy
@@ -169,18 +171,24 @@ public class PreferencesService implements InitializingBean {
    */
   private void migratePreferences(Preferences preferences) {
 
-//    preferences.getTotalAnnihilationAllMods().forEach(
-//        (TotalAnnihilationPrefs prefs) -> {
-//          if (prefs.getInstalledPath() != null) {
-//            TotalAnnihilationPrefs thisPrefs = this.getTotalAnnihilation(prefs.getModName());
-//            thisPrefs.setModName(prefs.getModName());
-//            thisPrefs.setInstalledPath(prefs.getInstalledPath());
-//            thisPrefs.setCommandLineOptions(prefs.getCommandLineOptions());
-//          }
-//        }
-//    );
-//
-//    storeInBackground();
+    List<TotalAnnihilationPrefs> taPrefs = preferences.getTotalAnnihilationAllMods();
+    Map<String,TotalAnnihilationPrefs> toKeep = new HashMap<String,TotalAnnihilationPrefs>();
+
+    for(TotalAnnihilationPrefs prefs: preferences.getTotalAnnihilationAllMods()) {
+      if (prefs.getInstalledExePath() != null && prefs.getBaseGameName() != null && prefs.getCommandLineOptions() != null) {
+        prefs.setBaseGameName(prefs.getBaseGameName());
+        prefs.setInstalledExePath(prefs.getInstalledExePath());
+        prefs.setCommandLineOptions(prefs.getCommandLineOptions());
+        toKeep.put(prefs.getBaseGameName(), prefs);
+      }
+    }
+
+    taPrefs.clear();
+    for(Map.Entry<String,TotalAnnihilationPrefs> prefs: toKeep.entrySet()) {
+      taPrefs.add(prefs.getValue());
+    }
+
+    storeInBackground();
   }
 
   public static void configureLogging() {
@@ -351,17 +359,21 @@ public class PreferencesService implements InitializingBean {
     return getFafLogDirectory().resolve(String.format("game_%d.log", gameUID));
   }
 
-  @SneakyThrows
-  public boolean isGamePathValid(String modTechnicalName) {
-    return isGamePathValidWithError(preferences.getTotalAnnihilation(modTechnicalName).getInstalledPath()) == null;
+  public boolean isGameExeValid(Path executablePath) {
+    return executablePath != null && !Files.isDirectory(executablePath) && Files.isExecutable(executablePath);
   }
 
-  public String isGamePathValidWithError(Path installationPath) throws IOException, NoSuchAlgorithmException {
-    boolean valid = installationPath != null && isGamePathValid(installationPath);
+  @SneakyThrows
+  public boolean isGameExeValid(String baseGameName) {
+    return isGameExeValidWithError(preferences.getTotalAnnihilation(baseGameName).getInstalledExePath()) == null;
+  }
+
+  public String isGameExeValidWithError(Path executablePath) throws IOException, NoSuchAlgorithmException {
+    boolean valid = executablePath != null && isGameExeValid(executablePath);
     if (!valid) {
       return "gamePath.select.noValidExe";
     }
-    if (installationPath.equals(getFafBinDirectory())) {
+    if (executablePath.equals(getFafBinDirectory())) {
       return "gamePath.select.fafDataSelected";
     }
 
@@ -383,12 +395,6 @@ public class PreferencesService implements InitializingBean {
       sb.append(String.format("%02X", b));
     }
     return sb.toString().toUpperCase();
-  }
-
-  public boolean isGamePathValid(Path binPath) {
-    return binPath != null
-        && (Files.isRegularFile(binPath.resolve(TOTAL_ANNIHILATION_EXE))
-    );
   }
 
   public Path getCacheStylesheetsDirectory() {
@@ -427,7 +433,7 @@ public class PreferencesService implements InitializingBean {
 
   public TotalAnnihilationPrefs getTotalAnnihilation(String modTechnical) {
     TotalAnnihilationPrefs prefs = preferences.getTotalAnnihilation(modTechnical);
-    logger.info("getTotalAnnihilation({}) -> prefs.getModName():{}", modTechnical, prefs.getModName());
+    logger.info("getTotalAnnihilation({}) -> prefs.getModName():{}", modTechnical, prefs.getBaseGameName());
     return prefs;
   }
 

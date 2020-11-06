@@ -315,7 +315,7 @@ public class SettingsController implements Controller<Node> {
     notifyOnAtMentionOnlyToggle.selectedProperty().bindBidirectional(preferences.getNotification().notifyOnAtMentionOnlyEnabledProperty());
     enableSoundsToggle.selectedProperty().bindBidirectional(preferences.getNotification().soundsEnabledProperty());
     gameLocationModTableColumn.setCellValueFactory(new PropertyValueFactory<>("getModName"));
-    gameLocationExecutableTableColumn.setCellValueFactory(new PropertyValueFactory<>("getInstalledPath"));
+    gameLocationExecutableTableColumn.setCellValueFactory(new PropertyValueFactory<>("getInstalledExePath"));
     gameLocationCommandLineOptionsTableColumn.setCellValueFactory(new PropertyValueFactory<>("getCommandLineOptions"));
 
 //    gameLocationExecutableTableColumn.setCellFactory(TextFieldTableCell.forTableColumn());

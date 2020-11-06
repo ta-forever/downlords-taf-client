@@ -4,7 +4,6 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapBuilder;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.generator.MapGeneratorService;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.mod.ModManagerController;
 import com.faforever.client.mod.ModService;
@@ -80,8 +79,6 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
   @Mock
   private FafService fafService;
   @Mock
-  private MapGeneratorService mapGeneratorService;
-  @Mock
   private ModManagerController modManagerController;
 
   private Preferences preferences;
@@ -90,12 +87,12 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
 
   @Before
   public void setUp() throws Exception {
-    instance = new CreateGameController(mapService, modService, gameService, preferencesService, i18n, notificationService, reportingService, fafService, mapGeneratorService, uiService);
+    instance = new CreateGameController(mapService, modService, gameService, preferencesService, i18n, notificationService, reportingService, fafService, uiService);
 
     mapList = FXCollections.observableArrayList();
 
     preferences = new Preferences();
-    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledPath(Paths.get("."));
+    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledExePath(Paths.get("."));
     when(preferencesService.getPreferences()).thenReturn(preferences);
     when(mapService.getInstalledMaps()).thenReturn(mapList);
     when(modService.getFeaturedMods()).thenReturn(CompletableFuture.completedFuture(emptyList()));
@@ -180,7 +177,7 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
   @Test
   public void testSetLastGameTitle() {
     preferences.getLastGamePrefs().setLastGameTitle("testGame");
-    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledPath(Paths.get(""));
+    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledExePath(Paths.get(""));
 
     WaitForAsyncUtils.asyncFx(() -> instance.initialize());
     WaitForAsyncUtils.waitForFxEvents();
@@ -193,7 +190,7 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
   public void testButtonBindingIfFeaturedModNotSet() {
     preferences.getLastGamePrefs().setLastGameTitle("123");
     when(i18n.get("game.create.featuredModMissing")).thenReturn("Mod missing");
-    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledPath(Paths.get(""));
+    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledExePath(Paths.get(""));
     WaitForAsyncUtils.asyncFx(() -> instance.initialize());
     WaitForAsyncUtils.waitForFxEvents();
 
@@ -205,7 +202,7 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
   public void testButtonBindingIfTitleNotSet() {
 
     when(i18n.get("game.create.titleMissing")).thenReturn("title missing");
-    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledPath(Paths.get(""));
+    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledExePath(Paths.get(""));
     WaitForAsyncUtils.asyncFx(() -> instance.initialize());
     WaitForAsyncUtils.waitForFxEvents();
 
@@ -217,7 +214,7 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
   public void testButtonBindingIfNotConnected() {
     when(fafService.connectionStateProperty()).thenReturn(new SimpleObjectProperty<>(ConnectionState.DISCONNECTED));
     when(i18n.get("game.create.disconnected")).thenReturn("disconnected");
-    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledPath(Paths.get(""));
+    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledExePath(Paths.get(""));
     WaitForAsyncUtils.asyncFx(() -> instance.initialize());
     WaitForAsyncUtils.waitForFxEvents();
 
@@ -229,7 +226,7 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
   public void testButtonBindingIfNotConnecting() {
     when(fafService.connectionStateProperty()).thenReturn(new SimpleObjectProperty<>(ConnectionState.CONNECTING));
     when(i18n.get("game.create.connecting")).thenReturn("connecting");
-    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledPath(Paths.get(""));
+    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledExePath(Paths.get(""));
     WaitForAsyncUtils.asyncFx(() -> instance.initialize());
     WaitForAsyncUtils.waitForFxEvents();
 
@@ -254,7 +251,7 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
   @Test
   public void testInitGameTypeComboBoxEmpty() throws Exception {
     instance = new CreateGameController(mapService, modService, gameService, preferencesService, i18n, notificationService,
-        reportingService, fafService, mapGeneratorService, uiService);
+        reportingService, fafService, uiService);
 
     loadFxml("theme/play/create_game.fxml", clazz -> {
       if (clazz.equals(ModManagerController.class)) {

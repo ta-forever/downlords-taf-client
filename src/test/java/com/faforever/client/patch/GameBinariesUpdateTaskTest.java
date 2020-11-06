@@ -2,6 +2,7 @@ package com.faforever.client.patch;
 
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.fx.PlatformService;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.preferences.Preferences;
 import com.faforever.client.preferences.PreferencesService;
@@ -48,7 +49,7 @@ public class GameBinariesUpdateTaskTest {
     java.nio.file.Files.createDirectories(faPath);
 
     Preferences preferences = new Preferences();
-    preferences.getForgedAlliance().setInstallationPath(faPath);
+    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getBaseGameName()).setInstalledExePath(faPath.resolve("TotalA.exe"));
 
     when(preferencesService.getFafBinDirectory()).thenReturn(fafBinDirectory.getRoot().toPath());
     when(preferencesService.getPreferences()).thenReturn(preferences);

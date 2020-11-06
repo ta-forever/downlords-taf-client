@@ -107,7 +107,8 @@ public class ModServiceTest {
     when(preferencesService.getPreferences()).thenReturn(preferences);
     when(preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(totalAnnihilationPrefs);
     when(totalAnnihilationPrefs.getInstalledPath()).thenReturn(modsDirectory.getRoot().toPath());
-    when(totalAnnihilationPrefs.getInstalledPathProperty()).thenReturn(new SimpleObjectProperty<>(modsDirectory.getRoot().toPath()));
+    // FIXME?  prolly broken when refactor installedPath -> installedExePath
+    when(totalAnnihilationPrefs.getInstalledExePathProperty()).thenReturn(new SimpleObjectProperty<>(modsDirectory.getRoot().toPath()));
     // FIXME how did that happen... I see this line many times but it doesn't seem to do anything useful
     doAnswer(invocation -> invocation.getArgument(0)).when(taskService).submitTask(any());
 

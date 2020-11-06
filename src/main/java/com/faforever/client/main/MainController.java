@@ -487,7 +487,7 @@ public class MainController implements Controller<Node> {
     applicationEventPublisher.publishEvent(new LoggedInEvent());
 
 
-    gamePathHandler.detectAndUpdateGamePath(KnownFeaturedMod.DEFAULT.getTechnicalName());
+    gamePathHandler.detectAndUpdateGamePath(KnownFeaturedMod.DEFAULT.getTechnicalName(), KnownFeaturedMod.DEFAULT.getExecutableFileName());
     openStartTab();
   }
 
@@ -587,7 +587,7 @@ public class MainController implements Controller<Node> {
 
   public void onRevealGamePaths() {
     preferencesService.getPreferences().getTotalAnnihilationAllMods().forEach(
-        (prefs) -> this.platformService.reveal(prefs.getExecutable())
+        (prefs) -> this.platformService.reveal(prefs.getInstalledExePath())
     );
   }
 

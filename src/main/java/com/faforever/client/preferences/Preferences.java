@@ -20,7 +20,6 @@ import javafx.util.Pair;
 import lombok.Getter;
 import java.net.HttpCookie;
 import java.net.URI;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 
 import static javafx.collections.FXCollections.observableArrayList;
@@ -139,7 +138,7 @@ public class Preferences {
     }
 
     for (TotalAnnihilationPrefs pref: totalAnnihilation) {
-      if (pref.getModName().equals(baseGameName)) {
+      if (pref.getBaseGameName().equals(baseGameName)) {
         return pref;
       }
     }

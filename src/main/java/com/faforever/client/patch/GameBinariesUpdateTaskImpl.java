@@ -118,28 +118,28 @@ public class GameBinariesUpdateTaskImpl extends CompletableTask<Void> implements
 
   @VisibleForTesting
   void copyGameFilesToFafBinDirectory() throws IOException {
-    logger.debug("Copying Forged Alliance binaries FAF folder");
-
-    Path fafBinDirectory = preferencesService.getFafBinDirectory();
-    createDirectories(fafBinDirectory);
-
-    Path faBinPath = preferencesService.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).getInstalledPath();
-
-    try (Stream<Path> faBinPathStream = Files.list(faBinPath)) {
-      faBinPathStream
-          .filter(path -> BINARIES_TO_COPY.contains(path.getFileName().toString()))
-          .forEach(source -> {
-            Path destination = fafBinDirectory.resolve(source.getFileName());
-
-            logger.debug("Copying file '{}' to '{}'", source, destination);
-            noCatch(() -> createDirectories(destination.getParent()));
-            noCatch(() -> copy(source, destination, REPLACE_EXISTING));
-
-            if (org.bridj.Platform.isWindows()) {
-              noCatch(() -> setAttribute(destination, "dos:readonly", false));
-            }
-          });
-    }
+//    logger.debug("Copying Forged Alliance binaries FAF folder");
+//
+//    Path fafBinDirectory = preferencesService.getFafBinDirectory();
+//    createDirectories(fafBinDirectory);
+//
+//    Path faBinPath = preferencesService.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).getInstalledPath();
+//
+//    try (Stream<Path> faBinPathStream = Files.list(faBinPath)) {
+//      faBinPathStream
+//          .filter(path -> BINARIES_TO_COPY.contains(path.getFileName().toString()))
+//          .forEach(source -> {
+//            Path destination = fafBinDirectory.resolve(source.getFileName());
+//
+//            logger.debug("Copying file '{}' to '{}'", source, destination);
+//            noCatch(() -> createDirectories(destination.getParent()));
+//            noCatch(() -> copy(source, destination, REPLACE_EXISTING));
+//
+//            if (org.bridj.Platform.isWindows()) {
+//              noCatch(() -> setAttribute(destination, "dos:readonly", false));
+//            }
+//          });
+//    }
   }
 
   @Override

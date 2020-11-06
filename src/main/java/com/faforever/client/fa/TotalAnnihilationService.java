@@ -40,9 +40,9 @@ public class TotalAnnihilationService {
     Path launcherExecutable = getLauncherExectuable();
     List<String> launchCommand = defaultLaunchCommand()
         .gpgnet4taExecutable(launcherExecutable)
-        .baseModName(prefs.getModName())
+        .baseModName(prefs.getBaseGameName())
         .gameInstalledPath(prefs.getInstalledPath())
-        .gameExecutable(prefs.TOTAL_ANNIHILATION_EXE)
+        .gameExecutable(prefs.getInstalledExePath().getFileName().toString())
         .gameCommandLineOptions(prefs.getCommandLineOptions())
         .build();
     return launch(launcherExecutable.getParent(), launchCommand);
@@ -56,9 +56,9 @@ public class TotalAnnihilationService {
     Path launcherExecutable = getLauncherExectuable();
     List<String> launchCommand = defaultLaunchCommand()
         .gpgnet4taExecutable(launcherExecutable)
-        .baseModName(prefs.getModName())
+        .baseModName(prefs.getBaseGameName())
         .gameInstalledPath(prefs.getInstalledPath())
-        .gameExecutable(prefs.TOTAL_ANNIHILATION_EXE)
+        .gameExecutable(prefs.getInstalledExePath().getFileName().toString())
         .gameCommandLineOptions(prefs.getCommandLineOptions())
         .uid(uid)
         .country(currentPlayer.getCountry())
@@ -80,9 +80,9 @@ public class TotalAnnihilationService {
     Path launcherExecutable = getLauncherExectuable();
     List<String> launchCommand = defaultLaunchCommand()
         .gpgnet4taExecutable(launcherExecutable)
-        .baseModName(prefs.getModName())
+        .baseModName(prefs.getBaseGameName())
         .gameInstalledPath(prefs.getInstalledPath())
-        .gameExecutable(prefs.TOTAL_ANNIHILATION_EXE)
+        .gameExecutable(prefs.getInstalledExePath().getFileName().toString())
         .gameCommandLineOptions(prefs.getCommandLineOptions())
         .build();
     return launch(launcherExecutable.getParent(), launchCommand);
@@ -95,9 +95,9 @@ public class TotalAnnihilationService {
     Path launcherExecutable = getLauncherExectuable();
     List<String> launchCommand = defaultLaunchCommand().baseModName(modTechnical)
         .gpgnet4taExecutable(launcherExecutable)
-        .baseModName(prefs.getModName())
+        .baseModName(prefs.getBaseGameName())
         .gameInstalledPath(prefs.getInstalledPath())
-        .gameExecutable(prefs.TOTAL_ANNIHILATION_EXE)
+        .gameExecutable(prefs.getInstalledExePath().getFileName().toString())
         .gameCommandLineOptions(prefs.getCommandLineOptions())
         .build();
     return launch(launcherExecutable.getParent(), launchCommand);
