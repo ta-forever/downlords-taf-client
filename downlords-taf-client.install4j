@@ -30,7 +30,7 @@
     </entries>
   </files>
   <launchers>
-    <launcher name="DownlordsFafClient" id="25">
+    <launcher name="DownlordsTafClient" id="25" menuName="DownlordsTafClient">
       <executable name="downlords-taf-client" iconSet="true" executableMode="gui" changeWorkingDirectory="false" workingDirectory="bin" singleInstance="true" checkConsoleParameter="true" dpiAware="true" />
       <splashScreen show="true" width="640" height="400" bitmapFile="./src/media/splash/splash.png" textOverlay="true">
         <text>
@@ -79,17 +79,17 @@
                   <property name="additionalExecutables" type="array" class="java.io.File" length="3">
                     <element index="0">
                       <object class="java.io.File">
-                        <string>/ForgedAlliance.exe</string>
+                        <string>natives/faf-ice-adapter.jar</string>
                       </object>
                     </element>
                     <element index="1">
                       <object class="java.io.File">
-                        <string>natives/faf-ice-adapter.jar</string>
+                        <string>${installer:sys.installationDir}/jre/bin/java.exe</string>
                       </object>
                     </element>
                     <element index="2">
                       <object class="java.io.File">
-                        <string>${installer:sys.installationDir}/jre/bin/java.exe</string>
+                        <string>natives/gpgnet4ta/gpgnet4ta.exe</string>
                       </object>
                     </element>
                   </property>
@@ -257,19 +257,12 @@ return console.askOkCancel(message, true);
                 <serializedBean>
                   <property name="file">
                     <object class="java.io.File">
-                      <string>downlords-faf-client</string>
+                      <string>downlords-taf-client</string>
                     </object>
                   </property>
                   <property name="name" type="string">${compiler:sys.fullName}</property>
                 </serializedBean>
                 <condition>context.getBooleanVariable("desktopIcon")</condition>
-              </action>
-              <action id="251" beanClass="com.install4j.runtime.beans.actions.desktop.CreateFileAssociationAction" actionElevationType="elevated" rollbackBarrierExitCode="0">
-                <serializedBean>
-                  <property name="description" type="string">Forged Alliance Forever Replay</property>
-                  <property name="extension" type="string">fafreplay</property>
-                  <property name="launcherId" type="string">25</property>
-                </serializedBean>
               </action>
               <action id="424" beanClass="com.install4j.runtime.beans.actions.files.AddWindowsFileRightsAction" actionElevationType="elevated" rollbackBarrierExitCode="0">
                 <serializedBean>
@@ -277,12 +270,26 @@ return console.askOkCancel(message, true);
                   <property name="files" type="array" class="java.io.File" length="1">
                     <element index="0">
                       <object class="java.io.File">
-                        <string>${installer:sys.programDataDir}/FAForever</string>
+                        <string>${installer:sys.programDataDir}/TAForever</string>
                       </object>
                     </element>
                   </property>
                   <property name="read" type="boolean" value="true" />
                   <property name="write" type="boolean" value="true" />
+                </serializedBean>
+              </action>
+              <action id="1009" beanClass="com.install4j.runtime.beans.actions.misc.RunExecutableAction" actionElevationType="elevated" rollbackBarrierExitCode="0">
+                <serializedBean>
+                  <property name="executable">
+                    <object class="java.io.File">
+                      <string>natives/gpgnet4ta/vcredist_x86.exe</string>
+                    </object>
+                  </property>
+                  <property name="workingDirectory">
+                    <object class="java.io.File">
+                      <string>.</string>
+                    </object>
+                  </property>
                 </serializedBean>
               </action>
             </actions>
@@ -335,17 +342,17 @@ return console.askOkCancel(message, true);
                   <property name="additionalExecutables" type="array" class="java.io.File" length="3">
                     <element index="0">
                       <object class="java.io.File">
-                        <string>ForgedAlliance.exe</string>
+                        <string>natives/faf-ice-adapter.jar</string>
                       </object>
                     </element>
                     <element index="1">
                       <object class="java.io.File">
-                        <string>natives/faf-ice-adapter.jar</string>
+                        <string>${installer:sys.installationDir}/jre/bin/java.exe</string>
                       </object>
                     </element>
                     <element index="2">
                       <object class="java.io.File">
-                        <string>${installer:sys.installationDir}/jre/bin/java.exe</string>
+                        <string>natives/gpgnet4ta/gpgnet4ta.exe</string>
                       </object>
                     </element>
                   </property>
@@ -393,12 +400,12 @@ return console.askYesNo(message, true);
                   <property name="files" type="array" class="java.io.File" length="2">
                     <element index="0">
                       <object class="java.io.File">
-                        <string>${installer:sys.programDataDir}/FAForever</string>
+                        <string>${installer:sys.programDataDir}/TAForever</string>
                       </object>
                     </element>
                     <element index="1">
                       <object class="java.io.File">
-                        <string>${installer:sys.appdataDir}/Forged Alliance Forever</string>
+                        <string>${installer:sys.appdataDir}/Total Annihilation Forever</string>
                       </object>
                     </element>
                   </property>

@@ -7,13 +7,8 @@ faf-client:
     draw-probability: 0.1
 
   links:
-    linksTecHelpDiscord: https://discord.gg/BMDMUKS
-    linksTecHelpForum: https://forum.faforever.com/category/4/i-need-help
-    linksRules: ${faf-client.website.base-url}/rules
-    linksModerationReport: ${faf-client.website.base-url}/account/report
-    linksFacebook: https://www.facebook.com/ForgedAllianceForever/
-    linksDevNews: https://faforeverdevblog.tumblr.com
-    linksYoutube: https://www.youtube.com/channel/UCkAWiUu4QE172kv-ZuyR42w
+    linksTecHelpDiscord: https://discord.gg/kNWX6AG2
+    linksTecHelpForum: https://www.tauniverse.com/forum/forumdisplay.php?f=41
 
   vault:
     rules_url: https://forums.faforever.com/viewtopic.php?f=2&t=17873
