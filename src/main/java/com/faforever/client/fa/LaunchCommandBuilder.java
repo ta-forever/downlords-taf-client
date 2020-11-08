@@ -24,6 +24,7 @@ public class LaunchCommandBuilder {
   private Path gameInstalledPath;
   private String gameExecutable;
   private String gameCommandLineOptions;
+  private boolean upnpEnabled;
 
   private Integer uid;
   private String username;
@@ -71,6 +72,11 @@ public class LaunchCommandBuilder {
 
   public LaunchCommandBuilder gameCommandLineOptions(String gameCommandLineOptions) {
     this.gameCommandLineOptions = gameCommandLineOptions;
+    return this;
+  }
+
+  public LaunchCommandBuilder upnpEnabled(boolean upnpEnabled) {
+    this.upnpEnabled = upnpEnabled;
     return this;
   }
 
@@ -145,6 +151,10 @@ public class LaunchCommandBuilder {
     if (gameCommandLineOptions != null) {
       command.add("--gameargs");
       command.add(String.format(QUOTED_STRING_DECORATOR, gameCommandLineOptions));
+    }
+
+    if (upnpEnabled) {
+      command.add("--upnp");
     }
 
     String localIp = Inet4Address.getLoopbackAddress().getHostAddress();
