@@ -123,7 +123,6 @@ public class SettingsController implements Controller<Node> {
   public CheckBox imagePreviewToggle;
   public CheckBox enableNotificationsToggle;
   public CheckBox enableSoundsToggle;
-  public CheckBox enableUpnpCheckBox;
   public CheckBox displayFriendOnlineToastCheckBox;
   public CheckBox displayFriendOfflineToastCheckBox;
   public CheckBox playFriendOnlineSoundCheckBox;
@@ -333,7 +332,7 @@ public class SettingsController implements Controller<Node> {
 //            .get(t.getTablePosition().getRow())
 //            .setCommandLineOptions(t.getNewValue()));
 
-    enableUpnpCheckBox.selectedProperty().bindBidirectional(preferences.getUpnpEnabledProperty());
+    forceRelayToggle.selectedProperty().bindBidirectional(preferences.getForceRelayEnabledProperty());
     updateGameLocationTable();
 
     backgroundImageLocation.textProperty().bindBidirectional(preferences.getMainWindow().backgroundImagePathProperty(), PATH_STRING_CONVERTER);

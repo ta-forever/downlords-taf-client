@@ -60,7 +60,6 @@ public class TotalAnnihilationService {
         .gameInstalledPath(prefs.getInstalledPath())
         .gameExecutable(prefs.getInstalledExePath().getFileName().toString())
         .gameCommandLineOptions(prefs.getCommandLineOptions())
-        .upnpEnabled(preferencesService.getPreferences().getUpnpEnabled())
         .uid(uid)
         .country(currentPlayer.getCountry())
         .deviation(100.0f)

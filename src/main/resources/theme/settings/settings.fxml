@@ -488,7 +488,7 @@
                             <content>
                         <VBox styleClass="view-content">
                            <children>
-                              <GridPane styleClass="setting-container" visible="false">
+                              <GridPane styleClass="setting-container" visible="true">
                                  <columnConstraints>
                                     <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
                                     <ColumnConstraints halignment="RIGHT" hgrow="SOMETIMES" minWidth="10.0" />
@@ -503,22 +503,6 @@
                                               <CheckBox fx:id="forceRelayToggle" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" GridPane.columnIndex="1" />
                                  </children>
                               </GridPane>
-
-                               <GridPane styleClass="setting-container">
-                                   <columnConstraints>
-                                       <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
-                                       <ColumnConstraints halignment="RIGHT" hgrow="SOMETIMES" minWidth="10.0" />
-                                   </columnConstraints>
-                                   <rowConstraints>
-                                       <RowConstraints minHeight="10.0" valignment="TOP" vgrow="SOMETIMES" />
-                                       <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
-                                   </rowConstraints>
-                                   <children>
-                                       <Label contentDisplay="RIGHT" styleClass="setting-title" text="Enable UPNP auto port forwarding" />
-                                       <Label styleClass="setting-description" text="Attempt set up a port forward on your router when game is launched" GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" />
-                                       <CheckBox fx:id="enableUpnpCheckBox" contentDisplay="RIGHT" mnemonicParsing="false" GridPane.columnIndex="1" />
-                                   </children>
-                               </GridPane>
                               <GridPane hgap="10.0" styleClass="setting-container">
                                  <columnConstraints>
                                     <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />

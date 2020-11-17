@@ -40,7 +40,7 @@ public class Preferences {
   private final BooleanProperty prereleaseCheckEnabled;
   private final BooleanProperty showPasswordProtectedGames;
   private final BooleanProperty showModdedGames;
-  private final BooleanProperty upnpEnabled;
+  private final BooleanProperty forceRelayEnabled;
   private final ListProperty<String> ignoredNotifications;
   private final StringProperty gamesViewMode;
   private final Ladder1v1Prefs ladder1v1;
@@ -78,7 +78,7 @@ public class Preferences {
     storedCookies = new SimpleMapProperty<>(FXCollections.observableHashMap());
     showPasswordProtectedGames = new SimpleBooleanProperty(true);
     showModdedGames = new SimpleBooleanProperty(true);
-    upnpEnabled = new SimpleBooleanProperty(true);
+    forceRelayEnabled = new SimpleBooleanProperty(true);
     disallowJoinsViaDiscord = new SimpleBooleanProperty();
     showGameDetailsSidePane = new SimpleBooleanProperty(false);
     advancedIceLogEnabled = new SimpleBooleanProperty(false);
@@ -131,12 +131,12 @@ public class Preferences {
 
   public ObservableList<TotalAnnihilationPrefs> getTotalAnnihilationAllMods() { return totalAnnihilation; }
 
-  public BooleanProperty getUpnpEnabledProperty() {
-    return upnpEnabled;
+  public BooleanProperty getForceRelayEnabledProperty() {
+    return forceRelayEnabled;
   }
 
-  public boolean getUpnpEnabled() {
-    return upnpEnabled.get();
+  public boolean getForceRelayEnabled() {
+    return forceRelayEnabled.get();
   }
 
   public TotalAnnihilationPrefs getTotalAnnihilation(String modTechnical) {
