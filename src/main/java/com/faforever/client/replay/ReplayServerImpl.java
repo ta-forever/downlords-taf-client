@@ -83,38 +83,40 @@ public class ReplayServerImpl implements ReplayServer {
   public CompletableFuture<Integer> start(int gameId, Supplier<Game> gameSupplier) {
     stoppedGracefully = false;
     CompletableFuture<Integer> future = new CompletableFuture<>();
-    new Thread(() -> {
-      String remoteReplayServerHost = clientProperties.getReplay().getRemoteHost();
-      Integer remoteReplayServerPort = clientProperties.getReplay().getRemotePort();
-
-      log.debug("Connecting to replay server at '{}:{}'", remoteReplayServerHost, remoteReplayServerPort);
-
-      try (ServerSocket localSocket = new ServerSocket(0)) {
-        log.debug("Opening local replay server on port {}", localSocket.getLocalPort());
-        this.serverSocket = localSocket;
-        future.complete(serverSocket.getLocalPort());
-
-        try (Socket remoteReplayServerSocket = new Socket(remoteReplayServerHost, remoteReplayServerPort);
-             DataOutputStream fafReplayOutputStream = new DataOutputStream(remoteReplayServerSocket.getOutputStream())) {
-          recordAndRelay(gameId, localSocket, fafReplayOutputStream, gameSupplier);
-        } catch (ConnectException e) {
-          log.warn("Could not connect to remote replay server", e);
-          notificationService.addNotification(new PersistentNotification(i18n.get("replayServer.unreachable"), Severity.WARN));
-          recordAndRelay(gameId, localSocket, null, gameSupplier);
-        }
-      } catch (IOException e) {
-        if (stoppedGracefully) {
-          return;
-        }
-        future.completeExceptionally(e);
-        log.warn("Error in replay server", e);
-        notificationService.addNotification(new PersistentNotification(
-            i18n.get("replayServer.listeningFailed"),
-            Severity.WARN, Collections.singletonList(new Action(i18n.get("replayServer.retry"), event -> start(gameId, gameSupplier)))
-        ));
-      }
-    }).start();
+    future.complete(0);
     return future;
+//    new Thread(() -> {
+//      String remoteReplayServerHost = clientProperties.getReplay().getRemoteHost();
+//      Integer remoteReplayServerPort = clientProperties.getReplay().getRemotePort();
+//
+//      log.debug("Connecting to replay server at '{}:{}'", remoteReplayServerHost, remoteReplayServerPort);
+//
+//      try (ServerSocket localSocket = new ServerSocket(0)) {
+//        log.debug("Opening local replay server on port {}", localSocket.getLocalPort());
+//        this.serverSocket = localSocket;
+//        future.complete(serverSocket.getLocalPort());
+//
+//        try (Socket remoteReplayServerSocket = new Socket(remoteReplayServerHost, remoteReplayServerPort);
+//             DataOutputStream fafReplayOutputStream = new DataOutputStream(remoteReplayServerSocket.getOutputStream())) {
+//          recordAndRelay(gameId, localSocket, fafReplayOutputStream, gameSupplier);
+//        } catch (ConnectException e) {
+//          log.warn("Could not connect to remote replay server", e);
+//          notificationService.addNotification(new PersistentNotification(i18n.get("replayServer.unreachable"), Severity.WARN));
+//          recordAndRelay(gameId, localSocket, null, gameSupplier);
+//        }
+//      } catch (IOException e) {
+//        if (stoppedGracefully) {
+//          return;
+//        }
+//        future.completeExceptionally(e);
+//        log.warn("Error in replay server", e);
+//        notificationService.addNotification(new PersistentNotification(
+//            i18n.get("replayServer.listeningFailed"),
+//            Severity.WARN, Collections.singletonList(new Action(i18n.get("replayServer.retry"), event -> start(gameId, gameSupplier)))
+//        ));
+//      }
+//    }).start();
+//    return future;
   }
 
   private void initReplayInfo(int uid) {
