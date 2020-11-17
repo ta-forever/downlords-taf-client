@@ -433,7 +433,6 @@ public class PreferencesService implements InitializingBean {
 
   public TotalAnnihilationPrefs getTotalAnnihilation(String modTechnical) {
     TotalAnnihilationPrefs prefs = preferences.getTotalAnnihilation(modTechnical);
-    logger.info("getTotalAnnihilation({}) -> prefs.getModName():{}", modTechnical, prefs.getBaseGameName());
     return prefs;
   }
 
