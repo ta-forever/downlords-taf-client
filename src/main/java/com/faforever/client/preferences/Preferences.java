@@ -78,7 +78,7 @@ public class Preferences {
     storedCookies = new SimpleMapProperty<>(FXCollections.observableHashMap());
     showPasswordProtectedGames = new SimpleBooleanProperty(true);
     showModdedGames = new SimpleBooleanProperty(true);
-    forceRelayEnabled = new SimpleBooleanProperty(true);
+    forceRelayEnabled = new SimpleBooleanProperty(false);
     disallowJoinsViaDiscord = new SimpleBooleanProperty();
     showGameDetailsSidePane = new SimpleBooleanProperty(false);
     advancedIceLogEnabled = new SimpleBooleanProperty(false);
