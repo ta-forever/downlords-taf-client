@@ -13,7 +13,7 @@ public final class Version {
   private static String currentVersion;
 
   private static final String SNAPSHOT_VERSION = "snapshot";
-  private static final Pattern SEMVER_PATTERN = Pattern.compile("v?\\d+(\\.\\d+)*[^.]*");
+  private static final Pattern SEMVER_PATTERN = Pattern.compile("v?\\d+(\\.\\d+)*-taf-\\d+(\\.\\d+)*[^\\.]*");
   private static final String UNSPECIFIED_VERSION = "unspecified";
 
   static {
@@ -37,24 +37,22 @@ public final class Version {
    * @return true if the remote version is higher than the current version
    */
   public static boolean shouldUpdate(@NonNull String fromVersionRaw, @NonNull String toVersionRaw) {
-    log.debug("Comparing current version '{}' to remote version '{}'", currentVersion, toVersionRaw);
-
     String fromVersion = removePrefix(fromVersionRaw);
     String toVersion = removePrefix(toVersionRaw);
 
     if (fromVersion.equals(SNAPSHOT_VERSION) || fromVersion.equals(UNSPECIFIED_VERSION)) {
-      log.info("Snapshot versions are not to be updated");
+      log.info("fromVersion '{}': Snapshot versions are not to be updated", fromVersion);
       return false;
     }
 
     if (!SEMVER_PATTERN.matcher(fromVersion).matches()) {
-      log.error("fromVersion '{}' is not matching semver pattern", fromVersion);
+      log.error("fromVersion '{}': is not matching semver pattern", fromVersion);
       // since obviously the app is not properly versioned, throw an exception - this should not happen
       throw new IllegalArgumentException(format("fromVersion ''{0}'' is not matching semver pattern", fromVersion));
     }
 
     if (!SEMVER_PATTERN.matcher(toVersion).matches()) {
-      log.error("toVersion '{}' is not matching semver pattern", toVersion);
+      log.error("toVersion '{}': is not matching semver pattern", toVersion);
       // probably issue on the remote side where we fetched the toVersion - no exception and "just no update"
       return false;
     }
@@ -64,12 +62,12 @@ public final class Version {
     ComparableVersion toComparableVersion = new ComparableVersion(toVersion);
 
     if (toComparableVersion.compareTo(fromComparableVersion) < 1) {
-      log.info("fromVersion '{}' is not newer than toVersion '{}'. No update is required.",
-          toComparableVersion.getCanonical(), fromComparableVersion.getCanonical());
+      log.info("fromVersion='{}', toVersion='{}'. No update is required.",
+          fromComparableVersion.getCanonical(), toComparableVersion.getCanonical());
       return false;
     } else {
-      log.info("fromVersion version '{}' is newer than toVersion '{}'. fromVersion should be updated.",
-          toComparableVersion.getCanonical(), fromComparableVersion.getCanonical());
+      log.info("fromVersion='{}', toVersion='{}'. fromVersion should be updated.",
+          fromComparableVersion.getCanonical(), toComparableVersion.getCanonical());
       return true;
     }
   }
