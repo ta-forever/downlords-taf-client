@@ -1,5 +1,6 @@
 package com.faforever.client.map;
 
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.PlayerService;
@@ -67,7 +68,7 @@ public class MapCardControllerTest extends AbstractPlainJavaFxTest {
 
   @Before
   public void setUp() throws Exception {
-    when(mapService.downloadAndInstallMap(any(), isNull(), isNull())).thenReturn(CompletableFuture.runAsync(() -> {
+    when(mapService.downloadAndInstallMap(KnownFeaturedMod.DEFAULT.getTechnicalName(), any(), isNull(), isNull())).thenReturn(CompletableFuture.runAsync(() -> {
     }));
     when(mapService.uninstallMap(any())).thenReturn(CompletableFuture.runAsync(() -> {
     }));

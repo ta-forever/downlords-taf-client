@@ -8,7 +8,6 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.LocalReplaysChangedEvent;
 import com.faforever.client.map.MapBeanBuilder;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.generator.MapGeneratorService;
 import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.NotificationService;
@@ -179,8 +178,6 @@ public class ReplayServiceTest {
   @Mock
   private ApplicationEventPublisher publisher;
   @Mock
-  private MapGeneratorService mapGeneratorService;
-  @Mock
   private ExecutorService executorService;
   @Mock
   private UserService userService;
@@ -190,7 +187,7 @@ public class ReplayServiceTest {
     MockitoAnnotations.initMocks(this);
 
     instance = new ReplayService(new ClientProperties(), preferencesService, userService, replayFileReader, notificationService, gameService, playerService,
-        taskService, i18n, reportingService, applicationContext, platformService, fafService, modService, mapService, publisher, mapGeneratorService, executorService);
+        taskService, i18n, reportingService, applicationContext, platformService, fafService, modService, mapService, publisher, executorService);
 
     when(preferencesService.getReplaysDirectory()).thenReturn(replayDirectory.getRoot().toPath());
     when(preferencesService.getCorruptedReplaysDirectory()).thenReturn(replayDirectory.getRoot().toPath().resolve("corrupt"));
@@ -383,7 +380,6 @@ public class ReplayServiceTest {
 
     when(replayFileReader.parseMetaData(replayFile)).thenReturn(replayInfo);
     when(replayFileReader.readRawReplayData(replayFile)).thenReturn(REPLAY_FIRST_BYTES_GENERATED_MAP);
-    when(mapGeneratorService.isGeneratedMap(TEST_MAP_NAME_GENERATED)).thenReturn(true);
 
 
     instance.runReplay(replay);

@@ -16,8 +16,7 @@ public class LaunchCommandBuilderTest {
 
   private static LaunchCommandBuilder defaultBuilder() {
     return LaunchCommandBuilder.create()
-        .executable(Paths.get("test.exe"))
-        .executableDecorator("%s")
+        .gameExecutable("test.exe")
         .logFile(Paths.get("preferences.log"))
         .username("junit");
   }
@@ -29,7 +28,7 @@ public class LaunchCommandBuilderTest {
 
   @Test(expected = IllegalStateException.class)
   public void testExecutableNullThrowsException() throws Exception {
-    defaultBuilder().executable(null).build();
+    defaultBuilder().gameExecutable(null).build();
   }
 
   @Test
@@ -63,11 +62,6 @@ public class LaunchCommandBuilderTest {
   }
 
   @Test
-  public void testFactionNullAllowed() throws Exception {
-    defaultBuilder().faction(null).build();
-  }
-
-  @Test
   public void testLogFileNullAllowed() throws Exception {
     defaultBuilder().logFile(null).build();
   }
@@ -77,24 +71,12 @@ public class LaunchCommandBuilderTest {
     defaultBuilder().additionalArgs(null).build();
   }
 
-  @Test
-  public void testClanNullThrowsNoException() throws Exception {
-    defaultBuilder().clan(null).build();
-  }
-
-  @Test
-  public void testFactionAsString() throws Exception {
-    List<String> build = defaultBuilder().faction(Faction.SERAPHIM).build();
-    assertThat(build.get(4), is("/seraphim"));
-  }
-
-  @Test
+    @Test
   public void testCommandFormatWithSpaces() throws Exception {
     String pathWithSpaces = "mypath/with space/test.exe";
     assertThat(
         defaultBuilder()
-            .executable(Paths.get(pathWithSpaces))
-            .executableDecorator("/path/to/my/wineprefix primusrun wine %s")
+            .gameExecutable(pathWithSpaces)
             .build(),
         contains(
             "/path/to/my/wineprefix", "primusrun", "wine", Paths.get(pathWithSpaces).toAbsolutePath().toString(),
@@ -108,7 +90,6 @@ public class LaunchCommandBuilderTest {
   public void testCommandFormatWithRedundantQuotionMarks() throws Exception {
     assertThat(
         defaultBuilder()
-            .executableDecorator("/path/to/my/wineprefix primusrun wine \"\"%s\"\"")
             .build(),
         contains(
             "/path/to/my/wineprefix", "primusrun", "wine", Paths.get("test.exe").toAbsolutePath().toString(),
@@ -118,28 +99,4 @@ public class LaunchCommandBuilderTest {
         ));
   }
 
-  @Test
-  public void testRehost() throws Exception {
-    assertThat(
-        defaultBuilder().rehost(true).build(),
-        contains(
-            Paths.get("test.exe").toAbsolutePath().toString(),
-            "/init", "init.lua",
-            "/nobugreport",
-            "/log", Paths.get("preferences.log").toAbsolutePath().toString(),
-            "/rehost"
-        ));
-  }
-
-  @Test
-  public void testUseDefaultExecutableDecoratorOnEmptyString() throws Exception {
-    assertThat(
-        defaultBuilder().executableDecorator("").build(),
-        equalTo(defaultBuilder().build())
-    );
-    assertThat(
-        defaultBuilder().executableDecorator(null).build(),
-        equalTo(defaultBuilder().build())
-    );
-  }
 }

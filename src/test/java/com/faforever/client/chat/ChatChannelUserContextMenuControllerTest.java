@@ -183,7 +183,7 @@ public class ChatChannelUserContextMenuControllerTest extends AbstractPlainJavaF
   @Test
   public void testJoinGameContextMenuShownForHostingUser() {
     Game game = new Game();
-    game.setFeaturedMod(KnownFeaturedMod.FAF.getTechnicalName());
+    game.setFeaturedMod(KnownFeaturedMod.DEFAULT.getTechnicalName());
     game.setStatus(GameStatus.OPEN);
     game.setHost(player.getUsername());
 

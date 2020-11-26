@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -70,7 +71,7 @@ public class JoinGameHelperTest extends AbstractPlainJavaFxTest {
 
     when(gameService.joinGame(any(), any())).thenReturn(new CompletableFuture<>());
 
-    when(preferencesService.isGamePathValid()).thenReturn(true);
+    when(preferencesService.isGameExeValid(anyString())).thenReturn(true);
   }
 
 
@@ -88,7 +89,7 @@ public class JoinGameHelperTest extends AbstractPlainJavaFxTest {
    */
   @Test
   public void testJoinGameMissingGamePathUserSelectsValidPath() throws Exception {
-    when(preferencesService.isGamePathValid()).thenReturn(false).thenReturn(true);
+    when(preferencesService.isGameExeValid(anyString())).thenReturn(false).thenReturn(true);
 
     doAnswer(invocation -> {
       ((GameDirectoryChooseEvent) invocation.getArgument(0)).getFuture().ifPresent(future -> future.complete(Paths.get("")));
@@ -106,7 +107,7 @@ public class JoinGameHelperTest extends AbstractPlainJavaFxTest {
    */
   @Test
   public void testJoinGameMissingGamePathUserSelectsInvalidPath() throws Exception {
-    when(preferencesService.isGamePathValid()).thenReturn(false);
+    when(preferencesService.isGameExeValid(anyString())).thenReturn(false);
 
     // First, user selects invalid path. Seconds, he aborts so we don't stay in an endless loop
     AtomicInteger invocationCounter = new AtomicInteger();

@@ -25,7 +25,7 @@ public class StatisticsServiceTest {
 
   @Test
   public void testGetStatisticsForPlayer() throws Exception {
-    instance.getRatingHistory(KnownFeaturedMod.FAF, 123);
-    verify(fafService).getRatingHistory(123, KnownFeaturedMod.FAF);
+    instance.getRatingHistory(KnownFeaturedMod.DEFAULT, 123);
+    verify(fafService).getRatingHistory(123, KnownFeaturedMod.DEFAULT);
   }
 }

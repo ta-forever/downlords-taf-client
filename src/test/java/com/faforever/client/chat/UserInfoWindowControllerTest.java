@@ -142,7 +142,7 @@ public class UserInfoWindowControllerTest extends AbstractPlainJavaFxTest {
     testSetPlayerInfoBean();
     instance.ratingTypeComboBox.setValue(RatingMode.GLOBAL);
     instance.onRatingTypeChange();
-    verify(statisticsService, times(2)).getRatingHistory(KnownFeaturedMod.FAF, PLAYER_ID);
+    verify(statisticsService, times(2)).getRatingHistory(KnownFeaturedMod.DEFAULT, PLAYER_ID);
   }
 
   @Test

@@ -39,8 +39,6 @@ public class ModManagerControllerTest extends AbstractPlainJavaFxTest {
     modSIM.setModType(ModType.SIM);
     when(modService.getInstalledModVersions()).thenReturn(FXCollections.observableArrayList(modUI, modSIM));
 
-    when(modService.getActivatedSimAndUIMods()).thenReturn(Collections.singletonList(modUI));
-
     loadFxml("theme/mod_manager.fxml", param -> instance);
   }
 
@@ -63,10 +61,4 @@ public class ModManagerControllerTest extends AbstractPlainJavaFxTest {
     assertThat(instance.modListView.getSelectionModel().getSelectedItems().isEmpty(), Matchers.is(true));
   }
 
-  @Test
-  public void testApplyCallsModService() throws IOException {
-    instance.apply();
-
-    verify(modService).overrideActivatedMods(ArgumentMatchers.eq(Collections.singletonList(modUI)));
-  }
 }

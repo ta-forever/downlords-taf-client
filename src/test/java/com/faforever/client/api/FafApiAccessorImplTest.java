@@ -210,7 +210,7 @@ public class FafApiAccessorImplTest {
         .thenReturn(gamePlayerStats)
         .thenReturn(emptyList());
 
-    List<GamePlayerStats> result = instance.getGamePlayerStats(123, KnownFeaturedMod.FAF);
+    List<GamePlayerStats> result = instance.getGamePlayerStats(123, KnownFeaturedMod.DEFAULT);
 
     assertThat(result, is(gamePlayerStats));
     verify(restOperations).getForObject("/data/gamePlayerStats" +
