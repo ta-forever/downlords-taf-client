@@ -40,6 +40,7 @@ public class TotalAnnihilationService {
     Path launcherExecutable = getLauncherExectuable();
     List<String> launchCommand = defaultLaunchCommand()
         .gpgnet4taExecutable(launcherExecutable)
+        .logFile(preferencesService.getNewGameLogFile(0))
         .baseModName(prefs.getBaseGameName())
         .gameInstalledPath(prefs.getInstalledPath())
         .gameExecutable(prefs.getInstalledExePath().getFileName().toString())
@@ -56,6 +57,7 @@ public class TotalAnnihilationService {
     Path launcherExecutable = getLauncherExectuable();
     List<String> launchCommand = defaultLaunchCommand()
         .gpgnet4taExecutable(launcherExecutable)
+        .logFile(preferencesService.getNewGameLogFile(uid))
         .baseModName(prefs.getBaseGameName())
         .gameInstalledPath(prefs.getInstalledPath())
         .gameExecutable(prefs.getInstalledExePath().getFileName().toString())
@@ -80,6 +82,7 @@ public class TotalAnnihilationService {
     Path launcherExecutable = getLauncherExectuable();
     List<String> launchCommand = defaultLaunchCommand()
         .gpgnet4taExecutable(launcherExecutable)
+        .logFile(preferencesService.getNewGameLogFile(replayId))
         .baseModName(prefs.getBaseGameName())
         .gameInstalledPath(prefs.getInstalledPath())
         .gameExecutable(prefs.getInstalledExePath().getFileName().toString())
@@ -95,6 +98,7 @@ public class TotalAnnihilationService {
     Path launcherExecutable = getLauncherExectuable();
     List<String> launchCommand = defaultLaunchCommand().baseModName(modTechnical)
         .gpgnet4taExecutable(launcherExecutable)
+        .logFile(preferencesService.getFafLogDirectory().resolve("replay.log"))
         .baseModName(prefs.getBaseGameName())
         .gameInstalledPath(prefs.getInstalledPath())
         .gameExecutable(prefs.getInstalledExePath().getFileName().toString())

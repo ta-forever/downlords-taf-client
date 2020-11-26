@@ -178,6 +178,11 @@ public class LaunchCommandBuilder {
       command.add(country);
     }
 
+    if (logFile != null) {
+      command.add("--logfile");
+      command.add(String.format(QUOTED_STRING_DECORATOR, logFile.toString()));
+    }
+
     if (additionalArgs != null) {
       List<String> args = additionalArgs.stream()
           .map((String arg) -> arg.replace("/", "--"))
