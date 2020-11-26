@@ -33,7 +33,7 @@ public class GamePathHandler implements InitializingBean {
   private static final String DIRECTPLAY_TOTAL_ANNIHILATION_REGKEY = "SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Applications\\Total Annihilation";
 
   private static final Collection<Path> USUAL_GAME_PATHS = Arrays.asList(
-      Platform.isWindows() && Advapi32Util.registryValueExists(WinReg.HKEY_LOCAL_MACHINE, DIRECTPLAY_TOTAL_ANNIHILATION_REGKEY, "Path") ?
+      Platform.isWindows() && Advapi32Util.registryKeyExists(WinReg.HKEY_LOCAL_MACHINE, DIRECTPLAY_TOTAL_ANNIHILATION_REGKEY+"\\Path") ?
           Paths.get(Advapi32Util.registryGetStringValue(WinReg.HKEY_LOCAL_MACHINE, DIRECTPLAY_TOTAL_ANNIHILATION_REGKEY, "Path")) : null,
       Paths.get(System.getProperty("user.home"), "GOG Games", "Total Annihilation"), // @todo verify default GOG install path
       Paths.get(System.getProperty("user.home"), ".steam", "steam", "steamapps", "common", "Total Annihilation"), // @todo verify default steam install path
