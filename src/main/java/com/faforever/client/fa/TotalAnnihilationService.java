@@ -40,6 +40,7 @@ public class TotalAnnihilationService {
     Path launcherExecutable = getLauncherExectuable();
     List<String> launchCommand = defaultLaunchCommand()
         .gpgnet4taExecutable(launcherExecutable)
+        .requireUac(preferencesService.getPreferences().getRequireUacEnabled())
         .logFile(preferencesService.getNewGameLogFile(0))
         .baseModName(prefs.getBaseGameName())
         .gameInstalledPath(prefs.getInstalledPath())
@@ -57,6 +58,7 @@ public class TotalAnnihilationService {
     Path launcherExecutable = getLauncherExectuable();
     List<String> launchCommand = defaultLaunchCommand()
         .gpgnet4taExecutable(launcherExecutable)
+        .requireUac(preferencesService.getPreferences().getRequireUacEnabled())
         .logFile(preferencesService.getNewGameLogFile(uid))
         .baseModName(prefs.getBaseGameName())
         .gameInstalledPath(prefs.getInstalledPath())
@@ -82,6 +84,7 @@ public class TotalAnnihilationService {
     Path launcherExecutable = getLauncherExectuable();
     List<String> launchCommand = defaultLaunchCommand()
         .gpgnet4taExecutable(launcherExecutable)
+        .requireUac(preferencesService.getPreferences().getRequireUacEnabled())
         .logFile(preferencesService.getNewGameLogFile(replayId))
         .baseModName(prefs.getBaseGameName())
         .gameInstalledPath(prefs.getInstalledPath())
@@ -98,6 +101,7 @@ public class TotalAnnihilationService {
     Path launcherExecutable = getLauncherExectuable();
     List<String> launchCommand = defaultLaunchCommand().baseModName(modTechnical)
         .gpgnet4taExecutable(launcherExecutable)
+        .requireUac(preferencesService.getPreferences().getRequireUacEnabled())
         .logFile(preferencesService.getFafLogDirectory().resolve("replay.log"))
         .baseModName(prefs.getBaseGameName())
         .gameInstalledPath(prefs.getInstalledPath())
@@ -131,7 +135,6 @@ public class TotalAnnihilationService {
     processBuilder.command(launchCommand);
 
     logger.info("Starting Total Annihilation Launcher with command: {}", String.join(" ", processBuilder.command()));
-    processBuilder.command(launchCommand);
     Process process = processBuilder.start();
 
     return process;

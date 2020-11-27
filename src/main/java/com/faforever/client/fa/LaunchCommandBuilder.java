@@ -19,6 +19,7 @@ public class LaunchCommandBuilder {
   private static final Pattern QUOTED_STRING_PATTERN = Pattern.compile("([^\"]\\S*|\"+.+?\"+)\\s*");
   private static final String QUOTED_STRING_DECORATOR = "\"%s\"";
 
+  private boolean requireUac;
   private Path gpgnet4taExecutable;
   private String baseModName;
   private Path gameInstalledPath;
@@ -48,6 +49,11 @@ public class LaunchCommandBuilder {
       result.add(matcher.group(1).replace("\"", ""));
     }
     return result;
+  }
+
+  public LaunchCommandBuilder requireUac(boolean requireUac) {
+    this.requireUac = requireUac;
+    return this;
   }
 
   public LaunchCommandBuilder gpgnet4taExecutable(Path gpgnet4taExecutable) {
@@ -132,6 +138,10 @@ public class LaunchCommandBuilder {
 
     List<String> command = new ArrayList<>();
     command.add(String.format(QUOTED_STRING_DECORATOR, gpgnet4taExecutable.toAbsolutePath().toString()));
+
+    if (requireUac) {
+      command.add("--uac");
+    }
 
     if (baseModName != null) {
       command.add("--gamemod");

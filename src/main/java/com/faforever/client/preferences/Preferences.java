@@ -41,6 +41,7 @@ public class Preferences {
   private final BooleanProperty showPasswordProtectedGames;
   private final BooleanProperty showModdedGames;
   private final BooleanProperty forceRelayEnabled;
+  private final BooleanProperty requireUacEnabled;
   private final ListProperty<String> ignoredNotifications;
   private final StringProperty gamesViewMode;
   private final Ladder1v1Prefs ladder1v1;
@@ -79,6 +80,7 @@ public class Preferences {
     showPasswordProtectedGames = new SimpleBooleanProperty(true);
     showModdedGames = new SimpleBooleanProperty(true);
     forceRelayEnabled = new SimpleBooleanProperty(false);
+    requireUacEnabled = new SimpleBooleanProperty(false);
     disallowJoinsViaDiscord = new SimpleBooleanProperty();
     showGameDetailsSidePane = new SimpleBooleanProperty(false);
     advancedIceLogEnabled = new SimpleBooleanProperty(false);
@@ -135,8 +137,16 @@ public class Preferences {
     return forceRelayEnabled;
   }
 
+  public BooleanProperty getRequireUacEnabledProperty() {
+    return requireUacEnabled;
+  }
+
   public boolean getForceRelayEnabled() {
     return forceRelayEnabled.get();
+  }
+
+  public boolean getRequireUacEnabled() {
+    return requireUacEnabled.get();
   }
 
   public TotalAnnihilationPrefs getTotalAnnihilation(String modTechnical) {
