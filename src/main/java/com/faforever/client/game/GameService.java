@@ -10,6 +10,7 @@ import com.faforever.client.fa.relay.ice.IceAdapter;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.main.event.JoinChannelEvent;
 import com.faforever.client.main.event.ShowReplayEvent;
 import com.faforever.client.map.MapService;
 import com.faforever.client.mod.FeaturedMod;
@@ -304,6 +305,10 @@ public class GameService implements InitializingBean {
     }
 
     stopSearchLadder1v1();
+    String gameChannel = "#game-" + getCurrentPlayer().getUsername().replace(" ", "");
+    String modChannel = "#" + newGameInfo.getFeaturedMod().getTechnicalName().replace(" ", "");
+    eventBus.post(new JoinChannelEvent(gameChannel));
+    //eventBus.post(new JoinChannelEvent(modChannel));
 
     return updateGameIfNecessary(newGameInfo.getFeaturedMod(), null, emptyMap(), newGameInfo.getSimMods())
         .thenCompose(aVoid -> downloadMapIfNecessary(newGameInfo.getMap()))
@@ -325,6 +330,11 @@ public class GameService implements InitializingBean {
     log.info("Joining game: '{}' ({})", game.getTitle(), game.getId());
 
     stopSearchLadder1v1();
+
+    String gameChannel = "#game-" + game.getHost().replace(" ", "");
+    String modChannel = "#" + game.getFeaturedMod().replace(" ", "");
+    eventBus.post(new JoinChannelEvent(gameChannel));
+    //eventBus.post(new JoinChannelEvent(modChannel));
 
     Map<String, Integer> featuredModVersions = game.getFeaturedModVersions();
     Set<String> simModUIds = game.getSimMods().keySet();
