@@ -13,7 +13,7 @@ import java.util.Map;
 @ConfigurationProperties(prefix = "faf-client", ignoreUnknownFields = false)
 public class ClientProperties {
 
-  private String mainWindowTitle = "Downlord's FAF Client";
+  private String mainWindowTitle = "Downlord's TAF Client";
   private News news = new News();
   private ForgedAlliance forgedAlliance = new ForgedAlliance();
   private Irc irc = new Irc();
@@ -46,9 +46,9 @@ public class ClientProperties {
   @Data
   public static class ForgedAlliance {
     /**
-     * Title of the Forged Alliance window. Required to find the window handle.
+     * Title of the Total Annihilation window. Required to find the window handle.
      */
-    private String windowTitle = "Forged Alliance";
+    private String windowTitle = "Total Annihilation";
 
     /**
      * URL to download the ForgedAlliance.exe from.
@@ -160,7 +160,7 @@ public class ClientProperties {
     private String smallImageKey;
     private String bigImageKey;
     private String discordPrereleaseFeedbackChannelUrl;
-    /** URL to join the FAF Discord server. */
+    /** URL to join Discord server. */
     private String joinUrl;
   }
 }

@@ -61,8 +61,7 @@ public class GamePathHandler implements InitializingBean {
   }
 
   /**
-   * Checks whether the chosen game path contains a ForgedAlliance.exe (either directly if the user selected the "bin"
-   * directory, or in the "bin" sub folder). If the path is valid, it is stored in the preferences.
+   * Checks whether the chosen game executable path is valid. If the path is valid, it is stored in the preferences.
    */
   @Subscribe
   public void onGameDirectoryChosenEvent(GameDirectoryChosenEvent event) {

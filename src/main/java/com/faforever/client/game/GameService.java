@@ -372,7 +372,7 @@ public class GameService implements InitializingBean {
    */
   public void runWithReplay(Path path, @Nullable Integer replayId, String featuredMod, Integer version, Map<String, Integer> modVersions, Set<String> simMods, String mapName) {
     if (isRunning()) {
-      log.warn("Forged Alliance is already running, not starting replay");
+      log.warn("Total Annihilation is already running, not starting replay");
       return;
     }
 
@@ -443,7 +443,7 @@ public class GameService implements InitializingBean {
 
   public CompletableFuture<Void> runWithLiveReplay(URI replayUrl, Integer gameId, String gameType, String mapName) {
     if (isRunning()) {
-      log.warn("Forged Alliance is already running, not starting live replay");
+      log.warn("Total Annihilation is already running, not starting live replay");
       return completedFuture(null);
     }
 
@@ -575,7 +575,7 @@ public class GameService implements InitializingBean {
    */
   private void startGame(String modTechnical, GameLaunchMessage gameLaunchMessage, Faction faction, RatingMode ratingMode) {
     if (isRunning()) {
-      log.warn("Forged Alliance is already running, not starting game");
+      log.warn("Total Annihilation is already running, not starting game");
       return;
     }
 
@@ -642,7 +642,7 @@ public class GameService implements InitializingBean {
       try {
         rehostRequested = false;
         int exitCode = process.waitFor();
-        log.info("Forged Alliance terminated with exit code {}", exitCode);
+        log.info("Total Annihilation terminated with exit code {}", exitCode);
 
         synchronized (gameRunning) {
           gameRunning.set(false);
@@ -874,7 +874,7 @@ public class GameService implements InitializingBean {
 
   public void killGame() {
     if (process != null && process.isAlive()) {
-      log.info("ForgedAlliance still running, destroying process");
+      log.info("Total Annihilation still running, destroying process");
       process.destroy();
     }
   }

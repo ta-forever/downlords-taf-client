@@ -591,6 +591,11 @@ public class MainController implements Controller<Node> {
     );
   }
 
+  public void onRevealLogFolder() {
+    Path logPath = preferencesService.getFafLogDirectory();
+    this.platformService.reveal(logPath);
+  }
+
   public void onChat(ActionEvent actionEvent) {
     chatButton.pseudoClassStateChanged(HIGHLIGHTED, false);
     onNavigateButtonClicked(actionEvent);

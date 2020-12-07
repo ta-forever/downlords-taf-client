@@ -4,7 +4,7 @@ import json
 import sys
 import urllib.request
 
-GITHUB_BASE_URL = "https://api.github.com/repos/FAForever/downlords-faf-client"
+GITHUB_BASE_URL = "https://api.github.com/repos/ta-forever/downlords-taf-client"
 
 
 def call_github(path):

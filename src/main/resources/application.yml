@@ -7,7 +7,7 @@ faf-client:
     draw-probability: 0.1
 
   links:
-    linksTecHelpDiscord: https://discord.gg/kNWX6AG2
+    linksTecHelpDiscord: https://discord.gg/KP7ndRagrM
     linksTecHelpForum: https://www.tauniverse.com/forum/forumdisplay.php?f=41
 
   vault:
@@ -44,11 +44,11 @@ faf-client:
   show-ice-adapter-debug-Window: ${SHOW_ICE_ADAPTER_DEBUG_WINDOW:false}
 
   discord:
-    discord_prerelease_feedback_channel_url: https://discord.gg/fZc4BsE
-    application_id: 464069837237518357
-    small_image_key: faf_logo_small
-    big_image_key: faf_logo_big
-    join-url: https://discord.gg/PfGcWas
+    discord_prerelease_feedback_channel_url: https://discord.gg/KP7ndRagrM
+    application_id: 785128540886532097
+    small_image_key: taf-logo-crystal-nodt-512
+    big_image_key: taf-logo-crystal-dt-512
+    join-url: https://discord.gg/KP7ndRagrM
 
 spring:
   profiles:
@@ -56,7 +56,7 @@ spring:
   main:
     web-environment: false
   application:
-    name: Downlord's FAF Client
+    name: Downlord's TAF Client
 
 security:
   oauth2:

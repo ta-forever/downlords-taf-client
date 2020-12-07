@@ -36,7 +36,7 @@ after_success:
   - if [ -n "${TRAVIS_TAG}" ]; then chmod +x ./ci/github-release.sh && ./ci/github-release.sh; fi
 
 after_failure:
-- cat /home/travis/build/FAForever/downlords-faf-client/hs_err_pid*.log
+- cat /home/travis/build/ta-forever/downlords-taf-client/hs_err_pid*.log
 
 deploy:
   provider: releases
@@ -68,9 +68,9 @@ addons:
     - python3
   coverity_scan:
     project:
-      name: "micheljung/downlords-faf-client"
-      description: "A high quality re-implementation of the Forged Alliance Forever client"
-    notification_email: michel.jung89@gmail.com
+      name: "ta-forever/downlords-taf-client"
+      description: "A client for Total Annihilation Forever a forked from Forged Alliance Forever"
+    notification_email: loweam@gmail.com
     build_command_prepend: "./gradlew clean"
     build_command:   "./gradlew build"
     branch_pattern: coverity_scan
@@ -85,5 +85,5 @@ cache:
   - $HOME/.gradle/caches/
   - $HOME/.gradle/wrapper/
   - ~/.install4j8
-  - /home/travis/build/FAForever/downlords-faf-client/build/cache/
+  - /home/travis/build/ta-forever/downlords-taf-client/build/cache/
   - ~/openjdk14

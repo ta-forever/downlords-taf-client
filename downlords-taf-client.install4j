@@ -385,7 +385,7 @@ return console.askYesNo(message, true);
               </formComponent>
               <formComponent id="809" beanClass="com.install4j.runtime.beans.formcomponents.CheckboxComponent">
                 <serializedBean>
-                  <property name="helpText" type="string">Deletes C:\ProgramData\FaForever and $USER_HOME$\AppData\Roaming\Forged Alliance Forever</property>
+                  <property name="helpText" type="string">Deletes C:\ProgramData\TAForever and $USER_HOME$\AppData\Roaming\Total Annihilation Forever</property>
                   <property name="labelText" type="string">Delete metadata like settings and game files.</property>
                   <property name="variableName" type="string">delAll</property>
                 </serializedBean>
@@ -658,19 +658,19 @@ return console.askYesNo(message, true);
       </exclude>
       <jreBundle jreBundleSource="generated" />
     </windowsArchive>
-    <unixArchive name="Unix Archive" id="331" installDir="downlords-faf-client-${compiler:sys.version}">
+    <unixArchive name="Unix Archive" id="331" installDir="downlords-taf-client-${compiler:sys.version}">
       <exclude>
         <entry location="lib/faf-ice-adapter.exe" />
         <entry location="lib/faf-uid.exe" />
       </exclude>
     </unixArchive>
-    <linuxRPM name="Linux RPM" id="332" installDir="/opt/downlords-faf-client-${compiler:sys.version}">
+    <linuxRPM name="Linux RPM" id="332" installDir="/opt/downlords-taf-client-${compiler:sys.version}">
       <exclude>
         <entry location="lib/faf-ice-adapter.exe" />
         <entry location="lib/faf-uid.exe" />
       </exclude>
     </linuxRPM>
-    <linuxDeb name="Linux Deb Archive" id="333" installDir="/opt/downlords-faf-client-${compiler:sys.version}" dependencies="oracle-java8-installer" description="Downlord's FAF Client" maintainerEmail="michel.jung89@gmail.com">
+    <linuxDeb name="Linux Deb Archive" id="333" installDir="/opt/downlords-taf-client-${compiler:sys.version}" dependencies="oracle-java8-installer" description="Downlord's TAF Client" maintainerEmail="michel.jung89@gmail.com">
       <exclude>
         <entry location="lib/faf-ice-adapter.exe" />
         <entry location="lib/faf-uid.exe" />

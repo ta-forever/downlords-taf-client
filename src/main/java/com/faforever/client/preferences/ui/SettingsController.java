@@ -151,12 +151,10 @@ public class SettingsController implements Controller<Node> {
   public ComboBox<ChatFormat> chatComboBox;
   public Label passwordChangeErrorLabel;
   public Label passwordChangeSuccessLabel;
-  public ComboBox<UnitDataBaseType> unitDatabaseComboBox;
   public CheckBox notifyOnAtMentionOnlyToggle;
   public Pane languagesContainer;
   public TextField backgroundImageLocation;
   public CheckBox disallowJoinsCheckBox;
-  public CheckBox secondaryVaultLocationToggle;
   public CheckBox advancedIceLogToggle;
   public CheckBox prereleaseToggle;
   public Region settingsHeader;
@@ -358,8 +356,6 @@ public class SettingsController implements Controller<Node> {
       }
     });
 
-    initUnitDatabaseSelection(preferences);
-
     String username = userService.getUsername();
     notifyAtMentionTitle.setText(i18n.get("settings.chat.notifyOnAtMentionOnly", "@" + username));
     notifyAtMentionDescription.setText(i18n.get("settings.chat.notifyOnAtMentionOnly.description", "@" + username));
@@ -386,22 +382,6 @@ public class SettingsController implements Controller<Node> {
     });
     startTabChoiceBox.getSelectionModel().select(mainWindow.getNavigationItem());
     mainWindow.navigationItemProperty().bind(startTabChoiceBox.getSelectionModel().selectedItemProperty());
-  }
-
-  private void initUnitDatabaseSelection(Preferences preferences) {
-    unitDatabaseComboBox.setButtonCell(new StringListCell<>(unitDataBaseType -> i18n.get(unitDataBaseType.getI18nKey())));
-    unitDatabaseComboBox.setCellFactory(param -> new StringListCell<>(unitDataBaseType -> i18n.get(unitDataBaseType.getI18nKey())));
-    unitDatabaseComboBox.setItems(FXCollections.observableArrayList(UnitDataBaseType.values()));
-    unitDatabaseComboBox.setFocusTraversable(true);
-
-    ChangeListener<UnitDataBaseType> unitDataBaseTypeChangeListener = (observable, oldValue, newValue) -> unitDatabaseComboBox.getSelectionModel().select(newValue);
-    unitDataBaseTypeChangeListener.changed(null, null, preferences.getUnitDataBaseType());
-    JavaFxUtil.addListener(preferences.unitDataBaseTypeProperty(), unitDataBaseTypeChangeListener);
-
-    unitDatabaseComboBox.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-      preferences.setUnitDataBaseType(newValue);
-      preferencesService.storeInBackground();
-    });
   }
 
   private void configureTimeSetting(Preferences preferences) {

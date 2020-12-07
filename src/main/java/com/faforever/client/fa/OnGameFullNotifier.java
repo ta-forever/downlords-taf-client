@@ -23,7 +23,7 @@ import static com.github.nocatch.NoCatch.noCatch;
 import static java.lang.Thread.sleep;
 
 /**
- * Starts flashing the Forged Alliance window whenever a {@link com.faforever.client.fa.relay.event.GameFullEvent} is
+ * Starts flashing the Total Annihilation window whenever a {@link com.faforever.client.fa.relay.event.GameFullEvent} is
  * triggered and stops as soon as the window is focused. Also shows a transient notification.
  */
 
