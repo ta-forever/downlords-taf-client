@@ -37,6 +37,7 @@ public class LaunchCommandBuilder {
   private Integer localGpgPort;
   private URI replayUri;
   private Path logFile;
+  private String ircUrl;
 
   public static LaunchCommandBuilder create() {
     return new LaunchCommandBuilder();
@@ -131,6 +132,11 @@ public class LaunchCommandBuilder {
     return this;
   }
 
+  public LaunchCommandBuilder ircUrl(String ircUrl) {
+    this.ircUrl = ircUrl;
+    return this;
+  }
+
   public List<String> build() {
     checkNullIllegalState(gpgnet4taExecutable, "gpgnet4ta executable has not been set");
     Assert.state(!(replayUri != null && uid != null), "uid and replayUri cannot be set at the same time");
@@ -191,6 +197,11 @@ public class LaunchCommandBuilder {
     if (logFile != null) {
       command.add("--logfile");
       command.add(String.format(QUOTED_STRING_DECORATOR, logFile.toString()));
+    }
+
+    if (ircUrl != null) {
+      command.add("--irc");
+      command.add(ircUrl);
     }
 
     if (additionalArgs != null) {

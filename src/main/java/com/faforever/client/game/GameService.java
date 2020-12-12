@@ -146,6 +146,7 @@ public class GameService implements InitializingBean {
 
   private final ObservableList<Game> games;
   private final String faWindowTitle;
+  private final String ircHostAndPort;
   private final BooleanProperty searching1v1;
 
   private Process process;
@@ -189,6 +190,7 @@ public class GameService implements InitializingBean {
     this.replayServer = replayServer;
     this.reconnectTimerService = reconnectTimerService;
 
+    ircHostAndPort = String.format("%s:%d", clientProperties.getIrc().getHost(), 6667);//clientProperties.getIrc().getPort());
     faWindowTitle = clientProperties.getForgedAlliance().getWindowTitle();
     uidToGameInfoBean = FXCollections.observableMap(new ConcurrentHashMap<>());
     searching1v1 = new SimpleBooleanProperty();
@@ -305,15 +307,14 @@ public class GameService implements InitializingBean {
     }
 
     stopSearchLadder1v1();
-    String gameChannel = "#game-" + getCurrentPlayer().getUsername().replace(" ", "");
-    String modChannel = "#" + newGameInfo.getFeaturedMod().getTechnicalName().replace(" ", "");
+    String gameChannel = getInGameIrcChannel(getCurrentPlayer().getUsername());
+    String inGameIrcUrl = getInGameIrcUrl(getCurrentPlayer().getUsername());
     eventBus.post(new JoinChannelEvent(gameChannel));
-    //eventBus.post(new JoinChannelEvent(modChannel));
 
     return updateGameIfNecessary(newGameInfo.getFeaturedMod(), null, emptyMap(), newGameInfo.getSimMods())
         .thenCompose(aVoid -> downloadMapIfNecessary(newGameInfo.getMap()))
         .thenCompose(aVoid -> fafService.requestHostGame(newGameInfo))
-        .thenAccept(gameLaunchMessage -> startGame(modTechnicalName, gameLaunchMessage, gameLaunchMessage.getFaction(), RatingMode.GLOBAL));
+        .thenAccept(gameLaunchMessage -> startGame(modTechnicalName, gameLaunchMessage, gameLaunchMessage.getFaction(), RatingMode.GLOBAL, inGameIrcUrl));
   }
 
   public CompletableFuture<Void> joinGame(Game game, String password) {
@@ -331,10 +332,9 @@ public class GameService implements InitializingBean {
 
     stopSearchLadder1v1();
 
-    String gameChannel = "#game-" + game.getHost().replace(" ", "");
-    String modChannel = "#" + game.getFeaturedMod().replace(" ", "");
+    String gameChannel = getInGameIrcChannel(game.getHost());
+    String inGameIrcUrl = getInGameIrcUrl(game.getHost());
     eventBus.post(new JoinChannelEvent(gameChannel));
-    //eventBus.post(new JoinChannelEvent(modChannel));
 
     Map<String, Integer> featuredModVersions = game.getFeaturedModVersions();
     Set<String> simModUIds = game.getSimMods().keySet();
@@ -350,7 +350,7 @@ public class GameService implements InitializingBean {
             game.setPassword(password);
             currentGame.set(game);
           }
-          startGame(game.getFeaturedMod(), gameLaunchMessage, null, RatingMode.GLOBAL);
+          startGame(game.getFeaturedMod(), gameLaunchMessage, null, RatingMode.GLOBAL, inGameIrcUrl);
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be joined", throwable);
@@ -473,6 +473,18 @@ public class GameService implements InitializingBean {
     return playerService.getCurrentPlayer().orElseThrow(() -> new IllegalStateException("Player has not been set"));
   }
 
+  private String getInGameIrcUserName(String playerName) {
+    return playerName.replace(" ", "") + "[ingame]";
+  }
+
+  private String getInGameIrcChannel(String hostPlayerName) {
+    return "#" + getInGameIrcUserName(hostPlayerName);
+  }
+
+  private String getInGameIrcUrl(String hostPlayerName) {
+    return getInGameIrcUserName(getCurrentPlayer().getUsername()) + "@" + this.ircHostAndPort + "/" + getInGameIrcChannel(hostPlayerName);
+  }
+
   public ObservableList<Game> getGames() {
     return games;
   }
@@ -501,6 +513,9 @@ public class GameService implements InitializingBean {
     }
 
     searching1v1.set(true);
+    String gameChannel = getInGameIrcChannel(getCurrentPlayer().getUsername());
+    String inGameIrcUrl = getInGameIrcUrl(getCurrentPlayer().getUsername());
+    eventBus.post(new JoinChannelEvent(gameChannel));
 
     return
         modService.getFeaturedMod(LADDER_1V1.getTechnicalName())
@@ -515,7 +530,7 @@ public class GameService implements InitializingBean {
               gameLaunchMessage.getArgs().add("/players " + gameLaunchMessage.getExpectedPlayers());
               gameLaunchMessage.getArgs().add("/startspot " + gameLaunchMessage.getMapPosition());
 
-              startGame(LADDER_1V1.getTechnicalName(), gameLaunchMessage, faction, RatingMode.LADDER_1V1);
+              startGame(LADDER_1V1.getTechnicalName(), gameLaunchMessage, faction, RatingMode.LADDER_1V1, inGameIrcUrl);
             }))
         .exceptionally(throwable -> {
           if (throwable instanceof CancellationException) {
@@ -573,7 +588,7 @@ public class GameService implements InitializingBean {
    * Actually starts the game, including relay and replay server. Call this method when everything else is prepared
    * (mod/map download, connectivity check etc.)
    */
-  private void startGame(String modTechnical, GameLaunchMessage gameLaunchMessage, Faction faction, RatingMode ratingMode) {
+  private void startGame(String modTechnical, GameLaunchMessage gameLaunchMessage, Faction faction, RatingMode ratingMode, String ircUrl) {
     if (isRunning()) {
       log.warn("Total Annihilation is already running, not starting game");
       return;
@@ -589,7 +604,7 @@ public class GameService implements InitializingBean {
         .thenAccept(adapterPort -> {
           List<String> args = fixMalformedArgs(gameLaunchMessage.getArgs());
           process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, gameLaunchMessage.getUid(), faction, args, ratingMode,
-              adapterPort, localReplayPort, rehostRequested, getCurrentPlayer()));
+              adapterPort, localReplayPort, rehostRequested, getCurrentPlayer(), ircUrl));
           setGameRunning(true);
 
           this.ratingMode = ratingMode;

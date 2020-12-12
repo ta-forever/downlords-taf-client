@@ -52,7 +52,7 @@ public class TotalAnnihilationService {
 
 
   public Process startGame(String modTechnical, int uid, @Nullable Faction faction, @Nullable List<String> additionalArgs,
-                           RatingMode ratingMode, int gpgPort, int localReplayPort, boolean rehost, Player currentPlayer) throws IOException {
+                           RatingMode ratingMode, int gpgPort, int localReplayPort, boolean rehost, Player currentPlayer, String ircUrl) throws IOException {
 
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
     Path launcherExecutable = getLauncherExectuable();
@@ -72,6 +72,7 @@ public class TotalAnnihilationService {
         .additionalArgs(additionalArgs)
         .logFile(preferencesService.getNewGameLogFile(uid))
         .localGpgPort(gpgPort)
+        .ircUrl(ircUrl)
         .build();
 
     return launch(launcherExecutable.getParent(), launchCommand);
