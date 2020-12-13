@@ -7,6 +7,7 @@ faf-client:
     draw-probability: 0.1
 
   links:
+    linksHomepage: https://www.taforever.com
     linksTecHelpDiscord: https://discord.gg/KP7ndRagrM
     linksTecHelpForum: https://www.tauniverse.com/forum/forumdisplay.php?f=41
 
