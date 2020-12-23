@@ -26,6 +26,7 @@ public class LaunchCommandBuilder {
   private String gameExecutable;
   private String gameCommandLineOptions;
   private boolean upnpEnabled;
+  private boolean proactiveResendEnabled;
 
   private Integer uid;
   private String username;
@@ -84,6 +85,11 @@ public class LaunchCommandBuilder {
 
   public LaunchCommandBuilder upnpEnabled(boolean upnpEnabled) {
     this.upnpEnabled = upnpEnabled;
+    return this;
+  }
+
+  public LaunchCommandBuilder proactiveResendEnabled(boolean proactiveResendEnabled) {
+    this.proactiveResendEnabled = proactiveResendEnabled;
     return this;
   }
 
@@ -171,6 +177,10 @@ public class LaunchCommandBuilder {
 
     if (upnpEnabled) {
       command.add("--upnp");
+    }
+
+    if (proactiveResendEnabled) {
+      command.add("--proactiveresend");
     }
 
     String localIp = Inet4Address.getLoopbackAddress().getHostAddress();

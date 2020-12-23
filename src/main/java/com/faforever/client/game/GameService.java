@@ -482,7 +482,13 @@ public class GameService implements InitializingBean {
   }
 
   private String getInGameIrcUrl(String hostPlayerName) {
-    return getInGameIrcUserName(getCurrentPlayer().getUsername()) + "@" + this.ircHostAndPort + "/" + getInGameIrcChannel(hostPlayerName);
+    if (preferencesService.getPreferences().getIrcIntegrationEnabled()) {
+      return getInGameIrcUserName(getCurrentPlayer().getUsername()) + "@" + this.ircHostAndPort + "/" + getInGameIrcChannel(hostPlayerName);
+    }
+    else
+    {
+      return null;
+    }
   }
 
   public ObservableList<Game> getGames() {

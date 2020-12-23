@@ -60,6 +60,7 @@ public class TotalAnnihilationService {
         .gpgnet4taExecutable(launcherExecutable)
         .requireUac(preferencesService.getPreferences().getRequireUacEnabled())
         .logFile(preferencesService.getNewGameLogFile(uid))
+        .proactiveResendEnabled(preferencesService.getPreferences().getProactiveResendEnabled())
         .baseModName(prefs.getBaseGameName())
         .gameInstalledPath(prefs.getInstalledPath())
         .gameExecutable(prefs.getInstalledExePath().getFileName().toString())

@@ -223,29 +223,44 @@ public class MapService implements InitializingBean, DisposableBean {
 
         Path installationPath = preferencesService.getTotalAnnihilation(modTechnicalName).getInstalledPath();
 
-        if (installationPath.resolve("total2.hpi").toFile().exists()) {
+        boolean gotmaps = false;
+        if (installationPath.resolve("totala2.hpi").toFile().exists()) {
+          gotmaps = true;
           for (String map : otaMaps) {
             addInstalledMap(Paths.get(map));
           }
         }
         updateProgress(1, 4);
         if (installationPath.resolve("ccmaps.ccx").toFile().exists()) {
+          gotmaps = true;
           for (String map : ccMaps) {
             addInstalledMap(Paths.get(map));
           }
         }
         updateProgress(2, 4);
         if (installationPath.resolve("btmaps.ccx").toFile().exists()) {
+          gotmaps = true;
           for (String map : btMaps) {
             addInstalledMap(Paths.get(map));
           }
         }
         updateProgress(3, 4);
         if (installationPath.resolve("cdmaps.ccx").toFile().exists()) {
+          gotmaps = true;
           for (String map : cdMaps) {
             addInstalledMap(Paths.get(map));
           }
         }
+        if (installationPath.resolve("cdmaps.ufo").toFile().exists()) {
+          gotmaps = true;
+          for (String map : cdMaps) {
+            addInstalledMap(Paths.get(map));
+          }
+        }
+        if (!gotmaps) {
+          addInstalledMap(Paths.get("SHERWOOD"));
+        }
+
         updateProgress(4, 4);
         return null;
       }

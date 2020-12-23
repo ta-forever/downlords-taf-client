@@ -114,6 +114,8 @@ public class SettingsController implements Controller<Node> {
   public Toggle defaultColorsToggle;
   public CheckBox hideFoeToggle;
   public CheckBox forceRelayToggle;
+  public CheckBox proactiveResendToggle;
+  public CheckBox enableIrcIntegrationToggle;
   public CheckBox requireUacToggle;
   public TableView<TotalAnnihilationPrefs> gameLocationTableView;
   public TableColumn<TotalAnnihilationPrefs, String> gameLocationModTableColumn;
@@ -332,6 +334,8 @@ public class SettingsController implements Controller<Node> {
 //            .setCommandLineOptions(t.getNewValue()));
 
     forceRelayToggle.selectedProperty().bindBidirectional(preferences.getForceRelayEnabledProperty());
+    proactiveResendToggle.selectedProperty().bindBidirectional(preferences.getProactiveResendEnabledProperty());
+    enableIrcIntegrationToggle.selectedProperty().bindBidirectional(preferences.getIrcIntegrationEnabledProperty());
     requireUacToggle.selectedProperty().bindBidirectional(preferences.getRequireUacEnabledProperty());
     updateGameLocationTable();
 

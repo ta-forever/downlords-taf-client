@@ -41,6 +41,8 @@ public class Preferences {
   private final BooleanProperty showPasswordProtectedGames;
   private final BooleanProperty showModdedGames;
   private final BooleanProperty forceRelayEnabled;
+  private final BooleanProperty proactiveResendEnabled;
+  private final BooleanProperty ircIntegrationEnabled;
   private final BooleanProperty requireUacEnabled;
   private final ListProperty<String> ignoredNotifications;
   private final StringProperty gamesViewMode;
@@ -80,6 +82,8 @@ public class Preferences {
     showPasswordProtectedGames = new SimpleBooleanProperty(true);
     showModdedGames = new SimpleBooleanProperty(true);
     forceRelayEnabled = new SimpleBooleanProperty(false);
+    proactiveResendEnabled = new SimpleBooleanProperty(false);
+    ircIntegrationEnabled = new SimpleBooleanProperty(true);
     requireUacEnabled = new SimpleBooleanProperty(false);
     disallowJoinsViaDiscord = new SimpleBooleanProperty();
     showGameDetailsSidePane = new SimpleBooleanProperty(false);
@@ -137,12 +141,28 @@ public class Preferences {
     return forceRelayEnabled;
   }
 
+  public BooleanProperty getProactiveResendEnabledProperty() {
+    return proactiveResendEnabled;
+  }
+
+  public BooleanProperty getIrcIntegrationEnabledProperty() {
+    return ircIntegrationEnabled;
+  }
+
   public BooleanProperty getRequireUacEnabledProperty() {
     return requireUacEnabled;
   }
 
   public boolean getForceRelayEnabled() {
     return forceRelayEnabled.get();
+  }
+
+  public boolean getProactiveResendEnabled() {
+    return proactiveResendEnabled.get();
+  }
+
+  public boolean getIrcIntegrationEnabled() {
+    return ircIntegrationEnabled.get();
   }
 
   public boolean getRequireUacEnabled() {
