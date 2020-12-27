@@ -55,7 +55,7 @@ public class DownloadUpdateTask extends CompletableTask<Path> {
     try (InputStream inputStream = url.openStream(); OutputStream outputStream = Files.newOutputStream(tempFile)) {
       ByteCopier.from(inputStream)
           .to(outputStream)
-          .totalBytes(updateInfo.getSize())
+          .totalBytes(updateInfo.getSize() > 0 ? updateInfo.getSize() : 150000000)
           .listener(this::updateProgress)
           .copy();
 
