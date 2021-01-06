@@ -3,13 +3,19 @@ package com.faforever.client.game;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.main.event.JoinChannelEvent;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewSize;
 import com.faforever.client.mod.ModService;
+import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
+import com.faforever.client.player.event.CurrentPlayerInfo;
+import com.faforever.client.remote.domain.GameStatus;
+import com.faforever.client.remote.domain.PlayerStatus;
 import com.faforever.client.theme.UiService;
-import com.faforever.client.util.ProgrammingError;
 import com.faforever.client.vault.replay.WatchButtonController;
+import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
@@ -18,6 +24,7 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.ObservableMap;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
@@ -29,6 +36,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import static javafx.beans.binding.Bindings.createObjectBinding;
@@ -42,19 +50,25 @@ public class GameDetailController implements Controller<Pane> {
   private final I18n i18n;
   private final MapService mapService;
   private final ModService modService;
+  private final GameService gameService;
   private final PlayerService playerService;
   private final UiService uiService;
   private final JoinGameHelper joinGameHelper;
+  private final EventBus eventBus;
 
   public Pane gameDetailRoot;
   public Label gameTypeLabel;
   public Label mapLabel;
   public Label numberOfPlayersLabel;
+  public Label gameStatusLabel;
   public Label hostLabel;
   public VBox teamListPane;
   public ImageView mapImageView;
   public Label gameTitleLabel;
-  public Node joinButton;
+  public Button joinButton;
+  public Button chatButton;
+  public Button leaveButton;
+  public Button startButton;
   public WatchButtonController watchButtonController;
   private ReadOnlyObjectWrapper<Game> game;
   @SuppressWarnings("FieldCanBeLocal")
@@ -68,14 +82,18 @@ public class GameDetailController implements Controller<Pane> {
   @SuppressWarnings("FieldCanBeLocal")
   private InvalidationListener featuredModInvalidationListener;
 
-  public GameDetailController(I18n i18n, MapService mapService, ModService modService, PlayerService playerService,
-                              UiService uiService, JoinGameHelper joinGameHelper) {
+  public GameDetailController(I18n i18n, MapService mapService, ModService modService,
+                              GameService gameService, PlayerService playerService,
+                              UiService uiService, JoinGameHelper joinGameHelper,
+                              EventBus eventBus) {
     this.i18n = i18n;
     this.mapService = mapService;
     this.modService = modService;
+    this.gameService = gameService;
     this.playerService = playerService;
     this.uiService = uiService;
     this.joinGameHelper = joinGameHelper;
+    this.eventBus = eventBus;
 
     game = new ReadOnlyObjectWrapper<>();
 
@@ -83,6 +101,15 @@ public class GameDetailController implements Controller<Pane> {
     teamsInvalidationListener = observable -> createTeams();
     weakTeamListener = new WeakInvalidationListener(teamsInvalidationListener);
     weakGameStatusListener = new WeakInvalidationListener(gameStatusInvalidationListener);
+
+    gameService.getCurrentGameStatusProperty().addListener((obs, newValue, oldValue) -> {
+      updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
+    });
+    gameService.gameRunningProperty().addListener((obs, newValue, oldValue) -> {
+      updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
+    });
+
+    eventBus.register(this);
   }
 
   public void initialize() {
@@ -94,7 +121,6 @@ public class GameDetailController implements Controller<Pane> {
     });
     watchButton = watchButtonController.getRoot();
 
-    joinButton.managedProperty().bind(joinButton.visibleProperty());
     watchButton.managedProperty().bind(watchButton.visibleProperty());
     gameTitleLabel.managedProperty().bind(gameTitleLabel.visibleProperty());
     hostLabel.managedProperty().bind(hostLabel.visibleProperty());
@@ -111,28 +137,37 @@ public class GameDetailController implements Controller<Pane> {
     gameTypeLabel.visibleProperty().bind(game.isNotNull());
 
     setGame(null);
+    if (playerService.getCurrentPlayer().isPresent()) {
+      updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
+    }
+  }
+
+  @Subscribe
+  public void onPlayerInfo(CurrentPlayerInfo player) {
+    if (player.getCurrentPlayer() != null) {
+      updateButtonsVisibility(gameService.getCurrentGame(), player.getCurrentPlayer());
+    }
   }
 
   private void onGameStatusChanged() {
-    Game game = this.game.get();
-    switch (game.getStatus()) {
-      case PLAYING:
-        joinButton.setVisible(false);
-        watchButton.setVisible(true);
-        watchButtonController.setGame(game);
-        break;
-      case OPEN:
-        joinButton.setVisible(true);
-        watchButton.setVisible(false);
-        break;
-      case UNKNOWN:
-      case CLOSED:
-        joinButton.setVisible(false);
-        watchButton.setVisible(false);
-        break;
-      default:
-        throw new ProgrammingError("Uncovered status: " + game.getStatus());
-    }
+    updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
+  }
+
+  private void updateButtonsVisibility(Game currentGame, Player currentPlayer) {
+    Game thisGame = this.game.get();
+    boolean isCurrentGame = thisGame != null && currentGame != null && Objects.equals(thisGame, currentGame);
+    boolean isGameProcessRunning = gameService.isGameRunning();
+    boolean isPlayerIdle = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.IDLE;
+    boolean isPlayerHosting = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.HOSTING;
+    boolean isPlayerJoining = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.JOINING;
+    boolean isStagingRoomOpen = thisGame != null && thisGame.getStatus() == GameStatus.STAGING;
+    boolean isBattleRoomOpen = thisGame != null && thisGame.getStatus() == GameStatus.BATTLEROOM;
+
+    joinButton.setVisible(!isGameProcessRunning && isPlayerIdle && (isStagingRoomOpen || isBattleRoomOpen));
+    chatButton.setVisible(thisGame != null);
+    leaveButton.setVisible(isGameProcessRunning && isCurrentGame);
+    startButton.setVisible(isGameProcessRunning && isCurrentGame && (isPlayerHosting && isStagingRoomOpen || isPlayerJoining && isBattleRoomOpen));
+    watchButton.setVisible(false);
   }
 
   public void setGame(Game game) {
@@ -149,6 +184,7 @@ public class GameDetailController implements Controller<Pane> {
     gameTitleLabel.textProperty().bind(game.titleProperty());
     hostLabel.textProperty().bind(game.hostProperty());
     mapLabel.textProperty().bind(game.mapFolderNameProperty());
+    gameStatusLabel.textProperty().bind(game.statusProperty().asString());
     numberOfPlayersLabel.textProperty().bind(createStringBinding(
         () -> i18n.get("game.detail.players.format", game.getNumPlayers(), game.getMaxPlayers()),
         game.numPlayersProperty(),
@@ -198,5 +234,21 @@ public class GameDetailController implements Controller<Pane> {
 
   public void onJoinButtonClicked(ActionEvent event) {
     joinGameHelper.join(game.get());
+  }
+
+  public void onChatButtonClicked(ActionEvent event)
+  {
+    if (game.get() != null) {
+      String gameChannel = gameService.getInGameIrcChannel(game.get().getHost());
+      eventBus.post(new JoinChannelEvent(gameChannel));
+    }
+  }
+
+  public void onLeaveButtonClicked(ActionEvent event) {
+    gameService.killGame();
+  }
+
+  public void onStartButtonClicked(ActionEvent event) {
+    gameService.startBattleRoom();
   }
 }

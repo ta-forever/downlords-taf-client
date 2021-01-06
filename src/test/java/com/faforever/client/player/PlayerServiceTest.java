@@ -242,7 +242,7 @@ public class PlayerServiceTest {
   @Test
   public void testPlayerLeftOpenGame() {
     Game game = new Game();
-    game.setStatus(GameStatus.OPEN);
+    game.setStatus(GameStatus.STAGING);
     ObservableMap<String, List<String>> teams = game.getTeams();
     teams.put("1", Collections.singletonList("JUnit1"));
     teams.put("2", Collections.singletonList("JUnit2"));
@@ -267,7 +267,7 @@ public class PlayerServiceTest {
   @Test
   public void testGameRemovedFromPlayerIfGameClosed() {
     Game game = new Game();
-    game.setStatus(GameStatus.OPEN);
+    game.setStatus(GameStatus.STAGING);
     ObservableMap<String, List<String>> teams = game.getTeams();
     teams.put("1", Collections.singletonList("JUnit1"));
     teams.put("2", Collections.singletonList("JUnit2"));
@@ -281,7 +281,7 @@ public class PlayerServiceTest {
     assertThat(player1.getGame(), is(game));
     assertThat(player2.getGame(), is(game));
 
-    game.setStatus(GameStatus.CLOSED);
+    game.setStatus(GameStatus.ENDED);
 
     instance.onGameUpdated(new GameUpdatedEvent(game));
 

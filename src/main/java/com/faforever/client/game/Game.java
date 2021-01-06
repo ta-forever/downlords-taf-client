@@ -319,4 +319,13 @@ public class Game {
         ", status=" + status.get() +
         '}';
   }
+
+  public boolean isOpen() {
+    return getStatus() != null && getStatus().isOpen();
+  }
+
+  public boolean isInProgress() {
+    return getStatus() != null && getStatus().isInProgress();
+  }
+
 }

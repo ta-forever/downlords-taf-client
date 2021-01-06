@@ -8,7 +8,6 @@ import com.faforever.client.fx.PlatformService;
 import com.faforever.client.game.Game;
 import com.faforever.client.game.JoinGameHelper;
 import com.faforever.client.game.KnownFeaturedMod;
-import com.faforever.client.game.PlayerStatus;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.moderator.ModeratorService;
 import com.faforever.client.notification.ImmediateNotification;
@@ -20,6 +19,7 @@ import com.faforever.client.preferences.ChatPrefs;
 import com.faforever.client.preferences.Preferences;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.domain.GameStatus;
+import com.faforever.client.remote.domain.PlayerStatus;
 import com.faforever.client.replay.ReplayService;
 import com.faforever.client.test.AbstractPlainJavaFxTest;
 import com.faforever.client.theme.UiService;
@@ -184,7 +184,7 @@ public class ChatChannelUserContextMenuControllerTest extends AbstractPlainJavaF
   public void testJoinGameContextMenuShownForHostingUser() {
     Game game = new Game();
     game.setFeaturedMod(KnownFeaturedMod.DEFAULT.getTechnicalName());
-    game.setStatus(GameStatus.OPEN);
+    game.setStatus(GameStatus.STAGING);
     game.setHost(player.getUsername());
 
     player.setSocialStatus(OTHER);
@@ -199,7 +199,7 @@ public class ChatChannelUserContextMenuControllerTest extends AbstractPlainJavaF
   public void testJoinGameContextMenuNotShownForLadderUser() {
     Game game = new Game();
     game.setFeaturedMod(KnownFeaturedMod.LADDER_1V1.getTechnicalName());
-    game.setStatus(GameStatus.OPEN);
+    game.setStatus(GameStatus.STAGING);
     game.setHost(player.getUsername());
 
     player.setSocialStatus(OTHER);

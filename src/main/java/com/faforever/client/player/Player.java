@@ -4,8 +4,7 @@ import com.faforever.client.api.dto.GlobalRating;
 import com.faforever.client.api.dto.Ladder1v1Rating;
 import com.faforever.client.chat.ChatChannelUser;
 import com.faforever.client.game.Game;
-import com.faforever.client.game.PlayerStatus;
-import com.faforever.client.remote.domain.GameStatus;
+import com.faforever.client.remote.domain.PlayerStatus;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.FloatProperty;
 import javafx.beans.property.IntegerProperty;
@@ -49,6 +48,7 @@ public class Player {
   private final IntegerProperty numberOfGames;
   private final ObjectProperty<Instant> idleSince;
   private final ObservableList<NameRecord> names;
+  private final IntegerProperty currentGameUid;
 
   public Player(com.faforever.client.remote.domain.Player player) {
     this();
@@ -81,6 +81,7 @@ public class Player {
     socialStatus = new SimpleObjectProperty<>(OTHER);
     idleSince = new SimpleObjectProperty<>(Instant.now());
     names = FXCollections.observableArrayList();
+    currentGameUid = new SimpleIntegerProperty(-1);
   }
 
   public Player(String username) {
@@ -100,6 +101,28 @@ public class Player {
       player.getNames().addAll(dto.getNames().stream().map(NameRecord::fromDto).collect(Collectors.toList()));
     }
     return player;
+  }
+
+  public void updateFromDto(com.faforever.client.remote.domain.Player player) {
+    setId(player.getId());
+    setClan(player.getClan());
+    setCountry(player.getCountry());
+    status.setValue(player.getState());
+    setCurrentGameUid(player.getCurrentGameUid());
+
+    if (player.getGlobalRating() != null) {
+      setGlobalRatingMean(player.getGlobalRating()[0]);
+      setGlobalRatingDeviation(player.getGlobalRating()[1]);
+    }
+    if (player.getLadderRating() != null) {
+      setLeaderboardRatingMean(player.getLadderRating()[0]);
+      setLeaderboardRatingDeviation(player.getLadderRating()[1]);
+    }
+    setNumberOfGames(player.getNumberOfGames());
+    if (player.getAvatar() != null) {
+      setAvatarUrl(player.getAvatar().getUrl());
+      setAvatarTooltip(player.getAvatar().getTooltip());
+    }
   }
 
   public ObservableList<NameRecord> getNames() {
@@ -243,7 +266,11 @@ public class Player {
     return status.get();
   }
 
-  public ReadOnlyObjectProperty<PlayerStatus> statusProperty() {
+  public void setStatus(PlayerStatus status) {
+    this.status.set(status);
+  }
+
+  public ObjectProperty<PlayerStatus> statusProperty() {
     return status;
   }
 
@@ -253,25 +280,36 @@ public class Player {
 
   public void setGame(Game game) {
     this.game.set(game);
+    /*
     if (game == null) {
       status.unbind();
       status.set(PlayerStatus.IDLE);
     } else {
+      PlayerStatus currentPlayerStatus = status.get();
       status.bind(Bindings.createObjectBinding(() -> {
         if (getGame() == null) {
           return PlayerStatus.IDLE;
         }
-        if (getGame().getStatus() == GameStatus.OPEN) {
-          if (getGame().getHost().equalsIgnoreCase(username.get())) {
-            return PlayerStatus.HOSTING;
-          }
-          return PlayerStatus.LOBBYING;
-        } else if (getGame().getStatus() == GameStatus.CLOSED) {
-          return PlayerStatus.IDLE;
+        switch(getGame().getStatus()) {
+          case STAGING:
+            return getGame().getHost().equalsIgnoreCase(username.get())
+                ? PlayerStatus.HOSTING
+                : PlayerStatus.JOINING;
+          case BATTLEROOM:
+            return getGame().getHost().equalsIgnoreCase(username.get())
+                ? PlayerStatus.HOSTED
+                : PlayerStatus.JOINED;
+          case LAUNCHING:
+          case LIVE:
+            return PlayerStatus.PLAYING;
+          case UNKNOWN:
+          case ENDED:
+          default:
+            return PlayerStatus.IDLE;
         }
-        return PlayerStatus.PLAYING;
-      }, game.statusProperty()));
+       }, game.statusProperty()));
     }
+    */
   }
 
   public ObjectProperty<Game> gameProperty() {
@@ -318,23 +356,15 @@ public class Player {
     return chatChannelUsers;
   }
 
-  public void updateFromDto(com.faforever.client.remote.domain.Player player) {
-    setId(player.getId());
-    setClan(player.getClan());
-    setCountry(player.getCountry());
+  public int getCurrentGameUid() {
+    return currentGameUid.get();
+  }
 
-    if (player.getGlobalRating() != null) {
-      setGlobalRatingMean(player.getGlobalRating()[0]);
-      setGlobalRatingDeviation(player.getGlobalRating()[1]);
-    }
-    if (player.getLadderRating() != null) {
-      setLeaderboardRatingMean(player.getLadderRating()[0]);
-      setLeaderboardRatingDeviation(player.getLadderRating()[1]);
-    }
-    setNumberOfGames(player.getNumberOfGames());
-    if (player.getAvatar() != null) {
-      setAvatarUrl(player.getAvatar().getUrl());
-      setAvatarTooltip(player.getAvatar().getTooltip());
-    }
+  public void setCurrentGameUid(int uid) {
+    this.currentGameUid.set(uid);
+  }
+
+  public IntegerProperty currentGameUidProperty() {
+    return currentGameUid;
   }
 }

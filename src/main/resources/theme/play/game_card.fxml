@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.control.Button?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.image.ImageView?>
@@ -9,7 +11,9 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
-<GridPane xmlns:fx="http://javafx.com/fxml/1" fx:id="gameCardRoot" hgap="10.0" onMouseClicked="#onClick"
+<?import javafx.scene.layout.HBox?>
+
+<GridPane xmlns:fx="http://javafx.com/fxml/1" fx:id="gameCardRoot" hgap="10.0"
           styleClass="card, game-card, pointable, hoverable" vgap="5.0" xmlns="http://javafx.com/javafx/11.0.1"
           fx:controller="com.faforever.client.game.GameTileController">
     <columnConstraints>
@@ -42,25 +46,38 @@
          </padding>
         </Label>
         <Label fx:id="gameTypeLabel" minWidth="0.0" styleClass="card-featured-mod" text="&lt;Game Type&gt;" GridPane.columnIndex="1" GridPane.columnSpan="2147483647" GridPane.rowIndex="1" />
-          <Label fx:id="numberOfPlayersLabel" minWidth="0.0" styleClass="card-info" text="&lt;Number of Players&gt;" GridPane.columnIndex="1" GridPane.rowIndex="2">
+        <Label fx:id="gameStatusLabel" minWidth="0.0" styleClass="card-info" text="&lt;Status&gt;" GridPane.columnIndex="1" GridPane.rowIndex="2">
+            <graphic>
+                <Region styleClass="icon,info-icon" />
+            </graphic>
+        </Label>
+        <Label fx:id="numberOfPlayersLabel" minWidth="0.0" styleClass="card-info" text="&lt;Number of Players&gt;" GridPane.columnIndex="1" GridPane.rowIndex="3">
               <graphic>
                   <Region styleClass="icon,players-icon" />
               </graphic>
           </Label>
-          <Label fx:id="avgRatingLabel" minWidth="0.0" styleClass="card-info" text="&lt;Avg&gt;" GridPane.columnIndex="2" GridPane.rowIndex="2">
+          <Label fx:id="avgRatingLabel" minWidth="0.0" styleClass="card-info" text="&lt;Avg&gt;" GridPane.columnIndex="2" GridPane.rowIndex="3">
               <graphic>
                   <Region styleClass="icon,statistics-icon" />
               </graphic>
           </Label>
-        <Label fx:id="hostLabel" maxHeight="1.7976931348623157E308" minWidth="0.0" styleClass="card-info" text="&lt;Host&gt;" GridPane.columnIndex="1" GridPane.rowIndex="3">
+        <Label fx:id="hostLabel" maxHeight="1.7976931348623157E308" minWidth="0.0" styleClass="card-info" text="&lt;Host&gt;" GridPane.columnIndex="1" GridPane.rowIndex="4">
             <graphic>
                 <Region styleClass="icon,host-icon" />
             </graphic>
         </Label>
-        <Label fx:id="modsLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" styleClass="card-mod-list" text="&lt;Mods&gt;" wrapText="true" GridPane.columnIndex="1" GridPane.columnSpan="2147483647" GridPane.rowIndex="4" GridPane.valignment="TOP">
+        <Label fx:id="modsLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" styleClass="card-mod-list" text="&lt;Mods&gt;" wrapText="true" GridPane.columnIndex="1" GridPane.columnSpan="2147483647" GridPane.rowIndex="5" GridPane.valignment="TOP">
             <graphic>
                 <Region styleClass="icon,mods-icon" />
             </graphic>
         </Label>
+        <HBox alignment="CENTER_RIGHT" GridPane.columnSpan="2147483647" GridPane.rowIndex="6">
+            <children>
+                <Button fx:id="leaveButton" mnemonicParsing="false" onAction="#onLeaveButtonClicked" text="%game.leave" styleClass="leave-game-button"><tooltip><Tooltip text="%game.leave.tooltip"/></tooltip></Button>
+                <Button fx:id="startButton" mnemonicParsing="false" onAction="#onStartButtonClicked" text="%game.start" styleClass="start-game-button"><tooltip><Tooltip text="%game.start.tooltip"/></tooltip></Button>
+                <Button fx:id="joinButton" mnemonicParsing="false" onAction="#onJoinButtonClicked" text="%game.join" styleClass="join-game-button"><tooltip><Tooltip text="%game.join.tooltip"/></tooltip></Button>
+                <Button fx:id="chatButton" mnemonicParsing="false" onAction="#onChatButtonClicked" text="%game.chat" styleClass="chat-game-button"><tooltip><Tooltip text="%game.chat.tooltip"/></tooltip></Button>
+            </children>
+        </HBox>
     </children>
 </GridPane>

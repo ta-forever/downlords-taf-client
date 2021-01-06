@@ -10,10 +10,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 
-import static com.faforever.client.game.PlayerStatus.HOSTING;
-import static com.faforever.client.game.PlayerStatus.IDLE;
-import static com.faforever.client.game.PlayerStatus.LOBBYING;
-import static com.faforever.client.game.PlayerStatus.PLAYING;
+import com.faforever.client.remote.domain.PlayerStatus;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -83,21 +80,21 @@ public class UserFilterControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testIsGameStatusMatchPlaying() {
-    player.setGame(GameBuilder.create().defaultValues().state(GameStatus.PLAYING).get());
-    instance.playerStatusFilter = PLAYING;
+    player.setGame(GameBuilder.create().defaultValues().state(GameStatus.LIVE).get());
+    instance.playerStatusFilter = PlayerStatus.PLAYING;
 
     assertTrue(instance.isGameStatusMatch(chatChannelUser));
   }
 
   @Test
   public void testIsGameStatusMatchLobby() {
-    player.setGame(GameBuilder.create().defaultValues().state(GameStatus.OPEN).host(player.getUsername()).get());
-    instance.playerStatusFilter = HOSTING;
+    player.setGame(GameBuilder.create().defaultValues().state(GameStatus.STAGING).host(player.getUsername()).get());
+    instance.playerStatusFilter = PlayerStatus.HOSTING;
 
     assertTrue(instance.isGameStatusMatch(chatChannelUser));
 
-    player.setGame(GameBuilder.create().defaultValues().state(GameStatus.OPEN).get());
-    instance.playerStatusFilter = LOBBYING;
+    player.setGame(GameBuilder.create().defaultValues().state(GameStatus.STAGING).get());
+    instance.playerStatusFilter = PlayerStatus.JOINING;
 
     assertTrue(instance.isGameStatusMatch(chatChannelUser));
   }
@@ -107,7 +104,7 @@ public class UserFilterControllerTest extends AbstractPlainJavaFxTest {
     when(i18n.get("game.gameStatus.playing")).thenReturn("playing");
 
     instance.onGameStatusPlaying();
-    assertEquals(PLAYING, instance.playerStatusFilter);
+    assertEquals(PlayerStatus.PLAYING, instance.playerStatusFilter);
     assertEquals(i18n.get("game.gameStatus.playing"), instance.gameStatusMenu.getText());
   }
 
@@ -116,7 +113,7 @@ public class UserFilterControllerTest extends AbstractPlainJavaFxTest {
     when(i18n.get("game.gameStatus.lobby")).thenReturn("lobby");
 
     instance.onGameStatusLobby();
-    assertEquals(LOBBYING, instance.playerStatusFilter);
+    assertEquals(PlayerStatus.JOINING, instance.playerStatusFilter);
     assertEquals(i18n.get("game.gameStatus.lobby"), instance.gameStatusMenu.getText());
   }
 
@@ -125,7 +122,7 @@ public class UserFilterControllerTest extends AbstractPlainJavaFxTest {
     when(i18n.get("game.gameStatus.none")).thenReturn("none");
 
     instance.onGameStatusNone();
-    assertEquals(IDLE, instance.playerStatusFilter);
+    assertEquals(PlayerStatus.IDLE, instance.playerStatusFilter);
     assertEquals(i18n.get("game.gameStatus.none"), instance.gameStatusMenu.getText());
   }
 }

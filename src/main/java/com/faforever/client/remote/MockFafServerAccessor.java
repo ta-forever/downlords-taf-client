@@ -328,7 +328,7 @@ public class MockFafServerAccessor implements FafServerAccessor {
     gameInfoMessage.setNumPlayers(numPlayers);
     gameInfoMessage.setMaxPlayers(maxPlayers);
     gameInfoMessage.setHost(host);
-    gameInfoMessage.setState(GameStatus.OPEN);
+    gameInfoMessage.setState(GameStatus.STAGING);
     gameInfoMessage.setSimMods(Collections.emptyMap());
     gameInfoMessage.setTeams(Collections.emptyMap());
     gameInfoMessage.setPasswordProtected(access == GameAccess.PASSWORD);

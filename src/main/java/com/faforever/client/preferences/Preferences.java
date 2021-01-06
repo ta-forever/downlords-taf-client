@@ -40,10 +40,13 @@ public class Preferences {
   private final BooleanProperty prereleaseCheckEnabled;
   private final BooleanProperty showPasswordProtectedGames;
   private final BooleanProperty showModdedGames;
+  // TA options @todo they need to be in TotalAnnilationPreferences()
   private final BooleanProperty forceRelayEnabled;
   private final BooleanProperty proactiveResendEnabled;
   private final BooleanProperty ircIntegrationEnabled;
+  private final BooleanProperty autoLaunchEnabled;
   private final BooleanProperty requireUacEnabled;
+  // end TA options
   private final ListProperty<String> ignoredNotifications;
   private final StringProperty gamesViewMode;
   private final Ladder1v1Prefs ladder1v1;
@@ -83,7 +86,8 @@ public class Preferences {
     showModdedGames = new SimpleBooleanProperty(true);
     forceRelayEnabled = new SimpleBooleanProperty(false);
     proactiveResendEnabled = new SimpleBooleanProperty(false);
-    ircIntegrationEnabled = new SimpleBooleanProperty(true);
+    ircIntegrationEnabled = new SimpleBooleanProperty(false);
+    autoLaunchEnabled = new SimpleBooleanProperty(false);
     requireUacEnabled = new SimpleBooleanProperty(false);
     disallowJoinsViaDiscord = new SimpleBooleanProperty();
     showGameDetailsSidePane = new SimpleBooleanProperty(false);
@@ -145,8 +149,10 @@ public class Preferences {
     return proactiveResendEnabled;
   }
 
-  public BooleanProperty getIrcIntegrationEnabledProperty() {
-    return ircIntegrationEnabled;
+  public BooleanProperty getIrcIntegrationEnabledProperty() { return ircIntegrationEnabled; }
+
+  public BooleanProperty getAutoLaunchEnabledProperty() {
+    return autoLaunchEnabled;
   }
 
   public BooleanProperty getRequireUacEnabledProperty() {
@@ -163,6 +169,10 @@ public class Preferences {
 
   public boolean getIrcIntegrationEnabled() {
     return ircIntegrationEnabled.get();
+  }
+
+  public boolean getAutoLaunchEnabled() {
+    return autoLaunchEnabled.get();
   }
 
   public boolean getRequireUacEnabled() {

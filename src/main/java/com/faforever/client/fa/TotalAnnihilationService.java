@@ -52,7 +52,8 @@ public class TotalAnnihilationService {
 
 
   public Process startGame(String modTechnical, int uid, @Nullable Faction faction, @Nullable List<String> additionalArgs,
-                           RatingMode ratingMode, int gpgPort, int localReplayPort, boolean rehost, Player currentPlayer, String ircUrl) throws IOException {
+                           RatingMode ratingMode, int gpgPort, int localReplayPort, boolean rehost, Player currentPlayer,
+                           String ircUrl, boolean autoLaunch, String commandInputFile) throws IOException {
 
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
     Path launcherExecutable = getLauncherExectuable();
@@ -61,6 +62,7 @@ public class TotalAnnihilationService {
         .requireUac(preferencesService.getPreferences().getRequireUacEnabled())
         .logFile(preferencesService.getNewGameLogFile(uid))
         .proactiveResendEnabled(preferencesService.getPreferences().getProactiveResendEnabled())
+        .autoLaunch(autoLaunch)
         .baseModName(prefs.getBaseGameName())
         .gameInstalledPath(prefs.getInstalledPath())
         .gameExecutable(prefs.getInstalledExePath().getFileName().toString())
@@ -74,6 +76,7 @@ public class TotalAnnihilationService {
         .logFile(preferencesService.getNewGameLogFile(uid))
         .localGpgPort(gpgPort)
         .ircUrl(ircUrl)
+        .commandInputFile(commandInputFile)
         .build();
 
     return launch(launcherExecutable.getParent(), launchCommand);
@@ -132,7 +135,7 @@ public class TotalAnnihilationService {
   //private Process launch(Path executablePath) throws IOException {
   private Process launch(Path launchWorkingDirectory, List<String> launchCommand) throws IOException {
     ProcessBuilder processBuilder = new ProcessBuilder();
-    processBuilder.inheritIO();
+    //processBuilder.inheritIO();
     processBuilder.directory(launchWorkingDirectory.toFile());
     processBuilder.command(launchCommand);
 

@@ -70,7 +70,7 @@ public class GamesTableControllerTest extends AbstractPlainJavaFxTest {
     Platform.runLater(() -> {
       instance.initializeGameTable(FXCollections.observableArrayList(
           GameBuilder.create().defaultValues().get(),
-          GameBuilder.create().defaultValues().state(GameStatus.CLOSED).get()
+          GameBuilder.create().defaultValues().state(GameStatus.ENDED).get()
       ));
     });
     WaitForAsyncUtils.waitForFxEvents();
@@ -82,7 +82,7 @@ public class GamesTableControllerTest extends AbstractPlainJavaFxTest {
     Platform.runLater(() -> {
       instance.initializeGameTable(FXCollections.observableArrayList(
           GameBuilder.create().defaultValues().get(),
-          GameBuilder.create().defaultValues().state(GameStatus.CLOSED).password("ABC").get()
+          GameBuilder.create().defaultValues().state(GameStatus.ENDED).password("ABC").get()
       ));
     });
     WaitForAsyncUtils.waitForFxEvents();
@@ -98,7 +98,7 @@ public class GamesTableControllerTest extends AbstractPlainJavaFxTest {
     Platform.runLater(() -> {
       instance.initializeGameTable(FXCollections.observableArrayList(
           GameBuilder.create().defaultValues().get(),
-          GameBuilder.create().defaultValues().state(GameStatus.CLOSED).password("ABC").get()
+          GameBuilder.create().defaultValues().state(GameStatus.ENDED).password("ABC").get()
       ));
     });
     WaitForAsyncUtils.waitForFxEvents();
@@ -115,7 +115,7 @@ public class GamesTableControllerTest extends AbstractPlainJavaFxTest {
     Platform.runLater(() -> {
       instance.initializeGameTable(FXCollections.observableArrayList(
           GameBuilder.create().defaultValues().get(),
-          GameBuilder.create().defaultValues().state(GameStatus.CLOSED).get()
+          GameBuilder.create().defaultValues().state(GameStatus.ENDED).get()
       ));
     });
     WaitForAsyncUtils.waitForFxEvents();
@@ -132,7 +132,7 @@ public class GamesTableControllerTest extends AbstractPlainJavaFxTest {
     Platform.runLater(() -> {
       instance.initializeGameTable(FXCollections.observableArrayList(
           GameBuilder.create().defaultValues().get(),
-          GameBuilder.create().defaultValues().state(GameStatus.CLOSED).get()
+          GameBuilder.create().defaultValues().state(GameStatus.ENDED).get()
       ));
       TableColumn<Game, ?> column = instance.gamesTable.getColumns().get(0);
       column.setSortType(SortType.ASCENDING);

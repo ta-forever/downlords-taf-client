@@ -10,7 +10,6 @@ import com.faforever.client.fa.relay.ice.IceAdapter;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.i18n.I18n;
-import com.faforever.client.main.event.JoinChannelEvent;
 import com.faforever.client.main.event.ShowReplayEvent;
 import com.faforever.client.map.MapService;
 import com.faforever.client.mod.FeaturedMod;
@@ -34,6 +33,7 @@ import com.faforever.client.remote.domain.GameInfoMessage;
 import com.faforever.client.remote.domain.GameLaunchMessage;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.LoginMessage;
+import com.faforever.client.remote.domain.PlayerStatus;
 import com.faforever.client.replay.ReplayServer;
 import com.faforever.client.reporting.ReportingService;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
@@ -65,7 +65,10 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import javax.inject.Inject;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -117,6 +120,7 @@ public class GameService implements InitializingBean {
   /** TODO: Explain why access needs to be synchronized. */
   @VisibleForTesting
   final SimpleObjectProperty<Game> currentGame;
+  final SimpleObjectProperty<GameStatus> currentGameStatusProperty;
 
   /**
    * An observable copy of {@link #uidToGameInfoBean}. <strong>Do not modify its content directly</strong>.
@@ -150,6 +154,8 @@ public class GameService implements InitializingBean {
   private final BooleanProperty searching1v1;
 
   private Process process;
+  private PrintStream processPrintStream;
+  private File processPrintStreamFile;
   private boolean rehostRequested;
   private int localReplayPort;
 
@@ -196,6 +202,8 @@ public class GameService implements InitializingBean {
     searching1v1 = new SimpleBooleanProperty();
     gameRunning = new SimpleBooleanProperty();
     currentGame = new SimpleObjectProperty<>();
+    currentGameStatusProperty = new SimpleObjectProperty<>();
+
     games = FXCollections.observableList(new ArrayList<>(),
         item -> new Observable[]{item.statusProperty(), item.getTeams()}
     );
@@ -206,6 +214,14 @@ public class GameService implements InitializingBean {
     currentGame.addListener((observable, oldValue, newValue) -> {
       if (newValue == null) {
         discordRichPresenceService.clearGameInfo();
+        currentGameStatusProperty.setValue(GameStatus.UNKNOWN);
+
+        Player currentPlayer = playerService.getCurrentPlayer().get();
+        if (currentPlayer != null && currentPlayer.getStatus() != PlayerStatus.PLAYING) {
+          // this is here to cope with host leaves before player starts TA
+          // In that case gpgnet4ta is still waiting for TA to start, so it won't shutdown unless explicitly told to
+          killGame();
+        }
         return;
       }
 
@@ -252,6 +268,10 @@ public class GameService implements InitializingBean {
         }
         final Player currentPlayer = playerService.getCurrentPlayer().orElseThrow(() -> new IllegalStateException("Player must be set"));
         discordRichPresenceService.updatePlayedGameTo(currentGame.get(), currentPlayer.getId(), currentPlayer.getUsername());
+
+        if (currentPlayer.getStatus() == PlayerStatus.JOINING && currentGame.get().getStatus() == GameStatus.BATTLEROOM && preferencesService.getPreferences().getAutoLaunchEnabled()) {
+          GameService.this.startBattleRoom();
+        }
       }
     };
   }
@@ -261,30 +281,38 @@ public class GameService implements InitializingBean {
     return new ChangeListener<>() {
       @Override
       public void changed(ObservableValue<? extends GameStatus> observable, GameStatus oldStatus, GameStatus newStatus) {
-        if (observable.getValue() == GameStatus.CLOSED) {
+
+        if (observable.getValue() == GameStatus.ENDED) {
           observable.removeListener(this);
         }
 
         Player currentPlayer = getCurrentPlayer();
-        boolean playerStillInGame = game.getTeams().entrySet().stream()
+        boolean playerStillInGame = currentPlayer != null && currentGame != null && currentPlayer.getCurrentGameUid() == currentGame.get().getId();
+        /*game.getTeams().entrySet().stream()
             .flatMap(stringListEntry -> stringListEntry.getValue().stream())
-            .anyMatch(playerName -> playerName.equals(currentPlayer.getUsername()));
+            .anyMatch(playerName -> playerName.equals(currentPlayer.getUsername()));*/
 
         /*
           Check if player left the game while it was open, in this case we don't care any longer
          */
-        if (newStatus == GameStatus.PLAYING && oldStatus == GameStatus.OPEN && !playerStillInGame) {
+        if (newStatus.isInProgress() && oldStatus.isOpen() && !playerStillInGame) {
           observable.removeListener(this);
           return;
         }
 
-        if (oldStatus == GameStatus.PLAYING && newStatus == GameStatus.CLOSED) {
+        if (oldStatus.isInProgress() && newStatus == GameStatus.ENDED) {
           GameService.this.onRecentlyPlayedGameEnded(game);
           return;
         }
 
         if (Objects.equals(currentGame.get(), game)) {
           discordRichPresenceService.updatePlayedGameTo(currentGame.get(), currentPlayer.getId(), currentPlayer.getUsername());
+          if (currentGameStatusProperty.get() != newStatus) {
+            currentGameStatusProperty.setValue(newStatus);
+          }
+          if (currentPlayer.getStatus() == PlayerStatus.JOINING && newStatus == GameStatus.BATTLEROOM && preferencesService.getPreferences().getAutoLaunchEnabled()) {
+            GameService.this.startBattleRoom();
+          }
         }
       }
     };
@@ -307,14 +335,13 @@ public class GameService implements InitializingBean {
     }
 
     stopSearchLadder1v1();
-    String gameChannel = getInGameIrcChannel(getCurrentPlayer().getUsername());
     String inGameIrcUrl = getInGameIrcUrl(getCurrentPlayer().getUsername());
-    eventBus.post(new JoinChannelEvent(gameChannel));
+    boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchEnabled();
 
     return updateGameIfNecessary(newGameInfo.getFeaturedMod(), null, emptyMap(), newGameInfo.getSimMods())
         .thenCompose(aVoid -> downloadMapIfNecessary(newGameInfo.getMap()))
         .thenCompose(aVoid -> fafService.requestHostGame(newGameInfo))
-        .thenAccept(gameLaunchMessage -> startGame(modTechnicalName, gameLaunchMessage, gameLaunchMessage.getFaction(), RatingMode.GLOBAL, inGameIrcUrl));
+        .thenAccept(gameLaunchMessage -> startGame(modTechnicalName, gameLaunchMessage, gameLaunchMessage.getFaction(), RatingMode.GLOBAL, inGameIrcUrl, autoLaunch));
   }
 
   public CompletableFuture<Void> joinGame(Game game, String password) {
@@ -332,10 +359,7 @@ public class GameService implements InitializingBean {
 
     stopSearchLadder1v1();
 
-    String gameChannel = getInGameIrcChannel(game.getHost());
     String inGameIrcUrl = getInGameIrcUrl(game.getHost());
-    eventBus.post(new JoinChannelEvent(gameChannel));
-
     Map<String, Integer> featuredModVersions = game.getFeaturedModVersions();
     Set<String> simModUIds = game.getSimMods().keySet();
 
@@ -350,7 +374,8 @@ public class GameService implements InitializingBean {
             game.setPassword(password);
             currentGame.set(game);
           }
-          startGame(game.getFeaturedMod(), gameLaunchMessage, null, RatingMode.GLOBAL, inGameIrcUrl);
+          boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchEnabled() && game.getStatus() == GameStatus.BATTLEROOM;
+          startGame(game.getFeaturedMod(), gameLaunchMessage, null, RatingMode.GLOBAL, inGameIrcUrl, autoLaunch);
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be joined", throwable);
@@ -473,15 +498,15 @@ public class GameService implements InitializingBean {
     return playerService.getCurrentPlayer().orElseThrow(() -> new IllegalStateException("Player has not been set"));
   }
 
-  private String getInGameIrcUserName(String playerName) {
+  public String getInGameIrcUserName(String playerName) {
     return playerName.replace(" ", "") + "[ingame]";
   }
 
-  private String getInGameIrcChannel(String hostPlayerName) {
+  public String getInGameIrcChannel(String hostPlayerName) {
     return "#" + getInGameIrcUserName(hostPlayerName);
   }
 
-  private String getInGameIrcUrl(String hostPlayerName) {
+  public String getInGameIrcUrl(String hostPlayerName) {
     if (preferencesService.getPreferences().getIrcIntegrationEnabled()) {
       return getInGameIrcUserName(getCurrentPlayer().getUsername()) + "@" + this.ircHostAndPort + "/" + getInGameIrcChannel(hostPlayerName);
     }
@@ -519,9 +544,7 @@ public class GameService implements InitializingBean {
     }
 
     searching1v1.set(true);
-    String gameChannel = getInGameIrcChannel(getCurrentPlayer().getUsername());
     String inGameIrcUrl = getInGameIrcUrl(getCurrentPlayer().getUsername());
-    eventBus.post(new JoinChannelEvent(gameChannel));
 
     return
         modService.getFeaturedMod(LADDER_1V1.getTechnicalName())
@@ -536,7 +559,8 @@ public class GameService implements InitializingBean {
               gameLaunchMessage.getArgs().add("/players " + gameLaunchMessage.getExpectedPlayers());
               gameLaunchMessage.getArgs().add("/startspot " + gameLaunchMessage.getMapPosition());
 
-              startGame(LADDER_1V1.getTechnicalName(), gameLaunchMessage, faction, RatingMode.LADDER_1V1, inGameIrcUrl);
+              boolean autoLaunch = true;
+              startGame(LADDER_1V1.getTechnicalName(), gameLaunchMessage, faction, RatingMode.LADDER_1V1, inGameIrcUrl, autoLaunch);
             }))
         .exceptionally(throwable -> {
           if (throwable instanceof CancellationException) {
@@ -569,6 +593,14 @@ public class GameService implements InitializingBean {
     }
   }
 
+  public SimpleObjectProperty<Game> getCurrentGameProperty() {
+    return currentGame;
+  }
+
+  public SimpleObjectProperty<GameStatus> getCurrentGameStatusProperty() {
+    return currentGameStatusProperty;
+  }
+
   private boolean isRunning() {
     return process != null && process.isAlive();
   }
@@ -590,11 +622,19 @@ public class GameService implements InitializingBean {
     }
   }
 
+  public void startBattleRoom() {
+    if (isRunning()) {
+      log.info("Sending /launch to game console");
+      this.processPrintStream.println("/launch");
+      this.processPrintStream.flush();
+    }
+  }
+
   /**
    * Actually starts the game, including relay and replay server. Call this method when everything else is prepared
    * (mod/map download, connectivity check etc.)
    */
-  private void startGame(String modTechnical, GameLaunchMessage gameLaunchMessage, Faction faction, RatingMode ratingMode, String ircUrl) {
+  private void startGame(String modTechnical, GameLaunchMessage gameLaunchMessage, Faction faction, RatingMode ratingMode, String ircUrl, boolean autoLaunch) {
     if (isRunning()) {
       log.warn("Total Annihilation is already running, not starting game");
       return;
@@ -608,13 +648,23 @@ public class GameService implements InitializingBean {
           return iceAdapter.start();
         })
         .thenAccept(adapterPort -> {
-          List<String> args = fixMalformedArgs(gameLaunchMessage.getArgs());
-          process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, gameLaunchMessage.getUid(), faction, args, ratingMode,
-              adapterPort, localReplayPort, rehostRequested, getCurrentPlayer(), ircUrl));
-          setGameRunning(true);
+          try {
+            List<String> args = fixMalformedArgs(gameLaunchMessage.getArgs());
+            processPrintStreamFile = File.createTempFile("taforever",null,null);
+            process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, gameLaunchMessage.getUid(), faction, args, ratingMode,
+                adapterPort, localReplayPort, rehostRequested, getCurrentPlayer(), ircUrl, autoLaunch, processPrintStreamFile.getAbsolutePath()));
+            processPrintStream = new PrintStream(processPrintStreamFile);
+            setGameRunning(true);
+            this.ratingMode = ratingMode;
+            spawnTerminationListener(process);
 
-          this.ratingMode = ratingMode;
-          spawnTerminationListener(process);
+          } catch (FileNotFoundException e) {
+            log.warn("[startGame] unable to open processPrintStreamFile: {}", e);
+          }
+          catch (IOException e) {
+            log.warn("[startGame] unable to create processPrintStream: {}", e);
+          }
+
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be started", throwable);
@@ -677,8 +727,10 @@ public class GameService implements InitializingBean {
             rehost();
           }
         }
-      } catch (InterruptedException e) {
-        log.warn("Error during post-game processing", e);
+      }
+      catch (Exception e) {
+        log.warn("Total Annihilation process was interrupted");
+        killGame();
       }
     });
   }
@@ -709,7 +761,6 @@ public class GameService implements InitializingBean {
     }
   }
 
-
   private void onLoggedIn() {
     if (isGameRunning()) {
       fafService.restoreGameSession(currentGame.get().getId());
@@ -729,7 +780,7 @@ public class GameService implements InitializingBean {
     Optional<Player> currentPlayerOptional = playerService.getCurrentPlayer();
 
     Game game = createOrUpdateGame(gameInfoMessage);
-    if (GameStatus.CLOSED == game.getStatus()) {
+    if (GameStatus.ENDED == game.getStatus()) {
       removeGame(gameInfoMessage);
       if (!currentPlayerOptional.isPresent() || !Objects.equals(currentGame.get(), game)) {
         return;
@@ -737,15 +788,17 @@ public class GameService implements InitializingBean {
       synchronized (currentGame) {
         currentGame.set(null);
       }
-
     }
 
     if (currentPlayerOptional.isPresent()) {
       // TODO the following can be removed as soon as the server tells us which game a player is in.
-      boolean currentPlayerInGame = gameInfoMessage.getTeams().values().stream()
-          .anyMatch(team -> team.contains(currentPlayerOptional.get().getUsername()));
+      PlayerStatus currentPlayerStatus = currentPlayerOptional.get().getStatus();
+      boolean currentPlayerInGame = gameInfoMessage.getUid() == currentPlayerOptional.get().getCurrentGameUid();
+          //currentPlayerStatus != PlayerStatus.IDLE;
+          /*gameInfoMessage.getTeams().values().stream()
+          .anyMatch(team -> team.contains(currentPlayerOptional.get().getUsername()));*/
 
-      if (currentPlayerInGame && GameStatus.OPEN == gameInfoMessage.getState()) {
+      if (currentPlayerInGame && gameInfoMessage.getState().isOpen()) {
         synchronized (currentGame) {
           currentGame.set(game);
         }
@@ -756,10 +809,9 @@ public class GameService implements InitializingBean {
       }
     }
 
-
     JavaFxUtil.addListener(game.statusProperty(), (observable, oldValue, newValue) -> {
-      if (oldValue == GameStatus.OPEN
-          && newValue == GameStatus.PLAYING
+      if (oldValue.isOpen()
+          && newValue.isInProgress()
           && game.getTeams().values().stream().anyMatch(team -> playerService.getCurrentPlayer().isPresent() && team.contains(playerService.getCurrentPlayer().get().getUsername()))
           && !platformService.isWindowFocused(faWindowTitle)) {
         platformService.focusWindow(faWindowTitle);
@@ -884,7 +936,6 @@ public class GameService implements InitializingBean {
     }
   }
 
-
   private void removeGame(GameInfoMessage gameInfoMessage) {
     Game game;
     synchronized (uidToGameInfoBean) {
@@ -895,8 +946,9 @@ public class GameService implements InitializingBean {
 
   public void killGame() {
     if (process != null && process.isAlive()) {
-      log.info("Total Annihilation still running, destroying process");
-      process.destroy();
+      log.info("Sending /quit to game console");
+      this.processPrintStream.println("/quit");
+      this.processPrintStream.flush();
     }
   }
 

@@ -3,6 +3,9 @@ package com.faforever.client.chat;
 import com.faforever.client.chat.event.ChatMessageEvent;
 import com.faforever.client.fx.AbstractViewController;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.game.Game;
+import com.faforever.client.game.GameDetailController;
+import com.faforever.client.game.GameService;
 import com.faforever.client.main.event.JoinChannelEvent;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.net.ConnectionState;
@@ -14,13 +17,17 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
+import javafx.beans.WeakInvalidationListener;
 import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -31,6 +38,7 @@ import java.util.Optional;
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+@Slf4j
 public class ChatController extends AbstractViewController<Node> {
 
   private final Map<String, AbstractChatTabController> nameToChatTabController;
@@ -38,19 +46,32 @@ public class ChatController extends AbstractViewController<Node> {
   private final UiService uiService;
   private final UserService userService;
   private final EventBus eventBus;
+  private final GameService gameService;
   public Node chatRoot;
+  public HBox chatContainer;
   public TabPane tabPane;
   public Pane connectingProgressPane;
   public VBox noOpenTabsContainer;
   public TextField channelNameTextField;
+  public GameDetailController gameDetailController;
+  public ScrollPane gameDetailWrapper;
 
-  public ChatController(ChatService chatService, UiService uiService, UserService userService, EventBus eventBus) {
+  @SuppressWarnings("FieldCanBeLocal")
+  private InvalidationListener gameInvalidationListener;
+
+  public ChatController(ChatService chatService, UiService uiService, UserService userService, GameService gameService, EventBus eventBus) {
     this.chatService = chatService;
     this.uiService = uiService;
     this.userService = userService;
+    this.gameService = gameService;
     this.eventBus = eventBus;
 
     nameToChatTabController = new HashMap<>();
+  }
+
+  private void onPlayerGameChanged(Game newGame) {
+    gameDetailController.setGame(newGame);
+    gameDetailWrapper.setVisible(newGame != null);
   }
 
   private void onChannelLeft(Channel channel) {
@@ -121,11 +142,12 @@ public class ChatController extends AbstractViewController<Node> {
 
     if (chatService.isDefaultChannel(playerOrChannelName)) {
       tabPane.getTabs().add(0, tab);
-      tabPane.getSelectionModel().select(tab);
-      nameToChatTabController.get(tab.getId()).onDisplay();
     } else {
       tabPane.getTabs().add(tab);
     }
+
+    tabPane.getSelectionModel().select(tab);
+    nameToChatTabController.get(tab.getId()).onDisplay();
   }
 
   @Override
@@ -152,6 +174,14 @@ public class ChatController extends AbstractViewController<Node> {
         change.getRemoved().forEach(tab -> nameToChatTabController.remove(tab.getId()));
       }
     });
+
+    JavaFxUtil.bindManagedToVisible(
+        gameDetailWrapper
+    );
+
+    gameInvalidationListener = observable -> Platform.runLater(() -> onPlayerGameChanged(gameService.getCurrentGame()));
+    JavaFxUtil.addListener(gameService.getCurrentGameProperty(), new WeakInvalidationListener(gameInvalidationListener));
+    onPlayerGameChanged(gameService.getCurrentGame());
   }
 
   @Subscribe
@@ -259,7 +289,14 @@ public class ChatController extends AbstractViewController<Node> {
   @Override
   protected void onDisplay(NavigateEvent navigateEvent) {
     if (navigateEvent instanceof JoinChannelEvent) {
-      chatService.joinChannel(((JoinChannelEvent) navigateEvent).getChannel());
+      String channelName = ((JoinChannelEvent) navigateEvent).getChannel();
+      chatService.joinChannel(channelName);
+
+      AbstractChatTabController controller = nameToChatTabController.get(channelName);
+      if (controller != null) {
+        this.tabPane.getSelectionModel().select(controller.getRoot());
+      }
+
       return;
     }
     if (!tabPane.getTabs().isEmpty()) {

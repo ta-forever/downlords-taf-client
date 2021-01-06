@@ -23,9 +23,9 @@ public class GameStatusTypeAdapterTest {
   @Test
   public void testWrite() throws Exception {
     JsonWriter out = mock(JsonWriter.class);
-    instance.write(out, GameStatus.OPEN);
+    instance.write(out, GameStatus.STAGING);
 
-    verify(out).value(GameStatus.OPEN.getString());
+    verify(out).value(GameStatus.STAGING.getString());
   }
 
   @Test
@@ -39,11 +39,11 @@ public class GameStatusTypeAdapterTest {
   @Test
   public void testRead() throws Exception {
     JsonReader in = mock(JsonReader.class);
-    when(in.nextString()).thenReturn(GameStatus.OPEN.getString());
+    when(in.nextString()).thenReturn(GameStatus.STAGING.getString());
 
     GameStatus gameStatus = instance.read(in);
 
-    assertEquals(GameStatus.OPEN, gameStatus);
+    assertEquals(GameStatus.STAGING, gameStatus);
   }
 
   @Test

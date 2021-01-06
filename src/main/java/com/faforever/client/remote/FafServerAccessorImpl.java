@@ -52,6 +52,7 @@ import com.faforever.client.remote.domain.MessageTarget;
 import com.faforever.client.remote.domain.NoticeMessage;
 import com.faforever.client.remote.domain.PeriodType;
 import com.faforever.client.remote.domain.PingMessage;
+import com.faforever.client.remote.domain.PlayerStatus;
 import com.faforever.client.remote.domain.RatingRange;
 import com.faforever.client.remote.domain.RemoveFoeMessage;
 import com.faforever.client.remote.domain.RemoveFriendMessage;
@@ -69,6 +70,7 @@ import com.faforever.client.remote.gson.GameStateTypeAdapter;
 import com.faforever.client.remote.gson.GpgServerMessageTypeTypeAdapter;
 import com.faforever.client.remote.gson.LobbyModeTypeAdapter;
 import com.faforever.client.remote.gson.MessageTargetTypeAdapter;
+import com.faforever.client.remote.gson.PlayerStateTypeAdapter;
 import com.faforever.client.remote.gson.RatingRangeTypeAdapter;
 import com.faforever.client.remote.gson.ServerMessageTypeAdapter;
 import com.faforever.client.remote.gson.ServerMessageTypeTypeAdapter;
@@ -136,6 +138,7 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
       .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
       .registerTypeAdapter(VictoryCondition.class, VictoryConditionTypeAdapter.INSTANCE)
       .registerTypeAdapter(GameStatus.class, GameStateTypeAdapter.INSTANCE)
+      .registerTypeAdapter(PlayerStatus.class, PlayerStateTypeAdapter.INSTANCE)
       .registerTypeAdapter(GameAccess.class, GameAccessTypeAdapter.INSTANCE)
       .registerTypeAdapter(ClientMessageType.class, ClientMessageTypeTypeAdapter.INSTANCE)
       .registerTypeAdapter(FafServerMessageType.class, ServerMessageTypeTypeAdapter.INSTANCE)

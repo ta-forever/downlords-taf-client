@@ -17,6 +17,8 @@ public class Player {
   private float[] globalRating;
   private float[] ladderRating;
   private Map<String, String> league;
+  private PlayerStatus state;
+  private Integer currentGameUid;
 
   public float[] getLadderRating() {
     return ladderRating;
@@ -89,4 +91,12 @@ public class Player {
   public void setId(int id) {
     this.id = id;
   }
+
+  public PlayerStatus getState() { return state; }
+
+  public void setState(PlayerStatus state) { this.state = state; }
+
+  public Integer getCurrentGameUid() { return currentGameUid; }
+
+  public void setCurrentGameUid(Integer uid) { this.currentGameUid = uid; }
 }

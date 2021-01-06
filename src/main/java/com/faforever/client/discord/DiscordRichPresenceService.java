@@ -69,7 +69,7 @@ public class DiscordRichPresenceService implements DisposableBean {
     }
     try {
 
-      if (game == null || game.getStatus() == GameStatus.CLOSED || game.getTeams() == null) {
+      if (game == null || game.getStatus() == GameStatus.ENDED || game.getTeams() == null) {
         DiscordRPC.discordClearPresence();
         return;
       }
@@ -81,11 +81,11 @@ public class DiscordRichPresenceService implements DisposableBean {
       discordRichPresence.setBigImage(clientProperties.getDiscord().getBigImageKey(), "");
       String joinSecret = null;
       String spectateSecret = null;
-      if (game.getStatus() == GameStatus.OPEN && !preferencesService.getPreferences().isDisallowJoinsViaDiscord()) {
+      if (game.isOpen() && !preferencesService.getPreferences().isDisallowJoinsViaDiscord()) {
         joinSecret = new Gson().toJson(new DiscordJoinSecret(game.getId()));
       }
 
-      if (game.getStatus() == GameStatus.PLAYING && game.getStartTime() != null && game.getStartTime().isAfter(Instant.now().plus(5, ChronoUnit.MINUTES))) {
+      if (game.isInProgress() && game.getStartTime() != null && game.getStartTime().isAfter(Instant.now().plus(5, ChronoUnit.MINUTES))) {
         spectateSecret = new Gson().toJson(new DiscordSpectateSecret(game.getId()));
       }
 
@@ -93,7 +93,7 @@ public class DiscordRichPresenceService implements DisposableBean {
 
       if (game.getStartTime() != null) {
         discordRichPresence.setStartTimestamps(game.getStartTime().toEpochMilli());
-      } else if (game.getStatus() == GameStatus.PLAYING) {
+      } else if (game.isInProgress()) {
         discordRichPresence.setStartTimestamps(Instant.now().toEpochMilli());
       }
       DiscordRichPresence update = discordRichPresence.build();
@@ -106,13 +106,11 @@ public class DiscordRichPresenceService implements DisposableBean {
 
   private String getDiscordState(Game game) {
     //I want no internationalisation in here as it should always be English
-    switch (game.getStatus()) {
-      case OPEN:
-        boolean isHost = game.getHost().equals(playerService.getCurrentPlayer().orElseThrow(() -> new IllegalStateException("Player must have been set")).getUsername());
-        return isHost ? HOSTING : WAITING;
-      default:
-        return PLAYING;
+    if (game.isOpen()) {
+      boolean isHost = game.getHost().equals(playerService.getCurrentPlayer().orElseThrow(() -> new IllegalStateException("Player must have been set")).getUsername());
+      return isHost ? HOSTING : WAITING;
     }
+    return PLAYING;
   }
 
   @Override

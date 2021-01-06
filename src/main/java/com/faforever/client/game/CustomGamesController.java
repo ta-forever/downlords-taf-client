@@ -7,7 +7,6 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.HostGameEvent;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.preferences.PreferencesService;
-import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.dialog.Dialog;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
@@ -54,9 +53,10 @@ public class CustomGamesController extends AbstractViewController<Node> {
       KnownFeaturedMod.LADDER_1V1.getTechnicalName()
   );
 
-  private static final Predicate<Game> OPEN_CUSTOM_GAMES_PREDICATE = gameInfoBean ->
-      gameInfoBean.getStatus() == GameStatus.OPEN
+  private static final Predicate<Game> CUSTOM_GAMES_PREDICATE = gameInfoBean ->
+      (gameInfoBean.isOpen() || gameInfoBean.isInProgress())
           && !HIDDEN_FEATURED_MODS.contains(gameInfoBean.getFeaturedMod());
+
   @VisibleForTesting
   static final PseudoClass PSEUDO_CLASS_RIGHT = PseudoClass.getPseudoClass("right");
   @VisibleForTesting
@@ -66,7 +66,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
 
   private final UiService uiService;
   private final GameService gameService;
-  private final PreferencesService preferencesService;
+    private final PreferencesService preferencesService;
   private final EventBus eventBus;
   private final I18n i18n;
 
@@ -107,6 +107,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
 
   public void initialize() {
     JavaFxUtil.bind(createGameButton.disableProperty(), gameService.gameRunningProperty());
+
     getRoot().sceneProperty().addListener((observable, oldValue, newValue) -> {
       if (newValue == null) {
         createGameButton.disableProperty().unbind();
@@ -193,7 +194,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
     boolean showPasswordProtectedGames = showPasswordProtectedGamesCheckBox.isSelected();
     boolean showModdedGames = showModdedGamesCheckBox.isSelected();
 
-    filteredItems.setPredicate(OPEN_CUSTOM_GAMES_PREDICATE.and(gameInfoBean ->
+    filteredItems.setPredicate(CUSTOM_GAMES_PREDICATE.and(gameInfoBean ->
         (showPasswordProtectedGames || !gameInfoBean.isPasswordProtected())
             && (showModdedGames || gameInfoBean.getSimMods().isEmpty())));
   }

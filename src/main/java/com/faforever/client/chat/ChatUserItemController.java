@@ -7,7 +7,6 @@ import com.faforever.client.clan.ClanTooltipController;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
-import com.faforever.client.game.PlayerStatus;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewSize;
@@ -15,6 +14,7 @@ import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.ChatPrefs;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.remote.domain.PlayerStatus;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.util.TimeService;
 import com.google.common.annotations.VisibleForTesting;
@@ -340,7 +340,9 @@ public class ChatUserItemController implements Controller<Node> {
   private static void loadPlayerStatusIcons(UiService uiService) throws IOException {
     playerStatusIcons = new HashMap<>();
     playerStatusIcons.put(PlayerStatus.HOSTING, uiService.getThemeImage(UiService.CHAT_LIST_STATUS_HOSTING));
-    playerStatusIcons.put(PlayerStatus.LOBBYING, uiService.getThemeImage(UiService.CHAT_LIST_STATUS_LOBBYING));
+    playerStatusIcons.put(PlayerStatus.JOINING, uiService.getThemeImage(UiService.CHAT_LIST_STATUS_JOINING));
+    playerStatusIcons.put(PlayerStatus.HOSTED, uiService.getThemeImage(UiService.CHAT_LIST_STATUS_HOSTED));
+    playerStatusIcons.put(PlayerStatus.JOINED, uiService.getThemeImage(UiService.CHAT_LIST_STATUS_JOINED));
     playerStatusIcons.put(PlayerStatus.PLAYING, uiService.getThemeImage(UiService.CHAT_LIST_STATUS_PLAYING));
   }
 
@@ -489,7 +491,9 @@ public class ChatUserItemController implements Controller<Node> {
       playerStatusIndicator.setVisible(true);
       playerStatusIndicator.setImage(getPlayerStatusIcon(player.getStatus()));
       playerMapImage.setVisible(true);
-      playerMapImage.setImage(mapService.loadPreview(player.getGame().getFeaturedMod(), player.getGame().getMapFolderName(), PreviewSize.SMALL));
+      if (player.getGame() != null) {
+        playerMapImage.setImage(mapService.loadPreview(player.getGame().getFeaturedMod(), player.getGame().getMapFolderName(), PreviewSize.SMALL));
+      }
     }
   }
 

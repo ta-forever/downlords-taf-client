@@ -10,7 +10,6 @@ import com.faforever.client.fx.PlatformService;
 import com.faforever.client.fx.StringListCell;
 import com.faforever.client.game.JoinGameHelper;
 import com.faforever.client.game.KnownFeaturedMod;
-import com.faforever.client.game.PlayerStatus;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.ShowUserReplaysEvent;
 import com.faforever.client.moderator.BanDialogController;
@@ -22,6 +21,7 @@ import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.ChatPrefs;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.remote.domain.PlayerStatus;
 import com.faforever.client.replay.ReplayService;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.alert.Alert;
@@ -204,8 +204,10 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
       // TODO: Make this ignore TMM games too and not just ladder
       // https://github.com/FAForever/downlords-faf-client/issues/1770
       joinGameItem.visibleProperty().bind(newValue.socialStatusProperty().isNotEqualTo(SELF)
-          .and(newValue.statusProperty().isEqualTo(PlayerStatus.LOBBYING)
-              .or(newValue.statusProperty().isEqualTo(PlayerStatus.HOSTING)))
+          .and(newValue.statusProperty().isEqualTo(PlayerStatus.JOINING)
+              .or(newValue.statusProperty().isEqualTo(PlayerStatus.HOSTING)
+              .or(newValue.statusProperty().isEqualTo(PlayerStatus.JOINED)
+              .or(newValue.statusProperty().isEqualTo(PlayerStatus.HOSTED)))))
           .and(Bindings.createBooleanBinding(() -> {
                 return newValue.getGame() != null
                     && newValue.getGame().getFeaturedMod() != null

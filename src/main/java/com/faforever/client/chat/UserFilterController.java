@@ -1,9 +1,9 @@
 package com.faforever.client.chat;
 
 import com.faforever.client.fx.Controller;
-import com.faforever.client.game.PlayerStatus;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.player.Player;
+import com.faforever.client.remote.domain.PlayerStatus;
 import com.faforever.client.util.ProgrammingError;
 import com.faforever.client.util.RatingUtil;
 import com.google.common.annotations.VisibleForTesting;
@@ -19,11 +19,6 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
-
-import static com.faforever.client.game.PlayerStatus.HOSTING;
-import static com.faforever.client.game.PlayerStatus.IDLE;
-import static com.faforever.client.game.PlayerStatus.LOBBYING;
-import static com.faforever.client.game.PlayerStatus.PLAYING;
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
@@ -152,25 +147,25 @@ public class UserFilterController implements Controller<Node> {
 
     Player player = playerOptional.get();
     PlayerStatus playerStatus = player.getStatus();
-    if (playerStatusFilter == LOBBYING) {
-      return LOBBYING == playerStatus || HOSTING == playerStatus;
+    if (playerStatusFilter == PlayerStatus.JOINING) {
+      return PlayerStatus.JOINING == playerStatus || PlayerStatus.HOSTING == playerStatus || PlayerStatus.JOINED == playerStatus || PlayerStatus.HOSTED == playerStatus;
     } else {
       return playerStatusFilter == playerStatus;
     }
   }
 
   public void onGameStatusPlaying() {
-    updateGameStatusMenuText(playerStatusFilter == PLAYING ? null : PLAYING);
+    updateGameStatusMenuText(playerStatusFilter == PlayerStatus.PLAYING ? null : PlayerStatus.PLAYING);
     filterUsers();
   }
 
   public void onGameStatusLobby() {
-    updateGameStatusMenuText(playerStatusFilter == LOBBYING ? null : LOBBYING);
+    updateGameStatusMenuText(playerStatusFilter == PlayerStatus.JOINING ? null : PlayerStatus.JOINING);
     filterUsers();
   }
 
   public void onGameStatusNone() {
-    updateGameStatusMenuText(playerStatusFilter == IDLE ? null : IDLE);
+    updateGameStatusMenuText(playerStatusFilter == PlayerStatus.IDLE ? null : PlayerStatus.IDLE);
     filterUsers();
   }
 
@@ -186,7 +181,7 @@ public class UserFilterController implements Controller<Node> {
       case PLAYING:
         gameStatusMenu.setText(i18n.get("game.gameStatus.playing"));
         break;
-      case LOBBYING:
+      case JOINING:
         gameStatusMenu.setText(i18n.get("game.gameStatus.lobby"));
         break;
       case IDLE:

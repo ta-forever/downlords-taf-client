@@ -26,7 +26,7 @@ public class GameInfoMessageBuilder {
     gameInfoMessage.setMapname("scmp_007");
     gameInfoMessage.setMaxPlayers(4);
     gameInfoMessage.setNumPlayers(1);
-    gameInfoMessage.setState(GameStatus.OPEN);
+    gameInfoMessage.setState(GameStatus.STAGING);
     gameInfoMessage.setTitle("Test preferences");
     gameInfoMessage.setTeams(new HashMap<>());
     gameInfoMessage.setPasswordProtected(false);

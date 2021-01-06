@@ -90,7 +90,7 @@ public class TeamCardController implements Controller<Node> {
     }
 
     String teamTitle;
-    if ("1".equals(team)) {
+    if ("1".equals(team) || "null".equals(team) || team == null) {
       teamTitle = i18n.get("game.tooltip.teamTitleNoTeam");
     } else if ("-1".equals(team)) {
       teamTitle = i18n.get("game.tooltip.observers");

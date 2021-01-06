@@ -161,7 +161,7 @@ public class PlayerService implements InitializingBean {
         });
 
     //We need to see if anybody dropped out of games
-    if (game != null && game.getStatus() != GameStatus.CLOSED && playersByGame.get(game.getId()) != null) {
+    if (game != null && game.getStatus() != GameStatus.ENDED && playersByGame.get(game.getId()) != null) {
       List<Player> playersThatLeftTheGame = new ArrayList<>();
       List<Player> previousPlayersFromGame = playersByGame.get(game.getId());
       for (Player player : previousPlayersFromGame) {
@@ -180,7 +180,7 @@ public class PlayerService implements InitializingBean {
       return;
     }
 
-    if (game.getStatus() == GameStatus.CLOSED) {
+    if (game.getStatus() == GameStatus.ENDED) {
       playersByGame.remove(game.getId());
       player.setGame(null);
       return;
@@ -194,7 +194,7 @@ public class PlayerService implements InitializingBean {
       player.setGame(game);
       playersByGame.get(game.getId()).add(player);
       if (player.getSocialStatus() == FRIEND
-          && game.getStatus() == GameStatus.OPEN
+          && game.isOpen()
           && !game.getFeaturedMod().equals(KnownFeaturedMod.LADDER_1V1.getTechnicalName())) {
         eventBus.post(new FriendJoinedGameEvent(player, game));
       }

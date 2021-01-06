@@ -3,21 +3,29 @@ package com.faforever.client.game;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.main.event.JoinChannelEvent;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewSize;
 import com.faforever.client.mod.ModService;
+import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
+import com.faforever.client.player.event.CurrentPlayerInfo;
+import com.faforever.client.remote.domain.GameStatus;
+import com.faforever.client.remote.domain.PlayerStatus;
 import com.google.common.base.Joiner;
+import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
 import javafx.application.Platform;
 import javafx.beans.binding.StringBinding;
 import javafx.collections.ObservableMap;
+import javafx.event.ActionEvent;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
@@ -36,18 +44,22 @@ import static javafx.beans.binding.Bindings.createStringBinding;
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class GameTileController implements Controller<Node> {
 
   private final MapService mapService;
   private final I18n i18n;
   private final JoinGameHelper joinGameHelper;
   private final ModService modService;
+  private final GameService gameService;
   private final PlayerService playerService;
+  private final EventBus eventBus;
   public Node lockIconLabel;
   public Label gameTypeLabel;
   public Node gameCardRoot;
   public Label gameMapLabel;
   public Label gameTitleLabel;
+  public Label gameStatusLabel;
   public Label numberOfPlayersLabel;
   public Label avgRatingLabel;
   public Label hostLabel;
@@ -55,6 +67,11 @@ public class GameTileController implements Controller<Node> {
   public ImageView mapImageView;
   private Consumer<Game> onSelectedListener;
   private Game game;
+
+  public Button joinButton;
+  public Button chatButton;
+  public Button leaveButton;
+  public Button startButton;
 
   public void setOnSelectedListener(Consumer<Game> onSelectedListener) {
     this.onSelectedListener = onSelectedListener;
@@ -65,6 +82,41 @@ public class GameTileController implements Controller<Node> {
     modsLabel.visibleProperty().bind(modsLabel.textProperty().isNotEmpty());
     gameTypeLabel.managedProperty().bind(gameTypeLabel.visibleProperty());
     lockIconLabel.managedProperty().bind(lockIconLabel.visibleProperty());
+
+    gameService.getCurrentGameStatusProperty().addListener((obs, newValue, oldValue) -> {
+      updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
+    });
+    gameService.gameRunningProperty().addListener((obs, newValue, oldValue) -> {
+      updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
+    });
+
+    eventBus.register(this);
+  }
+
+  @Subscribe
+  public void onPlayerInfo(CurrentPlayerInfo player) {
+    if (player.getCurrentPlayer() != null) {
+      updateButtonsVisibility(gameService.getCurrentGame(), player.getCurrentPlayer());
+    }
+  }
+
+  private void onGameStatusChanged() {
+    updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
+  }
+
+  private void updateButtonsVisibility(Game currentGame, Player currentPlayer) {
+    boolean isCurrentGame = game != null && currentGame != null && Objects.equals(game, currentGame);
+    boolean isGameProcessRunning = gameService.isGameRunning();
+    boolean isPlayerIdle = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.IDLE;
+    boolean isPlayerHosting = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.HOSTING;
+    boolean isPlayerJoining = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.JOINING;
+    boolean isStagingRoomOpen = game != null && game.getStatus() == GameStatus.STAGING;
+    boolean isBattleRoomOpen = game != null && game.getStatus() == GameStatus.BATTLEROOM;
+
+    joinButton.setVisible(!isGameProcessRunning && isPlayerIdle && (isStagingRoomOpen || isBattleRoomOpen));
+    chatButton.setVisible(game != null);
+    leaveButton.setVisible(isGameProcessRunning && isCurrentGame);
+    startButton.setVisible(isGameProcessRunning && isCurrentGame && (isPlayerHosting && isStagingRoomOpen || isPlayerJoining && isBattleRoomOpen));
   }
 
   public Node getRoot() {
@@ -95,6 +147,8 @@ public class GameTileController implements Controller<Node> {
         game.maxPlayersProperty()
     ));
 
+    gameStatusLabel.textProperty().bind(game.statusProperty().asString());
+
     avgRatingLabel.textProperty().bind(createStringBinding(
         () -> i18n.get("game.avgRating.format", Math.round(game.getAverageRating() / 100.0) * 100.0),
         game.teamsProperty()
@@ -110,6 +164,7 @@ public class GameTileController implements Controller<Node> {
     ));
 
     lockIconLabel.visibleProperty().bind(game.passwordProtectedProperty());
+    updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
   }
 
   private String getSimModsLabelContent(ObservableMap<String, String> simMods) {
@@ -124,16 +179,24 @@ public class GameTileController implements Controller<Node> {
     return Joiner.on(i18n.get("textSeparator")).join(modNames);
   }
 
-  public void onClick(MouseEvent mouseEvent) {
-    Objects.requireNonNull(onSelectedListener, "onSelectedListener has not been set");
-    Objects.requireNonNull(game, "gameInfoBean has not been set");
+  public void onJoinButtonClicked(ActionEvent event) {
+    joinGameHelper.join(game);
+  }
 
-    gameCardRoot.requestFocus();
-    onSelectedListener.accept(game);
-
-    if (mouseEvent.getButton() == MouseButton.PRIMARY && mouseEvent.getClickCount() == 2) {
-      mouseEvent.consume();
-      joinGameHelper.join(game);
+  public void onChatButtonClicked(ActionEvent event)
+  {
+    if (game != null) {
+      String gameChannel = gameService.getInGameIrcChannel(game.getHost());
+      eventBus.post(new JoinChannelEvent(gameChannel));
     }
   }
+
+  public void onLeaveButtonClicked(ActionEvent event) {
+    gameService.killGame();
+  }
+
+  public void onStartButtonClicked(ActionEvent event) {
+    gameService.startBattleRoom();
+  }
+
 }

@@ -71,7 +71,7 @@ import static javafx.collections.FXCollections.observableList;
 public class CoopController extends AbstractViewController<Node> {
 
   private static final Predicate<Game> OPEN_COOP_GAMES_PREDICATE = gameInfoBean ->
-      gameInfoBean.getStatus() == GameStatus.OPEN
+      gameInfoBean.isOpen()
           && COOP.getTechnicalName().equals(gameInfoBean.getFeaturedMod());
 
   private final ReplayService replayService;

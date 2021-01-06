@@ -11,9 +11,11 @@ import java.util.Map;
 public enum GameStatus {
 
   UNKNOWN("unknown"),
-  PLAYING("playing"),
-  OPEN("open"),
-  CLOSED("closed");
+  STAGING("staging"),       // chat room has been opened but game hasn't been launched
+  BATTLEROOM("battleroom"), // players are in game battleroom. new players can still join
+  LAUNCHING("launching"),   // game has been started. new players can no longer join. teams have not been finalised
+  LIVE("live"),             // game in progress, teams have been finalised
+  ENDED("ended");           // game has terminated
 
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private static final Map<String, GameStatus> fromString;
@@ -29,6 +31,14 @@ public enum GameStatus {
 
   GameStatus(String string) {
     this.string = string;
+  }
+
+  public boolean isOpen() {
+    return this == STAGING || this == BATTLEROOM;
+  }
+
+  public boolean isInProgress() {
+    return this == LAUNCHING || this == LIVE;
   }
 
   public static GameStatus fromString(String string) {

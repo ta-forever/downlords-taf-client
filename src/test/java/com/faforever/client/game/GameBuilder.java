@@ -27,7 +27,7 @@ public class GameBuilder {
     game.setNumPlayers(1);
     game.setNumPlayers(2);
     game.setSimMods(FXCollections.emptyObservableMap());
-    game.setStatus(GameStatus.OPEN);
+    game.setStatus(GameStatus.STAGING);
     game.setTitle("Title");
     game.setTeams(FXCollections.emptyObservableMap());
     game.setId(1);

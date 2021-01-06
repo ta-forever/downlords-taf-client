@@ -58,9 +58,9 @@ import static com.faforever.client.fa.RatingMode.GLOBAL;
 import static com.faforever.client.game.Faction.AEON;
 import static com.faforever.client.game.Faction.CYBRAN;
 import static com.faforever.client.game.KnownFeaturedMod.LADDER_1V1;
-import static com.faforever.client.remote.domain.GameStatus.CLOSED;
-import static com.faforever.client.remote.domain.GameStatus.OPEN;
-import static com.faforever.client.remote.domain.GameStatus.PLAYING;
+import static com.faforever.client.remote.domain.GameStatus.ENDED;
+import static com.faforever.client.remote.domain.GameStatus.STAGING;
+import static com.faforever.client.remote.domain.GameStatus.LIVE;
 import static com.natpryce.hamcrest.reflection.HasAnnotationMatcher.hasAnnotation;
 import static java.util.Arrays.asList;
 import static java.util.concurrent.CompletableFuture.completedFuture;
@@ -337,7 +337,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
     when(playerService.getCurrentPlayer()).thenReturn(Optional.ofNullable(PlayerBuilder.create("PlayerName").get()));
 
     GameInfoMessage gameInfoMessage = GameInfoMessageBuilder.create(1234).defaultValues()
-        .state(OPEN)
+        .state(STAGING)
         .addTeamMember("1", "PlayerName").get();
     gameInfoMessageListenerCaptor.getValue().accept(gameInfoMessage);
     WaitForAsyncUtils.waitForFxEvents();
@@ -353,7 +353,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
     when(playerService.getCurrentPlayer()).thenReturn(Optional.ofNullable(PlayerBuilder.create("PlayerName").get()));
 
     GameInfoMessage gameInfoMessage = GameInfoMessageBuilder.create(1234).defaultValues()
-        .state(PLAYING)
+        .state(LIVE)
         .addTeamMember("1", "PlayerName").get();
     gameInfoMessageListenerCaptor.getValue().accept(gameInfoMessage);
 
@@ -376,7 +376,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
   public void testOnGameInfoModify() throws InterruptedException {
     assertThat(instance.getGames(), empty());
 
-    GameInfoMessage gameInfoMessage = GameInfoMessageBuilder.create(1).defaultValues().title("Game 1").state(PLAYING).get();
+    GameInfoMessage gameInfoMessage = GameInfoMessageBuilder.create(1).defaultValues().title("Game 1").state(LIVE).get();
     gameInfoMessageListenerCaptor.getValue().accept(gameInfoMessage);
     WaitForAsyncUtils.waitForFxEvents();
 
@@ -386,7 +386,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
       changeLatch.countDown();
     });
 
-    gameInfoMessage = GameInfoMessageBuilder.create(1).defaultValues().title("Game 1 modified").state(PLAYING).get();
+    gameInfoMessage = GameInfoMessageBuilder.create(1).defaultValues().title("Game 1 modified").state(LIVE).get();
     gameInfoMessageListenerCaptor.getValue().accept(gameInfoMessage);
 
     changeLatch.await();
@@ -402,7 +402,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
     GameInfoMessage gameInfoMessage = GameInfoMessageBuilder.create(1).defaultValues().title("Game 1").get();
     gameInfoMessageListenerCaptor.getValue().accept(gameInfoMessage);
 
-    gameInfoMessage = GameInfoMessageBuilder.create(1).title("Game 1").defaultValues().state(CLOSED).get();
+    gameInfoMessage = GameInfoMessageBuilder.create(1).title("Game 1").defaultValues().state(ENDED).get();
     gameInfoMessageListenerCaptor.getValue().accept(gameInfoMessage);
     WaitForAsyncUtils.waitForFxEvents();
 
@@ -527,14 +527,14 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
   public void testCurrentGameEndedBehaviour() {
     Game game = new Game();
     game.setId(123);
-    game.setStatus(PLAYING);
+    game.setStatus(LIVE);
 
     instance.currentGame.set(game);
 
     verify(notificationService, never()).addNotification(any(PersistentNotification.class));
 
-    game.setStatus(PLAYING);
-    game.setStatus(CLOSED);
+    game.setStatus(LIVE);
+    game.setStatus(ENDED);
 
     WaitForAsyncUtils.waitForFxEvents();
     verify(notificationService).addNotification(any(PersistentNotification.class));

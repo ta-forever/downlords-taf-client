@@ -27,6 +27,7 @@ public class LaunchCommandBuilder {
   private String gameCommandLineOptions;
   private boolean upnpEnabled;
   private boolean proactiveResendEnabled;
+  private boolean autoLaunch;
 
   private Integer uid;
   private String username;
@@ -39,6 +40,7 @@ public class LaunchCommandBuilder {
   private URI replayUri;
   private Path logFile;
   private String ircUrl;
+  private String commandInputFile;
 
   public static LaunchCommandBuilder create() {
     return new LaunchCommandBuilder();
@@ -143,6 +145,16 @@ public class LaunchCommandBuilder {
     return this;
   }
 
+  public LaunchCommandBuilder autoLaunch(boolean autoLaunch) {
+    this.autoLaunch = autoLaunch;
+    return this;
+  }
+
+  public LaunchCommandBuilder commandInputFile(String commandInputFile) {
+    this.commandInputFile = commandInputFile;
+    return this;
+  }
+
   public List<String> build() {
     checkNullIllegalState(gpgnet4taExecutable, "gpgnet4ta executable has not been set");
     Assert.state(!(replayUri != null && uid != null), "uid and replayUri cannot be set at the same time");
@@ -176,11 +188,15 @@ public class LaunchCommandBuilder {
     }
 
     if (upnpEnabled) {
-      command.add("--upnp");
+      //command.add("--upnp");
     }
 
     if (proactiveResendEnabled) {
       command.add("--proactiveresend");
+    }
+
+    if (autoLaunch) {
+      command.add("--autolaunch");
     }
 
     String localIp = Inet4Address.getLoopbackAddress().getHostAddress();
@@ -190,18 +206,18 @@ public class LaunchCommandBuilder {
     }
 
     if (mean != null) {
-      command.add("--mean");
-      command.add(String.valueOf(mean));
+      //command.add("--mean");
+      //command.add(String.valueOf(mean));
     }
 
     if (deviation != null) {
-      command.add("--deviation");
-      command.add(String.valueOf(deviation));
+      //command.add("--deviation");
+      //command.add(String.valueOf(deviation));
     }
 
     if (country != null && !country.isEmpty()) {
-      command.add("--country");
-      command.add(country);
+      //command.add("--country");
+      //command.add(country);
     }
 
     if (logFile != null) {
@@ -212,6 +228,11 @@ public class LaunchCommandBuilder {
     if (ircUrl != null) {
       command.add("--irc");
       command.add(ircUrl);
+    }
+
+    if (commandInputFile != null) {
+      command.add("--cmdfile");
+      command.add(commandInputFile);
     }
 
     if (additionalArgs != null) {
@@ -230,7 +251,7 @@ public class LaunchCommandBuilder {
           validArgs.add(arg);
         }
       }
-      command.addAll(validArgs);
+      //command.addAll(validArgs);
     }
 
     return command;

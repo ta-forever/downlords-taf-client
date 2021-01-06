@@ -3,10 +3,7 @@ package com.faforever.client.replay;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.game.Game;
 import com.faforever.client.i18n.I18n;
-import com.faforever.client.notification.Action;
 import com.faforever.client.notification.NotificationService;
-import com.faforever.client.notification.PersistentNotification;
-import com.faforever.client.notification.Severity;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.update.ClientUpdateService;
 import com.faforever.client.user.UserService;
@@ -18,15 +15,12 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.ConnectException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
@@ -177,7 +171,7 @@ public class ReplayServerImpl implements ReplayServer {
     replayInfo.updateFromGameInfoBean(game);
     replayInfo.setGameEnd(pythonTime());
     replayInfo.setRecorder(userService.getUsername());
-    replayInfo.setState(GameStatus.CLOSED);
+    replayInfo.setState(GameStatus.ENDED);
     replayInfo.setComplete(true);
   }
 }
