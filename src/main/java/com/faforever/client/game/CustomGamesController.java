@@ -168,7 +168,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
       preferencesService.getPreferences().setShowGameDetailsSidePane(toggleGameDetailPaneButton.isSelected());
       preferencesService.storeInBackground();
     });
-    toggleGameDetailPaneButton.setSelected(preferencesService.getPreferences().isShowGameDetailsSidePane());
+    toggleGameDetailPaneButton.setSelected(true);//preferencesService.getPreferences().isShowGameDetailsSidePane());
     updateGameDetailPaneButton();
 
     eventBus.register(this);

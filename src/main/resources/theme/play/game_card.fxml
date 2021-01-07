@@ -13,7 +13,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.HBox?>
 
-<GridPane xmlns:fx="http://javafx.com/fxml/1" fx:id="gameCardRoot" hgap="10.0"
+<GridPane xmlns:fx="http://javafx.com/fxml/1" fx:id="gameCardRoot" hgap="10.0" onMouseClicked="#onClick"
           styleClass="card, game-card, pointable, hoverable" vgap="5.0" xmlns="http://javafx.com/javafx/11.0.1"
           fx:controller="com.faforever.client.game.GameTileController">
     <columnConstraints>

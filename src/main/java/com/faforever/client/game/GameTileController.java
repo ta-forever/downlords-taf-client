@@ -24,6 +24,8 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -177,6 +179,14 @@ public class GameTileController implements Controller<Node> {
       return i18n.get("game.mods.twoAndMore", modNames.get(0), modNames.size());
     }
     return Joiner.on(i18n.get("textSeparator")).join(modNames);
+  }
+
+  public void onClick(MouseEvent mouseEvent) {
+    Objects.requireNonNull(onSelectedListener, "onSelectedListener has not been set");
+    Objects.requireNonNull(game, "gameInfoBean has not been set");
+
+    gameCardRoot.requestFocus();
+    onSelectedListener.accept(game);
   }
 
   public void onJoinButtonClicked(ActionEvent event) {
