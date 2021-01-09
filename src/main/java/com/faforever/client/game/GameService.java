@@ -201,6 +201,7 @@ public class GameService implements InitializingBean {
     uidToGameInfoBean = FXCollections.observableMap(new ConcurrentHashMap<>());
     searching1v1 = new SimpleBooleanProperty();
     gameRunning = new SimpleBooleanProperty();
+    log.info("[GameService] initialise currentGame");
     currentGame = new SimpleObjectProperty<>();
     currentGameStatusProperty = new SimpleObjectProperty<>();
 
@@ -220,6 +221,7 @@ public class GameService implements InitializingBean {
         if (currentPlayer != null && currentPlayer.getStatus() != PlayerStatus.PLAYING) {
           // this is here to cope with host leaves before player starts TA
           // In that case gpgnet4ta is still waiting for TA to start, so it won't shutdown unless explicitly told to
+          log.info("[currentGameListener] killGame() because new currentGame==null && currentPlayer.status() != PLAYING");
           killGame();
         }
         return;
@@ -372,6 +374,7 @@ public class GameService implements InitializingBean {
           synchronized (currentGame) {
             // Store password in case we rehost
             game.setPassword(password);
+            log.info("[joinGame] currentGame.set(game)");
             currentGame.set(game);
           }
           boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchEnabled() && game.getStatus() == GameStatus.BATTLEROOM;
@@ -786,6 +789,7 @@ public class GameService implements InitializingBean {
         return;
       }
       synchronized (currentGame) {
+        log.info("[onGameInfo] currentGame.set(null) because GameStatus.ENDED");
         currentGame.set(null);
       }
     }
@@ -796,14 +800,16 @@ public class GameService implements InitializingBean {
       boolean currentPlayerInGame = gameInfoMessage.getUid() == currentPlayerOptional.get().getCurrentGameUid();
           //currentPlayerStatus != PlayerStatus.IDLE;
           /*gameInfoMessage.getTeams().values().stream()
-          .anyMatch(team -> team.contains(currentPlayerOptional.get().getUsername()));*/
+          .anyMatch(team -> team.contains(currentPlayerOptional.get().getUsername())); */
 
       if (currentPlayerInGame && gameInfoMessage.getState().isOpen()) {
         synchronized (currentGame) {
+          log.info("[onGameInfo] currentGame(game) because currentPlayerInGame && game.isOpen()");
           currentGame.set(game);
         }
       } else if (Objects.equals(currentGame.get(), game) && !currentPlayerInGame) {
         synchronized (currentGame) {
+          log.info("[onGameInfo] currentGame(null) because !currentPlayerInGame");
           currentGame.set(null);
         }
       }

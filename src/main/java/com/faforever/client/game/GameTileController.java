@@ -202,10 +202,12 @@ public class GameTileController implements Controller<Node> {
   }
 
   public void onLeaveButtonClicked(ActionEvent event) {
+    log.info("[onLeaveButtonClicked] killGame()");
     gameService.killGame();
   }
 
   public void onStartButtonClicked(ActionEvent event) {
+    log.info("[onStartButtonClicked] startBattleRoom()");
     gameService.startBattleRoom();
   }
 
