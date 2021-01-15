@@ -347,8 +347,7 @@ public class PreferencesService implements InitializingBean {
     try (Stream<Path> listOfLogFiles = Files.list(getFafLogDirectory())) {
       listOfLogFiles
           .filter(p -> GAME_LOG_PATTERN.matcher(p.getFileName().toString()).matches())
-          .sorted(Comparator.comparingLong(p -> p.toFile().lastModified()))
-          .sorted(Collections.reverseOrder())
+          .sorted(Comparator.comparingLong(p -> -p.toFile().lastModified()))
           .skip(NUMBER_GAME_LOGS_STORED - 1)
           .forEach(p -> noCatch(() -> Files.delete(p)));
     } catch (IOException e) {
