@@ -10,6 +10,7 @@ import com.faforever.client.fa.relay.ice.IceAdapter;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.main.event.JoinChannelEvent;
 import com.faforever.client.main.event.ShowReplayEvent;
 import com.faforever.client.map.MapService;
 import com.faforever.client.mod.FeaturedMod;
@@ -343,7 +344,8 @@ public class GameService implements InitializingBean {
     return updateGameIfNecessary(newGameInfo.getFeaturedMod(), null, emptyMap(), newGameInfo.getSimMods())
         .thenCompose(aVoid -> downloadMapIfNecessary(newGameInfo.getMap()))
         .thenCompose(aVoid -> fafService.requestHostGame(newGameInfo))
-        .thenAccept(gameLaunchMessage -> startGame(modTechnicalName, gameLaunchMessage, gameLaunchMessage.getFaction(), RatingMode.GLOBAL, inGameIrcUrl, autoLaunch));
+        .thenAccept(gameLaunchMessage -> startGame(modTechnicalName, gameLaunchMessage, gameLaunchMessage.getFaction(), RatingMode.GLOBAL, inGameIrcUrl, autoLaunch))
+        .thenRun(() -> eventBus.post(new JoinChannelEvent(getInGameIrcChannel(getCurrentPlayer().getUsername()))));
   }
 
   public CompletableFuture<Void> joinGame(Game game, String password) {
@@ -379,7 +381,9 @@ public class GameService implements InitializingBean {
           }
           boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchEnabled() && game.getStatus() == GameStatus.BATTLEROOM;
           startGame(game.getFeaturedMod(), gameLaunchMessage, null, RatingMode.GLOBAL, inGameIrcUrl, autoLaunch);
+          Platform.runLater(() -> eventBus.post(new JoinChannelEvent(getInGameIrcChannel(getCurrentPlayer().getUsername()))));
         })
+        //.thenRun(() -> eventBus.post(new JoinChannelEvent(getInGameIrcChannel(getCurrentPlayer().getUsername()))))
         .exceptionally(throwable -> {
           log.warn("Game could not be joined", throwable);
           notificationService.addImmediateErrorNotification(throwable, "games.couldNotJoin");

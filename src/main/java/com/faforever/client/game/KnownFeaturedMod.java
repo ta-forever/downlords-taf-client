@@ -13,7 +13,8 @@ public enum KnownFeaturedMod {
   TAESC("taesc", "taesc", "TotalA.exe"),
   TAZERO("tazero", "tazero", "TotalA.exe"),
   TAMAYHEM("tamayhem", "tamayhem", "TotalA.exe"),
-  TAVID("tavmod", "tavmod", "TotalA.exe"),
+  TAVMOD("tavmod", "tavmod", "TotalA.exe"),
+  TATW("tatw", "tatw", "TotalA.exe"),
   COOP("coop", "coop", "TotalA.exe");
 
   public static final KnownFeaturedMod DEFAULT = TACC;

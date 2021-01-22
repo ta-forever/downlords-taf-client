@@ -104,7 +104,7 @@ public class PircBotXChatService implements ChatService, InitializingBean, Dispo
   private static final List<UserLevel> MODERATOR_USER_LEVELS = Arrays.asList(UserLevel.OP, UserLevel.HALFOP, UserLevel.SUPEROP, UserLevel.OWNER);
   private static final int SOCKET_TIMEOUT = 10000;
   private static final String NEWBIE_CHANNEL_NAME = "#newbie";
-  public static final int MAX_GAMES_FOR_NEWBIE_CHANNEL = 50;
+  public static final int MAX_GAMES_FOR_NEWBIE_CHANNEL = 0;
 
   private final PreferencesService preferencesService;
   private final UserService userService;
