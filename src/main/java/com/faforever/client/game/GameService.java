@@ -381,9 +381,8 @@ public class GameService implements InitializingBean {
           }
           boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchEnabled() && game.getStatus() == GameStatus.BATTLEROOM;
           startGame(game.getFeaturedMod(), gameLaunchMessage, null, RatingMode.GLOBAL, inGameIrcUrl, autoLaunch);
-          Platform.runLater(() -> eventBus.post(new JoinChannelEvent(getInGameIrcChannel(getCurrentPlayer().getUsername()))));
+          Platform.runLater(() -> eventBus.post(new JoinChannelEvent(getInGameIrcChannel(game.getHost()))));
         })
-        //.thenRun(() -> eventBus.post(new JoinChannelEvent(getInGameIrcChannel(getCurrentPlayer().getUsername()))))
         .exceptionally(throwable -> {
           log.warn("Game could not be joined", throwable);
           notificationService.addImmediateErrorNotification(throwable, "games.couldNotJoin");
