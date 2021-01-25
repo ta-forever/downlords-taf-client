@@ -6,12 +6,14 @@ import com.sun.jna.Platform;
 import com.sun.jna.platform.win32.Advapi32Util;
 import com.sun.jna.platform.win32.WinReg;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class JoinDiscordEventHandler {
 
@@ -20,15 +22,17 @@ public class JoinDiscordEventHandler {
   private final ClientProperties clientProperties;
   private final PlatformService platformService;
 
-  @EventListener(value = JoinDiscordEvent.class)
-  public void onJoin() throws IOException {
-    String joinUrl = clientProperties.getDiscord().getJoinUrl();
+  @EventListener
+  public void onJoin(JoinDiscordEvent event) throws IOException {
     if (canJoinViaDiscord()) {
-      joinViaDiscord(joinUrl);
-      return;
+      try {
+        joinViaDiscord(event.getUrl());
+        return;
+      } catch (java.io.IOException e) {
+        log.error("unable to launch discord. using browser instead", e.getMessage());
+      }
     }
-
-    joinViaBrowser(joinUrl);
+    joinViaBrowser(event.getUrl());
   }
 
   private boolean canJoinViaDiscord() {

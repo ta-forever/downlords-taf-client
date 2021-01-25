@@ -55,7 +55,7 @@
                <HBox fx:id="rightMenuPane" alignment="TOP_RIGHT" maxHeight="-Infinity" minHeight="-Infinity" minWidth="-Infinity" styleClass="right-menu">
                    <children>
                        <Button fx:id="discordButton" maxHeight="-Infinity" mnemonicParsing="false"
-                               styleClass="discord-button" onAction="#onDiscordButtonClicked">
+                               styleClass="discord-button" onMouseClicked="#onDiscordButtonClicked">
                            <graphic>
                                <Region styleClass="icon,discord-icon"/>
                            </graphic>

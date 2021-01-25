@@ -3,7 +3,6 @@ package com.faforever.client.main;
 import ch.micheljung.fxwindow.FxStage;
 import com.faforever.client.chat.event.UnreadPrivateMessageEvent;
 import com.faforever.client.config.ClientProperties;
-import com.faforever.client.discord.JoinDiscordEvent;
 import com.faforever.client.fx.AbstractViewController;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
@@ -65,6 +64,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.image.Image;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundImage;
 import javafx.scene.layout.BackgroundPosition;
@@ -121,6 +121,7 @@ public class MainController implements Controller<Node> {
   private final ApplicationEventPublisher applicationEventPublisher;
   private final String mainWindowTitle;
   private final int ratingBeta;
+  DiscordSelectionMenuController discordSelectionMenuController;
 
   public Pane mainHeaderPane;
   public Pane contentPane;
@@ -239,6 +240,8 @@ public class MainController implements Controller<Node> {
         node.setVisible(hasSpace);
       });
     });
+
+    discordSelectionMenuController = uiService.loadFxml("theme/discord_selection_menu.fxml");
   }
 
   private List<MenuItem> createMenuItemsFromNavigation() {
@@ -625,8 +628,8 @@ public class MainController implements Controller<Node> {
     this.fxStage = fxWindow;
   }
 
-  public void onDiscordButtonClicked() {
-    applicationEventPublisher.publishEvent(new JoinDiscordEvent());
+  public void onDiscordButtonClicked(MouseEvent event) {
+    discordSelectionMenuController.getContextMenu().show(mainRoot.getScene().getWindow(), event.getScreenX(), event.getScreenY());
   }
 
   public class ToastDisplayer implements InvalidationListener {

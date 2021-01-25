@@ -161,6 +161,12 @@ public class ClientProperties {
     private String bigImageKey;
     private String discordPrereleaseFeedbackChannelUrl;
     /** URL to join Discord server. */
-    private String joinUrl;
+    private List<DiscordServer> servers;
+  }
+
+  @Data
+  public static class DiscordServer {
+    private String title;
+    private String url;
   }
 }

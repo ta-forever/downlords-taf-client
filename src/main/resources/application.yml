@@ -49,7 +49,11 @@ faf-client:
     application_id: 785128540886532097
     small_image_key: taf-logo-crystal-nodt-512
     big_image_key: taf-logo-crystal-dt-512
-    join-url: https://discord.gg/KP7ndRagrM
+    servers:
+      - title: TA Universe
+        url: https://discord.gg/KP7ndRagrM
+      - title: TA Escalation
+        url: https://discord.gg/W2ErD5H
 
 spring:
   profiles:
