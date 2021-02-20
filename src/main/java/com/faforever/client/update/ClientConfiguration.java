@@ -11,10 +11,20 @@ import java.util.List;
  * A representation of a config file read from the faf server on start up. The file on the server allows to dynamically change settings in the client remotely.
  */
 public class ClientConfiguration {
+  List<Downloadable> downloadables;
   ReleaseInfo latestRelease;
   List<Integer> recommendedMaps;
   List<Endpoints> endpoints;
   GitHubRepo gitHubRepo;
+
+  @Data
+  public static class Downloadable {
+    String what;
+    String url;
+    String crc32;
+    List<String> depends;
+    List<String> conflicts;
+  }
 
   @Data
   public static class GitHubRepo {

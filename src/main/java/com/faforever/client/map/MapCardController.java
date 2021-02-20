@@ -4,7 +4,7 @@ import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.notification.ImmediateErrorNotification;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.reporting.ReportingService;
@@ -66,13 +66,13 @@ public class MapCardController implements Controller<Node> {
     installStatusChangeListener = change -> {
       while (change.next()) {
         for (MapBean mapBean : change.getAddedSubList()) {
-          if (map.getFolderName().equalsIgnoreCase(mapBean.getFolderName())) {
+          if (map.getMapName().equalsIgnoreCase(mapBean.getMapName())) {
             setInstalled(true);
             return;
           }
         }
         for (MapBean mapBean : change.getRemoved()) {
-          if (map.getFolderName().equals(mapBean.getFolderName())) {
+          if (map.getMapName().equals(mapBean.getMapName())) {
             setInstalled(false);
             return;
           }
@@ -82,15 +82,16 @@ public class MapCardController implements Controller<Node> {
   }
 
   public void setMap(MapBean map) {
+    String modTechnical = KnownFeaturedMod.DEFAULT.getTechnicalName();
     this.map = map;
     Image image;
     if (map.getLargeThumbnailUrl() != null) {
-      image = mapService.loadPreview(map.getLargeThumbnailUrl(), PreviewSize.LARGE);
+      image = mapService.loadPreview(modTechnical, map, PreviewType.MINI, 10);
     } else {
       image = IdenticonUtil.createIdenticon(map.getId());
     }
     thumbnailImageView.setImage(image);
-    nameLabel.setText(map.getDisplayName());
+    nameLabel.setText(map.getMapName());
     authorLabel.setText(Optional.ofNullable(map.getAuthor()).orElse(i18n.get("map.unknownAuthor")));
     numberOfPlaysLabel.setText(i18n.number(map.getNumberOfPlays()));
 
@@ -98,13 +99,13 @@ public class MapCardController implements Controller<Node> {
     sizeLabel.setText(i18n.get("mapPreview.size", size.getWidthInKm(), size.getHeightInKm()));
     maxPlayersLabel.setText(i18n.number(map.getPlayers()));
 
-    if (mapService.isOfficialMap(map.getFolderName())) {
+    if (mapService.isOfficialMap(map.getMapName())) {
       installButton.setVisible(false);
       uninstallButton.setVisible(false);
     } else {
-      ObservableList<MapBean> installedMaps = mapService.getInstalledMaps();
+      ObservableList<MapBean> installedMaps = mapService.getInstalledMaps(modTechnical);
       JavaFxUtil.addListener(installedMaps, new WeakListChangeListener<>(installStatusChangeListener));
-      setInstalled(mapService.isInstalled(map.getFolderName()));
+      setInstalled(mapService.isInstalled(modTechnical, map.getMapName()));
     }
 
     ObservableList<Review> reviews = map.getReviews();
@@ -126,7 +127,7 @@ public class MapCardController implements Controller<Node> {
         .exceptionally(throwable -> {
           notificationService.addNotification(new ImmediateErrorNotification(
               i18n.get("errorTitle"),
-              i18n.get("mapVault.installationFailed", map.getDisplayName(), throwable.getLocalizedMessage()),
+              i18n.get("mapVault.installationFailed", map.getMapName(), throwable.getLocalizedMessage()),
               throwable, i18n, reportingService
           ));
           setInstalled(false);
@@ -140,7 +141,7 @@ public class MapCardController implements Controller<Node> {
         .exceptionally(throwable -> {
           notificationService.addNotification(new ImmediateErrorNotification(
               i18n.get("errorTitle"),
-              i18n.get("mapVault.couldNotDeleteMap", map.getDisplayName(), throwable.getLocalizedMessage()),
+              i18n.get("mapVault.couldNotDeleteMap", map.getMapName(), throwable.getLocalizedMessage()),
               throwable, i18n, reportingService
           ));
           setInstalled(true);

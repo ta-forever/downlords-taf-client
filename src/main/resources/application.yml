@@ -54,6 +54,8 @@ faf-client:
         url: https://discord.gg/KP7ndRagrM
       - title: TA Escalation
         url: https://discord.gg/W2ErD5H
+      - title: TA Twilight
+        url: https://discord.gg/V9fmjnbV6e
 
 spring:
   profiles:

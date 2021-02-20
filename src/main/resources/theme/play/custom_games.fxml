@@ -45,7 +45,7 @@
                                               <Region styleClass="icon,tiles-icon" />
                                           </graphic>
                                       </ToggleButton>
-                                      <ToggleButton fx:id="toggleGameDetailPaneButton" mnemonicParsing="false" styleClass="pane-toggler">
+                                      <ToggleButton fx:id="toggleGameDetailPaneButton" visible="False" mnemonicParsing="false" styleClass="pane-toggler">
                                           <graphic>
                                               <Region styleClass="icon,toggle-icon" />
                                           </graphic>

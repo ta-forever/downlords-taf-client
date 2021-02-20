@@ -3,7 +3,7 @@ package com.faforever.client.map;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.Preferences;
 import com.faforever.client.preferences.PreferencesService;
@@ -152,7 +152,7 @@ public class MapServiceTest extends AbstractPlainJavaFxTest {
     expectedException.expect(MapLoadException.class);
     expectedException.expectMessage(startsWith("Not a folder"));
 
-    instance.readMap(mapsDirectory.resolve("something"));
+    instance.readMap(mapsDirectory.resolve("something"), null);
   }
 
   @Test
@@ -163,19 +163,19 @@ public class MapServiceTest extends AbstractPlainJavaFxTest {
     expectedException.expect(MapLoadException.class);
     expectedException.expectCause(instanceOf(LuaError.class));
 
-    instance.readMap(corruptMap);
+    instance.readMap(corruptMap, null);
   }
 
   @Test
   public void testReadMap() throws Exception {
-    MapBean mapBean = instance.readMap(Paths.get(getClass().getResource("/maps/SCMP_001").toURI()));
+    MapBean mapBean = instance.readMap(Paths.get(getClass().getResource("/maps/SCMP_001").toURI()), null);
 
     assertThat(mapBean, notNullValue());
     assertThat(mapBean.getId(), isEmptyOrNullString());
     assertThat(mapBean.getDescription(), startsWith("Initial scans of the planet"));
     assertThat(mapBean.getSize(), is(MapSize.valueOf(1024, 1024)));
     assertThat(mapBean.getVersion(), is(new ComparableVersion("1")));
-    assertThat(mapBean.getFolderName(), is("SCMP_001"));
+    assertThat(mapBean.getHpiArchiveName(), is("SCMP_001"));
   }
 
   @Test
@@ -195,10 +195,10 @@ public class MapServiceTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testLoadPreview() {
-    for (PreviewSize previewSize : PreviewSize.values()) {
-      Path cacheSubDir = Paths.get("maps").resolve(previewSize.folderName);
+    for (PreviewType previewType : PreviewType.values()) {
+      Path cacheSubDir = Paths.get("maps").resolve(previewType.folderName);
       when(assetService.loadAndCacheImage(any(URL.class), eq(cacheSubDir), any())).thenReturn(new Image("theme/images/unknown_map.png"));
-      instance.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), "preview", previewSize);
+      instance.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), "preview", previewType);
       verify(assetService).loadAndCacheImage(any(URL.class), eq(cacheSubDir), any());
     }
   }

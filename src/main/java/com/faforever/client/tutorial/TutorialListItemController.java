@@ -1,8 +1,9 @@
 package com.faforever.client.tutorial;
 
 import com.faforever.client.fx.AbstractViewController;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.google.common.base.Strings;
 import javafx.beans.binding.Bindings;
 import javafx.css.PseudoClass;
@@ -54,6 +55,6 @@ public class TutorialListItemController extends AbstractViewController<Node> {
     if (!Strings.isNullOrEmpty(tutorial.getImageUrl())) {
       return new Image(tutorial.getImageUrl());
     }
-    return tutorial.getMapVersion() != null ? mapService.loadPreview(tutorial.getMapVersion(), PreviewSize.SMALL) : null;
+    return tutorial.getMapVersion() != null ? mapService.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), tutorial.getMapVersion(), PreviewType.MINI, 10) : null;
   }
 }

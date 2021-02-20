@@ -8,7 +8,7 @@ import com.faforever.client.game.GameService;
 import com.faforever.client.game.MapPreviewTableCell;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.util.TimeService;
@@ -84,8 +84,8 @@ public class LiveReplayController extends AbstractViewController<Node> {
 
     mapPreviewColumn.setCellFactory(param -> new MapPreviewTableCell(uiService));
     mapPreviewColumn.setCellValueFactory(param -> Bindings.createObjectBinding(
-        () -> mapService.loadPreview(param.getValue().getFeaturedMod(), param.getValue().getMapFolderName(), PreviewSize.SMALL),
-        param.getValue().mapFolderNameProperty()
+        () -> mapService.loadPreview(param.getValue().getFeaturedMod(), param.getValue().getMapName(), PreviewType.MINI, 10),
+        param.getValue().mapNameProperty()
     ));
 
     startTimeColumn.setCellValueFactory(param -> param.getValue().startTimeProperty());

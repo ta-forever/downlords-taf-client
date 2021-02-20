@@ -105,7 +105,7 @@ public class MapUploadController implements Controller<Node> {
   public void setMapPath(Path mapPath) {
     this.mapPath = mapPath;
     enterParsingState();
-    CompletableFuture.supplyAsync(() -> mapService.readMap(mapPath), executorService)
+    CompletableFuture.supplyAsync(() -> mapService.readMap(mapPath.toString(), null), executorService)
         .thenAccept(this::setMapInfo)
         .exceptionally(throwable -> {
           logger.warn("Map could not be read", throwable);
@@ -129,7 +129,7 @@ public class MapUploadController implements Controller<Node> {
     this.mapInfo = mapInfo;
     enterMapInfoState();
 
-    mapNameLabel.textProperty().bind(mapInfo.displayNameProperty());
+    mapNameLabel.textProperty().bind(mapInfo.mapNameProperty());
     descriptionLabel.textProperty().bind(mapInfo.descriptionProperty());
     versionLabel.textProperty().bind(mapInfo.versionProperty().asString());
     sizeLabel.textProperty().bind(Bindings.createStringBinding(

@@ -28,8 +28,8 @@ import java.util.stream.Collectors;
 
 public class MapBean implements Comparable<MapBean> {
 
-  private final StringProperty folderName;
-  private final StringProperty displayName;
+  private final StringProperty hpiArchiveName;
+  private final StringProperty mapName;
   private final IntegerProperty numberOfPlays;
   private final StringProperty description;
   private final IntegerProperty downloads;
@@ -49,8 +49,8 @@ public class MapBean implements Comparable<MapBean> {
 
   public MapBean() {
     id = new SimpleStringProperty();
-    displayName = new SimpleStringProperty();
-    folderName = new SimpleStringProperty();
+    mapName = new SimpleStringProperty();
+    hpiArchiveName = new SimpleStringProperty();
     description = new SimpleStringProperty();
     numberOfPlays = new SimpleIntegerProperty();
     downloads = new SimpleIntegerProperty();
@@ -75,8 +75,8 @@ public class MapBean implements Comparable<MapBean> {
     MapBean mapBean = new MapBean();
     Optional.ofNullable(map.getAuthor()).ifPresent(author -> mapBean.setAuthor(author.getLogin()));
     mapBean.setDescription(mapVersion.getDescription());
-    mapBean.setDisplayName(map.getDisplayName());
-    mapBean.setFolderName(mapVersion.getFolderName());
+    mapBean.setMapName(map.getDisplayName());
+    mapBean.setHpiArchiveName(mapVersion.getFolderName());
     mapBean.setSize(MapSize.valueOf(mapVersion.getWidth(), mapVersion.getHeight()));
     mapBean.setDownloads(map.getStatistics().getDownloads());
     mapBean.setId(mapVersion.getId());
@@ -102,8 +102,8 @@ public class MapBean implements Comparable<MapBean> {
     MapBean mapBean = new MapBean();
     Optional.ofNullable(mapVersion.getMap().getAuthor()).ifPresent(author -> mapBean.setAuthor(author.getLogin()));
     mapBean.setDescription(mapVersion.getDescription());
-    mapBean.setDisplayName(mapVersion.getMap().getDisplayName());
-    mapBean.setFolderName(mapVersion.getFolderName());
+    mapBean.setMapName(mapVersion.getMap().getDisplayName());
+    mapBean.setHpiArchiveName(mapVersion.getFolderName());
     mapBean.setSize(MapSize.valueOf(mapVersion.getWidth(), mapVersion.getHeight()));
     mapBean.setDownloads(mapVersion.getMap().getStatistics().getDownloads());
     mapBean.setId(mapVersion.getId());
@@ -146,8 +146,8 @@ public class MapBean implements Comparable<MapBean> {
     return downloadUrl;
   }
 
-  public StringProperty displayNameProperty() {
-    return displayName;
+  public StringProperty mapNameProperty() {
+    return mapName;
   }
 
   public String getDescription() {
@@ -225,15 +225,15 @@ public class MapBean implements Comparable<MapBean> {
 
   @Override
   public int compareTo(@NotNull MapBean o) {
-    return getDisplayName().compareTo(o.getDisplayName());
+    return getMapName().compareTo(o.getMapName());
   }
 
-  public String getDisplayName() {
-    return displayName.get();
+  public String getMapName() {
+    return mapName.get();
   }
 
-  public void setDisplayName(String displayName) {
-    this.displayName.set(displayName);
+  public void setMapName(String mapName) {
+    this.mapName.set(mapName);
   }
 
   public StringProperty idProperty() {
@@ -248,16 +248,16 @@ public class MapBean implements Comparable<MapBean> {
     this.id.set(id);
   }
 
-  public String getFolderName() {
-    return folderName.get();
+  public String getHpiArchiveName() {
+    return hpiArchiveName.get();
   }
 
-  public void setFolderName(String folderName) {
-    this.folderName.set(folderName);
+  public void setHpiArchiveName(String hpiArchiveName) {
+    this.hpiArchiveName.set(hpiArchiveName);
   }
 
-  public StringProperty folderNameProperty() {
-    return folderName;
+  public StringProperty hpiArchiveNameProperty() {
+    return hpiArchiveName;
   }
 
   public URL getLargeThumbnailUrl() {

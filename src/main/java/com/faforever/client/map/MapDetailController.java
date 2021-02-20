@@ -6,7 +6,7 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.HostGameEvent;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.notification.ImmediateErrorNotification;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.Player;
@@ -111,13 +111,13 @@ public class MapDetailController implements Controller<Node> {
     installStatusChangeListener = change -> {
       while (change.next()) {
         for (MapBean mapBean : change.getAddedSubList()) {
-          if (map.getFolderName().equalsIgnoreCase(mapBean.getFolderName())) {
+          if (map.getMapName().equalsIgnoreCase(mapBean.getMapName())) {
             setInstalled(true);
             return;
           }
         }
         for (MapBean mapBean : change.getRemoved()) {
-          if (map.getFolderName().equals(mapBean.getFolderName())) {
+          if (map.getMapName().equals(mapBean.getMapName())) {
             setInstalled(false);
             return;
           }
@@ -159,13 +159,14 @@ public class MapDetailController implements Controller<Node> {
 
   public void setMap(MapBean map) {
     this.map = map;
+    String modTechnical = KnownFeaturedMod.DEFAULT.getTechnicalName();
     if (map.getLargeThumbnailUrl() != null) {
-      thumbnailImageView.setImage(mapService.loadPreview(map, PreviewSize.LARGE));
+      thumbnailImageView.setImage(mapService.loadPreview(modTechnical, map, PreviewType.MINI, 10));
     } else {
       thumbnailImageView.setImage(IdenticonUtil.createIdenticon(map.getId()));
     }
     renewAuthorControls();
-    nameLabel.setText(map.getDisplayName());
+    nameLabel.setText(map.getMapName());
     authorLabel.setText(Optional.ofNullable(map.getAuthor()).orElse(i18n.get("map.unknownAuthor")));
     maxPlayersLabel.setText(i18n.number(map.getPlayers()));
     mapIdLabel.setText(i18n.get("map.id", map.getId()));
@@ -176,7 +177,7 @@ public class MapDetailController implements Controller<Node> {
     LocalDateTime createTime = map.getCreateTime();
     dateLabel.setText(timeService.asDate(createTime));
 
-    boolean mapInstalled = mapService.isInstalled(map.getFolderName());
+    boolean mapInstalled = mapService.isInstalled(modTechnical, map.getMapName());
     setInstalled(mapInstalled);
 
     Player player = playerService.getCurrentPlayer().orElseThrow(() -> new IllegalStateException("No user is logged in"));
@@ -209,13 +210,13 @@ public class MapDetailController implements Controller<Node> {
         .orElseGet(() -> i18n.get("map.noDescriptionAvailable")));
 
 
-    if (mapService.isOfficialMap(map.getFolderName())) {
+    if (mapService.isOfficialMap(map.getMapName())) {
       installButton.setVisible(false);
       uninstallButton.setVisible(false);
     } else {
-      ObservableList<MapBean> installedMaps = mapService.getInstalledMaps();
+      ObservableList<MapBean> installedMaps = mapService.getInstalledMaps(modTechnical);
       JavaFxUtil.addListener(installedMaps, new WeakListChangeListener<>(installStatusChangeListener));
-      setInstalled(mapService.isInstalled(map.getFolderName()));
+      setInstalled(mapService.isInstalled(modTechnical, map.getMapName()));
     }
   }
 
@@ -261,7 +262,7 @@ public class MapDetailController implements Controller<Node> {
         .exceptionally(throwable -> {
           notificationService.addNotification(new ImmediateErrorNotification(
               i18n.get("errorTitle"),
-              i18n.get("mapVault.installationFailed", map.getDisplayName(), throwable.getLocalizedMessage()),
+              i18n.get("mapVault.installationFailed", map.getMapName(), throwable.getLocalizedMessage()),
               throwable, i18n, reportingService
           ));
           setInstalled(false);
@@ -278,7 +279,7 @@ public class MapDetailController implements Controller<Node> {
         .exceptionally(throwable -> {
           notificationService.addNotification(new ImmediateErrorNotification(
               i18n.get("errorTitle"),
-              i18n.get("mapVault.couldNotDeleteMap", map.getDisplayName(), throwable.getLocalizedMessage()),
+              i18n.get("mapVault.couldNotDeleteMap", map.getMapName(), throwable.getLocalizedMessage()),
               throwable, i18n, reportingService
           ));
           setInstalled(true);
@@ -295,10 +296,11 @@ public class MapDetailController implements Controller<Node> {
   }
 
   public void onCreateGameButtonClicked() {
-    if (!mapService.isInstalled(map.getFolderName())) {
-      installMap().thenRun(() -> eventBus.post(new HostGameEvent(map.getFolderName())));
+    String modTechnical = KnownFeaturedMod.DEFAULT.getTechnicalName();
+    if (!mapService.isInstalled(modTechnical, map.getMapName())) {
+      installMap().thenRun(() -> eventBus.post(new HostGameEvent(map.getMapName())));
     } else {
-      eventBus.post(new HostGameEvent(map.getFolderName()));
+      eventBus.post(new HostGameEvent(map.getMapName()));
     }
   }
 

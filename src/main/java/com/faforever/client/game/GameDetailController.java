@@ -1,11 +1,12 @@
 package com.faforever.client.game;
 
+import com.faforever.client.chat.ChatService;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.JoinChannelEvent;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.ModService;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
@@ -53,6 +54,7 @@ public class GameDetailController implements Controller<Pane> {
   private final GameService gameService;
   private final PlayerService playerService;
   private final UiService uiService;
+  private final ChatService chatService;
   private final JoinGameHelper joinGameHelper;
   private final EventBus eventBus;
 
@@ -84,14 +86,15 @@ public class GameDetailController implements Controller<Pane> {
 
   public GameDetailController(I18n i18n, MapService mapService, ModService modService,
                               GameService gameService, PlayerService playerService,
-                              UiService uiService, JoinGameHelper joinGameHelper,
-                              EventBus eventBus) {
+                              UiService uiService, ChatService chatService,
+                              JoinGameHelper joinGameHelper, EventBus eventBus) {
     this.i18n = i18n;
     this.mapService = mapService;
     this.modService = modService;
     this.gameService = gameService;
     this.playerService = playerService;
     this.uiService = uiService;
+    this.chatService = chatService;
     this.joinGameHelper = joinGameHelper;
     this.eventBus = eventBus;
 
@@ -183,7 +186,7 @@ public class GameDetailController implements Controller<Pane> {
 
     gameTitleLabel.textProperty().bind(game.titleProperty());
     hostLabel.textProperty().bind(game.hostProperty());
-    mapLabel.textProperty().bind(game.mapFolderNameProperty());
+    mapLabel.textProperty().bind(game.mapNameProperty());
     gameStatusLabel.textProperty().bind(game.statusProperty().asString());
     numberOfPlayersLabel.textProperty().bind(createStringBinding(
         () -> i18n.get("game.detail.players.format", game.getNumPlayers(), game.getMaxPlayers()),
@@ -191,8 +194,8 @@ public class GameDetailController implements Controller<Pane> {
         game.maxPlayersProperty()
     ));
     mapImageView.imageProperty().bind(createObjectBinding(
-        () -> mapService.loadPreview(game.getFeaturedMod(), game.getMapFolderName(), PreviewSize.LARGE),
-        game.mapFolderNameProperty()
+        () -> mapService.loadPreview(game.getFeaturedMod(), game.getMapName(), PreviewType.MINI, 10),
+        game.mapNameProperty()
     ));
 
     featuredModInvalidationListener = observable -> modService.getFeaturedMod(game.getFeaturedMod())
@@ -239,7 +242,7 @@ public class GameDetailController implements Controller<Pane> {
   public void onChatButtonClicked(ActionEvent event)
   {
     if (game.get() != null) {
-      String gameChannel = gameService.getInGameIrcChannel(game.get().getHost());
+      String gameChannel = gameService.getInGameIrcChannel(game.get());
       eventBus.post(new JoinChannelEvent(gameChannel));
     }
   }
@@ -247,6 +250,8 @@ public class GameDetailController implements Controller<Pane> {
   public void onLeaveButtonClicked(ActionEvent event) {
     log.info("[onLeaveButtonClicked] killGame()");
     gameService.killGame();
+    String gameChannel = gameService.getInGameIrcChannel(game.get());
+    this.chatService.leaveChannel(gameChannel);
   }
 
   public void onStartButtonClicked(ActionEvent event) {

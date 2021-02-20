@@ -19,7 +19,7 @@ public class MapBeanBuilder {
   }
 
   public MapBeanBuilder displayName(String name) {
-    mapBean.setDisplayName(name);
+    mapBean.setMapName(name);
     return this;
   }
 

@@ -324,7 +324,7 @@ public class MockFafServerAccessor implements FafServerAccessor {
     gameInfoMessage.setUid(uid);
     gameInfoMessage.setTitle(title);
     gameInfoMessage.setFeaturedMod(featuredMod);
-    gameInfoMessage.setMapname(mapName);
+    gameInfoMessage.setMapName(mapName);
     gameInfoMessage.setNumPlayers(numPlayers);
     gameInfoMessage.setMaxPlayers(maxPlayers);
     gameInfoMessage.setHost(host);

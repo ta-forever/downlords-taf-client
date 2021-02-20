@@ -7,7 +7,7 @@ import com.faforever.client.main.event.LocalReplaysChangedEvent;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.replay.Replay;
 import com.faforever.client.replay.ReplayService;
@@ -209,9 +209,9 @@ public class ReplayVaultController extends AbstractViewController<Node> {
           setGraphic(null);
           setText(i18n.get("map.unknown"));
         } else {
-          imageView.setImage(mapService.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), map.getFolderName(), PreviewSize.SMALL));
+          imageView.setImage(mapService.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), map.getMapName(), PreviewType.MINI, 10));
           setGraphic(imageView);
-          setText(map.getDisplayName());
+          setText(map.getMapName());
         }
       }
     };

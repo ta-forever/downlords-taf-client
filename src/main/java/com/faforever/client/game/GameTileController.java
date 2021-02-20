@@ -1,12 +1,13 @@
 package com.faforever.client.game;
 
+import com.faforever.client.chat.ChatService;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.JoinChannelEvent;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.ModService;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
@@ -24,7 +25,6 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,6 +55,7 @@ public class GameTileController implements Controller<Node> {
   private final ModService modService;
   private final GameService gameService;
   private final PlayerService playerService;
+  private final ChatService chatService;
   private final EventBus eventBus;
   public Node lockIconLabel;
   public Label gameTypeLabel;
@@ -135,13 +136,7 @@ public class GameTileController implements Controller<Node> {
     gameTitleLabel.textProperty().bind(game.titleProperty());
     hostLabel.setText(game.getHost());
 
-    StringBinding mapNameBinding = createStringBinding(
-        () -> mapService.getMapLocallyFromName(game.getMapFolderName())
-            .map(MapBean::getDisplayName)
-            .orElse(game.getMapFolderName()),
-        game.mapFolderNameProperty());
-
-    JavaFxUtil.bind(gameMapLabel.textProperty(), mapNameBinding);
+    JavaFxUtil.bind(gameMapLabel.textProperty(), game.mapNameProperty());
 
     numberOfPlayersLabel.textProperty().bind(createStringBinding(
         () -> i18n.get("game.players.format", game.getNumPlayers(), game.getMaxPlayers()),
@@ -161,8 +156,8 @@ public class GameTileController implements Controller<Node> {
 
     // TODO display "unknown map" image first since loading may take a while
     mapImageView.imageProperty().bind(createObjectBinding(
-        () -> mapService.loadPreview(game.getFeaturedMod(), game.getMapFolderName(), PreviewSize.SMALL),
-        game.mapFolderNameProperty()
+        () -> mapService.loadPreview(game.getFeaturedMod(), game.getMapName(), PreviewType.MINI, 10),
+        game.mapNameProperty()
     ));
 
     lockIconLabel.visibleProperty().bind(game.passwordProtectedProperty());
@@ -196,7 +191,7 @@ public class GameTileController implements Controller<Node> {
   public void onChatButtonClicked(ActionEvent event)
   {
     if (game != null) {
-      String gameChannel = gameService.getInGameIrcChannel(game.getHost());
+      String gameChannel = gameService.getInGameIrcChannel(game);
       eventBus.post(new JoinChannelEvent(gameChannel));
     }
   }
@@ -204,6 +199,8 @@ public class GameTileController implements Controller<Node> {
   public void onLeaveButtonClicked(ActionEvent event) {
     log.info("[onLeaveButtonClicked] killGame()");
     gameService.killGame();
+    String gameChannel = gameService.getInGameIrcChannel(game);
+    this.chatService.leaveChannel(gameChannel);
   }
 
   public void onStartButtonClicked(ActionEvent event) {

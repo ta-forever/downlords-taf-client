@@ -9,7 +9,7 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.ChatPrefs;
@@ -492,7 +492,7 @@ public class ChatUserItemController implements Controller<Node> {
       playerStatusIndicator.setImage(getPlayerStatusIcon(player.getStatus()));
       playerMapImage.setVisible(true);
       if (player.getGame() != null) {
-        playerMapImage.setImage(mapService.loadPreview(player.getGame().getFeaturedMod(), player.getGame().getMapFolderName(), PreviewSize.SMALL));
+        playerMapImage.setImage(mapService.loadPreview(player.getGame().getFeaturedMod(), player.getGame().getMapName(), PreviewType.MINI, 10));
       }
     }
   }

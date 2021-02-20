@@ -194,7 +194,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
     simMods.put("123-456-789", "Fake mod name");
 
     game.setSimMods(simMods);
-    game.setMapFolderName("map");
+    game.setMapName("map");
 
     GameLaunchMessage gameLaunchMessage = GameLaunchMessageBuilder.create().defaultValues().get();
 
@@ -223,7 +223,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
     simMods.put("123-456-789", "Fake mod name");
 
     game.setSimMods(simMods);
-    game.setMapFolderName("map");
+    game.setMapName("map");
 
     GameLaunchMessage gameLaunchMessage = GameLaunchMessageBuilder.create().defaultValues().get();
 
@@ -504,7 +504,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
     when(gameUpdater.update(any(), any(), any(), any())).thenReturn(completedFuture(null));
     when(fafService.requestHostGame(any())).thenReturn(completedFuture(GameLaunchMessageBuilder.create().defaultValues().get()));
     when(modService.getFeaturedMod(game.getFeaturedMod())).thenReturn(completedFuture(FeaturedModBeanBuilder.create().defaultValues().get()));
-    when(mapService.download(KnownFeaturedMod.DEFAULT.getTechnicalName(),game.getMapFolderName())).thenReturn(completedFuture(null));
+    when(mapService.download(KnownFeaturedMod.DEFAULT.getTechnicalName(),game.getMapName())).thenReturn(completedFuture(null));
 
     instance.onRehostRequest(new RehostRequestEvent());
 
@@ -579,7 +579,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
   public void iceCloseOnError() throws Exception {
     Game game = GameBuilder.create().defaultValues().get();
 
-    game.setMapFolderName("map");
+    game.setMapName("map");
 
     GameLaunchMessage gameLaunchMessage = GameLaunchMessageBuilder.create().defaultValues().get();
 

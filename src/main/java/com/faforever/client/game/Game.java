@@ -23,7 +23,9 @@ import java.util.List;
 public class Game {
   private final StringProperty host;
   private final StringProperty title;
-  private final StringProperty mapFolderName;
+  private final StringProperty mapName;
+  private final StringProperty mapCrc;
+  private final StringProperty mapArchiveName;
   private final StringProperty featuredMod;
   private final IntegerProperty id;
   private final IntegerProperty numPlayers;
@@ -51,7 +53,9 @@ public class Game {
     id = new SimpleIntegerProperty();
     host = new SimpleStringProperty();
     title = new SimpleStringProperty();
-    mapFolderName = new SimpleStringProperty();
+    mapName = new SimpleStringProperty();
+    mapCrc = new SimpleStringProperty();
+    mapArchiveName = new SimpleStringProperty();
     featuredMod = new SimpleStringProperty();
     numPlayers = new SimpleIntegerProperty();
     maxPlayers = new SimpleIntegerProperty();
@@ -93,16 +97,40 @@ public class Game {
     return title;
   }
 
-  public String getMapFolderName() {
-    return mapFolderName.get();
+  public String getMapName() {
+    return mapName.get();
   }
 
-  public void setMapFolderName(String mapFolderName) {
-    this.mapFolderName.set(mapFolderName);
+  public void setMapName(String mapName) {
+    this.mapName.set(mapName);
   }
 
-  public StringProperty mapFolderNameProperty() {
-    return mapFolderName;
+  public StringProperty mapNameProperty() {
+    return mapName;
+  }
+
+  public String getMapCrc() {
+    return mapCrc.get();
+  }
+
+  public void setMapCrc(String mapCrc) {
+    this.mapCrc.set(mapCrc);
+  }
+
+  public StringProperty mapCrcProperty() {
+    return mapCrc;
+  }
+
+  public String getMapArchiveName() {
+    return mapArchiveName.get();
+  }
+
+  public void setMapArchiveName(String mapArchiveName) {
+    this.mapArchiveName.set(mapArchiveName);
+  }
+
+  public StringProperty mapArchiveNameProperty() {
+    return mapArchiveName;
   }
 
   public String getFeaturedMod() {

@@ -76,8 +76,8 @@ public class MapCardControllerTest extends AbstractPlainJavaFxTest {
     when(mapService.getInstalledMaps()).thenReturn(installedMaps);
     instance = new MapCardController(mapService, notificationService, i18n, reportingService);
     mapBean = new MapBean();
-    mapBean.setFolderName("testMap");
-    mapBean.setDisplayName("testMap");
+    mapBean.setHpiArchiveName("testMap");
+    mapBean.setMapName("testMap");
     mapBean.setAuthor("axel12");
     mapBean.setRanked(true);
     mapBean.setHidden(false);

@@ -59,6 +59,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang3.text.WordUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.InitializingBean;
@@ -338,14 +339,14 @@ public class GameService implements InitializingBean {
     }
 
     stopSearchLadder1v1();
-    String inGameIrcUrl = getInGameIrcUrl(getCurrentPlayer().getUsername());
+    String inGameChannel = getInGameIrcChannel(newGameInfo);
+    String inGameIrcUrl = getInGameIrcUrl(inGameChannel);
     boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchEnabled();
 
     return updateGameIfNecessary(newGameInfo.getFeaturedMod(), null, emptyMap(), newGameInfo.getSimMods())
-        .thenCompose(aVoid -> downloadMapIfNecessary(newGameInfo.getMap()))
         .thenCompose(aVoid -> fafService.requestHostGame(newGameInfo))
         .thenAccept(gameLaunchMessage -> startGame(modTechnicalName, gameLaunchMessage, gameLaunchMessage.getFaction(), RatingMode.GLOBAL, inGameIrcUrl, autoLaunch))
-        .thenRun(() -> eventBus.post(new JoinChannelEvent(getInGameIrcChannel(getCurrentPlayer().getUsername()))));
+        .thenRun(() -> eventBus.post(new JoinChannelEvent(inGameChannel)));
   }
 
   public CompletableFuture<Void> joinGame(Game game, String password) {
@@ -363,14 +364,15 @@ public class GameService implements InitializingBean {
 
     stopSearchLadder1v1();
 
-    String inGameIrcUrl = getInGameIrcUrl(game.getHost());
+    String inGameIrcChannel = getInGameIrcChannel(game);
+    String inGameIrcUrl = getInGameIrcUrl(inGameIrcChannel);
     Map<String, Integer> featuredModVersions = game.getFeaturedModVersions();
     Set<String> simModUIds = game.getSimMods().keySet();
 
     return
         modService.getFeaturedMod(game.getFeaturedMod())
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, null, featuredModVersions, simModUIds))
-        .thenCompose(aVoid -> downloadMapIfNecessary(game.getMapFolderName()))
+        .thenCompose(aVoid -> downloadMapIfNecessary(game.getFeaturedMod(), game.getMapName(), game.getMapArchiveName()))
         .thenCompose(aVoid -> fafService.requestJoinGame(game.getId(), password))
         .thenAccept(gameLaunchMessage -> {
           synchronized (currentGame) {
@@ -381,7 +383,7 @@ public class GameService implements InitializingBean {
           }
           boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchEnabled() && game.getStatus() == GameStatus.BATTLEROOM;
           startGame(game.getFeaturedMod(), gameLaunchMessage, null, RatingMode.GLOBAL, inGameIrcUrl, autoLaunch);
-          Platform.runLater(() -> eventBus.post(new JoinChannelEvent(getInGameIrcChannel(game.getHost()))));
+          Platform.runLater(() -> eventBus.post(new JoinChannelEvent(inGameIrcChannel)));
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be joined", throwable);
@@ -390,12 +392,12 @@ public class GameService implements InitializingBean {
         });
   }
 
-  private CompletableFuture<Void> downloadMapIfNecessary(String mapFolderName) {
-    return CompletableFuture.completedFuture(null);
-//    if (mapService.isInstalled(mapFolderName)) {
-//      return completedFuture(null);
-//    }
-//    return mapService.download(mapFolderName);
+  private CompletableFuture<Void> downloadMapIfNecessary(String modTechnical, String mapName, String hpiArchiveName) {
+    if (mapService.isInstalled(modTechnical, mapName)) {
+      return completedFuture(null);
+    }
+    return mapService.download(modTechnical, hpiArchiveName)
+        ;//.thenAccept(aVoid -> noCatch(() -> mapService.loadInstalledMaps(modTechnical)));  // should not be necessary because MapService has a directory watcher looking for new maps
   }
 
   /**
@@ -415,7 +417,6 @@ public class GameService implements InitializingBean {
 
     modService.getFeaturedMod(featuredMod)
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, version, modVersions, simMods))
-        .thenCompose(aVoid -> downloadMapIfNecessary(mapName).handleAsync((ignoredResult, throwable) -> askWhetherToStartWithOutMap(throwable)))
         .thenRun(() -> {
           try {
             process = totalAnnihilationService.startReplay(featuredMod, path, replayId);
@@ -491,7 +492,7 @@ public class GameService implements InitializingBean {
 
     return modService.getFeaturedMod(gameType)
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, null, modVersions, simModUids))
-        .thenCompose(aVoid -> downloadMapIfNecessary(mapName))
+        .thenCompose(aVoid -> downloadMapIfNecessary(modTechnicalName, mapName, gameBean.getMapArchiveName()))
         .thenRun(() -> noCatch(() -> {
           process = totalAnnihilationService.startReplay(modTechnicalName, replayUrl, gameId, getCurrentPlayer());
           setGameRunning(true);
@@ -508,13 +509,30 @@ public class GameService implements InitializingBean {
     return playerName.replace(" ", "") + "[ingame]";
   }
 
-  public String getInGameIrcChannel(String hostPlayerName) {
-    return "#" + getInGameIrcUserName(hostPlayerName);
+  public String getInGameIrcChannel(String host, String title) {
+    title = WordUtils.capitalizeFully(title, ' ', ',', ':').replaceAll("[ ,:]", "");
+    host = String.format("[%s]", host);
+    String channelName = "#"+title+host;
+    if (channelName.length() > 32 && host.length() <= 32) {
+      channelName = channelName.substring(0,32-host.length()) + host;
+    }
+    else if (channelName.length() > 32) {
+      channelName = "#"+host;
+    }
+    return channelName;
   }
 
-  public String getInGameIrcUrl(String hostPlayerName) {
+  public String getInGameIrcChannel(Game game) {
+    return getInGameIrcChannel(game.getHost(), game.getTitle());
+  }
+
+  public String getInGameIrcChannel(NewGameInfo gameInfo) {
+    return getInGameIrcChannel(getCurrentPlayer().getUsername(), gameInfo.getTitle());
+  }
+
+  public String getInGameIrcUrl(String channel) {
     if (preferencesService.getPreferences().getIrcIntegrationEnabled()) {
-      return getInGameIrcUserName(getCurrentPlayer().getUsername()) + "@" + this.ircHostAndPort + "/" + getInGameIrcChannel(hostPlayerName);
+      return getInGameIrcUserName(getCurrentPlayer().getUsername()) + "@" + this.ircHostAndPort + "/" + channel;
     }
     else
     {
@@ -557,7 +575,7 @@ public class GameService implements InitializingBean {
         .thenAccept(featuredModBean -> updateGameIfNecessary(featuredModBean, null, emptyMap(), emptySet()))
         .thenCompose(aVoid -> fafService.startSearchLadder1v1(faction))
         .thenAccept((gameLaunchMessage) ->
-            downloadMapIfNecessary(gameLaunchMessage.getMapname())
+            downloadMapIfNecessary(LADDER_1V1.getBaseGameName(), gameLaunchMessage.getMapname(), "<unknown hpi>")
             .thenRun(() -> {
               gameLaunchMessage.setArgs(new ArrayList<>(gameLaunchMessage.getArgs()));
 
@@ -750,7 +768,7 @@ public class GameService implements InitializingBean {
               game.getTitle(),
               game.getPassword(),
               featuredModBean,
-              game.getMapFolderName(),
+              game.getMapName(),
               new HashSet<>(game.getSimMods().values())
           )));
     }
@@ -883,10 +901,11 @@ public class GameService implements InitializingBean {
   }
 
   private void updateFromGameInfo(GameInfoMessage gameInfoMessage, Game game) {
+
     game.setId(gameInfoMessage.getUid());
     game.setHost(gameInfoMessage.getHost());
     game.setTitle(StringEscapeUtils.unescapeHtml4(gameInfoMessage.getTitle()));
-    game.setMapFolderName(gameInfoMessage.getMapname());
+    game.setMapName(gameInfoMessage.getMapName());
     game.setFeaturedMod(gameInfoMessage.getFeaturedMod());
     game.setNumPlayers(gameInfoMessage.getNumPlayers());
     game.setMaxPlayers(gameInfoMessage.getMaxPlayers());
@@ -895,6 +914,14 @@ public class GameService implements InitializingBean {
     ));
     game.setStatus(gameInfoMessage.getState());
     game.setPasswordProtected(gameInfoMessage.getPasswordProtected());
+
+    //String UnitSeparator = Character.toString((char)0x1f);
+    //String mapDetails[] = gameInfoMessage.getMapDetails().split(UnitSeparator); // determined by host: name,archive,crc,desc,size,numplayers,minwind-maxwind,tide,gravity
+    String mapFilePath[] = gameInfoMessage.getMapFilePath().split("/");   // determined by faf db: archive/name/crc
+    if (mapFilePath.length >= 3) {
+      game.setMapArchiveName(mapFilePath[0]);
+      game.setMapCrc(mapFilePath[2]);
+    }
 
     game.setAverageRating(calcAverageRating(gameInfoMessage));
 

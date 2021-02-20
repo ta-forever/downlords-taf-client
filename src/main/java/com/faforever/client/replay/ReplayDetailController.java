@@ -6,12 +6,13 @@ import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.StringCell;
 import com.faforever.client.game.Faction;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.game.RatingType;
 import com.faforever.client.game.TeamCardController;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.rating.RatingService;
@@ -158,9 +159,9 @@ public class ReplayDetailController implements Controller<Node> {
     Optional<MapBean> optionalMap = Optional.ofNullable(replay.getMap());
     if (optionalMap.isPresent()) {
       MapBean map = optionalMap.get();
-      Image image = mapService.loadPreview(map, PreviewSize.LARGE);
+      Image image = mapService.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), map, PreviewType.MINI, 10);
       mapThumbnailImageView.setImage(image);
-      onMapLabel.setText(i18n.get("game.onMapFormat", map.getDisplayName()));
+      onMapLabel.setText(i18n.get("game.onMapFormat", map.getMapName()));
     } else {
       onMapLabel.setText(i18n.get("game.onUnknownMap"));
     }

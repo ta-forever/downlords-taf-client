@@ -103,7 +103,7 @@ public class MapDetailControllerTest extends AbstractPlainJavaFxTest {
     });
 
     MapBean mapBean = new MapBean();
-    mapBean.setFolderName("test");
+    mapBean.setMapName("test");
     mapBean.setAuthor("axel12");
     mapBean.setRanked(true);
     mapBean.setHidden(false);
@@ -131,7 +131,7 @@ public class MapDetailControllerTest extends AbstractPlainJavaFxTest {
     });
 
     MapBean mapBean = new MapBean();
-    mapBean.setFolderName("test");
+    mapBean.setMapName("test");
     mapBean.setAuthor("axel12");
     mapBean.setRanked(true);
     mapBean.setHidden(false);

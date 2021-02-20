@@ -26,6 +26,10 @@ faf-client:
   forged-alliance:
     exe-url: https://content.faforever.com/faf/updaterNew/updates_faf_files/ForgedAlliance.exe
 
+  use-remote-preferences: true
+  client-config-url: http://192.168.1.109/dfc-config.json
+
+
 logging:
   level:
     org.pircbotx.PircBotX: off

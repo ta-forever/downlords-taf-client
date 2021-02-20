@@ -36,7 +36,7 @@ public class LocalReplayInfoTest {
     game.setHost(host);
     game.setId(uid);
     game.setTitle(title);
-    game.setMapFolderName(mapname);
+    game.setMapName(mapname);
     game.setStatus(state);
     game.setVictoryCondition(gameType);
     game.setFeaturedMod(featuredMod);

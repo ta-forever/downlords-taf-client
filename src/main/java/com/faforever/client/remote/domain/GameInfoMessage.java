@@ -24,7 +24,8 @@ public class GameInfoMessage extends FafServerMessage {
   private Integer maxPlayers;
   private String title;
   private Map<String, String> simMods;
-  private String mapname;
+  private String mapName;
+  private String mapFilePath;
   private Double launchedAt;
   /**
    * The server may either send a single game or a list of games in the same message... *cringe*.

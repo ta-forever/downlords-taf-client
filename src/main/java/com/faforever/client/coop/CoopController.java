@@ -15,11 +15,10 @@ import com.faforever.client.game.GamesTableController;
 import com.faforever.client.game.NewGameInfo;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.ImmediateErrorNotification;
 import com.faforever.client.notification.NotificationService;
-import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.replay.ReplayService;
 import com.faforever.client.reporting.ReportingService;
 import com.faforever.client.theme.UiService;
@@ -252,7 +251,7 @@ public class CoopController extends AbstractViewController<Node> {
   private void setSelectedMission(CoopMission mission) {
     Platform.runLater(() -> {
       descriptionWebView.getEngine().loadContent(mission.getDescription());
-      mapImageView.setImage(mapService.loadPreview(COOP.getTechnicalName(), mission.getMapFolderName(), PreviewSize.SMALL));
+      mapImageView.setImage(mapService.loadPreview(COOP.getTechnicalName(), mission.getMapFolderName(), PreviewType.MINI, 10));
     });
 
     loadLeaderboard();

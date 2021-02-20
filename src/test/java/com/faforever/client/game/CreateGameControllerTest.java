@@ -118,14 +118,14 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testMapSearchTextFieldFilteringPopulated() {
-    mapList.add(MapBuilder.create().defaultValues().displayName("Test1").get());
-    mapList.add(MapBuilder.create().defaultValues().folderName("test2").get());
-    mapList.add(MapBuilder.create().defaultValues().displayName("foo").get());
+    mapList.add(MapBuilder.create().defaultValues().mapName("Test1").get());
+    mapList.add(MapBuilder.create().defaultValues().hpiArchiveName("test2").get());
+    mapList.add(MapBuilder.create().defaultValues().mapName("foo").get());
 
     instance.mapSearchTextField.setText("Test");
 
-    assertThat(instance.filteredMapBeans.get(0).getFolderName(), is("test2"));
-    assertThat(instance.filteredMapBeans.get(1).getDisplayName(), is("Test1"));
+    assertThat(instance.filteredMapBeans.get(0).getHpiArchiveName(), is("test2"));
+    assertThat(instance.filteredMapBeans.get(1).getMapName(), is("Test1"));
   }
 
   @Test
@@ -150,8 +150,8 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testMapSearchTextFieldKeyPressedUpForPopulated() {
-    mapList.add(MapBuilder.create().defaultValues().displayName("Test1").get());
-    mapList.add(MapBuilder.create().defaultValues().displayName("Test1").get());
+    mapList.add(MapBuilder.create().defaultValues().mapName("Test1").get());
+    mapList.add(MapBuilder.create().defaultValues().mapName("Test1").get());
     instance.mapSearchTextField.setText("Test");
 
     instance.mapSearchTextField.getOnKeyPressed().handle(keyDownPressed);
@@ -164,8 +164,8 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testMapSearchTextFieldKeyPressedDownForPopulated() {
-    mapList.add(MapBuilder.create().defaultValues().displayName("Test1").get());
-    mapList.add(MapBuilder.create().defaultValues().displayName("Test1").get());
+    mapList.add(MapBuilder.create().defaultValues().mapName("Test1").get());
+    mapList.add(MapBuilder.create().defaultValues().mapName("Test1").get());
     instance.mapSearchTextField.setText("Test");
 
     instance.mapSearchTextField.getOnKeyPressed().handle(keyDownPressed);
@@ -236,10 +236,10 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testSelectLastMap() {
-    MapBean lastMapBean = MapBuilder.create().defaultValues().folderName("foo").get();
+    MapBean lastMapBean = MapBuilder.create().defaultValues().hpiArchiveName("foo").get();
     preferences.getLastGamePrefs().setLastMap("foo");
 
-    mapList.add(MapBuilder.create().defaultValues().folderName("Test1").get());
+    mapList.add(MapBuilder.create().defaultValues().hpiArchiveName("Test1").get());
     mapList.add(lastMapBean);
 
     WaitForAsyncUtils.asyncFx(() -> instance.initialize());
@@ -277,7 +277,7 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
     when(gameService.hostGame(newGameInfoArgumentCaptor.capture())).thenReturn(CompletableFuture.completedFuture(null));
 
     String mapFolderName = "junit-map-folder";
-    mapList.add(MapBuilder.create().defaultValues().displayName("Test1").folderName(mapFolderName).get());
+    mapList.add(MapBuilder.create().defaultValues().mapName("Test1").hpiArchiveName(mapFolderName).get());
     instance.mapListView.getSelectionModel().select(0);
 
     instance.onCreateButtonClicked();

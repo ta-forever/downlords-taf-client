@@ -7,7 +7,7 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.StringCell;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.RatingRange;
@@ -117,8 +117,8 @@ public class GamesTableController implements Controller<Node> {
     passwordProtectionColumn.setVisible(preferencesService.getPreferences().isShowPasswordProtectedGames());
     mapPreviewColumn.setCellValueFactory(param -> Bindings.createObjectBinding(
         () -> mapService
-            .loadPreview(param.getValue().getFeaturedMod(), param.getValue().getMapFolderName(), PreviewSize.SMALL),
-        param.getValue().mapFolderNameProperty()
+            .loadPreview(param.getValue().getFeaturedMod(), param.getValue().getMapName(), PreviewType.MINI, 10),
+        param.getValue().mapNameProperty()
     ));
 
     gameTitleColumn.setCellValueFactory(param -> param.getValue().titleProperty());
@@ -147,7 +147,7 @@ public class GamesTableController implements Controller<Node> {
 
     if (coopMissionNameProvider != null) {
       coopMissionName.setCellFactory(param -> new StringCell<>(name -> name));
-      coopMissionName.setCellValueFactory(param -> new SimpleObjectProperty<>(coopMissionNameProvider.apply(param.getValue().getMapFolderName())));
+      coopMissionName.setCellValueFactory(param -> new SimpleObjectProperty<>(coopMissionNameProvider.apply(param.getValue().getMapName())));
     }
 
     gamesTable.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue)

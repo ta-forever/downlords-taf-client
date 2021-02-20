@@ -48,7 +48,7 @@ public class ChatController extends AbstractViewController<Node> {
   private final EventBus eventBus;
   private final GameService gameService;
   public Node chatRoot;
-  public HBox chatContainer;
+  public VBox chatContainer;
   public TabPane tabPane;
   public Pane connectingProgressPane;
   public VBox noOpenTabsContainer;
@@ -291,15 +291,13 @@ public class ChatController extends AbstractViewController<Node> {
     if (navigateEvent instanceof JoinChannelEvent) {
       String channelName = ((JoinChannelEvent) navigateEvent).getChannel();
       chatService.joinChannel(channelName);
-
       AbstractChatTabController controller = nameToChatTabController.get(channelName);
       if (controller != null) {
         this.tabPane.getSelectionModel().select(controller.getRoot());
       }
-
-      return;
     }
-    if (!tabPane.getTabs().isEmpty()) {
+
+    else if (!tabPane.getTabs().isEmpty()) {
       Tab tab = tabPane.getSelectionModel().getSelectedItem();
       nameToChatTabController.get(tab.getId()).onDisplay();
     }

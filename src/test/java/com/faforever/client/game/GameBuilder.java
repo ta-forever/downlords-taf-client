@@ -23,7 +23,7 @@ public class GameBuilder {
     game.setFeaturedModVersions(FXCollections.emptyObservableMap());
     game.setVictoryCondition(VictoryCondition.DEMORALIZATION);
     game.setHost("Host");
-    game.setMapFolderName("mapName");
+    game.setMapName("mapName");
     game.setNumPlayers(1);
     game.setNumPlayers(2);
     game.setSimMods(FXCollections.emptyObservableMap());

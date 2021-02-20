@@ -11,7 +11,7 @@ import com.faforever.client.game.GameBuilder;
 import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerBuilder;
 import com.faforever.client.player.PlayerService;
@@ -106,7 +106,7 @@ public class ChatChannelUserItemControllerTest extends AbstractPlainJavaFxTest {
     when(uiService.getThemeImage(UiService.CHAT_LIST_STATUS_HOSTING)).thenReturn(new Image(UiService.CHAT_LIST_STATUS_HOSTING));
     when(uiService.getThemeImage(UiService.CHAT_LIST_STATUS_JOINING)).thenReturn(new Image(UiService.CHAT_LIST_STATUS_JOINING));
     when(uiService.getThemeImage(UiService.CHAT_LIST_STATUS_PLAYING)).thenReturn(new Image(UiService.CHAT_LIST_STATUS_PLAYING));
-    when(mapService.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), "mapName", PreviewSize.SMALL)).thenReturn(new Image(UiService.UNKNOWN_MAP_IMAGE));
+    when(mapService.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), "mapName", PreviewType.MINI, 10)).thenReturn(new Image(UiService.UNKNOWN_MAP_IMAGE));
 
     instance = new ChatUserItemController(
         preferencesService,

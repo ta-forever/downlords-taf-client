@@ -11,53 +11,59 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.control.ScrollPane?>
 
-<AnchorPane xmlns:fx="http://javafx.com/fxml/1" fx:id="chatRoot" xmlns="http://javafx.com/javafx/8.0.40"
-            fx:controller="com.faforever.client.chat.ChatController">
+<HBox xmlns:fx="http://javafx.com/fxml/1" fx:id="chatRoot" xmlns="http://javafx.com/javafx/8.0.40"
+      fx:controller="com.faforever.client.chat.ChatController"
+      maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
   <children>
-    <HBox fx:id="chatContainer" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
-          AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
+    <AnchorPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS">
       <children>
-        <TabPane fx:id="tabPane" HBox.hgrow="ALWAYS" tabClosingPolicy="ALL_TABS" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"/>
-        <ScrollPane fx:id="gameDetailWrapper" fitToWidth="true" minWidth="200.0" prefWidth="300.0" styleClass="game-detail-framed">
-          <content>
+        <VBox fx:id="chatContainer" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
+              AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
+          <children>
+            <TabPane fx:id="tabPane" HBox.hgrow="ALWAYS" tabClosingPolicy="ALL_TABS" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"/>
+          </children>
+        </VBox>
+        <VBox fx:id="connectingProgressPane" alignment="CENTER" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
+              AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" >
+          <children>
+            <JFXSpinner prefHeight="80.0" prefWidth="80.0"/>
+            <Label text="%chat.connecting.message">
+              <VBox.margin>
+                <Insets bottom="28.0" top="14.0"/>
+              </VBox.margin>
+            </Label>
+          </children>
+        </VBox>
+        <VBox fx:id="noOpenTabsContainer" alignment="CENTER" fillWidth="false" AnchorPane.bottomAnchor="0.0"
+              AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+          <children>
             <VBox>
               <children>
-                <Label text="%chat.currentGame" alignment="CENTER" styleClass="h2"/>
-                <fx:include fx:id="gameDetail" source="../play/game_detail.fxml"/>
+                <Label styleClass="h2" text="%chat.noOpenChats"/>
+                <Separator prefWidth="300.0"/>
+                <Label text="%chat.joinAChannel">
+                  <padding>
+                    <Insets top="10.0"/>
+                  </padding>
+                </Label>
+                <TextField fx:id="channelNameTextField" onAction="#onJoinChannelButtonClicked"
+                           promptText="%chat.channelNamePrompt"/>
               </children>
             </VBox>
-          </content>
-        </ScrollPane>
-      </children>
-    </HBox>
-    <VBox fx:id="connectingProgressPane" alignment="CENTER" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
-          AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-      <children>
-        <JFXSpinner prefHeight="80.0" prefWidth="80.0"/>
-        <Label text="%chat.connecting.message">
-          <VBox.margin>
-            <Insets bottom="28.0" top="14.0"/>
-          </VBox.margin>
-        </Label>
-      </children>
-    </VBox>
-    <VBox fx:id="noOpenTabsContainer" alignment="CENTER" fillWidth="false" AnchorPane.bottomAnchor="0.0"
-          AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-      <children>
-        <VBox>
-          <children>
-            <Label styleClass="h2" text="%chat.noOpenChats"/>
-            <Separator prefWidth="300.0"/>
-            <Label text="%chat.joinAChannel">
-              <padding>
-                <Insets top="10.0"/>
-              </padding>
-            </Label>
-            <TextField fx:id="channelNameTextField" onAction="#onJoinChannelButtonClicked"
-                       promptText="%chat.channelNamePrompt"/>
           </children>
         </VBox>
       </children>
-    </VBox>
+    </AnchorPane>
+
+    <ScrollPane fx:id="gameDetailWrapper" fitToWidth="true" minWidth="200.0" prefWidth="300.0" styleClass="game-detail-framed">
+      <content>
+        <VBox>
+          <children>
+            <Label text="%chat.currentGame" styleClass="h2"/>
+            <fx:include fx:id="gameDetail" source="../play/game_detail.fxml"/>
+          </children>
+        </VBox>
+      </content>
+    </ScrollPane>
   </children>
-</AnchorPane>
+</HBox>
