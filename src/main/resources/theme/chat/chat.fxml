@@ -20,7 +20,7 @@
         <VBox fx:id="chatContainer" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
               AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
           <children>
-            <TabPane fx:id="tabPane" HBox.hgrow="ALWAYS" tabClosingPolicy="ALL_TABS" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"/>
+            <TabPane fx:id="tabPane" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS" tabClosingPolicy="ALL_TABS" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"/>
           </children>
         </VBox>
         <VBox fx:id="connectingProgressPane" alignment="CENTER" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"

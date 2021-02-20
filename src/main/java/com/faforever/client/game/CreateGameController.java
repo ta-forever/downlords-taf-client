@@ -12,7 +12,6 @@ import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.map.MapSize;
 import com.faforever.client.mod.FeaturedMod;
-import com.faforever.client.mod.ModManagerController;
 import com.faforever.client.mod.ModService;
 import com.faforever.client.mod.ModVersion;
 import com.faforever.client.notification.ImmediateErrorNotification;
@@ -65,6 +64,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.faforever.client.net.ConnectionState.CONNECTED;
+import static java.util.Collections.emptySet;
 import static javafx.scene.layout.BackgroundPosition.CENTER;
 import static javafx.scene.layout.BackgroundRepeat.NO_REPEAT;
 
@@ -90,7 +90,6 @@ public class CreateGameController implements Controller<Pane> {
   public Label mapSizeLabel;
   public Label mapPlayersLabel;
   public Label mapDescriptionLabel;
-  public ModManagerController modManagerController;
   public TextField mapSearchTextField;
   public TextField titleTextField;
   public TextField passwordTextField;
@@ -420,16 +419,12 @@ public class CreateGameController implements Controller<Pane> {
   }
 
   public void onCreateButtonClicked() {
-    Set<String> mods = modManagerController.apply().stream()
-        .map(ModVersion::getUid)
-        .collect(Collectors.toSet());
-
     NewGameInfo newGameInfo = new NewGameInfo(
         titleTextField.getText(),
         Strings.emptyToNull(passwordTextField.getText()),
         featuredModListView.getSelectionModel().getSelectedItem(),
         mapListView.getSelectionModel().getSelectedItem().getMapName(),
-        mods,
+        emptySet(),
         onlyForFriendsCheckBox.isSelected() ? GameVisibility.PRIVATE : GameVisibility.PUBLIC);
 
     gameService.hostGame(newGameInfo).exceptionally(throwable -> {
