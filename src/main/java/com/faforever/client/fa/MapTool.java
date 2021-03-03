@@ -1,10 +1,7 @@
 package com.faforever.client.fa;
 
-import com.faforever.client.map.MapBean;
-import com.faforever.client.map.MapBean.Type;
 import com.faforever.client.map.MapService.PreviewType;
-import com.faforever.client.map.MapSize;
-import com.faforever.client.update.ClientConfiguration.Downloadable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,13 +9,10 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.invoke.MethodHandles;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 public class MapTool {
 
@@ -34,7 +28,7 @@ public class MapTool {
 
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  static public List<String[]> listMaps(Path gamePath, String mapNameSpec, Path mapCacheDirectory, boolean doCrc) {
+  static public List<String[]> listMaps(Path gamePath, String hpiArchiveSpec, String mapNameSpec, Path mapCacheDirectory, boolean doCrc) {
     String nativeDir = System.getProperty("nativeDir", "lib");
     Path exe = Paths.get(nativeDir).resolve("gpgnet4ta").resolve("maptool.exe");
     Path workingDirectory = exe.getParent();
@@ -44,6 +38,10 @@ public class MapTool {
     command.add(String.format(QUOTED, exe.toAbsolutePath()));
     command.add("--gamepath");
     command.add(String.format(QUOTED, gamePath));
+    if (hpiArchiveSpec != null) {
+      command.add("--hpispecs");
+      command.add(String.format(QUOTED, hpiArchiveSpec));
+    }
     if (mapCacheDirectory != null) {
       command.add("--featurescachedir");
       command.add(String.format(QUOTED, mapCacheDirectory));

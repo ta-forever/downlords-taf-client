@@ -346,7 +346,7 @@ public class GameService implements InitializingBean {
     return updateGameIfNecessary(newGameInfo.getFeaturedMod(), null, emptyMap(), newGameInfo.getSimMods())
         .thenCompose(aVoid -> fafService.requestHostGame(newGameInfo))
         .thenAccept(gameLaunchMessage -> startGame(modTechnicalName, gameLaunchMessage, gameLaunchMessage.getFaction(), RatingMode.GLOBAL, inGameIrcUrl, autoLaunch))
-        .thenRun(() -> eventBus.post(new JoinChannelEvent(inGameChannel)));
+        .thenRun(() -> Platform.runLater(() -> eventBus.post(new JoinChannelEvent(inGameChannel))));
   }
 
   public CompletableFuture<Void> joinGame(Game game, String password) {
@@ -383,7 +383,7 @@ public class GameService implements InitializingBean {
           }
           boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchEnabled() && game.getStatus() == GameStatus.BATTLEROOM;
           startGame(game.getFeaturedMod(), gameLaunchMessage, null, RatingMode.GLOBAL, inGameIrcUrl, autoLaunch);
-          Platform.runLater(() -> eventBus.post(new JoinChannelEvent(inGameIrcChannel)));
+          Platform.runLater(() -> Platform.runLater(() -> eventBus.post(new JoinChannelEvent(inGameIrcChannel))));
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be joined", throwable);

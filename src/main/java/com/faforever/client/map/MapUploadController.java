@@ -2,6 +2,7 @@ package com.faforever.client.map;
 
 import com.faforever.client.api.dto.ApiException;
 import com.faforever.client.config.ClientProperties;
+import com.faforever.client.fa.MapTool;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.i18n.I18n;
@@ -34,6 +35,7 @@ import org.springframework.stereotype.Component;
 
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -129,6 +131,8 @@ public class MapUploadController implements Controller<Node> {
     this.mapInfo = mapInfo;
     enterMapInfoState();
 
+    List<String []> maplist = MapTool.listMaps(mapPath.getParent(), mapPath.getFileName().toString(),null, null, true);
+
     mapNameLabel.textProperty().bind(mapInfo.mapNameProperty());
     descriptionLabel.textProperty().bind(mapInfo.descriptionProperty());
     versionLabel.textProperty().bind(mapInfo.versionProperty().asString());
@@ -142,7 +146,7 @@ public class MapUploadController implements Controller<Node> {
         () -> i18n.get("mapVault.upload.playersFormat", mapInfo.getPlayers()), mapInfo.playersProperty())
     );
 
-    thumbnailImageView.setImage(generatePreview(mapPath));
+    //thumbnailImageView.setImage(generatePreview(mapPath));
   }
 
   private void enterMapInfoState() {

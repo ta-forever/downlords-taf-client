@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
@@ -346,7 +347,7 @@ public class MapService implements InitializingBean, DisposableBean {
         }
 
         List<MapBean> mapList = new ArrayList<>();
-        for (String[] details: MapTool.listMaps(gamePath, null, preferencesService.getCacheDirectory().resolve("maps"), false)) {
+        for (String[] details: MapTool.listMaps(gamePath, null,null, preferencesService.getCacheDirectory().resolve("maps"), false)) {
           MapBean mapBean = readMap(details[0], details);
           mapList.add(mapBean);
         }
@@ -518,7 +519,7 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   public void generatePreview(String modTechnical, String mapName, Path cachedFile, PreviewType previewType, int maxPositions) {
-    if (Files.exists(cachedFile)) {
+    if (previewType == PreviewType.MINI && Files.exists(cachedFile)) {
       return;
     }
 
@@ -539,18 +540,18 @@ public class MapService implements InitializingBean, DisposableBean {
 
   @SneakyThrows()
   @NotNull
-  //@Cacheable(value = CacheNames.MAP_PREVIEW, unless = "#result == null")
+  @Cacheable(value = CacheNames.MAP_PREVIEW, condition = "#previewType.getDisplayName().equals('Minimap')")
   public Image loadPreview(String modTechnicalName, String mapName, PreviewType previewType, int maxPositions) {
     return loadPreview(modTechnicalName, mapName, getPreviewUrl(mapName, mapPreviewUrlFormat, previewType), previewType, maxPositions);
   }
 
-  //@Cacheable(CacheNames.MAP_PREVIEW)
+  @Cacheable(value = CacheNames.MAP_PREVIEW, condition = "#previewType.getDisplayName().equals('Minimap')")
   public Image loadPreview(String modTechnical, MapBean map, PreviewType previewType, int maxNumPlayers) {
     URL url = map.getLargeThumbnailUrl();
     return loadPreview(modTechnical, map.getMapName(), url, previewType, maxNumPlayers);
   }
 
-  //@Cacheable(CacheNames.MAP_PREVIEW)
+  @Cacheable(value = CacheNames.MAP_PREVIEW, condition = "#previewType.getDisplayName().equals('Minimap')")
   private Image loadPreview(String modTechnical, String mapName, URL url, PreviewType previewType, int maxPositions) {
 
     String urlString = url.toString();
@@ -703,7 +704,6 @@ public class MapService implements InitializingBean, DisposableBean {
     String getFolderName(int maxNumPlayers) {
       switch (this) {
         case MINI:
-        case POSITIONS:
           return this.folderName;
         default:
           return String.format("%s_%s", this.folderName, maxNumPlayers);

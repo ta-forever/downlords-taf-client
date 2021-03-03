@@ -19,7 +19,8 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import javafx.application.Platform;
 import javafx.scene.Node;
-import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
+import javafx.stage.FileChooser.ExtensionFilter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
@@ -115,10 +116,11 @@ public class MapVaultController extends VaultEntityController<MapBean> {
 
   public void onUploadButtonClicked() {
     Platform.runLater(() -> {
-      DirectoryChooser directoryChooser = new DirectoryChooser();
-      directoryChooser.setInitialDirectory(preferencesService.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).getInstalledPath().toFile());
-      directoryChooser.setTitle(i18n.get("mapVault.upload.chooseDirectory"));
-      File result = directoryChooser.showDialog(getRoot().getScene().getWindow());
+      FileChooser fileChooser = new FileChooser();
+      fileChooser.setInitialDirectory(preferencesService.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).getInstalledPath().toFile());
+      fileChooser.setTitle(i18n.get("mapVault.upload.chooseDirectory"));
+      fileChooser.getExtensionFilters().addAll(new ExtensionFilter("TA Map Archives", "*.ufo"));
+      File result = fileChooser.showOpenDialog(getRoot().getScene().getWindow());
 
       if (result == null) {
         return;
