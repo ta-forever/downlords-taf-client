@@ -1,7 +1,9 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Main" type="Application" factoryName="Application" nameIsGenerated="true">
+    <option name="ALTERNATIVE_JRE_PATH" value="adopt-openjdk-14" />
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
     <envs>
-      <env name="SPRING_PROFILES_ACTIVE" value="prod" />
+      <env name="SPRING_PROFILES_ACTIVE" value="local" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="com.faforever.client.Main" />
     <module name="downlords-faf-client.main" />
