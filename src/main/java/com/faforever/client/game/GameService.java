@@ -291,7 +291,7 @@ public class GameService implements InitializingBean {
         }
 
         Player currentPlayer = getCurrentPlayer();
-        boolean playerStillInGame = currentPlayer != null && currentGame != null && currentPlayer.getCurrentGameUid() == currentGame.get().getId();
+        boolean playerStillInGame = currentPlayer != null && currentGame != null && currentGame.get() != null && currentPlayer.getCurrentGameUid() == currentGame.get().getId();
         /*game.getTeams().entrySet().stream()
             .flatMap(stringListEntry -> stringListEntry.getValue().stream())
             .anyMatch(playerName -> playerName.equals(currentPlayer.getUsername()));*/

@@ -485,7 +485,7 @@ public class MapService implements InitializingBean, DisposableBean {
     }
     else {
       notificationService.addNotification(new ImmediateNotification(
-          i18n.get("mapDownloadTask.title", hpiArchiveName), i18n.get("mapDownloadTask.notFound"),
+          i18n.get("mapDownloadTask.title", hpiArchiveName), i18n.get("mapDownloadTask.notFound", modTechnical, preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath()),
           Severity.WARN, Collections.singletonList(new DismissAction(i18n))));
     }
     return future;
