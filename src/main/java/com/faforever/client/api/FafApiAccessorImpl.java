@@ -276,9 +276,9 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   }
 
   @Override
-  public void uploadMap(Path file, boolean isRanked, ByteCountListener listener) {
+  public void uploadMap(Path file, boolean isRanked, List<java.util.Map<String,String>> mapDetails, ByteCountListener listener) {
     MultiValueMap<String, Object> multipartContent = createFileMultipart(file, listener);
-    multipartContent.add("metadata", ImmutableMap.of("isRanked", isRanked));
+    multipartContent.add("metadata", ImmutableMap.of("isRanked", isRanked, "mapDetails", mapDetails));
     post("/maps/upload", multipartContent, false);
   }
 

@@ -68,12 +68,12 @@ public class MapDetailControllerTest extends AbstractPlainJavaFxTest {
 
   @Before
   public void setUp() throws Exception {
-    when(mapService.downloadAndInstallMap(KnownFeaturedMod.DEFAULT.getTechnicalName(), any(), any(DoubleProperty.class), any(StringProperty.class))).thenReturn(CompletableFuture.runAsync(() -> {
+    when(mapService.ensureMap(KnownFeaturedMod.DEFAULT.getTechnicalName(), any(), any(DoubleProperty.class), any(StringProperty.class))).thenReturn(CompletableFuture.runAsync(() -> {
     }));
     when(i18n.get(anyString(), anyInt(), anyInt())).thenReturn("map size");
     when(mapService.hasPlayedMap(anyInt(), anyString())).thenReturn(CompletableFuture.completedFuture(true));
     when(mapService.getFileSize(any(URL.class))).thenReturn(CompletableFuture.completedFuture(12));
-    when(mapService.getInstalledMaps()).thenReturn(FXCollections.observableArrayList());
+    when(mapService.getInstalledMaps(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(FXCollections.observableArrayList());
     instance = new MapDetailController(mapService, notificationService, i18n, timeService, reportingService, playerService, reviewService, eventBus);
 
     loadFxml("theme/vault/map/map_detail.fxml", param -> {
@@ -95,7 +95,7 @@ public class MapDetailControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void onCreateButtonClickedMapNotInstalled() throws MalformedURLException {
-    when(mapService.isInstalled(anyString())).thenReturn(false);
+    when(mapService.isInstalled(anyString(), anyString(), anyString())).thenReturn(false);
     when(playerService.getCurrentPlayer()).then(invocation -> {
       Player player = mock(Player.class);
       when(player.getUsername()).thenReturn("axel12");
@@ -115,7 +115,7 @@ public class MapDetailControllerTest extends AbstractPlainJavaFxTest {
 
     instance.onCreateGameButtonClicked();
     WaitForAsyncUtils.waitForFxEvents();
-    verify(mapService).downloadAndInstallMap(KnownFeaturedMod.DEFAULT.getTechnicalName(), any(), any(DoubleProperty.class), any(StringProperty.class));
+    verify(mapService).ensureMap(KnownFeaturedMod.DEFAULT.getTechnicalName(), any(), any(DoubleProperty.class), any(StringProperty.class));
     verify(eventBus).post(any(HostGameEvent.class));
     assertThat(instance.uninstallButton.isVisible(), is(true));
     assertThat(instance.installButton.isVisible(), is(false));
@@ -123,7 +123,7 @@ public class MapDetailControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void onCreateButtonClickedMapInstalled() throws MalformedURLException {
-    when(mapService.isInstalled(anyString())).thenReturn(true);
+    when(mapService.isInstalled(KnownFeaturedMod.DEFAULT.getTechnicalName(), anyString(), anyString())).thenReturn(true);
     when(playerService.getCurrentPlayer()).then(invocation -> {
       Player player = mock(Player.class);
       when(player.getUsername()).thenReturn("axel12");

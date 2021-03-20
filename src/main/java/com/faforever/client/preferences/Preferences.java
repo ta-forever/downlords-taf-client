@@ -20,6 +20,7 @@ import javafx.util.Pair;
 import lombok.Getter;
 import java.net.HttpCookie;
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.ArrayList;
 
 import static javafx.collections.FXCollections.observableArrayList;
@@ -180,7 +181,10 @@ public class Preferences {
   }
 
   public TotalAnnihilationPrefs getTotalAnnihilation(String modTechnical) {
+    return setTotalAnnihilation(modTechnical, null, null);
+  }
 
+  public TotalAnnihilationPrefs setTotalAnnihilation(String modTechnical, Path installedExePath, String commandLineOptions) {
     String baseGameName = KnownFeaturedMod.fromString(modTechnical).getBaseGameName();
     if (baseGameName == null) {
       baseGameName = modTechnical;
@@ -188,10 +192,14 @@ public class Preferences {
 
     for (TotalAnnihilationPrefs pref: totalAnnihilation) {
       if (pref.getBaseGameName().equals(baseGameName)) {
+        if (installedExePath != null && commandLineOptions != null) {
+          pref.setInstalledExePath(installedExePath);
+          pref.setCommandLineOptions(commandLineOptions);
+        }
         return pref;
       }
     }
-    TotalAnnihilationPrefs pref = new TotalAnnihilationPrefs(baseGameName, null, "");
+    TotalAnnihilationPrefs pref = new TotalAnnihilationPrefs(baseGameName, installedExePath, commandLineOptions);
     totalAnnihilation.add(pref);
     return pref;
   }

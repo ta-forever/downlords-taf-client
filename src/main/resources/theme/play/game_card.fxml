@@ -29,9 +29,11 @@
         <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
     </rowConstraints>
     <children>
-        <AnchorPane GridPane.rowSpan="2147483647" GridPane.valignment="TOP">
+        <AnchorPane GridPane.rowSpan="2147483647" GridPane.valignment="TOP" GridPane.fillHeight="true">
             <children>
-                <ImageView fx:id="mapImageView" fitHeight="140.0" fitWidth="140.0" preserveRatio="true" />
+                <HBox alignment="CENTER" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.topAnchor="0.0">
+                    <ImageView fx:id="mapImageView" fitHeight="140.0" fitWidth="140.0" preserveRatio="true"/>
+                </HBox>
                 <Region fx:id="lockIconLabel" layoutX="10.0" layoutY="10.0" styleClass="lock-icon,icon" AnchorPane.leftAnchor="10.0" AnchorPane.topAnchor="10.0" />
                 <VBox alignment="BOTTOM_LEFT" styleClass="image-dimmer" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
                     <children>

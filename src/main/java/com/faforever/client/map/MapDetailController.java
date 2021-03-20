@@ -11,7 +11,9 @@ import com.faforever.client.notification.ImmediateErrorNotification;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.reporting.ReportingService;
+import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.faforever.client.util.IdenticonUtil;
 import com.faforever.client.util.TimeService;
 import com.faforever.client.vault.review.Review;
@@ -42,6 +44,8 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -54,6 +58,7 @@ public class MapDetailController implements Controller<Node> {
 
   private final MapService mapService;
   private final NotificationService notificationService;
+  private final PreferencesService preferencesService;
   private final I18n i18n;
   private final TimeService timeService;
   private final ReportingService reportingService;
@@ -67,6 +72,9 @@ public class MapDetailController implements Controller<Node> {
   public ImageView thumbnailImageView;
   public Label nameLabel;
   public Label authorLabel;
+  public Label mapVersionLabel;
+  public Label mapCrcLabel;
+  public Label mapHpiArchiveNameLabel;
   public ProgressBar progressBar;
   public Label mapDescriptionLabel;
   public Node mapDetailRoot;
@@ -159,8 +167,8 @@ public class MapDetailController implements Controller<Node> {
 
   public void setMap(MapBean map) {
     this.map = map;
-    String modTechnical = KnownFeaturedMod.DEFAULT.getTechnicalName();
-    if (map.getLargeThumbnailUrl() != null) {
+    String modTechnical = preferencesService.getPreferences().getLastGamePrefs().getLastGameType();
+    if (map.getThumbnailUrl() != null) {
       thumbnailImageView.setImage(mapService.loadPreview(modTechnical, map, PreviewType.MINI, 10));
     } else {
       thumbnailImageView.setImage(IdenticonUtil.createIdenticon(map.getId()));
@@ -169,7 +177,10 @@ public class MapDetailController implements Controller<Node> {
     nameLabel.setText(map.getMapName());
     authorLabel.setText(Optional.ofNullable(map.getAuthor()).orElse(i18n.get("map.unknownAuthor")));
     maxPlayersLabel.setText(i18n.number(map.getPlayers()));
-    mapIdLabel.setText(i18n.get("map.id", map.getId()));
+    mapIdLabel.setText("ID: " + i18n.get("map.id", map.getId()));
+    mapVersionLabel.setText("Version: " + map.getVersion().toString());
+    mapCrcLabel.setText("CRC32: " + map.getCrc());
+    mapHpiArchiveNameLabel.setText("Map Pack: " + map.getHpiArchiveName());
 
     MapSize mapSize = map.getSize();
     dimensionsLabel.setText(i18n.get("mapPreview.size", mapSize.getWidthInKm(), mapSize.getHeightInKm()));
@@ -177,7 +188,7 @@ public class MapDetailController implements Controller<Node> {
     LocalDateTime createTime = map.getCreateTime();
     dateLabel.setText(timeService.asDate(createTime));
 
-    boolean mapInstalled = mapService.isInstalled(modTechnical, map.getMapName());
+    boolean mapInstalled = mapService.isInstalled(modTechnical, map.getMapName(), map.getCrc());
     setInstalled(mapInstalled);
 
     Player player = playerService.getCurrentPlayer().orElseThrow(() -> new IllegalStateException("No user is logged in"));
@@ -216,7 +227,7 @@ public class MapDetailController implements Controller<Node> {
     } else {
       ObservableList<MapBean> installedMaps = mapService.getInstalledMaps(modTechnical);
       JavaFxUtil.addListener(installedMaps, new WeakListChangeListener<>(installStatusChangeListener));
-      setInstalled(mapService.isInstalled(modTechnical, map.getMapName()));
+      setInstalled(mapService.isInstalled(modTechnical, map.getMapName(), map.getCrc()));
     }
   }
 
@@ -257,7 +268,7 @@ public class MapDetailController implements Controller<Node> {
   }
 
   public CompletableFuture<Void> installMap(){
-    return mapService.downloadAndInstallMap(KnownFeaturedMod.DEFAULT.getTechnicalName(), map, progressBar.progressProperty(), progressLabel.textProperty())
+    return mapService.ensureMap(preferencesService.getPreferences().getLastGamePrefs().getLastGameType(), map, progressBar.progressProperty(), progressLabel.textProperty())
         .thenRun(() -> setInstalled(true))
         .exceptionally(throwable -> {
           notificationService.addNotification(new ImmediateErrorNotification(
@@ -274,7 +285,7 @@ public class MapDetailController implements Controller<Node> {
     progressBar.progressProperty().unbind();
     progressBar.setProgress(-1);
 
-    mapService.uninstallMap(map)
+    mapService.uninstallMap(preferencesService.getPreferences().getLastGamePrefs().getLastGameType(), map)
         .thenRun(() -> setInstalled(false))
         .exceptionally(throwable -> {
           notificationService.addNotification(new ImmediateErrorNotification(
@@ -297,7 +308,7 @@ public class MapDetailController implements Controller<Node> {
 
   public void onCreateGameButtonClicked() {
     String modTechnical = KnownFeaturedMod.DEFAULT.getTechnicalName();
-    if (!mapService.isInstalled(modTechnical, map.getMapName())) {
+    if (!mapService.isInstalled(modTechnical, map.getMapName(), map.getCrc())) {
       installMap().thenRun(() -> eventBus.post(new HostGameEvent(map.getMapName())));
     } else {
       eventBus.post(new HostGameEvent(map.getMapName()));

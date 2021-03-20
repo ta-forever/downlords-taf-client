@@ -76,7 +76,7 @@ public interface FafApiAccessor {
 
   void uploadMod(Path file, ByteCountListener listener);
 
-  void uploadMap(Path file, boolean isRanked, ByteCountListener listener) throws IOException;
+  void uploadMap(Path file, boolean isRanked, List<java.util.Map<String,String>> mapDetails, ByteCountListener listener) throws IOException;
 
   List<CoopMission> getCoopMissions();
 

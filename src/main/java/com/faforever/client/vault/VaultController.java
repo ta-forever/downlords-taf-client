@@ -51,14 +51,14 @@ public class VaultController extends AbstractViewController<Node> {
 
   @Override
   public void initialize() {
-    onlineReplayVaultController = uiService.loadFxml("theme/vault/vault_entity.fxml", OnlineReplayVaultController.class);
-    onlineReplayVaultTab.setContent(onlineReplayVaultController.getRoot());
+    //onlineReplayVaultController = uiService.loadFxml("theme/vault/vault_entity.fxml", OnlineReplayVaultController.class);
+    //onlineReplayVaultTab.setContent(onlineReplayVaultController.getRoot());
     mapVaultController = uiService.loadFxml("theme/vault/vault_entity.fxml", MapVaultController.class);
     mapVaultTab.setContent(mapVaultController.getRoot());
-    modVaultController = uiService.loadFxml("theme/vault/vault_entity.fxml", ModVaultController.class);
-    modVaultTab.setContent(modVaultController.getRoot());
-    lastTab = onlineReplayVaultTab;
-    lastTabController = onlineReplayVaultController;
+    //modVaultController = uiService.loadFxml("theme/vault/vault_entity.fxml", ModVaultController.class);
+    //modVaultTab.setContent(modVaultController.getRoot());
+    lastTab = mapVaultTab;
+    lastTabController = mapVaultController;
     vaultRoot.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
       if (isHandlingEvent) {
         return;

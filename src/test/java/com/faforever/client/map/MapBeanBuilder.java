@@ -42,13 +42,8 @@ public class MapBeanBuilder {
     return this;
   }
 
-  public MapBeanBuilder smallThumbnailUrl(URL thumbnailUrl) {
-    mapBean.setSmallThumbnailUrl(thumbnailUrl);
-    return this;
-  }
-
-  public MapBeanBuilder largeThumbnailUrl(URL thumbnailUrl) {
-    mapBean.setLargeThumbnailUrl(thumbnailUrl);
+  public MapBeanBuilder thumbnailUrl(URL thumbnailUrl) {
+    mapBean.setThumbnailUrl(thumbnailUrl);
     return this;
   }
 

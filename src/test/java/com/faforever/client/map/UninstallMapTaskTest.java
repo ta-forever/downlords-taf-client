@@ -42,7 +42,7 @@ public class UninstallMapTaskTest {
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
 
-    instance = new com.faforever.client.map.UninstallMapTask(mapService, preferencesService);
+    instance = new com.faforever.client.map.UninstallMapTask(mapService);
   }
 
   @Test

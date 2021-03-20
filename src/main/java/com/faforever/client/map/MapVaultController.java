@@ -13,6 +13,7 @@ import com.faforever.client.query.SearchablePropertyMappings;
 import com.faforever.client.reporting.ReportingService;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.dialog.Dialog;
+import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.faforever.client.vault.VaultEntityController;
 import com.faforever.client.vault.search.SearchController.SearchConfig;
 import com.google.common.eventbus.EventBus;
@@ -27,9 +28,12 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Component
@@ -59,8 +63,19 @@ public class MapVaultController extends VaultEntityController<MapBean> {
     searchController.setSearchableProperties(SearchablePropertyMappings.MAP_PROPERTY_MAPPING);
     searchController.setSortConfig(preferencesService.getPreferences().getVaultPrefs().mapSortConfigProperty());
     searchController.setOnlyShowLastYearCheckBoxVisible(false, false);
+    taInstallationBox.setVisible(true);
 
     eventBus.register(this);
+
+    Path defaultTaPath = preferencesService.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).getInstalledExePath();
+    if (eventBus != null && (defaultTaPath == null || !Files.exists(defaultTaPath)))
+    {
+      Platform.runLater(() -> {
+        CompletableFuture<Path> gameDirectoryFuture = new CompletableFuture<>();
+        eventBus.post(new GameDirectoryChooseEvent(KnownFeaturedMod.DEFAULT.getTechnicalName(), gameDirectoryFuture));
+        gameDirectoryFuture.thenAccept(path -> Optional.ofNullable(path).ifPresent(path1 -> setTaInstallations(preferencesService.getTotalAnnihilationAllMods())));
+      });
+    }
   }
 
   @Override
@@ -117,7 +132,7 @@ public class MapVaultController extends VaultEntityController<MapBean> {
   public void onUploadButtonClicked() {
     Platform.runLater(() -> {
       FileChooser fileChooser = new FileChooser();
-      fileChooser.setInitialDirectory(preferencesService.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).getInstalledPath().toFile());
+      fileChooser.setInitialDirectory(preferencesService.getTotalAnnihilation(getSelectedTaModName()).getInstalledPath().toFile());
       fileChooser.setTitle(i18n.get("mapVault.upload.chooseDirectory"));
       fileChooser.getExtensionFilters().addAll(new ExtensionFilter("TA Map Archives", "*.ufo"));
       File result = fileChooser.showOpenDialog(getRoot().getScene().getWindow());
@@ -152,7 +167,7 @@ public class MapVaultController extends VaultEntityController<MapBean> {
 
   private void openUploadWindow(Path path) {
     MapUploadController mapUploadController = uiService.loadFxml("theme/vault/map/map_upload.fxml");
-    mapUploadController.setMapPath(path);
+    mapUploadController.prepareUpload(path);
 
     Node root = mapUploadController.getRoot();
     Dialog dialog = uiService.showInDialog(vaultRoot, root, i18n.get("mapVault.upload.title"));

@@ -68,12 +68,12 @@ public class MapCardControllerTest extends AbstractPlainJavaFxTest {
 
   @Before
   public void setUp() throws Exception {
-    when(mapService.downloadAndInstallMap(KnownFeaturedMod.DEFAULT.getTechnicalName(), any(), isNull(), isNull())).thenReturn(CompletableFuture.runAsync(() -> {
+    when(mapService.ensureMap(KnownFeaturedMod.DEFAULT.getTechnicalName(), any(), isNull(), isNull())).thenReturn(CompletableFuture.runAsync(() -> {
     }));
-    when(mapService.uninstallMap(any())).thenReturn(CompletableFuture.runAsync(() -> {
+    when(mapService.uninstallMap(any(), any())).thenReturn(CompletableFuture.runAsync(() -> {
     }));
     installedMaps = FXCollections.observableArrayList();
-    when(mapService.getInstalledMaps()).thenReturn(installedMaps);
+    when(mapService.getInstalledMaps(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(installedMaps);
     instance = new MapCardController(mapService, notificationService, i18n, reportingService);
     mapBean = new MapBean();
     mapBean.setHpiArchiveName("testMap");

@@ -2,6 +2,7 @@ package com.faforever.client.fa;
 
 import com.faforever.client.map.MapService.PreviewType;
 
+import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,7 +13,9 @@ import java.lang.invoke.MethodHandles;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MapTool {
 
@@ -28,7 +31,47 @@ public class MapTool {
 
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  static public List<String[]> listMaps(Path gamePath, String hpiArchiveSpec, String mapNameSpec, Path mapCacheDirectory, boolean doCrc) {
+  static public List<Map<String,String>> toListOfDict(List<String[]> _mapDetails) {
+    List<Map<String, String>> mapDetails = new ArrayList();
+    for (String[] values : _mapDetails) {
+      Map<String, String> keyvals = new HashMap();
+      keyvals.put("name", values[MAP_DETAIL_COLUMN_NAME]);
+      keyvals.put("archive", values[MAP_DETAIL_COLUMN_ARCHIVE]);
+      keyvals.put("crc", values[MAP_DETAIL_COLUMN_CRC]);
+      keyvals.put("description", values[MAP_DETAIL_COLUMN_DESCRIPTION]);
+      keyvals.put("size", values[MAP_DETAIL_COLUMN_SIZE]);
+      keyvals.put("players", values[MAP_DETAIL_COLUMN_NUM_PLAYERS]);
+      keyvals.put("wind", values[MAP_DETAIL_COLUMN_WIND]);
+      keyvals.put("tidal", values[MAP_DETAIL_COLUMN_TIDAL]);
+      keyvals.put("gravity", values[MAP_DETAIL_COLUMN_GRAVITY]);
+      mapDetails.add(keyvals);
+    }
+    return mapDetails;
+  }
+
+  static public String toJson(List<String[]> mapDetails) {
+    return new Gson().toJson(toListOfDict(mapDetails));
+  }
+
+  static public List<String[]> listMapsInstalled(Path gamePath, Path previewCacheDirectory, boolean doCrc) {
+    // and build feature cache in the previewCacheDirectory if not null
+    return run(gamePath, null, null, doCrc, null, null, 0, previewCacheDirectory);
+  }
+
+  static public List<String[]> listMap(Path gamePath, String mapName) {
+    return run(gamePath, null, mapName+"$", true, null, null, 0, null);
+  }
+
+  static public List<String[]> listMapsInArchive(Path hpiFile, Path previewCacheDirectory, boolean doCrc) {
+    // and generate minimap images in previewCacheDirectory if not null
+    return run(hpiFile.getParent(), hpiFile.getFileName().toString(), null, doCrc, previewCacheDirectory, PreviewType.MINI, 0, null);
+  }
+
+  public static void generatePreview(Path gamePath, String mapName, Path previewCacheDirectory, PreviewType previewType, int maxPositions) {
+    run(gamePath, null, mapName + "$", false, previewCacheDirectory, previewType, maxPositions, previewCacheDirectory);
+  }
+
+  static private List<String[]> run(Path gamePath, String hpiSpecs, String mapName, boolean doCrc, Path previewCacheDirectory, PreviewType previewType, int maxPositions, Path featuresCacheDirectory) {
     String nativeDir = System.getProperty("nativeDir", "lib");
     Path exe = Paths.get(nativeDir).resolve("gpgnet4ta").resolve("maptool.exe");
     Path workingDirectory = exe.getParent();
@@ -38,20 +81,32 @@ public class MapTool {
     command.add(String.format(QUOTED, exe.toAbsolutePath()));
     command.add("--gamepath");
     command.add(String.format(QUOTED, gamePath));
-    if (hpiArchiveSpec != null) {
+    if (hpiSpecs != null) {
       command.add("--hpispecs");
-      command.add(String.format(QUOTED, hpiArchiveSpec));
+      command.add(String.format(QUOTED, hpiSpecs));
     }
-    if (mapCacheDirectory != null) {
-      command.add("--featurescachedir");
-      command.add(String.format(QUOTED, mapCacheDirectory));
-    }
-    if (mapNameSpec != null) {
+    if (mapName != null) {
       command.add("--mapname");
-      command.add(String.format(QUOTED, mapNameSpec));
+      command.add(String.format(QUOTED, mapName));
     }
     if (doCrc) {
       command.add("--hash");
+    }
+    if (previewCacheDirectory != null) {
+      command.add("--thumb");
+      command.add(String.format(QUOTED, previewCacheDirectory));
+    }
+    if (previewType != null) {
+      command.add("--thumbtypes");
+      command.add(previewType.toString().toLowerCase());
+    }
+    if (maxPositions > 0) {
+      command.add("--maxpositions");
+      command.add(String.valueOf(maxPositions));
+    }
+    if (featuresCacheDirectory != null) {
+      command.add("--featurescachedir");
+      command.add(String.format(QUOTED, featuresCacheDirectory));
     }
 
     ProcessBuilder processBuilder = new ProcessBuilder();
@@ -72,49 +127,9 @@ public class MapTool {
     }
     catch (IOException e)
     {
-      logger.error("unable to enumerate maps: {}", e.getMessage());
+      logger.error("unable to process maps: {}", e.getMessage());
     }
 
     return mapList;
   }
-
-  public static void generatePreview(Path gamePath, String mapName, Path mapCacheDirectory, PreviewType previewType, int maxPositions) {
-    String nativeDir = System.getProperty("nativeDir", "lib");
-    Path exe = Paths.get(nativeDir).resolve("gpgnet4ta").resolve("maptool.exe");
-    Path workingDirectory = exe.getParent();
-
-    String QUOTED = "\"%s\"";
-    List<String> command = new ArrayList<>();
-    command.add(String.format(QUOTED, exe.toAbsolutePath()));
-    command.add("--gamepath");
-    command.add(String.format(QUOTED, gamePath));
-    command.add("--mapname");
-    command.add(String.format(QUOTED, mapName + "$"));
-    command.add("--thumb");
-    command.add(String.format(QUOTED, mapCacheDirectory));
-    command.add("--featurescachedir");
-    command.add(String.format(QUOTED, mapCacheDirectory));
-    command.add("--thumbtypes");
-    command.add(previewType.toString().toLowerCase());
-    command.add("--maxpositions");
-    command.add(String.valueOf(maxPositions));
-
-    ProcessBuilder processBuilder = new ProcessBuilder();
-    processBuilder.directory(workingDirectory.toFile());
-    processBuilder.command(command);
-    logger.info("Generating map preview: {}", String.join(" ", processBuilder.command()));
-    try {
-      Process process = processBuilder.start();
-      process.waitFor();
-    }
-    catch (IOException e)
-    {
-      logger.error("unable to generate preview: {}", e.getMessage());
-    }
-    catch (InterruptedException e)
-    {
-      logger.error("unable to generate preview: {}", e.getMessage());
-    }
-  }
-
 }

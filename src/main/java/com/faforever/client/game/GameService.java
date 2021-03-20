@@ -368,11 +368,10 @@ public class GameService implements InitializingBean {
     String inGameIrcUrl = getInGameIrcUrl(inGameIrcChannel);
     Map<String, Integer> featuredModVersions = game.getFeaturedModVersions();
     Set<String> simModUIds = game.getSimMods().keySet();
-
     return
         modService.getFeaturedMod(game.getFeaturedMod())
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, null, featuredModVersions, simModUIds))
-        .thenCompose(aVoid -> downloadMapIfNecessary(game.getFeaturedMod(), game.getMapName(), game.getMapArchiveName()))
+        .thenCompose(aVoid -> mapService.ensureMap(game.getFeaturedMod(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null))
         .thenCompose(aVoid -> fafService.requestJoinGame(game.getId(), password))
         .thenAccept(gameLaunchMessage -> {
           synchronized (currentGame) {
@@ -390,14 +389,6 @@ public class GameService implements InitializingBean {
           notificationService.addImmediateErrorNotification(throwable, "games.couldNotJoin");
           return null;
         });
-  }
-
-  private CompletableFuture<Void> downloadMapIfNecessary(String modTechnical, String mapName, String hpiArchiveName) {
-    if (mapService.isInstalled(modTechnical, mapName)) {
-      return completedFuture(null);
-    }
-    return mapService.download(modTechnical, hpiArchiveName)
-        ;//.thenAccept(aVoid -> noCatch(() -> mapService.loadInstalledMaps(modTechnical)));  // should not be necessary because MapService has a directory watcher looking for new maps
   }
 
   /**
@@ -492,7 +483,7 @@ public class GameService implements InitializingBean {
 
     return modService.getFeaturedMod(gameType)
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, null, modVersions, simModUids))
-        .thenCompose(aVoid -> downloadMapIfNecessary(modTechnicalName, mapName, gameBean.getMapArchiveName()))
+        .thenCompose(aVoid -> mapService.ensureMap(modTechnicalName, mapName, gameBean.getMapCrc(), gameBean.getMapArchiveName(), null, null))
         .thenRun(() -> noCatch(() -> {
           process = totalAnnihilationService.startReplay(modTechnicalName, replayUrl, gameId, getCurrentPlayer());
           setGameRunning(true);
@@ -575,7 +566,7 @@ public class GameService implements InitializingBean {
         .thenAccept(featuredModBean -> updateGameIfNecessary(featuredModBean, null, emptyMap(), emptySet()))
         .thenCompose(aVoid -> fafService.startSearchLadder1v1(faction))
         .thenAccept((gameLaunchMessage) ->
-            downloadMapIfNecessary(LADDER_1V1.getBaseGameName(), gameLaunchMessage.getMapname(), "<unknown hpi>")
+            mapService.ensureMap(LADDER_1V1.getBaseGameName(), gameLaunchMessage.getMapname(), gameLaunchMessage.getMapCrc(), gameLaunchMessage.getMapArchive(), null, null)
             .thenRun(() -> {
               gameLaunchMessage.setArgs(new ArrayList<>(gameLaunchMessage.getArgs()));
 

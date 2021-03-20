@@ -55,6 +55,9 @@
                                       <children>
                                           <Label fx:id="nameLabel" styleClass="h1" text="&lt;Title&gt;"/>
                                           <Label fx:id="mapIdLabel" text="#&lt;id&gt;"/>
+                                          <Label fx:id="mapVersionLabel" text="#&lt;version&gt;"/>
+                                          <Label fx:id="mapCrcLabel" text="#&lt;crc&gt;"/>
+                                          <Label fx:id="mapHpiArchiveNameLabel" text="#&lt;hpiArchive&gt;"/>
                                       </children>
                                   </VBox>
                                   <Label fx:id="dimensionsLabel" text="Label" GridPane.columnIndex="1"

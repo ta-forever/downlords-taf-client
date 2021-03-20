@@ -31,6 +31,10 @@
                     </HBox>
                     <Separator maxWidth="1.7976931348623157E308"/>
                     <HBox spacing="10.0">
+                        <HBox fx:id="taInstallationBox" visible="false">
+                            <!--Label text="%vault.installationPath"/-->
+                            <ComboBox fx:id="taInstallationComboBox"/>
+                        </HBox>
                         <Button fx:id="backButton" mnemonicParsing="false" text="%back">
                             <graphic>
                                 <Region styleClass="icon,back-icon"/>

@@ -21,17 +21,11 @@
   <children>
       <VBox fx:id="mapInfoPane" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="500.0" minWidth="100.0" spacing="20.0" VBox.vgrow="ALWAYS">
       <children>
-          <Label maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" styleClass="info" text="%mapVault.upload.hint" wrapText="true">
-          <graphic>
-              <Region maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" styleClass="icon,info-icon" />
-          </graphic>
-            </Label>
           <Label fx:id="mapNameLabel" alignment="CENTER" contentDisplay="TOP" maxWidth="1.7976931348623157E308" styleClass="h2" text="&lt;Name&gt;" wrapText="true" VBox.vgrow="ALWAYS">
           <graphic>
               <ImageView fx:id="thumbnailImageView" fitHeight="256.0" fitWidth="256.0" pickOnBounds="true" preserveRatio="true" />
           </graphic>
         </Label>
-          <Label fx:id="descriptionLabel" alignment="TOP_LEFT" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="&lt;Description&gt;" wrapText="true" VBox.vgrow="ALWAYS" />
         <GridPane hgap="10.0">
           <columnConstraints>
               <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" />
@@ -43,12 +37,8 @@
               <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
           </rowConstraints>
           <children>
-              <Label text="%mapVault.upload.mapVersion" />
-              <Label fx:id="versionLabel" alignment="CENTER_RIGHT" maxWidth="1.7976931348623157E308" text="&lt;Version&gt;" GridPane.columnIndex="1" />
               <Label text="%mapVault.upload.mapSize" GridPane.rowIndex="1" />
               <Label fx:id="sizeLabel" alignment="CENTER_RIGHT" maxWidth="1.7976931348623157E308" text="&lt;Size&gt;" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-              <Label text="%mapVault.upload.players" GridPane.rowIndex="2" />
-              <Label fx:id="playersLabel" alignment="CENTER_RIGHT" maxWidth="1.7976931348623157E308" text="&lt;Max Players&gt;" GridPane.columnIndex="1" GridPane.rowIndex="2" />
           </children>
           <VBox.margin>
               <Insets top="10.0" />
@@ -59,18 +49,6 @@
               <CheckBox fx:id="rankedCheckbox" mnemonicParsing="false" selected="true" />
           </graphic>
           </Label>
-          <Label fx:id="rulesLabel" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
-                 text="%mapVault.upload.rules" wrapText="true">
-              <graphic>
-                  <CheckBox fx:id="rulesCheckBox" mnemonicParsing="false"/>
-              </graphic>
-          </Label>
-          <HBox spacing="10.0">
-              <children>
-                  <Button text="%mapVault.upload.openRules" onMouseClicked="#onShowRulesClicked"/>
-                  <Button text="%mapVault.upload.openValidation" onMouseClicked="#onShowValidationClicked"/>
-              </children>
-          </HBox>
         <ButtonBar prefHeight="40.0" prefWidth="200.0">
           <buttons>
               <Button defaultButton="true" mnemonicParsing="false" onAction="#onUploadClicked" text="%mapVault.upload.uploadNow" />

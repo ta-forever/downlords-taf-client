@@ -7,6 +7,7 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.notification.ImmediateErrorNotification;
 import com.faforever.client.notification.NotificationService;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.reporting.ReportingService;
 import com.faforever.client.util.IdenticonUtil;
 import com.faforever.client.vault.review.Review;
@@ -38,6 +39,7 @@ public class MapCardController implements Controller<Node> {
 
   private final MapService mapService;
   private final NotificationService notificationService;
+  private final PreferencesService preferencesService;
   private final I18n i18n;
   private final ReportingService reportingService;
 
@@ -45,6 +47,8 @@ public class MapCardController implements Controller<Node> {
   public Label nameLabel;
   public Node mapTileRoot;
   public Label authorLabel;
+  public Label mapVersionLabel;
+  public Label mapHpiArchiveNameLabel;
   public StarsController starsController;
   public Label numberOfReviewsLabel;
   public Label numberOfPlaysLabel;
@@ -82,10 +86,10 @@ public class MapCardController implements Controller<Node> {
   }
 
   public void setMap(MapBean map) {
-    String modTechnical = KnownFeaturedMod.DEFAULT.getTechnicalName();
+    String modTechnical = preferencesService.getPreferences().getLastGamePrefs().getLastGameType();
     this.map = map;
     Image image;
-    if (map.getLargeThumbnailUrl() != null) {
+    if (map.getThumbnailUrl() != null) {
       image = mapService.loadPreview(modTechnical, map, PreviewType.MINI, 10);
     } else {
       image = IdenticonUtil.createIdenticon(map.getId());
@@ -93,7 +97,13 @@ public class MapCardController implements Controller<Node> {
     thumbnailImageView.setImage(image);
     nameLabel.setText(map.getMapName());
     authorLabel.setText(Optional.ofNullable(map.getAuthor()).orElse(i18n.get("map.unknownAuthor")));
+    mapHpiArchiveNameLabel.setText(Optional.ofNullable(map.getHpiArchiveName()).orElse("<unknown archive>"));
     numberOfPlaysLabel.setText(i18n.number(map.getNumberOfPlays()));
+
+    mapVersionLabel.setText(String.format("v%s / CRC32 %s",
+        map.getVersion()!=null ? map.getVersion().toString() : "?",
+        map.getCrc()!=null ? map.getCrc() : "????????"));
+    mapVersionLabel.setVisible(map.getVersion() != null || map.getCrc() != null);
 
     MapSize size = map.getSize();
     sizeLabel.setText(i18n.get("mapPreview.size", size.getWidthInKm(), size.getHeightInKm()));
@@ -105,7 +115,7 @@ public class MapCardController implements Controller<Node> {
     } else {
       ObservableList<MapBean> installedMaps = mapService.getInstalledMaps(modTechnical);
       JavaFxUtil.addListener(installedMaps, new WeakListChangeListener<>(installStatusChangeListener));
-      setInstalled(mapService.isInstalled(modTechnical, map.getMapName()));
+      setInstalled(mapService.isInstalled(modTechnical, map.getMapName(), map.getCrc()));
     }
 
     ObservableList<Review> reviews = map.getReviews();
@@ -122,7 +132,7 @@ public class MapCardController implements Controller<Node> {
   }
 
   public void onInstallButtonClicked() {
-    mapService.downloadAndInstallMap(KnownFeaturedMod.DEFAULT.getTechnicalName(), map, null, null)
+    mapService.ensureMap(preferencesService.getPreferences().getLastGamePrefs().getLastGameType(), map, null, null)
         .thenRun(() -> setInstalled(true))
         .exceptionally(throwable -> {
           notificationService.addNotification(new ImmediateErrorNotification(
@@ -136,7 +146,7 @@ public class MapCardController implements Controller<Node> {
   }
 
   public void onUninstallButtonClicked() {
-    mapService.uninstallMap(map)
+    mapService.uninstallMap(preferencesService.getPreferences().getLastGamePrefs().getLastGameType(), map)
         .thenRun(() -> setInstalled(false))
         .exceptionally(throwable -> {
           notificationService.addNotification(new ImmediateErrorNotification(

@@ -25,15 +25,16 @@ public class MapVersion {
   private Integer width;
   private Integer height;
   private ComparableVersion version;
-  private String folderName;
+  private String archiveName;
+  private String name;
+  private String crc;
   // TODO name consistently with folderName
   private String filename;
   private Boolean ranked;
   private Boolean hidden;
   private OffsetDateTime createTime;
   private OffsetDateTime updateTime;
-  private URL thumbnailUrlSmall;
-  private URL thumbnailUrlLarge;
+  private URL thumbnailUrl;
   private URL downloadUrl;
 
   @Relationship("map")

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 
@@ -21,23 +22,29 @@ public class UninstallMapTask extends CompletableTask<Void> {
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   private final MapService mapService;
-  private final PreferencesService preferencesService;
 
-  private MapBean map;
+  private Path installationPath;
+  private String hpiArchiveName;
 
   @Inject
-  public UninstallMapTask(MapService mapService, PreferencesService preferencesService) {
+  public UninstallMapTask(MapService mapService) {
     super(Priority.LOW);
     this.mapService = mapService;
-    this.preferencesService = preferencesService;
   }
 
-  public void setMap(MapBean map) {
-    this.map = map;
+  public void setInstallationPath(Path installationPath) {
+    this.installationPath = installationPath;
   }
+  public void setHpiArchiveName(String hpiArchiveName) { this.hpiArchiveName = hpiArchiveName; }
 
   @Override
   protected Void call() throws Exception {
+    Objects.requireNonNull(installationPath, "installationPath has not been set");
+    Objects.requireNonNull(hpiArchiveName, "hpiArchiveName has not been set");
+
+    Path archiveFullPath = installationPath.resolve(hpiArchiveName);
+    logger.info("Uninstalling map archive '{}'", archiveFullPath);
+    Files.deleteIfExists(archiveFullPath);
     return null;
   }
 }

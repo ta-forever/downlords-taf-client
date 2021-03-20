@@ -92,10 +92,7 @@ public class GamePathHandler implements InitializingBean {
     }
 
     logger.info("Found game at {}", gameExecutablePath);
-    final TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(baseGameName);
-    prefs.setInstalledExePath(gameExecutablePath);
-    prefs.setCommandLineOptions(commandLineOptions);
-
+    preferencesService.setTotalAnnihilation(baseGameName, gameExecutablePath, commandLineOptions);
     preferencesService.storeInBackground();
     future.ifPresent(pathCompletableFuture -> pathCompletableFuture.complete(gameExecutablePath));
   }

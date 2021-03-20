@@ -330,8 +330,8 @@ public class CreateGameController implements Controller<Pane> {
       activeMod = featuredModListView.getFocusModel().getFocusedItem().getTechnicalName();
     }
 
-    Image largePreview = mapService.loadPreview(activeMod, newValue.getMapName(), previewType, maxNumPlayers);
-    mapPreviewPane.setBackground(new Background(new BackgroundImage(largePreview, NO_REPEAT, NO_REPEAT, CENTER,
+    Image preview = mapService.loadPreview(activeMod, newValue.getMapName(), previewType, maxNumPlayers);
+    mapPreviewPane.setBackground(new Background(new BackgroundImage(preview, NO_REPEAT, NO_REPEAT, CENTER,
         new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, true, false))));
 
     MapSize mapSize = newValue.getSize();

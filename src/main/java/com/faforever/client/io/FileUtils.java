@@ -1,11 +1,14 @@
 package com.faforever.client.io;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.zip.CRC32;
 
 import static java.nio.file.Files.walkFileTree;
 
@@ -34,4 +37,15 @@ public final class FileUtils {
       }
     });
   }
+
+  public static long getCRC(final File file) throws IOException {
+    final FileInputStream fis=new FileInputStream(file);
+    final byte[] data=new byte[(int)file.length()];
+    fis.read(data);
+    fis.close();
+    final CRC32 crc32=new CRC32();
+    crc32.update(data);
+    return crc32.getValue();
+  }
+
 }

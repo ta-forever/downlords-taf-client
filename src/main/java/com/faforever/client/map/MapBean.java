@@ -24,6 +24,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class MapBean implements Comparable<MapBean> {
@@ -36,29 +37,30 @@ public class MapBean implements Comparable<MapBean> {
   private final IntegerProperty players;
   private final ObjectProperty<MapSize> size;
   private final ObjectProperty<ComparableVersion> version;
+  private final StringProperty crc;
   private final StringProperty id;
   private final StringProperty author;
   private final BooleanProperty hidden;
   private final BooleanProperty ranked;
   private final ObjectProperty<URL> downloadUrl;
-  private final ObjectProperty<URL> smallThumbnailUrl;
-  private final ObjectProperty<URL> largeThumbnailUrl;
+  private final ObjectProperty<URL> thumbnailUrl;
   private final ObjectProperty<LocalDateTime> createTime;
   private final ObjectProperty<Type> type;
   private final ListProperty<Review> reviews;
+  private Optional<Function<Void,String>> lazyCrcGetter;
 
   public MapBean() {
     id = new SimpleStringProperty();
     mapName = new SimpleStringProperty();
     hpiArchiveName = new SimpleStringProperty();
+    crc = new SimpleStringProperty();
     description = new SimpleStringProperty();
     numberOfPlays = new SimpleIntegerProperty();
     downloads = new SimpleIntegerProperty();
     players = new SimpleIntegerProperty();
     size = new SimpleObjectProperty<>();
     version = new SimpleObjectProperty<>();
-    smallThumbnailUrl = new SimpleObjectProperty<>();
-    largeThumbnailUrl = new SimpleObjectProperty<>();
+    thumbnailUrl = new SimpleObjectProperty<>();
     downloadUrl = new SimpleObjectProperty<>();
     author = new SimpleStringProperty();
     createTime = new SimpleObjectProperty<>();
@@ -67,6 +69,7 @@ public class MapBean implements Comparable<MapBean> {
         -> new Observable[]{param.scoreProperty(), param.textProperty()}));
     hidden = new SimpleBooleanProperty();
     ranked = new SimpleBooleanProperty();
+    lazyCrcGetter = Optional.empty();
   }
 
   public static MapBean fromMapDto(com.faforever.client.api.dto.Map map) {
@@ -76,15 +79,15 @@ public class MapBean implements Comparable<MapBean> {
     Optional.ofNullable(map.getAuthor()).ifPresent(author -> mapBean.setAuthor(author.getLogin()));
     mapBean.setDescription(mapVersion.getDescription());
     mapBean.setMapName(map.getDisplayName());
-    mapBean.setHpiArchiveName(mapVersion.getFolderName());
+    mapBean.setHpiArchiveName(mapVersion.getArchiveName());
+    mapBean.setCrc(mapVersion.getCrc());
     mapBean.setSize(MapSize.valueOf(mapVersion.getWidth(), mapVersion.getHeight()));
     mapBean.setDownloads(map.getStatistics().getDownloads());
     mapBean.setId(mapVersion.getId());
     mapBean.setPlayers(mapVersion.getMaxPlayers());
     mapBean.setVersion(mapVersion.getVersion());
     mapBean.setDownloadUrl(mapVersion.getDownloadUrl());
-    mapBean.setSmallThumbnailUrl(mapVersion.getThumbnailUrlSmall());
-    mapBean.setLargeThumbnailUrl(mapVersion.getThumbnailUrlLarge());
+    mapBean.setThumbnailUrl(mapVersion.getThumbnailUrl());
     mapBean.setCreateTime(mapVersion.getCreateTime().toLocalDateTime());
     mapBean.setNumberOfPlays(map.getStatistics().getPlays());
     mapBean.setRanked(mapVersion.getRanked());
@@ -103,15 +106,15 @@ public class MapBean implements Comparable<MapBean> {
     Optional.ofNullable(mapVersion.getMap().getAuthor()).ifPresent(author -> mapBean.setAuthor(author.getLogin()));
     mapBean.setDescription(mapVersion.getDescription());
     mapBean.setMapName(mapVersion.getMap().getDisplayName());
-    mapBean.setHpiArchiveName(mapVersion.getFolderName());
+    mapBean.setHpiArchiveName(mapVersion.getArchiveName());
+    mapBean.setCrc(mapVersion.getCrc());
     mapBean.setSize(MapSize.valueOf(mapVersion.getWidth(), mapVersion.getHeight()));
     mapBean.setDownloads(mapVersion.getMap().getStatistics().getDownloads());
     mapBean.setId(mapVersion.getId());
     mapBean.setPlayers(mapVersion.getMaxPlayers());
     mapBean.setVersion(mapVersion.getVersion());
     mapBean.setDownloadUrl(mapVersion.getDownloadUrl());
-    mapBean.setSmallThumbnailUrl(mapVersion.getThumbnailUrlSmall());
-    mapBean.setLargeThumbnailUrl(mapVersion.getThumbnailUrlLarge());
+    mapBean.setThumbnailUrl(mapVersion.getThumbnailUrl());
     mapBean.setCreateTime(mapVersion.getCreateTime().toLocalDateTime());
     mapBean.setNumberOfPlays(mapVersion.getMap().getStatistics().getPlays());
     mapBean.getReviews().setAll(mapVersion.getReviews().parallelStream()
@@ -223,6 +226,16 @@ public class MapBean implements Comparable<MapBean> {
     return version;
   }
 
+  public String getCrc() {
+    if ((crc.get() == null || crc.get().equals("00000000")) && this.lazyCrcGetter.isPresent()) {
+      crc.setValue(this.lazyCrcGetter.get().apply(null));
+    }
+    return crc.get();
+  }
+  public void setCrc(String crc) { this.crc.set(crc); }
+  public void setLazyCrc(Function<Void,String> getter) { this.lazyCrcGetter = Optional.of(getter); }
+  public StringProperty crcProperty() { return crc; }
+
   @Override
   public int compareTo(@NotNull MapBean o) {
     return getMapName().compareTo(o.getMapName());
@@ -260,28 +273,16 @@ public class MapBean implements Comparable<MapBean> {
     return hpiArchiveName;
   }
 
-  public URL getLargeThumbnailUrl() {
-    return largeThumbnailUrl.get();
+  public URL getThumbnailUrl() {
+    return thumbnailUrl.get();
   }
 
-  public void setLargeThumbnailUrl(URL largeThumbnailUrl) {
-    this.largeThumbnailUrl.set(largeThumbnailUrl);
+  public void setThumbnailUrl(URL thumbnailUrl) {
+    this.thumbnailUrl.set(thumbnailUrl);
   }
 
-  public ObjectProperty<URL> largeThumbnailUrlProperty() {
-    return largeThumbnailUrl;
-  }
-
-  public URL getSmallThumbnailUrl() {
-    return smallThumbnailUrl.get();
-  }
-
-  public void setSmallThumbnailUrl(URL smallThumbnailUrl) {
-    this.smallThumbnailUrl.set(smallThumbnailUrl);
-  }
-
-  public ObjectProperty<URL> smallThumbnailUrlProperty() {
-    return smallThumbnailUrl;
+  public ObjectProperty<URL> thumbnailUrlProperty() {
+    return thumbnailUrl;
   }
 
   public LocalDateTime getCreateTime() {

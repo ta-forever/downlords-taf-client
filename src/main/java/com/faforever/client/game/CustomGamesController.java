@@ -55,7 +55,8 @@ public class CustomGamesController extends AbstractViewController<Node> {
 
   private static final Predicate<Game> CUSTOM_GAMES_PREDICATE = gameInfoBean ->
       (gameInfoBean.isOpen() || gameInfoBean.isInProgress())
-          && !HIDDEN_FEATURED_MODS.contains(gameInfoBean.getFeaturedMod());
+          && !HIDDEN_FEATURED_MODS.contains(gameInfoBean.getFeaturedMod())
+          && gameInfoBean.getMapArchiveName() != null;
 
   @VisibleForTesting
   static final PseudoClass PSEUDO_CLASS_RIGHT = PseudoClass.getPseudoClass("right");

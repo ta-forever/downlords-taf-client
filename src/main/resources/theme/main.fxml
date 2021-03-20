@@ -43,7 +43,7 @@
                           </ToggleButton>
                           <ToggleButton fx:id="chatButton" minWidth="-Infinity" mnemonicParsing="false" onAction="#onChat" styleClass="main-navigation-button" text="%main.chat" toggleGroup="$mainNavigation" />
                           <ToggleButton fx:id="playButton" minWidth="-Infinity" mnemonicParsing="false" onAction="#onNavigateButtonClicked" styleClass="main-navigation-button" text="%main.play" toggleGroup="$mainNavigation" />
-                          <ToggleButton fx:id="vaultButton" disable="true" minWidth="-Infinity" mnemonicParsing="false" onAction="#onNavigateButtonClicked" styleClass="main-navigation-button" text="%main.vault" toggleGroup="$mainNavigation"/>
+                          <ToggleButton fx:id="vaultButton" disable="false" minWidth="-Infinity" mnemonicParsing="false" onAction="#onNavigateButtonClicked" styleClass="main-navigation-button" text="%main.vault" toggleGroup="$mainNavigation"/>
                           <ToggleButton fx:id="leaderboardsButton" minWidth="-Infinity" mnemonicParsing="false" onAction="#onNavigateButtonClicked" styleClass="main-navigation-button" text="%main.leaderboards" toggleGroup="$mainNavigation" />
                           <ToggleButton fx:id="tournamentsButton" disable="true" minWidth="-Infinity" mnemonicParsing="false" onAction="#onNavigateButtonClicked" styleClass="main-navigation-button" text="%main.tournaments" toggleGroup="$mainNavigation" />
                           <ToggleButton fx:id="unitsButton" disable="true" minWidth="-Infinity" mnemonicParsing="false" onAction="#onNavigateButtonClicked" styleClass="main-navigation-button" text="%main.units" toggleGroup="$mainNavigation" />

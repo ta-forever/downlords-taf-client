@@ -14,7 +14,7 @@ faf-client:
   vault:
     rules_url: https://forums.faforever.com/viewtopic.php?f=2&t=17873
     map_validation_url: ${faf-client.api.base-url}/maps/validate
-    mapDownloadUrlFormat: ${faf-client.vault.base-url}/maps/%s.zip
+    mapDownloadUrlFormat: ${faf-client.vault.base-url}/maps/%s
     mapPreviewUrlFormat: ${faf-client.vault.base-url}/maps/previews/%s/%s.png
 
   website:
@@ -51,7 +51,7 @@ faf-client:
     big_image_key: taf-logo-crystal-dt-512
     servers:
       - title: TA Universe
-        url: https://discord.gg/KP7ndRagrM
+        url: https://discord.gg/Z4hJpVbmyW
       - title: TA Escalation
         url: https://discord.gg/W2ErD5H
       - title: TA Twilight

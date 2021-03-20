@@ -196,9 +196,9 @@ public class MapServiceTest extends AbstractPlainJavaFxTest {
   @Test
   public void testLoadPreview() {
     for (PreviewType previewType : PreviewType.values()) {
-      Path cacheSubDir = Paths.get("maps").resolve(previewType.folderName);
+      Path cacheSubDir = Paths.get("maps").resolve(previewType.getFolderName(10));
       when(assetService.loadAndCacheImage(any(URL.class), eq(cacheSubDir), any())).thenReturn(new Image("theme/images/unknown_map.png"));
-      instance.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), "preview", previewType);
+      instance.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), "preview", previewType, 10);
       verify(assetService).loadAndCacheImage(any(URL.class), eq(cacheSubDir), any());
     }
   }

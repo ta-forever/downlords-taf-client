@@ -13,6 +13,7 @@ import com.faforever.client.theme.UiService;
 import com.faforever.client.util.Tuple;
 import com.faforever.client.vault.search.SearchController;
 import com.faforever.client.vault.search.SearchController.SearchConfig;
+import com.google.common.eventbus.EventBus;
 import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.control.Button;

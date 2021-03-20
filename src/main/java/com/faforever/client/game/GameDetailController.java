@@ -24,6 +24,7 @@ import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.ObservableMap;
 import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -79,6 +80,7 @@ public class GameDetailController implements Controller<Pane> {
   private final InvalidationListener gameStatusInvalidationListener;
   private final WeakInvalidationListener weakTeamListener;
   private final WeakInvalidationListener weakGameStatusListener;
+  @FXML
   private Node watchButton;
 
   @SuppressWarnings("FieldCanBeLocal")

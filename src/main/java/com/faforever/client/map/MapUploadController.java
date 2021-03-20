@@ -16,12 +16,13 @@ import com.faforever.client.reporting.ReportingService;
 import com.faforever.client.task.CompletableTask;
 import com.faforever.commons.map.PreviewGenerator;
 import com.google.common.eventbus.EventBus;
-import javafx.beans.binding.Bindings;
+import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.Pane;
@@ -33,8 +34,18 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.nio.file.DirectoryStream;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -60,26 +71,26 @@ public class MapUploadController implements Controller<Node> {
   public Label uploadTaskMessageLabel;
   public Label uploadTaskTitleLabel;
   public Label sizeLabel;
-  public Label playersLabel;
   public Pane parseProgressPane;
   public Pane uploadProgressPane;
   public Pane uploadCompletePane;
   public ProgressBar uploadProgressBar;
   public Pane mapInfoPane;
   public Label mapNameLabel;
-  public Label descriptionLabel;
-  public Label versionLabel;
   public ImageView thumbnailImageView;
   public Region mapUploadRoot;
   public CheckBox rankedCheckbox;
-  public CheckBox rulesCheckBox;
   public Label rulesLabel;
-  private Path mapPath;
-  private MapBean mapInfo;
+  private Path tempDirectory; // should be just parent of stagingDirectory, but we'll remember it explicitely since its the directory we want to clean up when we're finished
+  private Path stagingDirectory;
+  private String archiveFileName;
+  private List<String[]> mapDetails;
   private CompletableTask<Void> uploadMapTask;
   private Runnable cancelButtonClickedListener;
 
-  public MapUploadController(MapService mapService, ExecutorService executorService, NotificationService notificationService, ReportingService reportingService, PlatformService platformService, I18n i18n, EventBus eventBus, ClientProperties clientProperties) {
+  public MapUploadController(MapService mapService, ExecutorService executorService, NotificationService notificationService,
+                             ReportingService reportingService, PlatformService platformService, I18n i18n, EventBus eventBus,
+                             ClientProperties clientProperties) {
     this.mapService = mapService;
     this.executorService = executorService;
     this.notificationService = notificationService;
@@ -104,15 +115,51 @@ public class MapUploadController implements Controller<Node> {
     rankedLabel.setLabelFor(rankedCheckbox);
   }
 
-  public void setMapPath(Path mapPath) {
-    this.mapPath = mapPath;
-    enterParsingState();
-    CompletableFuture.supplyAsync(() -> mapService.readMap(mapPath.toString(), null), executorService)
-        .thenAccept(this::setMapInfo)
-        .exceptionally(throwable -> {
-          logger.warn("Map could not be read", throwable);
-          return null;
-        });
+  public void prepareUpload(Path archivePath) {
+    archiveFileName = archivePath.getFileName().toString();
+    CompletableFuture.runAsync(() -> {
+      enterParsingState();
+      stageUpload(archivePath);
+      enterMapInfoState();
+      Platform.runLater(() -> updateDisplay());
+    });
+  }
+
+  private void stageUpload(Path archivePath) {
+    try {
+      tempDirectory = Files.createTempDirectory("mapupload"); // NB tempDirectory is recursively deleted on clean up
+      stagingDirectory = tempDirectory.resolve(archiveFileName);
+      Files.createDirectories(stagingDirectory);
+      logger.info("Staging archive upload at {}", stagingDirectory);
+      mapDetails = MapTool.listMapsInArchive(archivePath, stagingDirectory, true);
+      Files.copy(archivePath, stagingDirectory.resolve(archiveFileName));
+
+      String jsonMapDetails = MapTool.toJson(mapDetails);
+      FileOutputStream jsonFos = new FileOutputStream(stagingDirectory.resolve(archiveFileName+".json").toFile());
+      jsonFos.write(jsonMapDetails.getBytes());
+      jsonFos.close();
+    } catch (IOException e) {
+      logger.warn("unable to prep archive for upload:", e);
+    }
+  }
+
+  private void updateDisplay()  {
+    mapNameLabel.textProperty().setValue(archiveFileName);
+    sizeLabel.textProperty().setValue(mapDetails.size() + " maps");
+
+    try {
+      Files.walkFileTree(stagingDirectory.resolve("mini"), new SimpleFileVisitor<>() {
+        @Override
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+          FileInputStream ifs = new FileInputStream(file.toFile());
+          thumbnailImageView.setImage(new Image(ifs));
+          ifs.close();
+          return FileVisitResult.TERMINATE;
+        }
+      });
+    } catch (IOException e) {
+      logger.warn("Unable to load image from map archive");
+    }
   }
 
   private void enterParsingState() {
@@ -120,33 +167,6 @@ public class MapUploadController implements Controller<Node> {
     uploadProgressPane.setVisible(false);
     parseProgressPane.setVisible(true);
     uploadCompletePane.setVisible(false);
-  }
-
-  @SneakyThrows
-  private static WritableImage generatePreview(Path mapPath) {
-    return SwingFXUtils.toFXImage(PreviewGenerator.generatePreview(mapPath, 256, 256), new WritableImage(256, 256));
-  }
-
-  private void setMapInfo(MapBean mapInfo) {
-    this.mapInfo = mapInfo;
-    enterMapInfoState();
-
-    List<String []> maplist = MapTool.listMaps(mapPath.getParent(), mapPath.getFileName().toString(),null, null, true);
-
-    mapNameLabel.textProperty().bind(mapInfo.mapNameProperty());
-    descriptionLabel.textProperty().bind(mapInfo.descriptionProperty());
-    versionLabel.textProperty().bind(mapInfo.versionProperty().asString());
-    sizeLabel.textProperty().bind(Bindings.createStringBinding(
-        () -> {
-          MapSize mapSize = mapInfo.getSize();
-          return i18n.get("mapVault.upload.sizeFormat", mapSize.getWidthInKm(), mapSize.getHeightInKm());
-        }, mapInfo.sizeProperty())
-    );
-    playersLabel.textProperty().bind(Bindings.createStringBinding(
-        () -> i18n.get("mapVault.upload.playersFormat", mapInfo.getPlayers()), mapInfo.playersProperty())
-    );
-
-    //thumbnailImageView.setImage(generatePreview(mapPath));
   }
 
   private void enterMapInfoState() {
@@ -184,27 +204,40 @@ public class MapUploadController implements Controller<Node> {
   }
 
   public void onUploadClicked() {
-    if (!rulesCheckBox.isSelected()) {
-      rulesLabel.getStyleClass().add("bad");
-      return;
-    }
     enterUploadingState();
 
     uploadProgressPane.setVisible(true);
-    uploadMapTask = mapService.uploadMap(mapPath, rankedCheckbox.isSelected());
+    uploadMapTask = mapService.uploadMap(stagingDirectory, archiveFileName, rankedCheckbox.isSelected(), MapTool.toListOfDict(mapDetails));
     uploadTaskTitleLabel.textProperty().bind(uploadMapTask.titleProperty());
     uploadTaskMessageLabel.textProperty().bind(uploadMapTask.messageProperty());
     uploadProgressBar.progressProperty().bind(uploadMapTask.progressProperty());
 
     uploadMapTask.getFuture()
-        .thenAccept(v -> eventBus.post(new MapUploadedEvent(mapInfo)))
+        .thenAccept(v -> eventBus.post(new MapUploadedEvent(stagingDirectory)))
         .thenAccept(aVoid -> enterUploadCompleteState())
+        .thenAccept(aVoid -> deleteDirectoryRecursion(tempDirectory))
         .exceptionally(throwable -> {
           if (!(throwable instanceof CancellationException)) {
             onUploadFailed(throwable.getCause());
           }
           return null;
         });
+  }
+
+  private void deleteDirectoryRecursion(Path path) {
+    if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
+      try (DirectoryStream<Path> entries = Files.newDirectoryStream(path)) {
+        for (Path entry : entries) {
+          deleteDirectoryRecursion(entry);
+        }
+      } catch (IOException e) {
+      }
+    }
+    try {
+      Files.delete(path);
+    }
+    catch (IOException e) {
+    }
   }
 
   private void enterUploadingState() {
@@ -223,6 +256,7 @@ public class MapUploadController implements Controller<Node> {
 
   public void onCancelClicked() {
     cancelButtonClickedListener.run();
+    deleteDirectoryRecursion(tempDirectory);
   }
 
   public Region getRoot() {
@@ -231,13 +265,5 @@ public class MapUploadController implements Controller<Node> {
 
   public void setOnCancelButtonClickedListener(Runnable cancelButtonClickedListener) {
     this.cancelButtonClickedListener = cancelButtonClickedListener;
-  }
-
-  public void onShowRulesClicked() {
-    platformService.showDocument(clientProperties.getVault().getRulesUrl());
-  }
-
-  public void onShowValidationClicked() {
-    platformService.showDocument(clientProperties.getVault().getMapValidationUrl());
   }
 }

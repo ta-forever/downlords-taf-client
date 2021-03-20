@@ -17,6 +17,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
@@ -88,12 +89,12 @@ public class DownloadMapTask extends CompletableTask<Void> {
     }
 
     Path downloadDirectory = cacheDirectory;
-    if (cacheFreeSpace < 10e9) {
+    if (cacheFreeSpace < 10*bytesToRead) {
       downloadDirectory = installationPath;
     }
 
     target = downloadDirectory.resolve(hpiArchiveName);
-    if (content.equals("application/zip") ||  // @todo pass down expected file size or crc so we can cache zip files too
+    if (content != null && content.equals("application/zip") ||  // @todo pass down expected file size or crc so we can cache zip files too
         !target.toFile().exists() ||
         bytesToRead>0 && Files.size(target)!=bytesToRead || bytesToRead==0) {
       logger.info("Downloading archive {} {} bytes from {} to {}", hpiArchiveName, bytesToRead, mapUrl, downloadDirectory);
@@ -110,6 +111,13 @@ public class DownloadMapTask extends CompletableTask<Void> {
           downloadService.downloadFile(mapUrl, downloadDirectory.resolve(hpiArchiveName), this::updateProgress);
         }
       }
+      catch (FileNotFoundException e) {
+        notificationService.addNotification(new ImmediateNotification(
+            i18n.get("mapDownloadTask.title", hpiArchiveName),
+            i18n.get("mapDownloadTask.notFound", hpiArchiveName),
+            Severity.WARN, Collections.singletonList(new DismissAction(i18n))));
+        return null;
+      }
     }
 
     if (!downloadDirectory.equals(installationPath)) {
@@ -119,7 +127,7 @@ public class DownloadMapTask extends CompletableTask<Void> {
 
     if (!installationPath.resolve(hpiArchiveName).toFile().exists()) {
       notificationService.addNotification(new ImmediateNotification(
-          i18n.get("mapDownloadTask.title", hpiArchiveName), "Download failed",
+          i18n.get("mapDownloadTask.title", hpiArchiveName), "Install failed",
           Severity.ERROR, Collections.singletonList(new DismissAction(i18n))));
       return null;
     }
