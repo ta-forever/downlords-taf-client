@@ -20,7 +20,6 @@ import com.faforever.client.task.CompletableTask;
 import com.faforever.client.task.CompletableTask.Priority;
 import com.faforever.client.task.TaskService;
 import com.faforever.client.theme.UiService;
-import com.faforever.client.update.ClientConfiguration.Downloadable;
 import com.faforever.client.util.Tuple;
 import com.faforever.client.vault.search.SearchController.SearchConfig;
 import com.google.common.annotations.VisibleForTesting;
@@ -144,7 +143,6 @@ public class MapService implements InitializingBean, DisposableBean {
 
   // keyed by ModTechnical
   private Map<String, Installation> installations = new HashMap<>();
-  private List<Downloadable> downloadables;
 
   public Installation getInstallation(String modTechnical) {
     Installation installation = installations.get(modTechnical);
@@ -179,13 +177,6 @@ public class MapService implements InitializingBean, DisposableBean {
     Vault vault = clientProperties.getVault();
     this.mapDownloadUrlFormat = vault.getMapDownloadUrlFormat();
     this.mapPreviewUrlFormat = vault.getMapPreviewUrlFormat();
-
-    try {
-      downloadables = preferencesService.getRemotePreferences().getDownloadables();
-    }
-    catch (IOException e) {
-      logger.warn("Unable to retrieve list of downloadables from remote preferences");
-    }
 
     preferencesService.getTotalAnnihilationAllMods().addListener((ListChangeListener<TotalAnnihilationPrefs>) change -> {
       while (change.next()) {
@@ -253,18 +244,6 @@ public class MapService implements InitializingBean, DisposableBean {
 
   private static URL getDownloadUrl(String hpiArchiveName, String baseUrl) {
     return noCatch(() -> new URL(format(baseUrl, urlFragmentEscaper().escape(hpiArchiveName))));
-  }
-
-  private URL getDownloadableUrl(String hpiArchiveName) {
-    if (this.downloadables == null) {
-      return null;
-    }
-    for (Downloadable downloadable : this.downloadables) {
-      if (downloadable.getWhat().toLowerCase().equals(hpiArchiveName.toLowerCase())) {
-        noCatch(() -> new URL(downloadable.getUrl()));
-      }
-    }
-    return null;
   }
 
   private static URL getPreviewUrl(String mapName, String baseUrl, PreviewType previewType) {
@@ -410,17 +389,7 @@ public class MapService implements InitializingBean, DisposableBean {
 
     String mapSizeArray[] = mapSizeStr.replaceAll("[^0-9x]", "").split("x");
 
-    if (downloadables != null) {
-      Optional<Downloadable> downloadURL = downloadables.stream().filter((downloadable) -> downloadable.getWhat() == archiveName).findFirst();
-      if (downloadURL.isPresent()) {
-        try {
-          mapBean.setDownloadUrl(new URL(downloadURL.get().getUrl()));
-        } catch (MalformedURLException e) {
-          logger.warn("bad download url: {}", downloadURL.get());
-        }
-      }
-    }
-
+    mapBean.setDownloadUrl(getDownloadUrl(archiveName, mapDownloadUrlFormat));
     mapBean.setMapName(mapName);
     mapBean.setCrc(crc);
     mapBean.setDescription(description.replaceAll("[ ][ ]+", "\n"));  // some maps insert spaces into description to move to new line when displayed in TA lobby
@@ -624,18 +593,18 @@ public class MapService implements InitializingBean, DisposableBean {
 
   @SneakyThrows()
   @NotNull
-  @Cacheable(value = CacheNames.MAP_PREVIEW, condition = "#previewType.getDisplayName().equals('Minimap')")
+  @Cacheable(value = CacheNames.MAP_PREVIEW, condition = "#previewType.getDisplayName().equals('Minimap')")// && #result != null && !#result.isError()")
   public Image loadPreview(String modTechnicalName, String mapName, PreviewType previewType, int maxPositions) {
     return loadPreview(modTechnicalName, mapName, getPreviewUrl(mapName, mapPreviewUrlFormat, previewType), previewType, maxPositions);
   }
 
-  @Cacheable(value = CacheNames.MAP_PREVIEW, condition = "#previewType.getDisplayName().equals('Minimap')")
+  @Cacheable(value = CacheNames.MAP_PREVIEW, condition = "#previewType.getDisplayName().equals('Minimap')")// && #result != null && !#result.isError()")
   public Image loadPreview(String modTechnical, MapBean map, PreviewType previewType, int maxNumPlayers) {
     URL url = map.getThumbnailUrl();
     return loadPreview(modTechnical, map.getMapName(), url, previewType, maxNumPlayers);
   }
 
-  @Cacheable(value = CacheNames.MAP_PREVIEW, condition = "#previewType.getDisplayName().equals('Minimap')")
+  @Cacheable(value = CacheNames.MAP_PREVIEW, condition = "#previewType.getDisplayName().equals('Minimap')")// && #result != null && !#result.isError()")
   private Image loadPreview(String modTechnical, String mapName, URL url, PreviewType previewType, int maxPositions) {
 
     String urlString = url.toString();
@@ -645,8 +614,9 @@ public class MapService implements InitializingBean, DisposableBean {
 
     generatePreview(modTechnical, mapName, cachedFile, previewType, maxPositions);
 
-    return assetService.loadAndCacheImage(url, Paths.get("maps").resolve(previewType.getFolderName(maxPositions)),
+    Image im = assetService.loadAndCacheImage(url, Paths.get("maps").resolve(previewType.getFolderName(maxPositions)),
         () -> uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
+    return im;
   }
 
   public CompletableFuture<Void> uninstallMap(String modTechnicalName, MapBean map) {

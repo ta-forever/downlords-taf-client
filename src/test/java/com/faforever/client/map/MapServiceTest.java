@@ -152,7 +152,7 @@ public class MapServiceTest extends AbstractPlainJavaFxTest {
     expectedException.expect(MapLoadException.class);
     expectedException.expectMessage(startsWith("Not a folder"));
 
-    instance.readMap(mapsDirectory.resolve("something"), null);
+    instance.readMap("something", null);
   }
 
   @Test
@@ -163,12 +163,12 @@ public class MapServiceTest extends AbstractPlainJavaFxTest {
     expectedException.expect(MapLoadException.class);
     expectedException.expectCause(instanceOf(LuaError.class));
 
-    instance.readMap(corruptMap, null);
+    instance.readMap("corruptMap", null);
   }
 
   @Test
   public void testReadMap() throws Exception {
-    MapBean mapBean = instance.readMap(Paths.get(getClass().getResource("/maps/SCMP_001").toURI()), null);
+    MapBean mapBean = instance.readMap("SHERWOOD", null);
 
     assertThat(mapBean, notNullValue());
     assertThat(mapBean.getId(), isEmptyOrNullString());
