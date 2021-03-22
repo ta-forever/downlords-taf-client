@@ -9,25 +9,19 @@ import java.util.Map;
 @Data
 public class MapSize implements Comparable<MapSize> {
 
-  private static final float MAP_SIZE_FACTOR = 51.2f;
+  private static final float MAP_SIZE_FACTOR = 1.0f;
 
   private static Map<String, MapSize> cache = new HashMap<>();
-  /**
-   * The map width in pixels. One kilometer equals 51.2 pixels.
-   */
-  private final int widthInPixels;
-  /**
-   * The map height in pixels. One kilometer equals 51.2 pixels.
-   */
-  private final int heightInPixels;
+  private final int width;
+  private final int height;
 
   /**
-   * @param widthInPixels in kilometers
-   * @param heightInPixels in kilometers
+   * @param width in kilometers
+   * @param height in kilometers
    */
-  private MapSize(int widthInPixels, int heightInPixels) {
-    this.widthInPixels = widthInPixels;
-    this.heightInPixels = heightInPixels;
+  private MapSize(int width, int height) {
+    this.width = width;
+    this.height = height;
   }
 
   public static MapSize valueOf(int widthInPixels, int heightInPixels) {
@@ -43,12 +37,12 @@ public class MapSize implements Comparable<MapSize> {
 
   @Override
   public int compareTo(@NotNull MapSize o) {
-    int dimension = widthInPixels * heightInPixels;
-    int otherDimension = o.widthInPixels * o.heightInPixels;
+    int dimension = width * height;
+    int otherDimension = o.width * o.height;
 
     if (dimension == otherDimension) {
       //noinspection SuspiciousNameCombination
-      return Integer.compare(widthInPixels, o.widthInPixels);
+      return Integer.compare(width, o.width);
     }
 
     return Integer.compare(dimension, otherDimension);
@@ -56,8 +50,8 @@ public class MapSize implements Comparable<MapSize> {
 
   @Override
   public int hashCode() {
-    int result = widthInPixels;
-    result = 31 * result + heightInPixels;
+    int result = width;
+    result = 31 * result + height;
     return result;
   }
 
@@ -72,19 +66,19 @@ public class MapSize implements Comparable<MapSize> {
 
     MapSize mapSize = (MapSize) o;
 
-    return widthInPixels == mapSize.widthInPixels && heightInPixels == mapSize.heightInPixels;
+    return width == mapSize.width && height == mapSize.height;
   }
 
   public int getWidthInKm() {
-    return (int) (widthInPixels / MAP_SIZE_FACTOR);
+    return (int) (width / MAP_SIZE_FACTOR);
   }
 
   public int getHeightInKm() {
-    return (int) (heightInPixels / MAP_SIZE_FACTOR);
+    return (int) (height / MAP_SIZE_FACTOR);
   }
 
   @Override
   public String toString() {
-    return String.format("%dx%d", widthInPixels, heightInPixels);
+    return String.format("%dx%d", width, height);
   }
 }
