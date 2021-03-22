@@ -5,7 +5,6 @@ import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.JoinChannelEvent;
-import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.ModService;
@@ -17,8 +16,9 @@ import com.faforever.client.remote.domain.PlayerStatus;
 import com.google.common.base.Joiner;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
-import javafx.beans.binding.StringBinding;
 import javafx.collections.ObservableMap;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
@@ -34,6 +34,8 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -70,6 +72,8 @@ public class GameTileController implements Controller<Node> {
   public ImageView mapImageView;
   private Consumer<Game> onSelectedListener;
   private Game game;
+  private Timeline gameTimeSinceStartUpdater;
+  public Label gameTimeSinceStartLabel;
 
   public Button joinButton;
   public Button chatButton;
@@ -78,6 +82,12 @@ public class GameTileController implements Controller<Node> {
 
   public void setOnSelectedListener(Consumer<Game> onSelectedListener) {
     this.onSelectedListener = onSelectedListener;
+  }
+
+  public void stopGameStatusTimeUpdater() {
+    if (gameTimeSinceStartUpdater !=null) {
+      gameTimeSinceStartUpdater.stop();
+    }
   }
 
   public void initialize() {
@@ -92,6 +102,27 @@ public class GameTileController implements Controller<Node> {
     gameService.gameRunningProperty().addListener((obs, newValue, oldValue) -> {
       updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
     });
+
+    gameTimeSinceStartLabel.setVisible(false);
+    gameTimeSinceStartUpdater = new Timeline(1,new KeyFrame(javafx.util.Duration.seconds(0), (ActionEvent event) -> {
+      if (this.game == null) {
+        gameTimeSinceStartUpdater.stop();
+        gameTimeSinceStartLabel.setVisible(false);
+        return;
+      }
+      if (this.game.getStartTime() != null) {
+        Duration timeSinceStart = Duration.between(this.game.getStartTime(), Instant.now());
+        gameTimeSinceStartLabel.setText(String.format("%d:%s", timeSinceStart.toMinutes(), StringUtils.leftPad(String.valueOf(timeSinceStart.toSecondsPart()),2,"0")));
+        gameTimeSinceStartLabel.setVisible(!timeSinceStart.isNegative());
+      }
+      else {
+        gameTimeSinceStartLabel.setVisible(false);
+      }
+      if (this.game.getStatus().equals(GameStatus.ENDED)) {
+        gameTimeSinceStartUpdater.stop();
+      }
+    }), new KeyFrame(javafx.util.Duration.seconds(1)));
+    gameTimeSinceStartUpdater.setCycleCount(Timeline.INDEFINITE);
 
     eventBus.register(this);
   }
@@ -145,6 +176,7 @@ public class GameTileController implements Controller<Node> {
     ));
 
     gameStatusLabel.textProperty().bind(game.statusProperty().asString());
+    gameTimeSinceStartUpdater.play();
 
     avgRatingLabel.textProperty().bind(createStringBinding(
         () -> i18n.get("game.avgRating.format", Math.round(game.getAverageRating() / 100.0) * 100.0),

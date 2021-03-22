@@ -17,6 +17,8 @@ import com.faforever.client.theme.UiService;
 import com.faforever.client.vault.replay.WatchButtonController;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
@@ -24,7 +26,6 @@ import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.ObservableMap;
 import javafx.event.ActionEvent;
-import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -37,6 +38,8 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -80,8 +83,9 @@ public class GameDetailController implements Controller<Pane> {
   private final InvalidationListener gameStatusInvalidationListener;
   private final WeakInvalidationListener weakTeamListener;
   private final WeakInvalidationListener weakGameStatusListener;
-  @FXML
-  private Node watchButton;
+  public Node watchButton;
+  private Timeline gameTimeSinceStartUpdater;
+  public Label gameTimeSinceStartLabel;
 
   @SuppressWarnings("FieldCanBeLocal")
   private InvalidationListener featuredModInvalidationListener;
@@ -118,6 +122,7 @@ public class GameDetailController implements Controller<Pane> {
   }
 
   public void initialize() {
+
     gameDetailRoot.parentProperty().addListener(observable -> {
       if (!(gameDetailRoot.getParent() instanceof Pane)) {
         return;
@@ -145,6 +150,27 @@ public class GameDetailController implements Controller<Pane> {
     if (playerService.getCurrentPlayer().isPresent()) {
       updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
     }
+
+    gameTimeSinceStartLabel.setVisible(false);
+    gameTimeSinceStartUpdater = new Timeline(1,new KeyFrame(javafx.util.Duration.seconds(0), (ActionEvent event) -> {
+      if (this.game.get() == null) {
+        gameTimeSinceStartUpdater.stop();
+        gameTimeSinceStartLabel.setVisible(false);
+        return;
+      }
+      if (this.game.get().getStartTime() != null) {
+        Duration timeSinceStart = Duration.between(this.game.get().getStartTime(), Instant.now());
+        gameTimeSinceStartLabel.setText(String.format("%d:%s", timeSinceStart.toMinutes(), StringUtils.leftPad(String.valueOf(timeSinceStart.toSecondsPart()),2,"0")));
+        gameTimeSinceStartLabel.setVisible(!timeSinceStart.isNegative());
+      }
+      else {
+        gameTimeSinceStartLabel.setVisible(false);
+      }
+      if (this.game.get().getStatus().equals(GameStatus.ENDED)) {
+        gameTimeSinceStartUpdater.stop();
+      }
+    }), new KeyFrame(javafx.util.Duration.seconds(1)));
+    gameTimeSinceStartUpdater.setCycleCount(Timeline.INDEFINITE);
   }
 
   @Subscribe
@@ -190,6 +216,8 @@ public class GameDetailController implements Controller<Pane> {
     hostLabel.textProperty().bind(game.hostProperty());
     mapLabel.textProperty().bind(game.mapNameProperty());
     gameStatusLabel.textProperty().bind(game.statusProperty().asString());
+    gameTimeSinceStartUpdater.play();
+
     numberOfPlayersLabel.textProperty().bind(createStringBinding(
         () -> i18n.get("game.detail.players.format", game.getNumPlayers(), game.getMaxPlayers()),
         game.numPlayersProperty(),

@@ -53,6 +53,7 @@
                 <Region styleClass="icon,info-icon" />
             </graphic>
         </Label>
+        <Label fx:id="gameTimeSinceStartLabel" minWidth="0.0" styleClass="card-featured-mod" text="&lt;time&gt;" GridPane.columnIndex="2" GridPane.columnSpan="2147483647" GridPane.rowIndex="2" />
         <Label fx:id="numberOfPlayersLabel" minWidth="0.0" styleClass="card-info" text="&lt;Number of Players&gt;" GridPane.columnIndex="1" GridPane.rowIndex="3">
               <graphic>
                   <Region styleClass="icon,players-icon" />

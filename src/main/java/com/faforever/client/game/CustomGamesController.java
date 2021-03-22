@@ -232,14 +232,19 @@ public class CustomGamesController extends AbstractViewController<Node> {
   }
 
   public void onTableButtonClicked() {
-    gamesTableController = uiService.loadFxml("theme/play/games_table.fxml");
-    gamesTableController.selectedGameProperty().addListener((observable, oldValue, newValue) -> setSelectedGame(newValue));
-    Platform.runLater(() -> {
-      gamesTableController.initializeGameTable(filteredItems);
+    if (gamesTableController == null) {
+      gamesTableController = uiService.loadFxml("theme/play/games_table.fxml");
+      gamesTableController.selectedGameProperty().addListener((observable, oldValue, newValue) -> setSelectedGame(newValue));
+      Platform.runLater(() -> {
+        gamesTableController.initializeGameTable(filteredItems);
 
-      Node root = gamesTableController.getRoot();
-      populateContainer(root);
-    });
+        Node root = gamesTableController.getRoot();
+        populateContainer(root);
+      });
+    }
+    else {
+      gameViewContainer.getChildren().setAll(gamesTableController.getRoot());
+    }
   }
 
   private void populateContainer(Node root) {
@@ -252,15 +257,20 @@ public class CustomGamesController extends AbstractViewController<Node> {
   }
 
   public void onTilesButtonClicked() {
-    gamesTilesContainerController = uiService.loadFxml("theme/play/games_tiles_container.fxml");
-    JavaFxUtil.addListener(gamesTilesContainerController.selectedGameProperty(), new WeakChangeListener<>(gameChangeListener));
+    if (gamesTilesContainerController == null) {
+      gamesTilesContainerController = uiService.loadFxml("theme/play/games_tiles_container.fxml");
+      JavaFxUtil.addListener(gamesTilesContainerController.selectedGameProperty(), new WeakChangeListener<>(gameChangeListener));
 
-    Platform.runLater(() -> {
-      chooseSortingTypeChoiceBox.getItems().clear();
-      Node root = gamesTilesContainerController.getRoot();
-      populateContainer(root);
-      gamesTilesContainerController.createTiledFlowPane(filteredItems, chooseSortingTypeChoiceBox);
-    });
+      Platform.runLater(() -> {
+        chooseSortingTypeChoiceBox.getItems().clear();
+        Node root = gamesTilesContainerController.getRoot();
+        populateContainer(root);
+        gamesTilesContainerController.createTiledFlowPane(filteredItems, chooseSortingTypeChoiceBox);
+      });
+    }
+    else {
+      gameViewContainer.getChildren().setAll(gamesTilesContainerController.getRoot());
+    }
   }
 
   @VisibleForTesting

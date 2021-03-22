@@ -36,6 +36,7 @@
                 <Region styleClass="icon,info-icon" />
             </graphic>
         </Label>
+        <Label fx:id="gameTimeSinceStartLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map&gt;" wrapText="true" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
         <Label fx:id="mapLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map&gt;" wrapText="true" GridPane.rowIndex="4">
             <graphic>
                 <Region styleClass="icon,map-icon" />

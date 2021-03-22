@@ -49,7 +49,7 @@ public class GamesTilesContainerController implements Controller<Node> {
   private ObjectProperty<Game> selectedGame;
   private Comparator<Node> appliedComparator;
   @VisibleForTesting
-  Map<Integer, Node> uidToGameCard;
+  Map<Integer, GameTileController> uidToGameCard;
   private GameTooltipController gameTooltipController;
   private Tooltip tooltip;
 
@@ -72,18 +72,7 @@ public class GamesTilesContainerController implements Controller<Node> {
     gameListChangeListener = change -> {
       JavaFxUtil.assertApplicationThread();
         while (change.next()) {
-          change.getRemoved().forEach(gameInfoBean -> {
-            Node card = uidToGameCard.remove(gameInfoBean.getId());
-            if (card != null) {
-              Tooltip.uninstall(card, tooltip);
-              boolean remove = tiledFlowPane.getChildren().remove(card);
-              if (!remove) {
-                log.error("Tried to remove game tile that did not exist in UI.");
-              }
-            } else {
-              log.error("Tried to remove game tile that did not exist.");
-            }
-          });
+          change.getRemoved().forEach(gameInfoBean -> removeGameCard(gameInfoBean));
           change.getAddedSubList().forEach(GamesTilesContainerController.this::addGameCard);
           sortNodes();
         }
@@ -177,7 +166,7 @@ public class GamesTilesContainerController implements Controller<Node> {
     Node root = gameTileController.getRoot();
     root.setUserData(game);
     tiledFlowPane.getChildren().add(root);
-    uidToGameCard.put(game.getId(), root);
+    uidToGameCard.put(game.getId(), gameTileController);
     
     root.setOnMouseEntered(event -> {
       gameTooltipController.setGame(game);
@@ -186,6 +175,22 @@ public class GamesTilesContainerController implements Controller<Node> {
       }
     });
     Tooltip.install(root, tooltip);
+  }
+
+  private void removeGameCard(Game game) {
+    GameTileController gameTileController = uidToGameCard.remove(game.getId());
+    gameTileController.stopGameStatusTimeUpdater();
+    Node card = gameTileController.getRoot();
+
+    if (card != null) {
+      Tooltip.uninstall(card, tooltip);
+      boolean remove = tiledFlowPane.getChildren().remove(card);
+      if (!remove) {
+        log.error("Tried to remove game tile that did not exist in UI.");
+      }
+    } else {
+      log.error("Tried to remove game tile that did not exist.");
+    }
   }
 
   public Node getRoot() {
