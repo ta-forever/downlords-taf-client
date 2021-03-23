@@ -66,13 +66,13 @@ public class VaultController extends AbstractViewController<Node> {
 
       if (newValue == mapVaultTab) {
         eventBus.post(new OpenMapVaultEvent());
-      } else if (newValue == modVaultTab) {
+      } /*else if (newValue == modVaultTab) {
         eventBus.post(new OpenModVaultEvent());
       } else if (newValue == onlineReplayVaultTab) {
         eventBus.post(new OpenOnlineReplayVaultEvent());
       } else if (newValue == localReplayVaultTab) {
         eventBus.post(new OpenReplayVaultEvent());
-      }
+      }*/
       // TODO implement other tabs
     });
   }
@@ -85,7 +85,7 @@ public class VaultController extends AbstractViewController<Node> {
       if (navigateEvent instanceof OpenMapVaultEvent) {
         lastTab = mapVaultTab;
         lastTabController = mapVaultController;
-      } else if (navigateEvent instanceof OpenModVaultEvent) {
+      } /*else if (navigateEvent instanceof OpenModVaultEvent) {
         lastTab = modVaultTab;
         lastTabController = modVaultController;
       } else if (navigateEvent instanceof OpenOnlineReplayVaultEvent) {
@@ -94,7 +94,7 @@ public class VaultController extends AbstractViewController<Node> {
       } else if (navigateEvent instanceof OpenReplayVaultEvent) {
         lastTab = localReplayVaultTab;
         lastTabController = localReplayVaultController;
-      }
+      } */
       vaultRoot.getSelectionModel().select(lastTab);
       lastTabController.display(navigateEvent);
     } finally {

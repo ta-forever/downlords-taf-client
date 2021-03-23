@@ -167,7 +167,7 @@ public class GamesTilesContainerController implements Controller<Node> {
     root.setUserData(game);
     tiledFlowPane.getChildren().add(root);
     uidToGameCard.put(game.getId(), gameTileController);
-    
+
     root.setOnMouseEntered(event -> {
       gameTooltipController.setGame(game);
       if (tooltip.isShowing()) {
@@ -179,7 +179,7 @@ public class GamesTilesContainerController implements Controller<Node> {
 
   private void removeGameCard(Game game) {
     GameTileController gameTileController = uidToGameCard.remove(game.getId());
-    gameTileController.stopGameStatusTimeUpdater();
+    gameTileController.sever();
     Node card = gameTileController.getRoot();
 
     if (card != null) {

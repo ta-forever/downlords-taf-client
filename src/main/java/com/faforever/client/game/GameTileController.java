@@ -19,6 +19,8 @@ import com.google.common.eventbus.Subscribe;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ObservableMap;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
@@ -80,14 +82,19 @@ public class GameTileController implements Controller<Node> {
   public Button leaveButton;
   public Button startButton;
 
+  private ChangeListener<GameStatus> currentGameStatusListener;
+  private ChangeListener<Boolean> gameRunningListener;
+
   public void setOnSelectedListener(Consumer<Game> onSelectedListener) {
     this.onSelectedListener = onSelectedListener;
   }
 
-  public void stopGameStatusTimeUpdater() {
+  /* sever ties to external objects so that this instance can be garbage collected */
+  public void sever() {
     if (gameTimeSinceStartUpdater !=null) {
       gameTimeSinceStartUpdater.stop();
     }
+    eventBus.unregister(this);
   }
 
   public void initialize() {
@@ -96,12 +103,10 @@ public class GameTileController implements Controller<Node> {
     gameTypeLabel.managedProperty().bind(gameTypeLabel.visibleProperty());
     lockIconLabel.managedProperty().bind(lockIconLabel.visibleProperty());
 
-    gameService.getCurrentGameStatusProperty().addListener((obs, newValue, oldValue) -> {
-      updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
-    });
-    gameService.gameRunningProperty().addListener((obs, newValue, oldValue) -> {
-      updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
-    });
+    currentGameStatusListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
+    gameRunningListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
+    JavaFxUtil.addListener(gameService.getCurrentGameStatusProperty(), new WeakChangeListener<>(currentGameStatusListener));
+    JavaFxUtil.addListener(gameService.gameRunningProperty(), new WeakChangeListener<>(gameRunningListener));
 
     gameTimeSinceStartLabel.setVisible(false);
     gameTimeSinceStartUpdater = new Timeline(1,new KeyFrame(javafx.util.Duration.seconds(0), (ActionEvent event) -> {

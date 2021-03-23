@@ -24,6 +24,8 @@ import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ObservableMap;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
@@ -89,6 +91,16 @@ public class GameDetailController implements Controller<Pane> {
 
   @SuppressWarnings("FieldCanBeLocal")
   private InvalidationListener featuredModInvalidationListener;
+  private ChangeListener<GameStatus> currentGameStatusListener;
+  private ChangeListener<Boolean> gameRunningListener;
+
+  /* sever ties to external objects so that this instance can be garbage collected */
+  public void sever() {
+    if (gameTimeSinceStartUpdater !=null) {
+      gameTimeSinceStartUpdater.stop();
+    }
+    eventBus.unregister(this);
+  }
 
   public GameDetailController(I18n i18n, MapService mapService, ModService modService,
                               GameService gameService, PlayerService playerService,
@@ -111,13 +123,10 @@ public class GameDetailController implements Controller<Pane> {
     weakTeamListener = new WeakInvalidationListener(teamsInvalidationListener);
     weakGameStatusListener = new WeakInvalidationListener(gameStatusInvalidationListener);
 
-    gameService.getCurrentGameStatusProperty().addListener((obs, newValue, oldValue) -> {
-      updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
-    });
-    gameService.gameRunningProperty().addListener((obs, newValue, oldValue) -> {
-      updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
-    });
-
+    currentGameStatusListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
+    gameRunningListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
+    gameService.getCurrentGameStatusProperty().addListener(new WeakChangeListener<>(currentGameStatusListener));
+    gameService.gameRunningProperty().addListener(new WeakChangeListener<>(gameRunningListener));
     eventBus.register(this);
   }
 
