@@ -285,7 +285,7 @@ public class MapDetailController implements Controller<Node> {
     progressBar.progressProperty().unbind();
     progressBar.setProgress(-1);
 
-    mapService.uninstallMap(preferencesService.getPreferences().getLastGamePrefs().getLastGameType(), map)
+    mapService.uninstallMap(preferencesService.getPreferences().getLastGamePrefs().getLastGameType(), map.getMapName(), map.getCrc())
         .thenRun(() -> setInstalled(false))
         .exceptionally(throwable -> {
           notificationService.addNotification(new ImmediateErrorNotification(

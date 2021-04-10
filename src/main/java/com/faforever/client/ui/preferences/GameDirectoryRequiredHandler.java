@@ -1,6 +1,7 @@
 package com.faforever.client.ui.preferences;
 
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.ui.StageHolder;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.faforever.client.ui.preferences.event.GameDirectoryChosenEvent;
@@ -30,6 +31,7 @@ public class GameDirectoryRequiredHandler implements InitializingBean {
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   private final EventBus eventBus;
+  private final ModService modService;
   private final I18n i18n;
   private CompletableFuture<Path> future;
 
@@ -42,10 +44,11 @@ public class GameDirectoryRequiredHandler implements InitializingBean {
   public void onChooseGameDirectory(GameDirectoryChooseEvent event) {
     runLater(() -> {
       final String baseGameName = event.getBaseGameName();
+      String displayName = modService.getFeaturedModDisplayName(baseGameName);
       Path path;
       {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle(i18n.get("missingGamePath.chooserTitle", baseGameName.toUpperCase()));
+        fileChooser.setTitle(i18n.get("missingGamePath.chooserTitle", displayName));
         File result = fileChooser.showOpenDialog(StageHolder.getStage().getScene().getWindow());
 
         logger.info("User selected game path: {}", result);
@@ -56,9 +59,9 @@ public class GameDirectoryRequiredHandler implements InitializingBean {
       if (path != null)
       {
         TextInputDialog cmdLineOptionsInputDialog = new TextInputDialog("");
-        cmdLineOptionsInputDialog.setTitle(String.format("Total Annihilation: %s", baseGameName.toUpperCase()));
+        cmdLineOptionsInputDialog.setTitle(String.format("Total Annihilation: %s", displayName));
         cmdLineOptionsInputDialog.setHeaderText(
-            String.format("Executable for %s: %s\n\n", baseGameName.toUpperCase(), path.toString()) +
+            String.format("Executable for %s: %s\n\n", displayName, path.toString()) +
                 i18n.get("settings.fa.executableDecorator.description"));
         cmdLineOptionsInputDialog.setContentText(i18n.get("settings.fa.executableDecorator"));
 

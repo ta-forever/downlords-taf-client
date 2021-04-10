@@ -8,6 +8,7 @@ import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.mod.FeaturedMod;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.ImmediateErrorNotification;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.preferences.PreferencesService;
@@ -76,6 +77,7 @@ public abstract class VaultEntityController<T> extends AbstractViewController<No
   protected final I18n i18n;
   protected final PreferencesService preferencesService;
   protected final ReportingService reportingService;
+  protected final ModService modService;
   public Pane root;
   public StackPane vaultRoot;
   public VBox searchResultGroup;
@@ -100,12 +102,13 @@ public abstract class VaultEntityController<T> extends AbstractViewController<No
   protected ObjectProperty<State> state;
   protected CompletableFuture<Tuple<List<T>, Integer>> currentSupplier;
 
-  public VaultEntityController(UiService uiService, NotificationService notificationService, I18n i18n, PreferencesService preferencesService, ReportingService reportingService) {
+  public VaultEntityController(UiService uiService, NotificationService notificationService, I18n i18n, PreferencesService preferencesService, ReportingService reportingService, ModService modService) {
     this.uiService = uiService;
     this.notificationService = notificationService;
     this.i18n = i18n;
     this.preferencesService = preferencesService;
     this.reportingService = reportingService;
+    this.modService = modService;
 
     state = new SimpleObjectProperty<>(State.UNINITIALIZED);
   }
@@ -182,8 +185,8 @@ public abstract class VaultEntityController<T> extends AbstractViewController<No
     AnchorPane.setBottomAnchor(detailView, 0d);
     AnchorPane.setLeftAnchor(detailView, 0d);
 
-    taInstallationComboBox.setCellFactory(param -> new StringListCell<>(prefs -> String.format("%s [%s]", prefs.getInstalledPath().toString(), prefs.getModNameProperty().get().toUpperCase())));
-    taInstallationComboBox.setButtonCell(new StringListCell<>(prefs -> String.format("Install Maps Into Folder: %s [%s]", prefs.getInstalledPath().toString(), prefs.getModNameProperty().get().toUpperCase())));
+    taInstallationComboBox.setCellFactory(param -> new StringListCell<>(prefs -> String.format("%s [%s]", prefs.getInstalledPath().toString(), modService.getFeaturedModDisplayName(prefs.getModNameProperty().get()))));
+    taInstallationComboBox.setButtonCell(new StringListCell<>(prefs -> String.format("Install Maps Into Folder: %s [%s]", prefs.getInstalledPath().toString(), modService.getFeaturedModDisplayName(prefs.getModNameProperty().get()))));
     ListChangeListener<TotalAnnihilationPrefs> taInstallationsListener = change -> setTaInstallations(change.getList().stream().collect(Collectors.toList()));
     preferencesService.getTotalAnnihilationAllMods().addListener(taInstallationsListener);
 

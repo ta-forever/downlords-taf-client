@@ -72,7 +72,7 @@
             </children>
         </VBox>
 
-        <!-- Map Preview, Random Map -->
+        <!-- Map Preview -->
         <VBox fx:id="mapPreview" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" GridPane.columnIndex="2"
               GridPane.columnSpan="2" GridPane.rowIndex="3" GridPane.rowSpan="3" GridPane.vgrow="ALWAYS">
             <HBox alignment="CENTER" spacing="10.0">
@@ -89,6 +89,7 @@
                       styleClass="map-preview"/>
             </StackPane>
             <HBox alignment="CENTER" spacing="10.0">
+                <Label fx:id="hpiArchiveLabel" text="&lt;archive.ufo&gt;"/>
                 <Label fx:id="mapSizeLabel" text="&lt;Size&gt;" GridPane.columnIndex="1" GridPane.rowIndex="1">
                     <graphic>
                         <Region styleClass="icon,map-size-icon" />

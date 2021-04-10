@@ -7,6 +7,7 @@ import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.main.event.OpenMapVaultEvent;
 import com.faforever.client.main.event.ShowLadderMapsEvent;
 import com.faforever.client.map.event.MapUploadedEvent;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.query.SearchablePropertyMappings;
@@ -49,8 +50,8 @@ public class MapVaultController extends VaultEntityController<MapBean> {
   private MapDetailController mapDetailController;
 
   public MapVaultController(MapService mapService, I18n i18n, EventBus eventBus, PreferencesService preferencesService,
-                            UiService uiService, NotificationService notificationService, ReportingService reportingService) {
-    super(uiService, notificationService, i18n, preferencesService, reportingService);
+                            UiService uiService, NotificationService notificationService, ReportingService reportingService, ModService modService) {
+    super(uiService, notificationService, i18n, preferencesService, reportingService, modService);
     this.mapService = mapService;
     this.eventBus = eventBus;
   }

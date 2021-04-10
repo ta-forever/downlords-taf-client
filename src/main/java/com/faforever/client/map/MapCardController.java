@@ -146,7 +146,7 @@ public class MapCardController implements Controller<Node> {
   }
 
   public void onUninstallButtonClicked() {
-    mapService.uninstallMap(preferencesService.getPreferences().getLastGamePrefs().getLastGameType(), map)
+    mapService.uninstallMap(preferencesService.getPreferences().getLastGamePrefs().getLastGameType(), map.getMapName(), map.getCrc())
         .thenRun(() -> setInstalled(false))
         .exceptionally(throwable -> {
           notificationService.addNotification(new ImmediateErrorNotification(

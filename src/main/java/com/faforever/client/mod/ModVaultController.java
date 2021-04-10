@@ -41,7 +41,7 @@ public class ModVaultController extends VaultEntityController<ModVersion> {
 
   public ModVaultController(ModService modService, I18n i18n, EventBus eventBus, PreferencesService preferencesService,
                                UiService uiService, NotificationService notificationService, ReportingService reportingService) {
-    super(uiService, notificationService, i18n, preferencesService, reportingService);
+    super(uiService, notificationService, i18n, preferencesService, reportingService, modService);
     this.eventBus = eventBus;
     this.modService = modService;
   }

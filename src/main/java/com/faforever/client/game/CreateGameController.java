@@ -104,6 +104,7 @@ public class CreateGameController implements Controller<Pane> {
   public VBox mapPreview;
   public Pane mapPreviewPane;
   public Label versionLabel;
+  public Label hpiArchiveLabel;
   public ComboBox<PreviewType> mapPreviewTypeComboBox;
   public ComboBox<Integer> mapPreviewMaxPositionsComboBox;
   public CheckBox onlyForFriendsCheckBox;
@@ -118,6 +119,7 @@ public class CreateGameController implements Controller<Pane> {
 
   public void initialize() {
     versionLabel.managedProperty().bind(versionLabel.visibleProperty());
+    hpiArchiveLabel.managedProperty().bind(hpiArchiveLabel.visibleProperty());
 
     mapPreviewTypeComboBox.getItems().setAll(PreviewType.values());
     mapPreviewMaxPositionsComboBox.getItems().setAll(IntStream.rangeClosed(2,10).boxed().collect(Collectors.toList()));
@@ -341,6 +343,9 @@ public class CreateGameController implements Controller<Pane> {
         .map(Strings::emptyToNull)
         .map(FaStrings::removeLocalizationTag)
         .orElseGet(() -> i18n.get("map.noDescriptionAvailable")));
+
+    hpiArchiveLabel.setText(newValue.getHpiArchiveName());
+    hpiArchiveLabel.setVisible(true);
 
     ComparableVersion mapVersion = newValue.getVersion();
     if (mapVersion == null) {

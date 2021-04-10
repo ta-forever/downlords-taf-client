@@ -6,20 +6,20 @@ import com.faforever.client.config.ClientProperties;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
+import com.faforever.client.fx.StringCell;
 import com.faforever.client.fx.StringListCell;
 import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.NavigationItem;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.Action;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.PersistentNotification;
 import com.faforever.client.notification.Severity;
 import com.faforever.client.notification.TransientNotification;
-import com.faforever.client.player.Player;
 import com.faforever.client.preferences.LocalizationPrefs;
 import com.faforever.client.preferences.NotificationsPrefs;
 import com.faforever.client.preferences.Preferences;
-import com.faforever.client.preferences.Preferences.UnitDataBaseType;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TimeInfo;
 import com.faforever.client.preferences.ToastPosition;
@@ -43,20 +43,14 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableArray;
-import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
-import javafx.scene.control.Cell;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.PasswordField;
-import javafx.scene.control.TableColumn.CellEditEvent;
-import javafx.scene.control.TablePosition;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TableColumn;
@@ -64,11 +58,8 @@ import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.control.cell.TextFieldTableCell;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
-import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.util.StringConverter;
@@ -79,10 +70,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.text.NumberFormat;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -105,6 +93,7 @@ public class SettingsController implements Controller<Node> {
   private final PlatformService platformService;
   private final ClientProperties clientProperties;
   private final ClientUpdateService clientUpdateService;
+  private final ModService modService;
 
   public TextField executableDecoratorField;
   public TextField executionDirectoryField;
@@ -175,7 +164,8 @@ public class SettingsController implements Controller<Node> {
 
   public SettingsController(UserService userService, PreferencesService preferencesService, UiService uiService,
                             I18n i18n, EventBus eventBus, NotificationService notificationService,
-                            PlatformService platformService, ClientProperties clientProperties, ClientUpdateService clientUpdateService) {
+                            PlatformService platformService, ClientProperties clientProperties,
+                            ClientUpdateService clientUpdateService, ModService modService) {
     this.userService = userService;
     this.preferencesService = preferencesService;
     this.uiService = uiService;
@@ -185,6 +175,7 @@ public class SettingsController implements Controller<Node> {
     this.platformService = platformService;
     this.clientProperties = clientProperties;
     this.clientUpdateService = clientUpdateService;
+    this.modService = modService;
 
     availableLanguagesListener = observable -> {
       LocalizationPrefs localization = preferencesService.getPreferences().getLocalization();
@@ -317,8 +308,18 @@ public class SettingsController implements Controller<Node> {
     notifyOnAtMentionOnlyToggle.selectedProperty().bindBidirectional(preferences.getNotification().notifyOnAtMentionOnlyEnabledProperty());
     enableSoundsToggle.selectedProperty().bindBidirectional(preferences.getNotification().soundsEnabledProperty());
     gameLocationModTableColumn.setCellValueFactory(new PropertyValueFactory<>("getModName"));
+    gameLocationModTableColumn.setCellFactory(param -> new StringCell<>(technicalName -> modService.getFeaturedModDisplayName(technicalName)));
     gameLocationExecutableTableColumn.setCellValueFactory(new PropertyValueFactory<>("getInstalledExePath"));
     gameLocationCommandLineOptionsTableColumn.setCellValueFactory(new PropertyValueFactory<>("getCommandLineOptions"));
+
+    // ensure SettingsController knows about all the mods that ModService knows about
+    modService.getFeaturedMods()
+        .thenApply(modList -> {
+          modList.stream()
+            .filter(featuredMod -> featuredMod.isVisible())
+            .forEach(featuredMod -> preferencesService.getTotalAnnihilation(featuredMod.getTechnicalName()));
+          return modList;
+        });
 
 //    gameLocationExecutableTableColumn.setCellFactory(TextFieldTableCell.forTableColumn());
 //    gameLocationExecutableTableColumn.setOnEditCommit(

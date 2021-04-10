@@ -655,19 +655,25 @@ public class MapService implements InitializingBean, DisposableBean {
     return im;
   }
 
-  public CompletableFuture<Void> uninstallMap(String modTechnicalName, MapBean map) {
-    if (isOfficialMap(map.getMapName())) {
+
+  public CompletableFuture<Void> uninstallMap(String modTechnicalName, String mapName, String mapCrc) {
+    if (isOfficialMap(mapName)) {
       throw new IllegalArgumentException("Attempt to uninstall an official map");
     }
-    UninstallMapTask task = applicationContext.getBean(com.faforever.client.map.UninstallMapTask.class);
+
+    if (!isInstalled(modTechnicalName, mapName, mapCrc)) {
+      CompletableFuture<Void> result = new CompletableFuture<>();
+      result.complete(null);
+      return result;
+    }
 
     Path mapsDirectory = preferencesService.getTotalAnnihilation(modTechnicalName).getInstalledPath();
-    if (mapsDirectory == null) {
-      return new CompletableFuture<>();
-    }
-    task.setInstallationPath(mapsDirectory);
-    task.setHpiArchiveName(map.getHpiArchiveName());
+    Installation installation = installations.get(modTechnicalName);
+    MapBean installedMap = installation.mapsByName.get(mapName);
 
+    UninstallMapTask task = applicationContext.getBean(com.faforever.client.map.UninstallMapTask.class);
+    task.setInstallationPath(mapsDirectory);
+    task.setHpiArchiveName(installedMap.getHpiArchiveName());
     return taskService.submitTask(task).getFuture();
   }
 

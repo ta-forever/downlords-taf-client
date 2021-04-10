@@ -185,9 +185,10 @@ public class Preferences {
   }
 
   public TotalAnnihilationPrefs setTotalAnnihilation(String modTechnical, Path installedExePath, String commandLineOptions) {
-    String baseGameName = KnownFeaturedMod.fromString(modTechnical).getBaseGameName();
-    if (baseGameName == null) {
-      baseGameName = modTechnical;
+    String baseGameName = modTechnical;
+    KnownFeaturedMod kfm = KnownFeaturedMod.fromString(modTechnical);
+    if (kfm != null) {
+      baseGameName = kfm.getBaseGameName();
     }
 
     for (TotalAnnihilationPrefs pref: totalAnnihilation) {

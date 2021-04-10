@@ -8,6 +8,7 @@ import com.faforever.client.fx.StringCell;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.RatingRange;
@@ -57,6 +58,7 @@ public class GamesTableController implements Controller<Node> {
   private final MapService mapService;
   private final JoinGameHelper joinGameHelper;
   private final GameService gameService;
+  private final ModService modService;
   private final I18n i18n;
   private final UiService uiService;
   private final PreferencesService preferencesService;
@@ -113,8 +115,8 @@ public class GamesTableController implements Controller<Node> {
 
     passwordProtectionColumn.setCellValueFactory(param -> param.getValue().passwordProtectedProperty());
     passwordProtectionColumn.setCellFactory(param -> passwordIndicatorColumn());
-    mapPreviewColumn.setCellFactory(param -> new MapPreviewTableCell(uiService));
     passwordProtectionColumn.setVisible(preferencesService.getPreferences().isShowPasswordProtectedGames());
+    mapPreviewColumn.setCellFactory(param -> new MapPreviewTableCell(uiService));
     mapPreviewColumn.setCellValueFactory(param -> Bindings.createObjectBinding(
         () -> mapService
             .loadPreview(param.getValue().getFeaturedMod(), param.getValue().getMapName(), PreviewType.MINI, 10),
@@ -135,6 +137,7 @@ public class GamesTableController implements Controller<Node> {
     hostColumn.setCellFactory(param -> new StringCell<>(String::toString));
     modsColumn.setCellValueFactory(this::modCell);
     modsColumn.setCellFactory(param -> new StringCell<>(String::toString));
+
     coopMissionName.setVisible(coopMissionNameProvider != null);
 
     if (averageRatingColumn != null) {
@@ -187,7 +190,8 @@ public class GamesTableController implements Controller<Node> {
   @NotNull
   private ObservableValue<String> modCell(CellDataFeatures<Game, String> param) {
     String modTechnical = param.getValue().getFeaturedMod();
-    return new SimpleStringProperty(modTechnical);
+    String displayName = modService.getFeaturedModDisplayName(modTechnical);
+    return new SimpleStringProperty(displayName);
   }
 
   private void selectFirstGame() {

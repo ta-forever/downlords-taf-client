@@ -61,6 +61,7 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -289,6 +290,16 @@ public class ModService implements InitializingBean, DisposableBean {
         .findFirst()
         .orElseThrow(() -> new IllegalArgumentException("Not a valid featured mod: " + featuredMod))
     ));
+  }
+
+  public String getFeaturedModDisplayName(String modTechnical) {
+    String displayName = modTechnical;
+    try {
+      displayName = getFeaturedMod(modTechnical).get().getDisplayName();
+    } catch (InterruptedException e) {
+    } catch (ExecutionException e) {
+    }
+    return displayName;
   }
 
   public CompletableFuture<Tuple<List<ModVersion>, Integer>> findByQueryWithPageCount(SearchConfig searchConfig, int count, int page) {

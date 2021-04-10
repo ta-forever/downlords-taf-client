@@ -3,6 +3,7 @@ package com.faforever.client.vault;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.main.event.NavigationItem;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.query.LogicalNodeController;
@@ -50,6 +51,8 @@ public class VaultEntityControllerTest extends AbstractPlainJavaFxTest {
   private NotificationService notificationService;
   @Mock
   private ReportingService reportingService;
+  @Mock
+  private ModService modService;
   @Mock
   private SearchController searchController;
   @Mock
@@ -105,7 +108,7 @@ public class VaultEntityControllerTest extends AbstractPlainJavaFxTest {
     when(vaultEntityShowRoomController.getPane()).thenReturn(showRoomPane);
 
     items = createMockElements(50);
-    instance = new VaultEntityController<>(uiService, notificationService, i18n, preferencesService, reportingService) {
+    instance = new VaultEntityController<>(uiService, notificationService, i18n, preferencesService, reportingService, modService) {
       @Override
       protected Node getEntityCard(Integer integer) {
         GridPane card = new GridPane();
