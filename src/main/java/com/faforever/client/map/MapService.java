@@ -9,7 +9,11 @@ import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.io.FileUtils;
 import com.faforever.client.map.MapBean.Type;
+import com.faforever.client.notification.DismissAction;
+import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.NotificationService;
+import com.faforever.client.notification.Severity;
+import com.faforever.client.notification.TransientNotification;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
@@ -60,6 +64,7 @@ import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -444,6 +449,18 @@ public class MapService implements InitializingBean, DisposableBean {
     return installation.mapsByName.containsKey(mapName) && installation.mapsByName.get(mapName).getCrc().equals(mapCrc);
   }
 
+  public void removeConflictingArchives(String modTechnical, java.util.Map<String,MapBean> preExistingMaps, Path newArchive) {
+    Path installationPath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath();
+    List<String[]> archiveMaps = MapTool.listMapsInArchive(newArchive, null, false);
+    archiveMaps.stream()
+        .map(mapDetails -> mapDetails[MapTool.MAP_DETAIL_COLUMN_NAME])
+        .filter(mapName -> preExistingMaps.containsKey(mapName))
+        .map(mapName -> preExistingMaps.get(mapName).getHpiArchiveName())
+        .distinct()
+        .filter(archive -> !archive.equals(newArchive.getFileName()))
+        .forEach(archive -> removeArchive(installationPath.resolve(archive)));
+  }
+
   private void removeArchive(Path archivePath) {
     if (isOfficialArchive(archivePath)) {
       logger.info("Ignoring attempt to delete official map archive '{}' ...", archivePath);
@@ -455,6 +472,10 @@ public class MapService implements InitializingBean, DisposableBean {
       if (Files.exists(cachedArchivePath) && Files.size(cachedArchivePath) == Files.size(archivePath)) {
         logger.info("Deleting archive {} (a file of that name and size can be found at {})", archivePath, cachedArchivePath);
         Files.delete(archivePath);
+        notificationService.addNotification(new ImmediateNotification(
+            i18n.get("mapVault.removingArchive", archivePath),
+            i18n.get("mapVault.removingArchiveAlreadyAt", cachedArchivePath),
+            Severity.INFO, Collections.singletonList(new DismissAction(i18n))));
         return;
       }
     } catch (IOException e) { }
@@ -471,11 +492,19 @@ public class MapService implements InitializingBean, DisposableBean {
       if (Files.exists(cachedArchivePath)) {
         logger.info("Deleting archive {} (a file of that name and crc can be found at {})", archivePath, cachedArchivePath);
         Files.delete(archivePath);
+        notificationService.addNotification(new ImmediateNotification(
+            i18n.get("mapVault.removingArchive", archivePath),
+            i18n.get("mapVault.removingArchiveAlreadyAt", cachedArchivePath),
+            Severity.INFO, Collections.singletonList(new DismissAction(i18n))));
         return;
       }
       else {
         logger.info("Moving archive {} to {})", archivePath, cachedArchivePath);
         Files.move(archivePath, cachedArchivePath);
+        notificationService.addNotification(new ImmediateNotification(
+            i18n.get("mapVault.removingArchive", archivePath),
+            i18n.get("mapVault.removingArchiveMoveTo", cachedArchivePath),
+            Severity.INFO, Collections.singletonList(new DismissAction(i18n))));
         return;
       }
     } catch (IOException e) {
@@ -512,11 +541,18 @@ public class MapService implements InitializingBean, DisposableBean {
     }
     CompletableFuture<Void> future = downloadAndInstallArchive(modTechnicalName, downloadList.get(0), progressProperty, titleProperty);
     if (downloadList.size() > 1) {
-      return future.thenCompose(aVoid -> downloadAndInstallArchive(modTechnicalName, downloadHpiArchiveName, progressProperty, titleProperty));
+      future = future.thenCompose(aVoid -> downloadAndInstallArchive(modTechnicalName, downloadHpiArchiveName, progressProperty, titleProperty));
     }
-    else {
-      return future;
-    }
+
+    // we already removed any pre-existing archive containing mapName, but the new archive might contain other maps that conflict with existing archives
+    HashMap<String,MapBean> existingMaps = new HashMap<>();
+    existingMaps.putAll(getInstallation(modTechnicalName).mapsByName);
+    future = future.thenRun(() -> removeConflictingArchives(
+        modTechnicalName,
+        existingMaps,
+        installationPath.resolve(downloadHpiArchiveName)
+    ));
+    return future;
   }
 
   public CompletableFuture<Void> downloadAndInstallArchive(String modTechnical, String hpiArchiveName) {

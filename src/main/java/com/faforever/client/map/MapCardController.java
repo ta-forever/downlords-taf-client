@@ -70,13 +70,13 @@ public class MapCardController implements Controller<Node> {
     installStatusChangeListener = change -> {
       while (change.next()) {
         for (MapBean mapBean : change.getAddedSubList()) {
-          if (map.getMapName().equalsIgnoreCase(mapBean.getMapName())) {
+          if (map.getMapName().equals(mapBean.getMapName()) && map.getCrc().equals(mapBean.getCrc())) {
             setInstalled(true);
             return;
           }
         }
         for (MapBean mapBean : change.getRemoved()) {
-          if (map.getMapName().equals(mapBean.getMapName())) {
+          if (map.getMapName().equals(mapBean.getMapName()) && map.getCrc().equals(mapBean.getCrc())) {
             setInstalled(false);
             return;
           }
