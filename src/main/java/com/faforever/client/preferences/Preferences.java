@@ -46,6 +46,7 @@ public class Preferences {
   private final BooleanProperty proactiveResendEnabled;
   private final BooleanProperty ircIntegrationEnabled;
   private final BooleanProperty autoLaunchEnabled;
+  private final BooleanProperty autoJoinEnabled;
   private final BooleanProperty requireUacEnabled;
   // end TA options
   private final ListProperty<String> ignoredNotifications;
@@ -89,6 +90,7 @@ public class Preferences {
     proactiveResendEnabled = new SimpleBooleanProperty(false);
     ircIntegrationEnabled = new SimpleBooleanProperty(false);
     autoLaunchEnabled = new SimpleBooleanProperty(false);
+    autoJoinEnabled = new SimpleBooleanProperty(false);
     requireUacEnabled = new SimpleBooleanProperty(false);
     disallowJoinsViaDiscord = new SimpleBooleanProperty();
     showGameDetailsSidePane = new SimpleBooleanProperty(false);
@@ -156,6 +158,10 @@ public class Preferences {
     return autoLaunchEnabled;
   }
 
+  public BooleanProperty getAutoJoinEnabledProperty() {
+    return autoJoinEnabled;
+  }
+
   public BooleanProperty getRequireUacEnabledProperty() {
     return requireUacEnabled;
   }
@@ -174,6 +180,10 @@ public class Preferences {
 
   public boolean getAutoLaunchEnabled() {
     return autoLaunchEnabled.get();
+  }
+
+  public boolean getAutoJoinEnabled() {
+    return autoJoinEnabled.get();
   }
 
   public boolean getRequireUacEnabled() {

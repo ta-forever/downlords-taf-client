@@ -74,10 +74,12 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -227,6 +229,16 @@ public class PircBotXChatService implements ChatService, InitializingBean, Dispo
         .anyMatch(MODERATOR_USER_LEVELS::contains);
 
     return getOrCreateChatUser(username, channelName, isModerator);
+  }
+
+  public Set<String> getUserChannels(String username) {
+    Set<String> channelNames = new HashSet<String>();
+    channels.forEach((channelName, channel) -> {
+      if (channel.getUser(username) != null) {
+        channelNames.add(channelName);
+      }
+    });
+    return channelNames;
   }
 
   private void onMotd(MotdEvent event) {

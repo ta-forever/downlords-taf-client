@@ -1,5 +1,6 @@
 package com.faforever.client.game;
 
+import com.faforever.client.chat.ChatService;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.discord.DiscordRichPresenceService;
 import com.faforever.client.fa.CloseGameEvent;
@@ -25,6 +26,7 @@ import com.faforever.client.notification.Severity;
 import com.faforever.client.patch.GameUpdater;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
+import com.faforever.client.player.SocialStatus;
 import com.faforever.client.preferences.NotificationsPrefs;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.rankedmatch.MatchmakerInfoMessage;
@@ -146,6 +148,7 @@ public class GameService implements InitializingBean {
   private final DiscordRichPresenceService discordRichPresenceService;
   private final ReplayServer replayServer;
   private final ReconnectTimerService reconnectTimerService;
+  private final ChatService chatService;
 
   @VisibleForTesting
   RatingMode ratingMode;
@@ -179,7 +182,9 @@ public class GameService implements InitializingBean {
                      PlatformService platformService,
                      DiscordRichPresenceService discordRichPresenceService,
                      ReplayServer replayServer,
-                     ReconnectTimerService reconnectTimerService) {
+                     ReconnectTimerService reconnectTimerService,
+                     ChatService chatService) {
+
     this.fafService = fafService;
     this.totalAnnihilationService = totalAnnihilationService;
     this.mapService = mapService;
@@ -197,6 +202,7 @@ public class GameService implements InitializingBean {
     this.discordRichPresenceService = discordRichPresenceService;
     this.replayServer = replayServer;
     this.reconnectTimerService = reconnectTimerService;
+    this.chatService = chatService;
 
     ircHostAndPort = String.format("%s:%d", clientProperties.getIrc().getHost(), 6667);//clientProperties.getIrc().getPort());
     faWindowTitle = clientProperties.getForgedAlliance().getWindowTitle();
@@ -795,9 +801,11 @@ public class GameService implements InitializingBean {
     Optional<Player> currentPlayerOptional = playerService.getCurrentPlayer();
 
     Game game = createOrUpdateGame(gameInfoMessage);
+    final boolean isGameCurrentGame = Objects.equals(currentGame.get(), game);  // some control paths null out currentGame but we still need to remember this
+
     if (GameStatus.ENDED == game.getStatus()) {
       removeGame(gameInfoMessage);
-      if (!currentPlayerOptional.isPresent() || !Objects.equals(currentGame.get(), game)) {
+      if (!currentPlayerOptional.isPresent() || !isGameCurrentGame) {
         return;
       }
       synchronized (currentGame) {
@@ -819,7 +827,7 @@ public class GameService implements InitializingBean {
           log.info("[onGameInfo] currentGame(game) because currentPlayerInGame && game.isOpen()");
           currentGame.set(game);
         }
-      } else if (Objects.equals(currentGame.get(), game) && !currentPlayerInGame) {
+      } else if (isGameCurrentGame && !currentPlayerInGame) {
         synchronized (currentGame) {
           log.info("[onGameInfo] currentGame(null) because !currentPlayerInGame");
           currentGame.set(null);
@@ -835,6 +843,46 @@ public class GameService implements InitializingBean {
         platformService.focusWindow(faWindowTitle);
       }
     });
+
+    if (currentPlayerOptional.isPresent()) {
+      Player currentPlayer = currentPlayerOptional.get();
+      Player hostPlayer = playerService.getPlayerForUsername(game.getHost()).get();
+      Set<String> playerChannels = chatService.getUserChannels(hostPlayer.getUsername());
+      Set<String> currentPlayerChannels = chatService.getUserChannels(currentPlayer.getUsername());
+
+      if (
+          // auto-join if enabled in preferences
+          preferencesService.getPreferences().getAutoJoinEnabled() &&
+
+          // don't try to join own games ... and don't join a foe's game as a way to prevent griefing
+          hostPlayer.getSocialStatus() != SocialStatus.SELF && hostPlayer.getSocialStatus() != SocialStatus.FOE &&
+
+          // game is ripe for joining
+          (hostPlayer.getStatus() == PlayerStatus.HOSTING || hostPlayer.getStatus() == PlayerStatus.HOSTED) &&
+          (game.getStatus() == GameStatus.STAGING || game.getStatus() == GameStatus.BATTLEROOM) &&
+
+          // we don't want to auto-join if we're joined another game already
+          currentPlayer.getStatus() == PlayerStatus.IDLE &&
+          getCurrentGame() == null &&
+
+          // we don't want to rejoin the game we just left (NB getCurrentGame is nulled out on leaving a game.  But isGameCurrentGame is initialised before that)
+          !isGameCurrentGame &&
+
+          // can't join until this information is available
+          game.getMapArchiveName() != null &&
+          game.getMapCrc() != null &&
+
+          // host can prevent auto joins by setting a password
+          !game.isPasswordProtected() &&
+
+          // only auto-join if host shares a common chat channel with us
+          chatService.getUserChannels(currentPlayer.getUsername()).stream().anyMatch(channel ->
+              channel.startsWith("#") && !chatService.isDefaultChannel(channel) && playerChannels.contains(channel))) {
+
+        log.info("auto-joining game: {}", game);
+        this.joinGame(game, null);
+      }
+    }
   }
 
   private Game createOrUpdateGame(GameInfoMessage gameInfoMessage) {
@@ -892,7 +940,6 @@ public class GameService implements InitializingBean {
   }
 
   private void updateFromGameInfo(GameInfoMessage gameInfoMessage, Game game) {
-
     game.setId(gameInfoMessage.getUid());
     game.setHost(gameInfoMessage.getHost());
     game.setTitle(StringEscapeUtils.unescapeHtml4(gameInfoMessage.getTitle()));

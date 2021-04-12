@@ -436,8 +436,9 @@ public class MapService implements InitializingBean, DisposableBean {
     return officialMaps.stream().anyMatch(name -> name.equalsIgnoreCase(mapName));
   }
 
-  public boolean isOfficialArchive(Path archiveName) {
-    return officialMapArchives.stream().anyMatch(name -> name.equalsIgnoreCase(archiveName.toString()));
+  public boolean isOfficialArchive(Path archivePath) {
+    String archvieFileName = archivePath.getFileName().toString();
+    return officialMapArchives.stream().anyMatch(name -> name.equalsIgnoreCase(archvieFileName));
   }
 
   /**
