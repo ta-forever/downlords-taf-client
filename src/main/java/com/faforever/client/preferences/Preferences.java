@@ -90,8 +90,8 @@ public class Preferences {
     proactiveResendEnabled = new SimpleBooleanProperty(false);
     ircIntegrationEnabled = new SimpleBooleanProperty(false);
     autoLaunchEnabled = new SimpleBooleanProperty(false);
-    autoJoinEnabled = new SimpleBooleanProperty(false);
-    requireUacEnabled = new SimpleBooleanProperty(false);
+    autoJoinEnabled = new SimpleBooleanProperty(true);
+    requireUacEnabled = new SimpleBooleanProperty(true);
     disallowJoinsViaDiscord = new SimpleBooleanProperty();
     showGameDetailsSidePane = new SimpleBooleanProperty(false);
     advancedIceLogEnabled = new SimpleBooleanProperty(false);
