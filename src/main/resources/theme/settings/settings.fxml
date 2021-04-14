@@ -498,9 +498,24 @@
                                        <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
                                    </rowConstraints>
                                    <children>
-                                       <Label contentDisplay="RIGHT" maxWidth="1.7976931348623157E308" styleClass="setting-title" text="%settings.fa.enableAutoLaunch" />
-                                       <Label styleClass="setting-description" text="%settings.fa.enableAutoLaunch.description" GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" />
-                                       <CheckBox fx:id="enableAutoLaunchToggle" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" GridPane.columnIndex="1" />
+                                       <Label contentDisplay="RIGHT" maxWidth="1.7976931348623157E308" styleClass="setting-title" text="%settings.fa.enableAutoLaunchOnHost" />
+                                       <Label styleClass="setting-description" text="%settings.fa.enableAutoLaunchOnHost.description" GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" />
+                                       <CheckBox fx:id="enableAutoLaunchOnHostToggle" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" GridPane.columnIndex="1" />
+                                   </children>
+                               </GridPane>
+                               <GridPane styleClass="setting-container" visible="true">
+                                   <columnConstraints>
+                                       <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
+                                       <ColumnConstraints halignment="RIGHT" hgrow="SOMETIMES" minWidth="10.0" />
+                                   </columnConstraints>
+                                   <rowConstraints>
+                                       <RowConstraints minHeight="10.0" valignment="TOP" vgrow="SOMETIMES" />
+                                       <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
+                                   </rowConstraints>
+                                   <children>
+                                       <Label contentDisplay="RIGHT" maxWidth="1.7976931348623157E308" styleClass="setting-title" text="%settings.fa.enableAutoLaunchOnJoin" />
+                                       <Label styleClass="setting-description" text="%settings.fa.enableAutoLaunchOnJoin.description" GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" />
+                                       <CheckBox fx:id="enableAutoLaunchOnJoinToggle" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" GridPane.columnIndex="1" />
                                    </children>
                                </GridPane>
                                <GridPane styleClass="setting-container" visible="true">

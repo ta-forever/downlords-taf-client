@@ -45,7 +45,8 @@ public class Preferences {
   private final BooleanProperty forceRelayEnabled;
   private final BooleanProperty proactiveResendEnabled;
   private final BooleanProperty ircIntegrationEnabled;
-  private final BooleanProperty autoLaunchEnabled;
+  private final BooleanProperty autoLaunchOnHostEnabled;
+  private final BooleanProperty autoLaunchOnJoinEnabled;
   private final BooleanProperty autoJoinEnabled;
   private final BooleanProperty requireUacEnabled;
   // end TA options
@@ -89,7 +90,8 @@ public class Preferences {
     forceRelayEnabled = new SimpleBooleanProperty(false);
     proactiveResendEnabled = new SimpleBooleanProperty(false);
     ircIntegrationEnabled = new SimpleBooleanProperty(false);
-    autoLaunchEnabled = new SimpleBooleanProperty(false);
+    autoLaunchOnHostEnabled = new SimpleBooleanProperty(false);
+    autoLaunchOnJoinEnabled = new SimpleBooleanProperty(true);
     autoJoinEnabled = new SimpleBooleanProperty(true);
     requireUacEnabled = new SimpleBooleanProperty(true);
     disallowJoinsViaDiscord = new SimpleBooleanProperty();
@@ -154,9 +156,9 @@ public class Preferences {
 
   public BooleanProperty getIrcIntegrationEnabledProperty() { return ircIntegrationEnabled; }
 
-  public BooleanProperty getAutoLaunchEnabledProperty() {
-    return autoLaunchEnabled;
-  }
+  public BooleanProperty getAutoLaunchOnHostEnabledProperty() { return autoLaunchOnHostEnabled; }
+
+  public BooleanProperty getAutoLaunchOnJoinEnabledProperty() {  return autoLaunchOnJoinEnabled; }
 
   public BooleanProperty getAutoJoinEnabledProperty() {
     return autoJoinEnabled;
@@ -178,8 +180,12 @@ public class Preferences {
     return ircIntegrationEnabled.get();
   }
 
-  public boolean getAutoLaunchEnabled() {
-    return autoLaunchEnabled.get();
+  public boolean getAutoLaunchOnHostEnabled() {
+    return autoLaunchOnHostEnabled.get();
+  }
+
+  public boolean getAutoLaunchOnJoinEnabled() {
+    return autoLaunchOnJoinEnabled.get();
   }
 
   public boolean getAutoJoinEnabled() {

@@ -279,7 +279,7 @@ public class GameService implements InitializingBean {
         final Player currentPlayer = playerService.getCurrentPlayer().orElseThrow(() -> new IllegalStateException("Player must be set"));
         discordRichPresenceService.updatePlayedGameTo(currentGame.get(), currentPlayer.getId(), currentPlayer.getUsername());
 
-        if (currentPlayer.getStatus() == PlayerStatus.JOINING && currentGame.get().getStatus() == GameStatus.BATTLEROOM && preferencesService.getPreferences().getAutoLaunchEnabled()) {
+        if (currentPlayer.getStatus() == PlayerStatus.JOINING && currentGame.get().getStatus() == GameStatus.BATTLEROOM && preferencesService.getPreferences().getAutoLaunchOnJoinEnabled()) {
           GameService.this.startBattleRoom();
         }
       }
@@ -320,7 +320,7 @@ public class GameService implements InitializingBean {
           if (currentGameStatusProperty.get() != newStatus) {
             currentGameStatusProperty.setValue(newStatus);
           }
-          if (currentPlayer.getStatus() == PlayerStatus.JOINING && newStatus == GameStatus.BATTLEROOM && preferencesService.getPreferences().getAutoLaunchEnabled()) {
+          if (currentPlayer.getStatus() == PlayerStatus.JOINING && newStatus == GameStatus.BATTLEROOM && preferencesService.getPreferences().getAutoLaunchOnJoinEnabled()) {
             GameService.this.startBattleRoom();
           }
         }
@@ -347,7 +347,7 @@ public class GameService implements InitializingBean {
     stopSearchLadder1v1();
     String inGameChannel = getInGameIrcChannel(newGameInfo);
     String inGameIrcUrl = getInGameIrcUrl(inGameChannel);
-    boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchEnabled();
+    boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchOnHostEnabled();
 
     return updateGameIfNecessary(newGameInfo.getFeaturedMod(), null, emptyMap(), newGameInfo.getSimMods())
         .thenCompose(aVoid -> fafService.requestHostGame(newGameInfo))
@@ -386,7 +386,7 @@ public class GameService implements InitializingBean {
             log.info("[joinGame] currentGame.set(game)");
             currentGame.set(game);
           }
-          boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchEnabled() && game.getStatus() == GameStatus.BATTLEROOM;
+          boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchOnJoinEnabled() && game.getStatus() == GameStatus.BATTLEROOM;
           startGame(game.getFeaturedMod(), gameLaunchMessage, null, RatingMode.GLOBAL, inGameIrcUrl, autoLaunch);
           Platform.runLater(() -> Platform.runLater(() -> eventBus.post(new JoinChannelEvent(inGameIrcChannel))));
         })
