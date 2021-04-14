@@ -115,17 +115,33 @@ public class MapTool {
     logger.info("Enumerating maps: {}", String.join(" ", processBuilder.command()));
 
     List<String[]> mapList = new ArrayList<>();
+
+    boolean logEnable = false;
+    String maptoolDataReceived = new String();
+
     try {
       final String UNIT_SEPARATOR = Character.toString((char)0x1f);
       Process process = processBuilder.start();
       BufferedReader input = new BufferedReader(new InputStreamReader(process.getInputStream()));
       String line;
       while ((line = input.readLine()) != null) {
-        mapList.add(line.split(UNIT_SEPARATOR));
+        maptoolDataReceived += line + "\n";
+        String parts[] = line.split(UNIT_SEPARATOR);
+        if (parts.length < 9) {
+          logEnable = true;
+        }
+        mapList.add(parts);
+      }
+      if (logEnable) {
+        logger.warn("Received too few fields from mapTool:\n{}\n{}", processBuilder.command(), maptoolDataReceived);
+        while ((line = input.readLine()) != null) {
+          logger.warn("but theres more:{}", line);
+        }
       }
       input.close();
+      process.waitFor();
     }
-    catch (IOException e)
+    catch (IOException | InterruptedException e )
     {
       logger.error("unable to process maps: {}", e.getMessage());
     }

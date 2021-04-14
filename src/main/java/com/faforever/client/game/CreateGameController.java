@@ -56,6 +56,9 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.lang.ref.WeakReference;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -199,8 +202,12 @@ public class CreateGameController implements Controller<Pane> {
       featuredModListView.setItems(FXCollections.observableList(featuredModBeans).filtered(FeaturedMod::isVisible));
       featuredModListView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> Platform.runLater(() -> {
         setAvailableMaps(newValue.getTechnicalName());
+        Path installedExePath = preferencesService.getTotalAnnihilation(newValue.getTechnicalName()).getInstalledExePath();
+        setGamePathButton.setStyle(installedExePath == null || !Files.isExecutable(installedExePath)
+            ? "-fx-background-color: -fx-accent"
+            : "-fx-background-color: -fx-background");
         selectLastMap();
-          }));
+      }));
       selectLastOrDefaultGameType();
     }));
 
@@ -264,7 +271,9 @@ public class CreateGameController implements Controller<Pane> {
 
     createGameButton.disableProperty().bind(
         titleTextField.textProperty().isEmpty()
-            .or(featuredModListView.getSelectionModel().selectedItemProperty().isNull().or(fafService.connectionStateProperty().isNotEqualTo(CONNECTED)))
+            .or(featuredModListView.getSelectionModel().selectedItemProperty().isNull())
+            .or(fafService.connectionStateProperty().isNotEqualTo(CONNECTED))
+            .or(mapListView.getSelectionModel().selectedItemProperty().isNull())
     );
   }
 
@@ -304,13 +313,12 @@ public class CreateGameController implements Controller<Pane> {
         mapService.getInstalledMaps(modTechnical).filtered(mapBean -> mapBean.getType() == Type.SKIRMISH).sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName()))
     );
 
-    mapListView.setItems(filteredMapBeans);
-
-    if (filteredMapBeans.isEmpty()) {
-      this.setGamePathButton.setStyle(String.format("-fx-background-color: -fx-accent"));
+    Path installedExePath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledExePath();
+    if (filteredMapBeans.isEmpty() && installedExePath != null && Files.isExecutable(installedExePath)) {
+      mapListView.setItems(mapService.getOfficialMaps());
     }
     else {
-      this.setGamePathButton.setStyle(String.format("-fx-background-color: -fx-background"));
+      mapListView.setItems(filteredMapBeans);
     }
   }
 

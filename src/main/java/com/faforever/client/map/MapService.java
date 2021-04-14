@@ -333,13 +333,14 @@ public class MapService implements InitializingBean, DisposableBean {
       protected Void call() {
         updateTitle(i18n.get("mapVault.loadingMaps"));
 
-        Path gamePath = preferencesService.getTotalAnnihilation(installation.modTechnicalName).getInstalledPath();
-        if (gamePath == null) {
+        Path exePath = preferencesService.getTotalAnnihilation(installation.modTechnicalName).getInstalledExePath();
+        if (exePath == null || !Files.isExecutable(exePath)) {
           synchronized(installation.enumerationsRequested) {
             installation.enumerationsRequested = 0;
           }
           return null;
         }
+        Path gamePath = exePath.getParent();
 
         List<MapBean> mapList = new ArrayList<>();
         for (String[] details: MapTool.listMapsInstalled(gamePath, preferencesService.getCacheDirectory().resolve("maps"), false)) {
@@ -358,6 +359,7 @@ public class MapService implements InitializingBean, DisposableBean {
         installation.maps.clear();
         installation.maps.addAll(mapList);
         if (installation.maps.isEmpty()) {
+          logger.warn("no maps found for mod={}. inserting OTA maps", installation.modTechnicalName);
           for (String map : otaMaps) {
             installation.addMap(map, null);
           }
@@ -387,10 +389,26 @@ public class MapService implements InitializingBean, DisposableBean {
   @NotNull
   public MapBean readMap(String mapName, String [] mapDetails) {
     MapBean mapBean = new MapBean();
-    String archiveName = mapDetails != null ? mapDetails[MAP_DETAIL_COLUMN_ARCHIVE] : "<unknown hpi>";
-    String description = mapDetails != null ? mapDetails[MAP_DETAIL_COLUMN_DESCRIPTION] : mapName;
-    String mapSizeStr = mapDetails != null ? mapDetails[MAP_DETAIL_COLUMN_SIZE] : "16 x 16";
-    String crc = mapDetails != null ? mapDetails[MAP_DETAIL_COLUMN_CRC] : "ffffffff";
+
+    String archiveName = "unknown.ufo";
+    String description = mapName;
+    String mapSizeStr = "16 x 16";
+    String crc = "00000000";
+
+    try {
+      if (mapDetails != null) {
+        archiveName = mapDetails[MAP_DETAIL_COLUMN_ARCHIVE];
+        description = mapDetails[MAP_DETAIL_COLUMN_DESCRIPTION];
+        mapSizeStr = mapDetails[MAP_DETAIL_COLUMN_SIZE];
+        crc = mapDetails[MAP_DETAIL_COLUMN_CRC];
+      }
+      else {
+        logger.warn("null map details for map: {}", mapName);
+      }
+    }
+    catch (ArrayIndexOutOfBoundsException e) {
+      logger.warn("index out of bounds for map: {}. details: {}", String.join("/",mapDetails));
+    }
 
     String mapSizeArray[] = mapSizeStr.replaceAll("[^0-9x]", "").split("x");
 
@@ -420,6 +438,12 @@ public class MapService implements InitializingBean, DisposableBean {
   public ObservableList<MapBean> getInstalledMaps(String modTechnical) {
     Installation installation = getInstallation(modTechnical);
     return installation.maps;
+  }
+
+  public ObservableList<MapBean> getOfficialMaps() {
+    ObservableList<MapBean> maps = FXCollections.observableArrayList();
+    maps.add(readMap("SHERWOOD", new String[]{"SHERWOOD", "totala2.hpi", "ead82fc5", "TAF had trouble finding your maps so we just put this one in cos we know you probably have it", "7 x 7", "3"}));
+    return maps;
   }
 
   public Optional<MapBean> getMapLocallyFromName(String modTechnical, String mapName) {
