@@ -64,6 +64,7 @@ import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -73,6 +74,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_ARCHIVE;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_CRC;
@@ -111,6 +113,7 @@ public class MapService implements InitializingBean, DisposableBean {
     final String modTechnicalName;
     private final Map<String, MapBean> mapsByName = new HashMap<>();
     private final ObservableList<MapBean> maps = FXCollections.observableArrayList();
+    private List<String> downloadingList = new ArrayList<>(); // guard against multiple attempts to download same archive prolly due to clicky users
     private Thread directoryWatcherThread;
     private Integer enumerationsRequested = 0;
 
@@ -252,7 +255,7 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   private static URL getPreviewUrl(String mapName, String baseUrl, PreviewType previewType) {
-    return noCatch(() -> new URL(format(baseUrl, previewType.folderName, urlFragmentEscaper().escape(mapName).toLowerCase(Locale.US))));
+    return noCatch(() -> new URL(format(baseUrl, previewType.folderName, urlFragmentEscaper().escape(mapName))));
   }
 
   @Override
@@ -564,6 +567,17 @@ public class MapService implements InitializingBean, DisposableBean {
     if (downloadList.isEmpty()) {
       return CompletableFuture.completedFuture(null);
     }
+
+    downloadList = downloadList.stream()
+        .filter(archive -> !getInstallation(modTechnicalName).downloadingList.contains(archive))
+        .collect(Collectors.toList());
+    getInstallation(modTechnicalName).downloadingList.addAll(downloadList);
+
+    if (downloadList.isEmpty()) {
+      logger.info("[ensureMap] Dude, hold up! {} is already downloading", downloadHpiArchiveName);
+      return CompletableFuture.completedFuture(null);
+    }
+
     CompletableFuture<Void> future = downloadAndInstallArchive(modTechnicalName, downloadList.get(0), progressProperty, titleProperty);
     if (downloadList.size() > 1) {
       future = future.thenCompose(aVoid -> downloadAndInstallArchive(modTechnicalName, downloadHpiArchiveName, progressProperty, titleProperty));
@@ -572,11 +586,13 @@ public class MapService implements InitializingBean, DisposableBean {
     // we already removed any pre-existing archive containing mapName, but the new archive might contain other maps that conflict with existing archives
     HashMap<String,MapBean> existingMaps = new HashMap<>();
     existingMaps.putAll(getInstallation(modTechnicalName).mapsByName);
-    future = future.thenRun(() -> removeConflictingArchives(
+    future = future.thenRun(() -> {
+      removeConflictingArchives(
         modTechnicalName,
         existingMaps,
-        installationPath.resolve(downloadHpiArchiveName)
-    ));
+        installationPath.resolve(downloadHpiArchiveName));
+      getInstallation(modTechnicalName).downloadingList.removeIf(archive -> Arrays.asList(downloadHpiArchiveName,HPI_ARCHIVE_TA_FEATURES_2013).contains(archive));
+    });
     return future;
   }
 
