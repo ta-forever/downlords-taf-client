@@ -42,6 +42,9 @@ public class LaunchCommandBuilder {
   private String ircUrl;
   private String commandInputFile;
 
+  private Integer launchServerPort;
+  private boolean startLaunchServer;
+
   public static LaunchCommandBuilder create() {
     return new LaunchCommandBuilder();
   }
@@ -53,6 +56,16 @@ public class LaunchCommandBuilder {
       result.add(matcher.group(1).replace("\"", ""));
     }
     return result;
+  }
+
+  public LaunchCommandBuilder launchServerPort(int port) {
+    this.launchServerPort = port;
+    return this;
+  }
+
+  public LaunchCommandBuilder startLaunchServer(boolean start) {
+    this.startLaunchServer = start;
+    return this;
   }
 
   public LaunchCommandBuilder requireUac(boolean requireUac) {
@@ -162,6 +175,15 @@ public class LaunchCommandBuilder {
 
     List<String> command = new ArrayList<>();
     command.add(String.format(QUOTED_STRING_DECORATOR, gpgnet4taExecutable.toAbsolutePath().toString()));
+
+    if (this.startLaunchServer) {
+      command.add("--launchserver");
+    }
+
+    if (this.launchServerPort != null) {
+      command.add("--launchserverport");
+      command.add(String.valueOf(launchServerPort));
+    }
 
     if (requireUac) {
       command.add("--uac");
