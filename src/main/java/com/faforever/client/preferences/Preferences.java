@@ -47,6 +47,7 @@ public class Preferences {
   private final BooleanProperty ircIntegrationEnabled;
   private final BooleanProperty autoLaunchOnHostEnabled;
   private final BooleanProperty autoLaunchOnJoinEnabled;
+  private final BooleanProperty autoRehostEnabled;
   private final BooleanProperty autoJoinEnabled;
   private final BooleanProperty requireUacEnabled;
   // end TA options
@@ -92,6 +93,7 @@ public class Preferences {
     ircIntegrationEnabled = new SimpleBooleanProperty(false);
     autoLaunchOnHostEnabled = new SimpleBooleanProperty(false);
     autoLaunchOnJoinEnabled = new SimpleBooleanProperty(true);
+    autoRehostEnabled = new SimpleBooleanProperty(true);
     autoJoinEnabled = new SimpleBooleanProperty(true);
     requireUacEnabled = new SimpleBooleanProperty(true);
     disallowJoinsViaDiscord = new SimpleBooleanProperty();
@@ -160,6 +162,10 @@ public class Preferences {
 
   public BooleanProperty getAutoLaunchOnJoinEnabledProperty() {  return autoLaunchOnJoinEnabled; }
 
+  public BooleanProperty getAutoRehostEnabledProperty() {
+    return autoRehostEnabled;
+  }
+
   public BooleanProperty getAutoJoinEnabledProperty() {
     return autoJoinEnabled;
   }
@@ -186,6 +192,10 @@ public class Preferences {
 
   public boolean getAutoLaunchOnJoinEnabled() {
     return autoLaunchOnJoinEnabled.get();
+  }
+
+  public boolean getAutoRehostEnabled() {
+    return autoRehostEnabled.get();
   }
 
   public boolean getAutoJoinEnabled() {

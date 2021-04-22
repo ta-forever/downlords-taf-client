@@ -107,6 +107,7 @@ public class SettingsController implements Controller<Node> {
   public CheckBox enableIrcIntegrationToggle;
   public CheckBox enableAutoLaunchOnHostToggle;
   public CheckBox enableAutoLaunchOnJoinToggle;
+  public CheckBox enableAutoRehostToggle;
   public CheckBox enableAutoJoinToggle;
   public CheckBox requireUacToggle;
   public TableView<TotalAnnihilationPrefs> gameLocationTableView;
@@ -342,6 +343,7 @@ public class SettingsController implements Controller<Node> {
     enableIrcIntegrationToggle.selectedProperty().bindBidirectional(preferences.getIrcIntegrationEnabledProperty());
     enableAutoLaunchOnHostToggle.selectedProperty().bindBidirectional(preferences.getAutoLaunchOnHostEnabledProperty());
     enableAutoLaunchOnJoinToggle.selectedProperty().bindBidirectional(preferences.getAutoLaunchOnJoinEnabledProperty());
+    enableAutoRehostToggle.selectedProperty().bindBidirectional(preferences.getAutoRehostEnabledProperty());
     enableAutoJoinToggle.selectedProperty().bindBidirectional(preferences.getAutoJoinEnabledProperty());
     requireUacToggle.selectedProperty().bindBidirectional(preferences.getRequireUacEnabledProperty());
     updateGameLocationTable();

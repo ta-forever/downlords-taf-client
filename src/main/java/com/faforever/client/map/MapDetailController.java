@@ -307,7 +307,7 @@ public class MapDetailController implements Controller<Node> {
   }
 
   public void onCreateGameButtonClicked() {
-    String modTechnical = KnownFeaturedMod.DEFAULT.getTechnicalName();
+    String modTechnical = preferencesService.getPreferences().getLastGamePrefs().getLastGameType();
     if (!mapService.isInstalled(modTechnical, map.getMapName(), map.getCrc())) {
       installMap().thenRun(() -> eventBus.post(new HostGameEvent(map.getMapName())));
     } else {

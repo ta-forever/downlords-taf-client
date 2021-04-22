@@ -11,6 +11,7 @@ import com.faforever.client.fa.relay.ice.IceAdapter;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.main.event.HostGameEvent;
 import com.faforever.client.main.event.JoinChannelEvent;
 import com.faforever.client.main.event.ShowReplayEvent;
 import com.faforever.client.map.MapService;
@@ -124,6 +125,7 @@ public class GameService implements InitializingBean {
   /** TODO: Explain why access needs to be synchronized. */
   @VisibleForTesting
   final SimpleObjectProperty<Game> currentGame;
+  final SimpleObjectProperty<Game> nextGame;  // for auto-join, in case new joinable game is created while player is still in an old game
   final SimpleObjectProperty<GameStatus> currentGameStatusProperty;
 
   /**
@@ -209,9 +211,9 @@ public class GameService implements InitializingBean {
     uidToGameInfoBean = FXCollections.observableMap(new ConcurrentHashMap<>());
     searching1v1 = new SimpleBooleanProperty();
     gameRunning = new SimpleBooleanProperty();
-    log.info("[GameService] initialise currentGame");
     currentGame = new SimpleObjectProperty<>();
     currentGameStatusProperty = new SimpleObjectProperty<>();
+    nextGame = new SimpleObjectProperty<>();
 
     games = FXCollections.observableList(new ArrayList<>(),
         item -> new Observable[]{item.statusProperty(), item.getTeams()}
@@ -311,11 +313,32 @@ public class GameService implements InitializingBean {
         }
 
         if (oldStatus.isInProgress() && newStatus == GameStatus.ENDED) {
-          GameService.this.onRecentlyPlayedGameEnded(game);
-          return;
+          GameService.this.notifyRecentlyPlayedGameEnded(game);
         }
 
-        if (Objects.equals(currentGame.get(), game)) {
+        // auto-join the next game if one has been flagged
+        if (nextGame.get() != null && nextGame.get().isOpen() &&
+            preferencesService.getPreferences().getAutoJoinEnabled() &&
+            (oldStatus.isInProgress() || oldStatus == GameStatus.BATTLEROOM) &&
+            newStatus == GameStatus.ENDED &&
+            (getCurrentGame() == null || getCurrentGame().getId() == game.getId()) &&
+            !game.getFeaturedMod().equals(LADDER_1V1)
+            ) {
+          joinGame(nextGame.get(), null);
+          nextGame.set(null);
+        }
+
+        // chat room is only advertised on the game board if host creates another game ... here we prompt host to do that
+        if ((oldStatus.isInProgress() || oldStatus == GameStatus.BATTLEROOM) &&
+            newStatus == GameStatus.ENDED &&
+            getCurrentPlayer() != null && getCurrentPlayer().getUsername().equals(game.getHost()) &&
+            (getCurrentGame() == null || getCurrentGame().getId() == game.getId()) &&
+            !game.getFeaturedMod().equals(LADDER_1V1) &&
+            preferencesService.getPreferences().getAutoRehostEnabled()) {
+          eventBus.post(new HostGameEvent(game.getMapName()));
+        }
+
+        if (newStatus == GameStatus.BATTLEROOM && Objects.equals(currentGame.get(), game)) {
           discordRichPresenceService.updatePlayedGameTo(currentGame.get(), currentPlayer.getId(), currentPlayer.getUsername());
           if (currentGameStatusProperty.get() != newStatus) {
             currentGameStatusProperty.setValue(newStatus);
@@ -385,6 +408,7 @@ public class GameService implements InitializingBean {
             game.setPassword(password);
             log.info("[joinGame] currentGame.set(game)");
             currentGame.set(game);
+            nextGame.set(null);
           }
           boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchOnJoinEnabled() && game.getStatus() == GameStatus.BATTLEROOM;
           startGame(game.getFeaturedMod(), gameLaunchMessage, null, RatingMode.GLOBAL, inGameIrcUrl, autoLaunch);
@@ -698,15 +722,13 @@ public class GameService implements InitializingBean {
         });
   }
 
-  private void onRecentlyPlayedGameEnded(Game game) {
+  private void notifyRecentlyPlayedGameEnded(Game game) {
     NotificationsPrefs notification = preferencesService.getPreferences().getNotification();
-    if (!notification.isAfterGameReviewEnabled() || !notification.isTransientNotificationsEnabled()) {
-      return;
+    if (notification.isAfterGameReviewEnabled() && notification.isTransientNotificationsEnabled()) {
+      notificationService.addNotification(new PersistentNotification(i18n.get("game.ended", game.getTitle()),
+          Severity.INFO,
+          singletonList(new Action(i18n.get("game.rate"), actionEvent -> eventBus.post(new ShowReplayEvent(game.getId()))))));
     }
-
-    notificationService.addNotification(new PersistentNotification(i18n.get("game.ended", game.getTitle()),
-        Severity.INFO,
-        singletonList(new Action(i18n.get("game.rate"), actionEvent -> eventBus.post(new ShowReplayEvent(game.getId()))))));
   }
 
   /**
@@ -861,10 +883,6 @@ public class GameService implements InitializingBean {
           (hostPlayer.getStatus() == PlayerStatus.HOSTING || hostPlayer.getStatus() == PlayerStatus.HOSTED) &&
           (game.getStatus() == GameStatus.STAGING || game.getStatus() == GameStatus.BATTLEROOM) &&
 
-          // we don't want to auto-join if we're joined another game already
-          currentPlayer.getStatus() == PlayerStatus.IDLE &&
-          getCurrentGame() == null &&
-
           // we don't want to rejoin the game we just left (NB getCurrentGame is nulled out on leaving a game.  But isGameCurrentGame is initialised before that)
           !isGameCurrentGame &&
 
@@ -876,11 +894,21 @@ public class GameService implements InitializingBean {
           !game.isPasswordProtected() &&
 
           // only auto-join if host shares a common chat channel with us
-          chatService.getUserChannels(currentPlayer.getUsername()).stream().anyMatch(channel ->
+          currentPlayerChannels.stream().anyMatch(channel ->
               channel.startsWith("#") && !chatService.isDefaultChannel(channel) && playerChannels.contains(channel))) {
 
-        log.info("auto-joining game: {}", game);
-        this.joinGame(game, null);
+        if (currentPlayer.getStatus() == PlayerStatus.IDLE && getCurrentGame() == null) {
+          log.info("auto-joining game: {}", game);
+          this.joinGame(game, null);
+        }
+        else if (this.nextGame.get() == null) {
+          log.info("will auto-join game when current game terminates: {}", game);
+          this.nextGame.set(game);
+        }
+        else if (this.nextGame.get().getHost().equals(game.getHost())) {
+          log.info("ditching old auto-join game in preference for new one created by host of current game: {}", game);
+          this.nextGame.set(game);
+        }
       }
     }
   }
