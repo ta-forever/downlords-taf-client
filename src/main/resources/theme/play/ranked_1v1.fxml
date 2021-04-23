@@ -39,9 +39,9 @@
                   <RowConstraints minHeight="10.0" vgrow="ALWAYS" />
               </rowConstraints>
               <children>
-                  <Label styleClass="h2" text="%ranked1v1.choseFactions.title" />
-                  <Label text="%ranked1v1.choseFactions.description" wrapText="true" GridPane.rowIndex="1" />
-                  <HBox alignment="CENTER" GridPane.rowIndex="4">
+                  <Label visible="false" styleClass="h2" text="%ranked1v1.choseFactions.title" />
+                  <Label visible="false" text="%ranked1v1.choseFactions.description" wrapText="true" GridPane.rowIndex="1" />
+                  <HBox alignment="CENTER" GridPane.rowIndex="2">
                     <children>
                       <Region HBox.hgrow="ALWAYS" />
                       <Button fx:id="cancelButton" cancelButton="true" mnemonicParsing="false" onAction="#onCancelButtonClicked" text="%ranked1v1.cancel" />
@@ -51,31 +51,31 @@
                       <Region HBox.hgrow="ALWAYS" />
                     </children>
                   </HBox>
-                <HBox alignment="CENTER" spacing="5.0" GridPane.rowIndex="2" GridPane.valignment="CENTER">
-                  <children>
-                      <ToggleButton fx:id="aeonButton" styleClass="faction-button" mnemonicParsing="false" onAction="#onFactionButtonClicked">
-                          <graphic>
-                              <Region styleClass="aeon-icon"/>
-                          </graphic>
-                    </ToggleButton>
-                      <ToggleButton fx:id="cybranButton" styleClass="faction-button" mnemonicParsing="false" onAction="#onFactionButtonClicked">
-                          <graphic>
-                              <Region styleClass="cybran-icon"/>
-                          </graphic>
+                  <HBox visible="false" alignment="CENTER" spacing="5.0" GridPane.rowIndex="2" GridPane.valignment="CENTER">
+                    <children>
+                        <ToggleButton fx:id="aeonButton" styleClass="faction-button" mnemonicParsing="false" onAction="#onFactionButtonClicked">
+                            <graphic>
+                                <Region styleClass="aeon-icon"/>
+                            </graphic>
                       </ToggleButton>
-                      <ToggleButton fx:id="uefButton" styleClass="faction-button" mnemonicParsing="false" onAction="#onFactionButtonClicked">
-                          <graphic>
-                              <Region styleClass="uef-icon"/>
-                          </graphic>
-                    </ToggleButton>
-                      <ToggleButton fx:id="seraphimButton" styleClass="faction-button" mnemonicParsing="false" onAction="#onFactionButtonClicked">
-                          <graphic>
-                              <Region styleClass="seraphim-icon"/>
-                          </graphic>
-                    </ToggleButton>
-                  </children>
-                </HBox>
-                  <Label fx:id="searchingForOpponentLabel" contentDisplay="BOTTOM" text="%ranked1v1.searching" wrapText="true" GridPane.halignment="CENTER" GridPane.rowIndex="3">
+                        <ToggleButton fx:id="cybranButton" styleClass="faction-button" mnemonicParsing="false" onAction="#onFactionButtonClicked">
+                            <graphic>
+                                <Region styleClass="cybran-icon"/>
+                            </graphic>
+                        </ToggleButton>
+                        <ToggleButton fx:id="uefButton" styleClass="faction-button" mnemonicParsing="false" onAction="#onFactionButtonClicked">
+                            <graphic>
+                                <Region styleClass="uef-icon"/>
+                            </graphic>
+                      </ToggleButton>
+                        <ToggleButton fx:id="seraphimButton" styleClass="faction-button" mnemonicParsing="false" onAction="#onFactionButtonClicked">
+                            <graphic>
+                                <Region styleClass="seraphim-icon"/>
+                            </graphic>
+                      </ToggleButton>
+                    </children>
+                  </HBox>
+                  <Label fx:id="searchingForOpponentLabel" contentDisplay="BOTTOM" text="%ranked1v1.searching" wrapText="true" GridPane.halignment="CENTER" GridPane.rowIndex="1">
                       <graphic>
                           <ImageView fx:id="searchProgressIndicator"/>
                       </graphic>
