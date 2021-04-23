@@ -80,11 +80,11 @@ public class GameDetailController implements Controller<Pane> {
   public WatchButtonController watchButtonController;
   private ReadOnlyObjectWrapper<Game> game;
   @SuppressWarnings("FieldCanBeLocal")
-  private InvalidationListener teamsInvalidationListener;
+  private InvalidationListener thisGameTeamsInvalidationListener;
   @SuppressWarnings("FieldCanBeLocal")
-  private final InvalidationListener gameStatusInvalidationListener;
-  private final WeakInvalidationListener weakTeamListener;
-  private final WeakInvalidationListener weakGameStatusListener;
+  private final InvalidationListener thisGameStatusInvalidationListener;
+  private final WeakInvalidationListener weakThisGameTeamsListener;
+  private final WeakInvalidationListener weakThisGameStatusListener;
   public Node watchButton;
   private Timeline gameTimeSinceStartUpdater;
   public Label gameTimeSinceStartLabel;
@@ -118,10 +118,10 @@ public class GameDetailController implements Controller<Pane> {
 
     game = new ReadOnlyObjectWrapper<>();
 
-    gameStatusInvalidationListener = observable -> onGameStatusChanged();
-    teamsInvalidationListener = observable -> createTeams();
-    weakTeamListener = new WeakInvalidationListener(teamsInvalidationListener);
-    weakGameStatusListener = new WeakInvalidationListener(gameStatusInvalidationListener);
+    thisGameStatusInvalidationListener = observable -> onGameStatusChanged();
+    thisGameTeamsInvalidationListener = observable -> createTeams();
+    weakThisGameTeamsListener = new WeakInvalidationListener(thisGameTeamsInvalidationListener);
+    weakThisGameStatusListener = new WeakInvalidationListener(thisGameStatusInvalidationListener);
 
     currentGameStatusListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
     gameRunningListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
@@ -212,8 +212,8 @@ public class GameDetailController implements Controller<Pane> {
 
   public void setGame(Game game) {
     Optional.ofNullable(this.game.get()).ifPresent(oldGame -> {
-      Optional.ofNullable(weakTeamListener).ifPresent(listener -> oldGame.getTeams().removeListener(listener));
-      Optional.ofNullable(weakGameStatusListener).ifPresent(listener -> oldGame.statusProperty().removeListener(listener));
+      Optional.ofNullable(weakThisGameTeamsListener).ifPresent(listener -> oldGame.getTeams().removeListener(listener));
+      Optional.ofNullable(weakThisGameStatusListener).ifPresent(listener -> oldGame.statusProperty().removeListener(listener));
     });
 
     this.game.set(game);
@@ -246,11 +246,11 @@ public class GameDetailController implements Controller<Pane> {
     game.featuredModProperty().addListener(new WeakInvalidationListener(featuredModInvalidationListener));
     featuredModInvalidationListener.invalidated(game.featuredModProperty());
 
-    JavaFxUtil.addListener(game.getTeams(), weakTeamListener);
-    teamsInvalidationListener.invalidated(game.getTeams());
+    JavaFxUtil.addListener(game.getTeams(), weakThisGameTeamsListener);
+    thisGameTeamsInvalidationListener.invalidated(game.getTeams());
 
-    JavaFxUtil.addListener(game.statusProperty(), weakGameStatusListener);
-    gameStatusInvalidationListener.invalidated(game.statusProperty());
+    JavaFxUtil.addListener(game.statusProperty(), weakThisGameStatusListener);
+    thisGameStatusInvalidationListener.invalidated(game.statusProperty());
   }
 
   public Game getGame() {

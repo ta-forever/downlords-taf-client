@@ -19,6 +19,8 @@ import com.google.common.eventbus.Subscribe;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.beans.InvalidationListener;
+import javafx.beans.WeakInvalidationListener;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ObservableMap;
@@ -41,6 +43,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -82,6 +85,9 @@ public class GameTileController implements Controller<Node> {
   public Button leaveButton;
   public Button startButton;
 
+  private InvalidationListener thisGameStatusInvalidationListener;
+  private WeakInvalidationListener weakThisGameStatusListener;
+
   private ChangeListener<GameStatus> currentGameStatusListener;
   private ChangeListener<Boolean> gameRunningListener;
 
@@ -102,6 +108,9 @@ public class GameTileController implements Controller<Node> {
     modsLabel.visibleProperty().bind(modsLabel.textProperty().isNotEmpty());
     gameTypeLabel.managedProperty().bind(gameTypeLabel.visibleProperty());
     lockIconLabel.managedProperty().bind(lockIconLabel.visibleProperty());
+
+    thisGameStatusInvalidationListener = observable -> onGameStatusChanged();
+    weakThisGameStatusListener = new WeakInvalidationListener(thisGameStatusInvalidationListener);
 
     currentGameStatusListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
     gameRunningListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
@@ -199,6 +208,9 @@ public class GameTileController implements Controller<Node> {
 
     lockIconLabel.visibleProperty().bind(game.passwordProtectedProperty());
     updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
+
+    JavaFxUtil.addListener(game.statusProperty(), weakThisGameStatusListener);
+    thisGameStatusInvalidationListener.invalidated(game.statusProperty());
   }
 
   private String getSimModsLabelContent(ObservableMap<String, String> simMods) {
