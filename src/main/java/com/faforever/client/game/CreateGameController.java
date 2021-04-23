@@ -13,13 +13,14 @@ import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.map.MapSize;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.mod.ModService;
-import com.faforever.client.mod.ModVersion;
 import com.faforever.client.notification.ImmediateErrorNotification;
 import com.faforever.client.notification.NotificationService;
+import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.LastGamePrefs;
 import com.faforever.client.preferences.PreferenceUpdateListener;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
+import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.reporting.ReportingService;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
@@ -28,6 +29,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.StringBinding;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.transformation.FilteredList;
 import javafx.css.PseudoClass;
@@ -58,10 +62,8 @@ import org.springframework.stereotype.Component;
 import java.lang.ref.WeakReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -83,6 +85,7 @@ public class CreateGameController implements Controller<Pane> {
   private final MapService mapService;
   private final ModService modService;
   private final GameService gameService;
+  private final PlayerService playerService;
   private final PreferencesService preferencesService;
   private final I18n i18n;
   private final NotificationService notificationService;
@@ -103,6 +106,7 @@ public class CreateGameController implements Controller<Pane> {
   public StackPane gamesRoot;
   public Pane createGameRoot;
   public Button createGameButton;
+  public Button updateGameButton;
   public Button setGamePathButton;
   public VBox mapPreview;
   public Pane mapPreviewPane;
@@ -115,6 +119,8 @@ public class CreateGameController implements Controller<Pane> {
   FilteredList<MapBean> filteredMapBeans;
   private Runnable onCloseButtonClickedListener;
   private PreferenceUpdateListener preferenceUpdateListener;
+  private BooleanProperty validatedButtonsDisableProperty;
+
   /**
    * Remembers if the controller's init method was called, to avoid memory leaks by adding several listeners
    */
@@ -236,6 +242,24 @@ public class CreateGameController implements Controller<Pane> {
     onCloseButtonClickedListener.run();
   }
 
+  private StringBinding createValidatedButtonTextBinding(String nominalText) {
+    return Bindings.createStringBinding(() -> {
+      switch (fafService.connectionStateProperty().get()) {
+        case DISCONNECTED:
+          return i18n.get("game.create.disconnected");
+        case CONNECTING:
+          return i18n.get("game.create.connecting");
+        default:
+          break;
+      }
+      if (Strings.isNullOrEmpty(titleTextField.getText())) {
+        return i18n.get("game.create.titleMissing");
+      } else if (featuredModListView.getSelectionModel().getSelectedItem() == null) {
+        return i18n.get("game.create.featuredModMissing");
+      }
+      return nominalText;
+    }, titleTextField.textProperty(), featuredModListView.getSelectionModel().selectedItemProperty(), fafService.connectionStateProperty());
+  }
 
   private void init() {
     bindGameVisibility();
@@ -252,29 +276,44 @@ public class CreateGameController implements Controller<Pane> {
     });
     validateTitle(titleTextField.getText());
 
-    createGameButton.textProperty().bind(Bindings.createStringBinding(() -> {
-      switch (fafService.connectionStateProperty().get()) {
-        case DISCONNECTED:
-          return i18n.get("game.create.disconnected");
-        case CONNECTING:
-          return i18n.get("game.create.connecting");
-        default:
-          break;
-      }
-      if (Strings.isNullOrEmpty(titleTextField.getText())) {
-        return i18n.get("game.create.titleMissing");
-      } else if (featuredModListView.getSelectionModel().getSelectedItem() == null) {
-        return i18n.get("game.create.featuredModMissing");
-      }
-      return i18n.get("game.create.create");
-    }, titleTextField.textProperty(), featuredModListView.getSelectionModel().selectedItemProperty(), fafService.connectionStateProperty()));
+    createGameButton.textProperty().bind(createValidatedButtonTextBinding(i18n.get("game.create.create")));
+    updateGameButton.textProperty().bind(createValidatedButtonTextBinding(i18n.get("game.create.update")));
 
-    createGameButton.disableProperty().bind(
+    validatedButtonsDisableProperty = new SimpleBooleanProperty();
+    validatedButtonsDisableProperty.bind(
         titleTextField.textProperty().isEmpty()
             .or(featuredModListView.getSelectionModel().selectedItemProperty().isNull())
             .or(fafService.connectionStateProperty().isNotEqualTo(CONNECTED))
             .or(mapListView.getSelectionModel().selectedItemProperty().isNull())
     );
+
+    createGameButton.disableProperty().bind(validatedButtonsDisableProperty);
+    updateGameButton.disableProperty().bind(Bindings.createBooleanBinding(() -> {
+      if (gameService.getCurrentGame() == null || !playerService.getCurrentPlayer().isPresent()) {
+        return false;
+      }
+      final String currentPlayer = playerService.getCurrentPlayer().get().getUsername();
+      final boolean isPlayerHost = gameService.getCurrentGame().getHost().equals(currentPlayer);
+      return !isPlayerHost;
+    }, gameService.getCurrentGameStatusProperty()));
+
+    //updateGameButton.disableProperty().bind(validatedButtonsDisableProperty);
+
+    createGameButton.visibleProperty().bind(gameService.getCurrentGameStatusProperty().isNull().or(gameService.getCurrentGameStatusProperty().isNotEqualTo(GameStatus.STAGING)));
+    updateGameButton.visibleProperty().bind(createGameButton.visibleProperty().not());
+    titleTextField.disableProperty().bind(updateGameButton.visibleProperty());
+    onlyForFriendsCheckBox.disableProperty().bind(updateGameButton.visibleProperty());
+    featuredModListView.disableProperty().bind(updateGameButton.visibleProperty());
+    setGamePathButton.disableProperty().bind(updateGameButton.visibleProperty());
+    passwordTextField.disableProperty().bind(updateGameButton.visibleProperty());
+    minRankingTextField.disableProperty().bind(updateGameButton.visibleProperty());
+    maxRankingTextField.disableProperty().bind(updateGameButton.visibleProperty());
+
+    gameService.getCurrentGameStatusProperty().addListener((obs,oldValue,newValue) -> {
+      if (newValue == GameStatus.BATTLEROOM) {
+        this.onCloseButtonClicked();
+      }
+    });
   }
 
   private void validateTitle(String gameTitle) {
@@ -451,8 +490,11 @@ public class CreateGameController implements Controller<Pane> {
           ));
       return null;
     });
+  }
 
-    onCloseButtonClicked();
+  public void onUpdateButtonClicked() {
+    log.info("[onUpdateButtonClicked]");
+    gameService.setMapForStagingGame(mapListView.getSelectionModel().getSelectedItem().getMapName());
   }
 
   public Pane getRoot() {

@@ -6,13 +6,16 @@ import com.faforever.client.game.GamesTilesContainerController.TilesSortingOrder
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.HostGameEvent;
 import com.faforever.client.main.event.NavigateEvent;
+import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.dialog.Dialog;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ObservableList;
@@ -67,7 +70,8 @@ public class CustomGamesController extends AbstractViewController<Node> {
 
   private final UiService uiService;
   private final GameService gameService;
-    private final PreferencesService preferencesService;
+  private final PlayerService playerService;
+  private final PreferencesService preferencesService;
   private final EventBus eventBus;
   private final I18n i18n;
 
@@ -95,10 +99,11 @@ public class CustomGamesController extends AbstractViewController<Node> {
   private GamesTilesContainerController gamesTilesContainerController;
   private final ChangeListener<Game> gameChangeListener;
 
-  public CustomGamesController(UiService uiService, GameService gameService, PreferencesService preferencesService,
+  public CustomGamesController(UiService uiService, GameService gameService, PlayerService playerService, PreferencesService preferencesService,
                                EventBus eventBus, I18n i18n) {
     this.uiService = uiService;
     this.gameService = gameService;
+    this.playerService = playerService;
     this.preferencesService = preferencesService;
     this.eventBus = eventBus;
     this.i18n = i18n;
@@ -107,7 +112,35 @@ public class CustomGamesController extends AbstractViewController<Node> {
   }
 
   public void initialize() {
-    JavaFxUtil.bind(createGameButton.disableProperty(), gameService.gameRunningProperty());
+    //JavaFxUtil.bind(createGameButton.disableProperty(), gameService.gameRunningProperty());
+    JavaFxUtil.bind(createGameButton.disableProperty(), Bindings.createBooleanBinding(() -> {
+      if (gameService.getCurrentGame() == null || !playerService.getCurrentPlayer().isPresent()) {
+        return false;
+      }
+      final String currentPlayer = playerService.getCurrentPlayer().get().getUsername();
+      final boolean isPlayerHost = gameService.getCurrentGame().getHost().equals(currentPlayer);
+      final boolean isCurrentGameStaging = gameService.getCurrentGame().getStatus() == GameStatus.STAGING;
+      //return !isPlayerHost || isPlayerHost && !isCurrentGameStaging;  // allows create-game and update-game(as host)
+      return !isCurrentGameStaging; // allows create-game, update-game(as host) and browse-maps(as joiner)
+    }, gameService.getCurrentGameStatusProperty()));
+
+    JavaFxUtil.bind(createGameButton.textProperty(), Bindings.createStringBinding(() -> {
+      if (gameService.getCurrentGame() == null || !playerService.getCurrentPlayer().isPresent()) {
+        return i18n.get("games.create");
+      }
+      final String currentPlayer = playerService.getCurrentPlayer().get().getUsername();
+      final boolean isPlayerHost = gameService.getCurrentGame().getHost().equals(currentPlayer);
+      final boolean isCurrentGameStaging = gameService.getCurrentGame().getStatus() == GameStatus.STAGING;
+      if (isPlayerHost && isCurrentGameStaging) {
+        return i18n.get("games.changeMap");
+      }
+      else if (!isPlayerHost && isCurrentGameStaging) {
+        return i18n.get("games.browseMaps");
+      }
+      else {
+        return i18n.get("games.create");
+      }
+    }, gameService.getCurrentGameStatusProperty()));
 
     getRoot().sceneProperty().addListener((observable, oldValue, newValue) -> {
       if (newValue == null) {

@@ -125,6 +125,10 @@
                    onAction="#onCreateButtonClicked" styleClass="more-button-padding" text="%game.create.create"
                    GridPane.columnIndex="2" GridPane.halignment="RIGHT" GridPane.rowIndex="6">
         </Button>
+        <Button fx:id="updateGameButton" defaultButton="true" minWidth="-Infinity" mnemonicParsing="false"
+                onAction="#onUpdateButtonClicked" styleClass="more-button-padding" text="%game.create.update"
+                GridPane.columnIndex="2" GridPane.halignment="RIGHT" GridPane.rowIndex="6">
+        </Button>
 
     </children>
     <padding>

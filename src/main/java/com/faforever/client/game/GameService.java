@@ -4,6 +4,7 @@ import com.faforever.client.chat.ChatService;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.discord.DiscordRichPresenceService;
 import com.faforever.client.fa.CloseGameEvent;
+import com.faforever.client.fa.MapTool;
 import com.faforever.client.fa.TotalAnnihilationService;
 import com.faforever.client.fa.RatingMode;
 import com.faforever.client.fa.relay.event.RehostRequestEvent;
@@ -338,11 +339,12 @@ public class GameService implements InitializingBean {
           eventBus.post(new HostGameEvent(game.getMapName()));
         }
 
+        if (Objects.equals(currentGame.get(), game) && currentGameStatusProperty.get() != newStatus) {
+          currentGameStatusProperty.setValue(newStatus);
+        }
+
         if (newStatus == GameStatus.BATTLEROOM && Objects.equals(currentGame.get(), game)) {
           discordRichPresenceService.updatePlayedGameTo(currentGame.get(), currentPlayer.getId(), currentPlayer.getUsername());
-          if (currentGameStatusProperty.get() != newStatus) {
-            currentGameStatusProperty.setValue(newStatus);
-          }
           if (currentPlayer.getStatus() == PlayerStatus.JOINING && newStatus == GameStatus.BATTLEROOM && preferencesService.getPreferences().getAutoLaunchOnJoinEnabled()) {
             GameService.this.startBattleRoom();
           }
@@ -403,13 +405,15 @@ public class GameService implements InitializingBean {
         .thenCompose(aVoid -> mapService.ensureMap(game.getFeaturedMod(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null))
         .thenCompose(aVoid -> fafService.requestJoinGame(game.getId(), password))
         .thenAccept(gameLaunchMessage -> {
-          synchronized (currentGame) {
-            // Store password in case we rehost
-            game.setPassword(password);
-            log.info("[joinGame] currentGame.set(game)");
-            currentGame.set(game);
-            nextGame.set(null);
-          }
+          Platform.runLater(() -> { // some UI elements are bound to currentGame property
+            synchronized (currentGame) {
+              // Store password in case we rehost
+              game.setPassword(password);
+              log.info("[joinGame] currentGame.set(game)");
+              currentGame.set(game);
+              nextGame.set(null);
+            }
+          });
           boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchOnJoinEnabled() && game.getStatus() == GameStatus.BATTLEROOM;
           startGame(game.getFeaturedMod(), gameLaunchMessage, null, RatingMode.GLOBAL, inGameIrcUrl, autoLaunch);
           Platform.runLater(() -> Platform.runLater(() -> eventBus.post(new JoinChannelEvent(inGameIrcChannel))));
@@ -669,9 +673,27 @@ public class GameService implements InitializingBean {
 
   public void startBattleRoom() {
     if (isRunning()) {
-      log.info("Sending /launch to game console");
+      log.info("[startBattleRoom] Sending /launch to game console");
       this.processPrintStream.println("/launch");
       this.processPrintStream.flush();
+    }
+  }
+
+  public void setMapForStagingGame(String mapName) {
+    if (isRunning() && currentGame.get() != null && currentGame.get().getStatus()==GameStatus.STAGING) {
+      List<String[]> mapsDetails = MapTool.listMap(preferencesService.getTotalAnnihilation(currentGame.get().getFeaturedMod()).getInstalledPath(), mapName);
+      if (mapsDetails.isEmpty()) {
+        log.info("[setMapForStagingGame] unable to get details for map {}", mapName);
+      }
+      final String UNIT_SEPARATOR = Character.toString((char)0x1f);
+      String mapDetails = String.join(UNIT_SEPARATOR, mapsDetails.get(0));
+      String command = String.format("/map %s", mapDetails);
+      log.info("[setMapForStagingGame] Sending '{}' to game console", command);
+      this.processPrintStream.println(command);
+      this.processPrintStream.flush();
+    }
+    else {
+      log.info("[setMapForStagingGame] attempt to set map while current game is not in STAGING state. ignoring");
     }
   }
 
