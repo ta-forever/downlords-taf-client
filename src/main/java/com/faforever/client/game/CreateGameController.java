@@ -297,8 +297,6 @@ public class CreateGameController implements Controller<Pane> {
       return !isPlayerHost;
     }, gameService.getCurrentGameStatusProperty()));
 
-    //updateGameButton.disableProperty().bind(validatedButtonsDisableProperty);
-
     createGameButton.visibleProperty().bind(gameService.getCurrentGameStatusProperty().isNull().or(gameService.getCurrentGameStatusProperty().isNotEqualTo(GameStatus.STAGING)));
     updateGameButton.visibleProperty().bind(createGameButton.visibleProperty().not());
     titleTextField.disableProperty().bind(updateGameButton.visibleProperty());
@@ -428,6 +426,9 @@ public class CreateGameController implements Controller<Pane> {
 
   private void selectLastMap() {
     String lastMap = preferencesService.getPreferences().getLastGamePrefs().getLastMap();
+    if (gameService.getCurrentGame() != null) {
+      lastMap = gameService.getCurrentGame().getMapName();
+    }
     for (MapBean mapBean : mapListView.getItems()) {
       if (mapBean.getMapName().equalsIgnoreCase(lastMap)) {
         mapListView.getSelectionModel().select(mapBean);
@@ -451,6 +452,9 @@ public class CreateGameController implements Controller<Pane> {
 
   private void selectLastOrDefaultGameType() {
     String lastGameMod = preferencesService.getPreferences().getLastGamePrefs().getLastGameType();
+    if (gameService.getCurrentGame() != null) {
+      lastGameMod = gameService.getCurrentGame().getFeaturedMod();
+    }
     if (lastGameMod == null) {
       lastGameMod = KnownFeaturedMod.DEFAULT.getTechnicalName();
     }
@@ -493,7 +497,6 @@ public class CreateGameController implements Controller<Pane> {
   }
 
   public void onUpdateButtonClicked() {
-    log.info("[onUpdateButtonClicked]");
     gameService.setMapForStagingGame(mapListView.getSelectionModel().getSelectedItem().getMapName());
   }
 
