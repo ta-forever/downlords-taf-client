@@ -50,12 +50,14 @@ faf-client:
     small_image_key: taf-logo-crystal-nodt-512
     big_image_key: taf-logo-crystal-dt-512
     servers:
-      - title: TA Universe
-        url: https://discord.gg/Z4hJpVbmyW
       - title: TA Escalation
         url: https://discord.gg/W2ErD5H
+      - title: TA Forever
+        url: https://discord.gg/hTRDqn3mkX
       - title: TA Twilight
         url: https://discord.gg/V9fmjnbV6e
+      - title: TA Universe
+        url: https://discord.gg/Z4hJpVbmyW
 
 spring:
   profiles:

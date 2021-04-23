@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
@@ -31,7 +32,9 @@ public class DiscordSelectionMenuController implements Controller<ContextMenu> {
 
   public void initialize() {
     menuItems = new ArrayList<MenuItem>();
-    for (DiscordServer server: this.clientProperties.getDiscord().getServers()) {
+    List<DiscordServer> discordServers = this.clientProperties.getDiscord().getServers();
+    Collections.shuffle(discordServers);
+    for (DiscordServer server: discordServers) {
       MenuItem menuItem = new MenuItem(server.getTitle());
       menuItem.setOnAction((ActionEvent event) -> onSelectServer(server.getUrl()));
       this.getContextMenu().getItems().add(menuItem);
