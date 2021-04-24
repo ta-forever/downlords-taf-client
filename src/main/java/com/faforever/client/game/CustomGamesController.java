@@ -112,35 +112,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
   }
 
   public void initialize() {
-    //JavaFxUtil.bind(createGameButton.disableProperty(), gameService.gameRunningProperty());
-    JavaFxUtil.bind(createGameButton.disableProperty(), Bindings.createBooleanBinding(() -> {
-      if (gameService.getCurrentGame() == null || !playerService.getCurrentPlayer().isPresent()) {
-        return false;
-      }
-      final String currentPlayer = playerService.getCurrentPlayer().get().getUsername();
-      final boolean isPlayerHost = gameService.getCurrentGame().getHost().equals(currentPlayer);
-      final boolean isCurrentGameStaging = gameService.getCurrentGame().getStatus() == GameStatus.STAGING;
-      //return !isPlayerHost || isPlayerHost && !isCurrentGameStaging;  // allows create-game and update-game(as host)
-      return !isCurrentGameStaging; // allows create-game, update-game(as host) and browse-maps(as joiner)
-    }, gameService.getCurrentGameStatusProperty()));
-
-    JavaFxUtil.bind(createGameButton.textProperty(), Bindings.createStringBinding(() -> {
-      if (gameService.getCurrentGame() == null || !playerService.getCurrentPlayer().isPresent()) {
-        return i18n.get("games.create");
-      }
-      final String currentPlayer = playerService.getCurrentPlayer().get().getUsername();
-      final boolean isPlayerHost = gameService.getCurrentGame().getHost().equals(currentPlayer);
-      final boolean isCurrentGameStaging = gameService.getCurrentGame().getStatus() == GameStatus.STAGING;
-      if (isPlayerHost && isCurrentGameStaging) {
-        return i18n.get("games.changeMap");
-      }
-      else if (!isPlayerHost && isCurrentGameStaging) {
-        return i18n.get("games.browseMaps");
-      }
-      else {
-        return i18n.get("games.create");
-      }
-    }, gameService.getCurrentGameStatusProperty()));
+    JavaFxUtil.bind(createGameButton.disableProperty(), gameService.gameRunningProperty());
 
     getRoot().sceneProperty().addListener((observable, oldValue, newValue) -> {
       if (newValue == null) {
@@ -217,7 +189,8 @@ public class CustomGamesController extends AbstractViewController<Node> {
   @Override
   protected void onDisplay(NavigateEvent navigateEvent) {
     if (navigateEvent instanceof HostGameEvent) {
-      onCreateGame(((HostGameEvent) navigateEvent).getMapFolderName());
+      HostGameEvent hostGameEvent = (HostGameEvent) navigateEvent;
+      onCreateGame(hostGameEvent.getMapFolderName(), hostGameEvent.getContextGame());
     }
     updateFilteredItems();
   }
@@ -234,27 +207,38 @@ public class CustomGamesController extends AbstractViewController<Node> {
   }
 
   public void onCreateGameButtonClicked() {
-    onCreateGame(null);
+    onCreateGame(null, null);
   }
 
-  private void onCreateGame(@Nullable String mapFolderName) {
+  private void onCreateGame(@Nullable String mapFolderName, @Nullable Game contextGame) {
     if (!preferencesService.isGameExeValid(KnownFeaturedMod.DEFAULT.getTechnicalName()))
     {
       CompletableFuture<Path> gameDirectoryFuture = new CompletableFuture<>();
       eventBus.post(new GameDirectoryChooseEvent(KnownFeaturedMod.DEFAULT.getTechnicalName(), gameDirectoryFuture));
-      gameDirectoryFuture.thenAccept(path -> Optional.ofNullable(path).ifPresent(path1 -> onCreateGame(null)));
+      gameDirectoryFuture.thenAccept(path -> Optional.ofNullable(path).ifPresent(path1 -> onCreateGame(mapFolderName, contextGame)));
       return;
     }
 
     CreateGameController createGameController = uiService.loadFxml("theme/play/create_game.fxml");
     createGameController.setGamesRoot(gamesRoot);
+    createGameController.setContextGame(contextGame);
 
     if (mapFolderName != null && !createGameController.selectMap(mapFolderName)) {
       log.warn("Map with folder name '{}' could not be found in map list", mapFolderName);
     }
 
     Pane root = createGameController.getRoot();
-    Dialog dialog = uiService.showInDialog(gamesRoot, root, i18n.get("games.create"));
+
+    String title = i18n.get("games.create");
+    switch(createGameController.calcInteractionLevel()) {
+      case "UPDATE":
+        title = i18n.get("games.changeMap");
+        break;
+      case "BROWSE":
+        title = i18n.get("games.browseMaps");
+        break;
+    };
+    Dialog dialog = uiService.showInDialog(gamesRoot, root, title);
     createGameController.setOnCloseButtonClickedListener(dialog::close);
 
     root.requestFocus();

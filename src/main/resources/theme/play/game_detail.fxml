@@ -28,7 +28,7 @@
         <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
     </rowConstraints>
     <children>
-        <ImageView fx:id="mapImageView" fitWidth="256.0" fitHeight="320.0" pickOnBounds="true" preserveRatio="true" styleClass="map-preview" GridPane.columnSpan="2147483647" GridPane.halignment="CENTER" />
+        <ImageView fx:id="mapImageView" onMouseClicked="#onClickedMap" fitWidth="256.0" fitHeight="320.0" pickOnBounds="true" preserveRatio="true" styleClass="map-preview" GridPane.columnSpan="2147483647" GridPane.halignment="CENTER" />
         <Label fx:id="gameTitleLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" styleClass="game-title" text="&lt;A pretty long game title&gt;" wrapText="true" GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" />
         <Label fx:id="gameTypeLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Game type&gt;" wrapText="true" GridPane.rowIndex="2" />
         <Label fx:id="gameStatusLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map&gt;" wrapText="true" GridPane.rowIndex="3">

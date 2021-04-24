@@ -1,14 +1,19 @@
 package com.faforever.client.main.event;
 
-import lombok.AllArgsConstructor;
+import com.faforever.client.game.Game;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
+@RequiredArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 public class HostGameEvent extends OpenCustomGamesEvent {
-  private String mapFolderName;
+  final private String mapFolderName;
+  private Game contextGame;
+
+  public HostGameEvent setContextGame(Game game) {
+    contextGame = game;
+    return this;
+  }
 }

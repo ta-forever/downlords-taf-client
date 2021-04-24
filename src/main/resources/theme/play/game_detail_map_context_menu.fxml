@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.ContextMenu?>
+<?import javafx.scene.control.MenuItem?>
+<ContextMenu xmlns:fx="http://javafx.com/fxml/1" fx:id="mapContextMenu"
+             xmlns="http://javafx.com/javafx/8.0.141"
+             fx:controller="com.faforever.client.game.GameDetailMapContextMenuController">
+  <items>
+    <MenuItem text="%game.detail.map.createNew" onAction="#onCreateNew" fx:id="createMenuItem"/>
+    <MenuItem text="%game.detail.map.changeMap" onAction="#onChangeMap" fx:id="changeMenuItem"/>
+    <MenuItem text="%game.detail.map.browseMap" onAction="#onBrowseMap" fx:id="browseMenuItem"/>
+  </items>
+</ContextMenu>

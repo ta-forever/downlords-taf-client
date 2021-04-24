@@ -116,9 +116,9 @@
                 GridPane.rowIndex="6">
         </Button>
 
-        <!-- Cancel, Ok -->
+        <!-- Dismiss, Ok -->
         <Button minWidth="-Infinity" mnemonicParsing="false" onAction="#onCloseButtonClicked"
-                   styleClass="more-button-padding" text="%cancel" GridPane.columnIndex="2" GridPane.halignment="CENTER"
+                   styleClass="more-button-padding" text="%dismiss" GridPane.columnIndex="2" GridPane.halignment="CENTER"
                    GridPane.rowIndex="6">
         </Button>
         <Button fx:id="createGameButton" defaultButton="true" minWidth="-Infinity" mnemonicParsing="false"

@@ -32,6 +32,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
@@ -88,6 +89,7 @@ public class GameDetailController implements Controller<Pane> {
   public Node watchButton;
   private Timeline gameTimeSinceStartUpdater;
   public Label gameTimeSinceStartLabel;
+  public GameDetailMapContextMenuController mapContextMenuController;
 
   @SuppressWarnings("FieldCanBeLocal")
   private InvalidationListener featuredModInvalidationListener;
@@ -131,6 +133,8 @@ public class GameDetailController implements Controller<Pane> {
   }
 
   public void initialize() {
+
+    mapContextMenuController = uiService.loadFxml("theme/play/game_detail_map_context_menu.fxml");
 
     gameDetailRoot.parentProperty().addListener(observable -> {
       if (!(gameDetailRoot.getParent() instanceof Pane)) {
@@ -296,5 +300,10 @@ public class GameDetailController implements Controller<Pane> {
   public void onStartButtonClicked(ActionEvent event) {
     log.info("[onStartButtonClicked] startBattleRoom()");
     gameService.startBattleRoom();
+  }
+
+  public void onClickedMap(MouseEvent event) {
+    mapContextMenuController.setGame(game.get());
+    mapContextMenuController.getContextMenu().show(this.gameDetailRoot.getScene().getWindow(), event.getScreenX(), event.getScreenY());
   }
 }

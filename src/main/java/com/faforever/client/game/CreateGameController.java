@@ -31,7 +31,11 @@ import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.transformation.FilteredList;
 import javafx.css.PseudoClass;
@@ -119,14 +123,27 @@ public class CreateGameController implements Controller<Pane> {
   FilteredList<MapBean> filteredMapBeans;
   private Runnable onCloseButtonClickedListener;
   private PreferenceUpdateListener preferenceUpdateListener;
+
   private BooleanProperty validatedButtonsDisableProperty;
+  private StringProperty interactionLevelProperty; // "CREATE", "UPDATE", "BROWSE"
+
+  private ObjectProperty<Game> contextGameProperty; // is player actually creating a new game (contextGame==null), or inspecting settings for an existing game?
 
   /**
    * Remembers if the controller's init method was called, to avoid memory leaks by adding several listeners
    */
   private boolean initialized;
 
+  void setContextGame(Game game) {
+    log.info("[setContextGame] {}", game);
+    this.contextGameProperty.set(game);
+  }
+
   public void initialize() {
+    validatedButtonsDisableProperty = new SimpleBooleanProperty();
+    interactionLevelProperty = new SimpleStringProperty();
+    contextGameProperty = new SimpleObjectProperty<>();
+
     versionLabel.managedProperty().bind(versionLabel.visibleProperty());
     hpiArchiveLabel.managedProperty().bind(hpiArchiveLabel.visibleProperty());
 
@@ -212,7 +229,7 @@ public class CreateGameController implements Controller<Pane> {
         setGamePathButton.setStyle(installedExePath == null || !Files.isExecutable(installedExePath)
             ? "-fx-background-color: -fx-accent"
             : "-fx-background-color: -fx-background");
-        selectLastMap();
+        selectAppropriateMap();
       }));
       selectLastOrDefaultGameType();
     }));
@@ -261,12 +278,28 @@ public class CreateGameController implements Controller<Pane> {
     }, titleTextField.textProperty(), featuredModListView.getSelectionModel().selectedItemProperty(), fafService.connectionStateProperty());
   }
 
+  String calcInteractionLevel() {
+    if (gameService.getCurrentGame() == null || !playerService.getCurrentPlayer().isPresent() || contextGameProperty.get() == null) {
+      return "CREATE";
+    }
+    final String currentPlayer = playerService.getCurrentPlayer().get().getUsername();
+    final boolean isCurrentGameSameAsContextGame = contextGameProperty.get().getId() == gameService.getCurrentGame().getId();
+    final boolean isPlayerHost = gameService.getCurrentGame().getHost().equals(currentPlayer);
+    final boolean isGameStaging = gameService.getCurrentGame().getStatus() == GameStatus.STAGING;
+    if (isCurrentGameSameAsContextGame && isPlayerHost && isGameStaging) {
+      return "UPDATE";
+    }
+    else {
+      return "BROWSE";
+    }
+  }
+
   private void init() {
     bindGameVisibility();
     initMapSelection(KnownFeaturedMod.DEFAULT.getBaseGameName());
     initFeaturedModList();
     initRatingBoundaries();
-    selectLastMap();
+    selectAppropriateMap();
     setLastGameTitle();
     initPassword();
     titleTextField.textProperty().addListener((observable, oldValue, newValue) -> {
@@ -279,25 +312,18 @@ public class CreateGameController implements Controller<Pane> {
     createGameButton.textProperty().bind(createValidatedButtonTextBinding(i18n.get("game.create.create")));
     updateGameButton.textProperty().bind(createValidatedButtonTextBinding(i18n.get("game.create.update")));
 
-    validatedButtonsDisableProperty = new SimpleBooleanProperty();
     validatedButtonsDisableProperty.bind(
         titleTextField.textProperty().isEmpty()
             .or(featuredModListView.getSelectionModel().selectedItemProperty().isNull())
             .or(fafService.connectionStateProperty().isNotEqualTo(CONNECTED))
             .or(mapListView.getSelectionModel().selectedItemProperty().isNull())
     );
+    interactionLevelProperty.bind(Bindings.createStringBinding(() -> calcInteractionLevel(), gameService.getCurrentGameStatusProperty(), contextGameProperty));
 
     createGameButton.disableProperty().bind(validatedButtonsDisableProperty);
-    updateGameButton.disableProperty().bind(Bindings.createBooleanBinding(() -> {
-      if (gameService.getCurrentGame() == null || !playerService.getCurrentPlayer().isPresent()) {
-        return false;
-      }
-      final String currentPlayer = playerService.getCurrentPlayer().get().getUsername();
-      final boolean isPlayerHost = gameService.getCurrentGame().getHost().equals(currentPlayer);
-      return !isPlayerHost;
-    }, gameService.getCurrentGameStatusProperty()));
+    updateGameButton.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
 
-    createGameButton.visibleProperty().bind(gameService.getCurrentGameStatusProperty().isNull().or(gameService.getCurrentGameStatusProperty().isNotEqualTo(GameStatus.STAGING)));
+    createGameButton.visibleProperty().bind(interactionLevelProperty.isEqualTo("CREATE"));
     updateGameButton.visibleProperty().bind(createGameButton.visibleProperty().not());
     titleTextField.disableProperty().bind(updateGameButton.visibleProperty());
     onlyForFriendsCheckBox.disableProperty().bind(updateGameButton.visibleProperty());
@@ -306,12 +332,6 @@ public class CreateGameController implements Controller<Pane> {
     passwordTextField.disableProperty().bind(updateGameButton.visibleProperty());
     minRankingTextField.disableProperty().bind(updateGameButton.visibleProperty());
     maxRankingTextField.disableProperty().bind(updateGameButton.visibleProperty());
-
-    gameService.getCurrentGameStatusProperty().addListener((obs,oldValue,newValue) -> {
-      if (newValue == GameStatus.BATTLEROOM) {
-        this.onCloseButtonClicked();
-      }
-    });
   }
 
   private void validateTitle(String gameTitle) {
@@ -424,13 +444,16 @@ public class CreateGameController implements Controller<Pane> {
     });
   }
 
-  private void selectLastMap() {
-    String lastMap = preferencesService.getPreferences().getLastGamePrefs().getLastMap();
-    if (gameService.getCurrentGame() != null) {
-      lastMap = gameService.getCurrentGame().getMapName();
+  private void selectAppropriateMap() {
+    String someMap = preferencesService.getPreferences().getLastGamePrefs().getLastMap();
+    if (contextGameProperty.get() != null) {
+      someMap = contextGameProperty.get().getMapName();
+    }
+    else if (gameService.getCurrentGame() != null) {
+      someMap = gameService.getCurrentGame().getMapName();
     }
     for (MapBean mapBean : mapListView.getItems()) {
-      if (mapBean.getMapName().equalsIgnoreCase(lastMap)) {
+      if (mapBean.getMapName().equalsIgnoreCase(someMap)) {
         mapListView.getSelectionModel().select(mapBean);
         mapListView.scrollTo(mapBean);
         return;
@@ -494,6 +517,8 @@ public class CreateGameController implements Controller<Pane> {
           ));
       return null;
     });
+
+    onCloseButtonClicked();
   }
 
   public void onUpdateButtonClicked() {
