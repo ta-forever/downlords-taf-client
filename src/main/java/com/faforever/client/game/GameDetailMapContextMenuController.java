@@ -104,13 +104,6 @@ public class GameDetailMapContextMenuController implements Controller<ContextMen
     final String mapName = game.getMapName();
     final String mapCrc = game.getMapCrc();
     mapService.ensureMap(modTechnical, mapName, mapCrc, game.getMapArchiveName(), null, null)
-        .thenRun(() -> {
-          try {
-            while (!mapService.isInstalled(modTechnical, mapName, mapCrc)) {
-              Thread.sleep(300);
-            }
-          } catch (InterruptedException e) { }
-        })
         .thenRun(() -> eventBus.post(new HostGameEvent(mapName).setContextGame(game)));
   }
 
