@@ -412,27 +412,30 @@
                                     <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
                                  </rowConstraints>
                                  <children>
-                                              <Label styleClass="setting-description" text="%settings.notifications.displayNotification" GridPane.columnIndex="1" GridPane.halignment="CENTER" />
-                                              <Label styleClass="setting-description" text="%settings.notifications.playSound" GridPane.columnIndex="2" GridPane.halignment="CENTER" />
-                                              <CheckBox fx:id="displayFriendOnlineToastCheckBox" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER" />
-                                              <CheckBox fx:id="playFriendOnlineSoundCheckBox" disable="true" mnemonicParsing="false" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER" />
-                                              <Label styleClass="setting-title" text="%settings.notifications.friendOnline" GridPane.rowIndex="1" />
-                                              <Label styleClass="setting-title" text="%settings.notifications.friendOffline" GridPane.rowIndex="2" />
-                                              <CheckBox fx:id="playFriendOfflineSoundCheckBox" disable="true" mnemonicParsing="false" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER" />
-                                              <CheckBox fx:id="displayFriendOfflineToastCheckBox" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER" />
-                                              <Label styleClass="setting-title" text="%settings.notifications.friendJoinsGame" GridPane.rowIndex="3" />
-                                              <CheckBox fx:id="playFriendJoinsGameSoundCheckBox" mnemonicParsing="false" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER" />
-                                              <CheckBox fx:id="displayFriendJoinsGameToastCheckBox" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER" />
-                                              <Label styleClass="setting-title" text="%settings.notifications.friendPlaysGame" GridPane.rowIndex="4" />
-                                              <CheckBox fx:id="displayFriendPlaysGameToastCheckBox" disable="true" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER" />
-                                              <CheckBox fx:id="playFriendPlaysGameSoundCheckBox" mnemonicParsing="false" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER" />
-                                              <Label styleClass="setting-title" text="%settings.notifications.pmReceived" GridPane.rowIndex="5" />
-                                              <CheckBox fx:id="displayPmReceivedToastCheckBox" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER" />
-                                              <CheckBox fx:id="playPmReceivedSoundCheckBox" mnemonicParsing="false" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER" />
-                                              <Label styleClass="setting-title" text="%settings.notifications.ranked1v1" GridPane.rowIndex="6" />
-                                              <CheckBox fx:id="displayLadder1v1ToastCheckBox" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="6" GridPane.valignment="CENTER" />
-                                              <Label styleClass="setting-title" text="%settings.notifications.afterGameReview" GridPane.rowIndex="7" />
-                                              <CheckBox fx:id="afterGameReviewCheckBox" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="7" GridPane.valignment="CENTER" />
+                                    <Label styleClass="setting-description" text="%settings.notifications.displayNotification" GridPane.columnIndex="1" GridPane.halignment="CENTER" />
+                                    <Label styleClass="setting-description" text="%settings.notifications.playSound" GridPane.columnIndex="2" GridPane.halignment="CENTER" />
+                                    <CheckBox fx:id="displayFriendOnlineToastCheckBox" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER" />
+                                    <CheckBox fx:id="playFriendOnlineSoundCheckBox" disable="true" mnemonicParsing="false" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER" />
+                                    <Label styleClass="setting-title" text="%settings.notifications.friendOnline" GridPane.rowIndex="1" />
+                                    <Label styleClass="setting-title" text="%settings.notifications.friendOffline" GridPane.rowIndex="2" />
+                                    <CheckBox fx:id="playFriendOfflineSoundCheckBox" disable="true" mnemonicParsing="false" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER" />
+                                    <CheckBox fx:id="displayFriendOfflineToastCheckBox" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER" />
+                                    <Label styleClass="setting-title" text="%settings.notifications.friendJoinsGame" GridPane.rowIndex="3" />
+                                    <CheckBox fx:id="playFriendJoinsGameSoundCheckBox" mnemonicParsing="false" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER" />
+                                    <CheckBox fx:id="displayFriendJoinsGameToastCheckBox" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER" />
+                                    <Label styleClass="setting-title" text="%settings.notifications.friendPlaysGame" GridPane.rowIndex="4" />
+                                    <CheckBox fx:id="displayFriendPlaysGameToastCheckBox" disable="true" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER" />
+                                    <CheckBox fx:id="playFriendPlaysGameSoundCheckBox" mnemonicParsing="false" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER" />
+                                    <Label styleClass="setting-title" text="%settings.notifications.playerJoinsGame" GridPane.rowIndex="5" />
+                                    <CheckBox fx:id="playPlayerJoinsGameSoundCheckBox" mnemonicParsing="false" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER" />
+                                    <CheckBox fx:id="displayPlayerJoinsGameToastCheckBox" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER" />
+                                    <Label styleClass="setting-title" text="%settings.notifications.pmReceived" GridPane.rowIndex="6" />
+                                    <CheckBox fx:id="displayPmReceivedToastCheckBox" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="6" GridPane.valignment="CENTER" />
+                                    <CheckBox fx:id="playPmReceivedSoundCheckBox" mnemonicParsing="false" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="6" GridPane.valignment="CENTER" />
+                                    <Label styleClass="setting-title" text="%settings.notifications.ranked1v1" GridPane.rowIndex="7" />
+                                    <CheckBox fx:id="displayLadder1v1ToastCheckBox" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="7" GridPane.valignment="CENTER" />
+                                    <Label styleClass="setting-title" text="%settings.notifications.afterGameReview" GridPane.rowIndex="8" />
+                                    <CheckBox fx:id="afterGameReviewCheckBox" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="8" GridPane.valignment="CENTER" />
                                  </children>
                               </GridPane>
                            </children>

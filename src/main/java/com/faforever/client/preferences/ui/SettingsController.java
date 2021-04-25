@@ -124,8 +124,10 @@ public class SettingsController implements Controller<Node> {
   public CheckBox playFriendOnlineSoundCheckBox;
   public CheckBox playFriendOfflineSoundCheckBox;
   public CheckBox displayFriendJoinsGameToastCheckBox;
+  public CheckBox displayPlayerJoinsGameToastCheckBox;
   public CheckBox displayFriendPlaysGameToastCheckBox;
   public CheckBox playFriendJoinsGameSoundCheckBox;
+  public CheckBox playPlayerJoinsGameSoundCheckBox;
   public CheckBox playFriendPlaysGameSoundCheckBox;
   public CheckBox displayPmReceivedToastCheckBox;
   public CheckBox displayLadder1v1ToastCheckBox;
@@ -298,12 +300,14 @@ public class SettingsController implements Controller<Node> {
     displayFriendOnlineToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendOnlineToastEnabledProperty());
     displayFriendOfflineToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendOfflineToastEnabledProperty());
     displayFriendJoinsGameToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendJoinsGameToastEnabledProperty());
+    displayPlayerJoinsGameToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().playerJoinsGameToastEnabledProperty());
     displayFriendPlaysGameToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendPlaysGameToastEnabledProperty());
     displayPmReceivedToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().privateMessageToastEnabledProperty());
     displayLadder1v1ToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().ladder1v1ToastEnabledProperty());
     playFriendOnlineSoundCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendOnlineSoundEnabledProperty());
     playFriendOfflineSoundCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendOfflineSoundEnabledProperty());
     playFriendJoinsGameSoundCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendJoinsGameSoundEnabledProperty());
+    playPlayerJoinsGameSoundCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().playerJoinsGameSoundEnabledProperty());
     playFriendPlaysGameSoundCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendPlaysGameSoundEnabledProperty());
     playPmReceivedSoundCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().privateMessageSoundEnabledProperty());
     afterGameReviewCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().afterGameReviewEnabledProperty());

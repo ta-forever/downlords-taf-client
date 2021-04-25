@@ -12,9 +12,10 @@ import com.faforever.client.game.GameRemovedEvent;
 import com.faforever.client.game.GameUpdatedEvent;
 import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.player.event.CurrentPlayerInfo;
-import com.faforever.client.player.event.FriendJoinedGameEvent;
+import com.faforever.client.player.event.PlayerJoinedGameEvent;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.domain.GameStatus;
+import com.faforever.client.remote.domain.PlayerStatus;
 import com.faforever.client.remote.domain.PlayersMessage;
 import com.faforever.client.remote.domain.SocialMessage;
 import com.faforever.client.user.UserService;
@@ -58,6 +59,11 @@ public class PlayerService implements InitializingBean {
 
   private final ObservableMap<String, Player> playersByName;
   private final ObservableMap<Integer, Player> playersById;
+
+  // these users have disconnected from chat, but not necessarily from taf-python-server.
+  // therefore its kind of fuzzy don't use for core functionality. suitable to control eg friend online/offline notifications
+  private final ObservableMap<Integer, Player> usersOfflineById;
+
   private final List<Integer> foeList;
   private final List<Integer> friendList;
   private final ObjectProperty<Player> currentPlayer;
@@ -74,6 +80,7 @@ public class PlayerService implements InitializingBean {
 
     playersByName = FXCollections.observableMap(new ConcurrentHashMap<>());
     playersById = FXCollections.observableHashMap();
+    usersOfflineById = FXCollections.observableHashMap();
     friendList = new ArrayList<>();
     foeList = new ArrayList<>();
     currentPlayer = new SimpleObjectProperty<>();
@@ -106,6 +113,14 @@ public class PlayerService implements InitializingBean {
           .flatMap(stringListEntry -> stringListEntry.getValue().stream())
           .collect(Collectors.toList());
       updateGamePlayers(playersInGame, null);
+    }
+  }
+
+  @Subscribe
+  public void onUserOffline(UserOfflineEvent event) {
+    Player player = playersByName.getOrDefault(event.getUsername(), null);
+    if (player != null) {
+      usersOfflineById.put(player.getId(), player);
     }
   }
 
@@ -194,9 +209,15 @@ public class PlayerService implements InitializingBean {
       player.setGame(game);
       playersByGame.get(game.getId()).add(player);
       if (player.getSocialStatus() == FRIEND
-          && game.isOpen()
+          && game.getStatus() == GameStatus.STAGING
           && !game.getFeaturedMod().equals(KnownFeaturedMod.LADDER_1V1.getTechnicalName())) {
-        eventBus.post(new FriendJoinedGameEvent(player, game));
+        eventBus.post(new PlayerJoinedGameEvent(player, game));
+      }
+      else if (player.getSocialStatus() != SELF
+          && game.getStatus() == GameStatus.STAGING
+          && playersByGame.get(game.getId()).contains(currentPlayer.get())
+          && !game.getFeaturedMod().equals(KnownFeaturedMod.LADDER_1V1.getTechnicalName())) {
+        eventBus.post(new PlayerJoinedGameEvent(player, game));
       }
     }
   }
@@ -323,6 +344,11 @@ public class PlayerService implements InitializingBean {
   }
 
   private void onPlayerInfo(com.faforever.client.remote.domain.Player dto) {
+    // isOnline() reflects what the taf-python-server tells us.  unfortunately taf-python-server doesn't tell us when user disconnects
+    // usersOfflineById reflects what the RIC server tells us.  This is more reliable, but unfortunately doesn't tell us anything about user's ability to join games (ie connection to taf-python-server)
+    boolean wasAlreadyOnline = isOnline(dto.getId()) && !usersOfflineById.containsKey(dto.getId());
+    usersOfflineById.remove(dto.getId());
+
     if (dto.getLogin().equalsIgnoreCase(userService.getUsername())) {
       Player player = getCurrentPlayer().orElseThrow(() -> new IllegalStateException("Player has not been set"));
       player.updateFromDto(dto);
@@ -341,7 +367,9 @@ public class PlayerService implements InitializingBean {
 
       player.updateFromDto(dto);
 
-      eventBus.post(new PlayerOnlineEvent(player));
+      if (!wasAlreadyOnline && dto.getState() == PlayerStatus.IDLE) {
+        eventBus.post(new PlayerOnlineEvent(player));
+      }
     }
   }
 }

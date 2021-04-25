@@ -34,7 +34,7 @@ public class AudioService implements InitializingBean {
   private AudioClip privateMessageSound;
   private AudioClip friendOnlineSound;
   private AudioClip friendOfflineSound;
-  private AudioClip friendJoinsGameSound;
+  private AudioClip playerJoinsGameSound;
   private AudioClip friendPlaysGameSound;
 
   private boolean playSounds;
@@ -61,7 +61,7 @@ public class AudioService implements InitializingBean {
     // TODO implement
 //    friendOnlineSound = loadSound(FRIEND_ONLINE_SOUND);
 //    friendOfflineSound = loadSound(FRIEND_OFFLINE_SOUND);
-//    friendJoinsGameSound = loadSound(FRIEND_JOINS_GAME_SOUND);
+//    playerJoinsGameSound = loadSound(PLAYER_JOINS_GAME_SOUND);
 //    friendPlaysGameSound = loadSound(FRIEND_PLAYS_GAME_SOUND);
   }
 
@@ -139,9 +139,18 @@ public class AudioService implements InitializingBean {
     }
     // FIXME implement
 //    playSound(friendJoinsGameSound);
+    playSound(privateMessageSound);
   }
 
-  
+  public void playPlayerJoinsGameSound() {
+    if (!notificationsPrefs.isPlayerJoinsGameSoundEnabled()) {
+      return;
+    }
+    // FIXME implement
+//    playSound(playerJoinsGameSound);
+    playSound(privateMessageSound);
+  }
+
   public void playFriendPlaysGameSound() {
     if (!notificationsPrefs.isFriendPlaysGameSoundEnabled()) {
       return;

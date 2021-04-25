@@ -21,11 +21,13 @@ public class NotificationsPrefs {
   private final BooleanProperty friendOnlineSoundEnabled;
   private final BooleanProperty friendOfflineSoundEnabled;
   private final BooleanProperty friendJoinsGameSoundEnabled;
+  private final BooleanProperty playerJoinsGameSoundEnabled;
   private final BooleanProperty friendPlaysGameSoundEnabled;
   private final BooleanProperty friendPlaysGameToastEnabled;
   private final BooleanProperty privateMessageSoundEnabled;
   private final BooleanProperty privateMessageToastEnabled;
   private final BooleanProperty friendJoinsGameToastEnabled;
+  private final BooleanProperty playerJoinsGameToastEnabled;
   private final BooleanProperty notifyOnAtMentionOnlyEnabled;
   private final BooleanProperty afterGameReviewEnabled;
   private final ObjectProperty<ToastPosition> toastPosition;
@@ -46,9 +48,11 @@ public class NotificationsPrefs {
     friendOnlineSoundEnabled = new SimpleBooleanProperty(true);
     friendOfflineSoundEnabled = new SimpleBooleanProperty(true);
     friendJoinsGameSoundEnabled = new SimpleBooleanProperty(true);
+    playerJoinsGameSoundEnabled = new SimpleBooleanProperty(true);
     friendPlaysGameSoundEnabled = new SimpleBooleanProperty(true);
     friendPlaysGameToastEnabled = new SimpleBooleanProperty(true);
     friendJoinsGameToastEnabled = new SimpleBooleanProperty(true);
+    playerJoinsGameToastEnabled = new SimpleBooleanProperty(true);
     privateMessageSoundEnabled = new SimpleBooleanProperty(true);
     privateMessageToastEnabled = new SimpleBooleanProperty(true);
     notifyOnAtMentionOnlyEnabled = new SimpleBooleanProperty(false);
@@ -201,6 +205,18 @@ public class NotificationsPrefs {
     return friendJoinsGameSoundEnabled;
   }
 
+  public boolean isPlayerJoinsGameSoundEnabled() {
+    return playerJoinsGameSoundEnabled.get();
+  }
+
+  public void setPlayerJoinsGameSoundEnabled(boolean playerJoinsGameSoundEnabled) {
+    this.playerJoinsGameSoundEnabled.set(playerJoinsGameSoundEnabled);
+  }
+
+  public BooleanProperty playerJoinsGameSoundEnabledProperty() {
+    return playerJoinsGameSoundEnabled;
+  }
+
   public boolean isFriendPlaysGameSoundEnabled() {
     return friendPlaysGameSoundEnabled.get();
   }
@@ -259,6 +275,18 @@ public class NotificationsPrefs {
 
   public BooleanProperty friendJoinsGameToastEnabledProperty() {
     return friendJoinsGameToastEnabled;
+  }
+
+  public boolean isPlayerJoinsGameToastEnabled() {
+    return playerJoinsGameToastEnabled.get();
+  }
+
+  public void setPlayerJoinsGameToastEnabled(boolean playerJoinsGameToastEnabled) {
+    this.playerJoinsGameToastEnabled.set(playerJoinsGameToastEnabled);
+  }
+
+  public BooleanProperty playerJoinsGameToastEnabledProperty() {
+    return playerJoinsGameToastEnabled;
   }
 
   public ToastPosition getToastPosition() {

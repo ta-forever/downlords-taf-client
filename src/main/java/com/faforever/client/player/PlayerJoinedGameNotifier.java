@@ -6,7 +6,7 @@ import com.faforever.client.game.JoinGameHelper;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.TransientNotification;
-import com.faforever.client.player.event.FriendJoinedGameEvent;
+import com.faforever.client.player.event.PlayerJoinedGameEvent;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.util.IdenticonUtil;
 import com.google.common.eventbus.EventBus;
@@ -16,11 +16,13 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Component;
 
 /**
- * Displays a notification whenever a friend joins a preferences (if enabled in settings).
+ * Displays a notification if enabled in settings on:
+ *   - any player joined current game
+ *   - friend joined any game
  */
 @Component
 @RequiredArgsConstructor
-public class FriendJoinedGameNotifier implements InitializingBean {
+public class PlayerJoinedGameNotifier implements InitializingBean {
 
   private final NotificationService notificationService;
   private final I18n i18n;
@@ -35,14 +37,19 @@ public class FriendJoinedGameNotifier implements InitializingBean {
   }
 
   @Subscribe
-  public void onFriendJoinedGame(FriendJoinedGameEvent event) {
+  public void onPlayerJoinedGame(PlayerJoinedGameEvent event) {
     Player player = event.getPlayer();
     Game game = event.getGame();
-    if (preferencesService.getPreferences().getNotification().isFriendJoinsGameSoundEnabled()) {
+
+    if (player.getSocialStatus() == SocialStatus.FRIEND && preferencesService.getPreferences().getNotification().isFriendJoinsGameSoundEnabled()) {
       audioService.playFriendJoinsGameSound();
     }
+    else if (preferencesService.getPreferences().getNotification().isPlayerJoinsGameSoundEnabled()) {
+      audioService.playPlayerJoinsGameSound();
+    }
 
-    if (preferencesService.getPreferences().getNotification().isFriendJoinsGameToastEnabled()) {
+    if (preferencesService.getPreferences().getNotification().isPlayerJoinsGameToastEnabled() ||
+        player.getSocialStatus() == SocialStatus.FRIEND && preferencesService.getPreferences().getNotification().isFriendJoinsGameToastEnabled()) {
       notificationService.addNotification(new TransientNotification(
           i18n.get("friend.joinedGameNotification.title", player.getUsername(), game.getTitle()),
           i18n.get("friend.joinedGameNotification.action"),
