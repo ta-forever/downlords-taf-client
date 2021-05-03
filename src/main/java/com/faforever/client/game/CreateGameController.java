@@ -9,29 +9,37 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapBean.Type;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.map.MapSize;
-import com.faforever.client.map.generator.MapGeneratorService;
 import com.faforever.client.mod.FeaturedMod;
-import com.faforever.client.mod.ModManagerController;
 import com.faforever.client.mod.ModService;
-import com.faforever.client.mod.ModVersion;
 import com.faforever.client.notification.NotificationService;
+import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.LastGamePrefs;
 import com.faforever.client.preferences.PreferenceUpdateListener;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
-import com.faforever.client.reporting.ReportingService;
+import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.theme.UiService;
-import com.faforever.client.ui.dialog.Dialog;
+import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
+import com.google.common.eventbus.EventBus;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.StringBinding;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.transformation.FilteredList;
 import javafx.css.PseudoClass;
+import javafx.event.ActionEvent;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MultipleSelectionModel;
@@ -43,6 +51,8 @@ import javafx.scene.layout.BackgroundImage;
 import javafx.scene.layout.BackgroundSize;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.maven.artifact.versioning.ComparableVersion;
@@ -51,13 +61,16 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.lang.ref.WeakReference;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static com.faforever.client.net.ConnectionState.CONNECTED;
+import static java.util.Collections.emptySet;
 import static javafx.scene.layout.BackgroundPosition.CENTER;
 import static javafx.scene.layout.BackgroundRepeat.NO_REPEAT;
 
@@ -73,18 +86,16 @@ public class CreateGameController implements Controller<Pane> {
   private final MapService mapService;
   private final ModService modService;
   private final GameService gameService;
+  private final PlayerService playerService;
   private final PreferencesService preferencesService;
   private final I18n i18n;
   private final NotificationService notificationService;
-  private final ReportingService reportingService;
   private final FafService fafService;
-  private final MapGeneratorService mapGeneratorService;
   private final UiService uiService;
+  private final EventBus eventBus;
   public Label mapSizeLabel;
   public Label mapPlayersLabel;
   public Label mapDescriptionLabel;
-  public Label mapNameLabel;
-  public ModManagerController modManagerController;
   public TextField mapSearchTextField;
   public TextField titleTextField;
   public TextField passwordTextField;
@@ -96,30 +107,83 @@ public class CreateGameController implements Controller<Pane> {
   public StackPane gamesRoot;
   public Pane createGameRoot;
   public Button createGameButton;
+  public Button updateGameButton;
+  public Button setGamePathButton;
+  public VBox mapPreview;
   public Pane mapPreviewPane;
   public Label versionLabel;
+  public Label hpiArchiveLabel;
+  public ComboBox<PreviewType> mapPreviewTypeComboBox;
+  public ComboBox<Integer> mapPreviewMaxPositionsComboBox;
   public CheckBox onlyForFriendsCheckBox;
-  public Button generateMapButton;
   @VisibleForTesting
   FilteredList<MapBean> filteredMapBeans;
   private Runnable onCloseButtonClickedListener;
   private PreferenceUpdateListener preferenceUpdateListener;
+
+  private BooleanProperty validatedButtonsDisableProperty;
+  private StringProperty interactionLevelProperty; // "CREATE", "UPDATE", "BROWSE"
+
+  private ObjectProperty<Game> contextGameProperty; // is player actually creating a new game (contextGame==null), or inspecting settings for an existing game?
+
   /**
    * Remembers if the controller's init method was called, to avoid memory leaks by adding several listeners
    */
   private boolean initialized;
 
+  void setContextGame(Game game) {
+    log.info("[setContextGame] {}", game);
+    this.contextGameProperty.set(game);
+  }
+
   public void initialize() {
-    JavaFxUtil.addLabelContextMenus(uiService, mapNameLabel, mapDescriptionLabel);
+    validatedButtonsDisableProperty = new SimpleBooleanProperty();
+    interactionLevelProperty = new SimpleStringProperty();
+    contextGameProperty = new SimpleObjectProperty<>();
+
+    JavaFxUtil.addLabelContextMenus(uiService, hpiArchiveLabel, mapDescriptionLabel);
     versionLabel.managedProperty().bind(versionLabel.visibleProperty());
+    hpiArchiveLabel.managedProperty().bind(hpiArchiveLabel.visibleProperty());
+
+    mapPreviewTypeComboBox.getItems().setAll(PreviewType.values());
+    mapPreviewMaxPositionsComboBox.getItems().setAll(IntStream.rangeClosed(2,10).boxed().collect(Collectors.toList()));
+    mapPreviewTypeComboBox.getSelectionModel().select(0);
+    mapPreviewMaxPositionsComboBox.getSelectionModel().select(0);
+
+    mapPreviewTypeComboBox.setConverter(new StringConverter<>() {
+      @Override
+      public String toString(PreviewType previewType) {
+        return previewType == null ? "null" : previewType.getDisplayName();
+      }
+      @Override
+      public PreviewType fromString(String string) {
+        throw new UnsupportedOperationException("Not supported");
+      }
+    });
+    mapPreviewMaxPositionsComboBox.setConverter(new StringConverter<>() {
+      @Override
+      public String toString(Integer maxPositions) {
+        return String.valueOf(maxPositions);
+      }
+      @Override
+      public Integer fromString(String string) {
+        throw new UnsupportedOperationException("Not supported");
+      }
+    });
+
+    mapPreviewTypeComboBox.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+      setSelectedMap(mapListView.getSelectionModel().getSelectedItem(), newValue, mapPreviewMaxPositionsComboBox.getSelectionModel().getSelectedItem());
+    });
+    mapPreviewMaxPositionsComboBox.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+      setSelectedMap(mapListView.getSelectionModel().getSelectedItem(), mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(), newValue);
+    });
 
     mapPreviewPane.prefHeightProperty().bind(mapPreviewPane.widthProperty());
     mapSearchTextField.textProperty().addListener((observable, oldValue, newValue) -> {
       if (newValue.isEmpty()) {
         filteredMapBeans.setPredicate(null);
       } else {
-        filteredMapBeans.setPredicate(mapInfoBean -> mapInfoBean.getDisplayName().toLowerCase().contains(newValue.toLowerCase())
-            || mapInfoBean.getFolderName().toLowerCase().contains(newValue.toLowerCase()));
+        filteredMapBeans.setPredicate(mapInfoBean -> mapInfoBean.getMapName().toLowerCase().contains(newValue.toLowerCase()));
       }
       if (!filteredMapBeans.isEmpty()) {
         mapListView.getSelectionModel().select(0);
@@ -162,14 +226,29 @@ public class CreateGameController implements Controller<Pane> {
 
     modService.getFeaturedMods().thenAccept(featuredModBeans -> JavaFxUtil.runLater(() -> {
       featuredModListView.setItems(FXCollections.observableList(featuredModBeans).filtered(FeaturedMod::isVisible));
+      featuredModListView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> JavaFxUtil.runLater(() -> {
+        setAvailableMaps(newValue.getTechnicalName());
+        Path installedExePath = preferencesService.getTotalAnnihilation(newValue.getTechnicalName()).getInstalledExePath();
+        setGamePathButton.setStyle(installedExePath == null || !Files.isExecutable(installedExePath)
+            ? "-fx-background-color: -fx-accent"
+            : "-fx-background-color: -fx-background");
+        selectAppropriateMap();
+      }));
       selectLastOrDefaultGameType();
     }));
 
-    if (preferencesService.getPreferences().getForgedAlliance().getInstallationPath() == null) {
-      preferenceUpdateListener = preferences -> {
-        if (!initialized && preferencesService.getPreferences().getForgedAlliance().getInstallationPath() != null) {
-          initialized = true;
+    final String activeMod;
+    if (featuredModListView.getFocusModel().getFocusedItem() == null) {
+      activeMod = KnownFeaturedMod.DEFAULT.getTechnicalName();
+    }
+     else {
+      activeMod = featuredModListView.getFocusModel().getFocusedItem().getTechnicalName();
+    }
 
+    if (preferencesService.getTotalAnnihilation(activeMod).getInstalledPath() == null) {
+      preferenceUpdateListener = preferences -> {
+        if (!initialized && preferencesService.getTotalAnnihilation(activeMod).getInstalledPath() != null ) {
+          initialized = true;
           JavaFxUtil.runLater(this::init);
         }
       };
@@ -183,23 +262,8 @@ public class CreateGameController implements Controller<Pane> {
     onCloseButtonClickedListener.run();
   }
 
-
-  private void init() {
-    bindGameVisibility();
-    initMapSelection();
-    initFeaturedModList();
-    initRatingBoundaries();
-    selectLastMap();
-    setLastGameTitle();
-    initPassword();
-    titleTextField.textProperty().addListener((observable, oldValue, newValue) -> {
-      preferencesService.getPreferences().getLastGame().setLastGameTitle(newValue);
-      preferencesService.storeInBackground();
-      validateTitle(newValue);
-    });
-    validateTitle(titleTextField.getText());
-
-    createGameButton.textProperty().bind(Bindings.createStringBinding(() -> {
+  private StringBinding createValidatedButtonTextBinding(String nominalText) {
+    return Bindings.createStringBinding(() -> {
       switch (fafService.connectionStateProperty().get()) {
         case DISCONNECTED:
           return i18n.get("game.create.disconnected");
@@ -213,13 +277,64 @@ public class CreateGameController implements Controller<Pane> {
       } else if (featuredModListView.getSelectionModel().getSelectedItem() == null) {
         return i18n.get("game.create.featuredModMissing");
       }
-      return i18n.get("game.create.create");
-    }, titleTextField.textProperty(), featuredModListView.getSelectionModel().selectedItemProperty(), fafService.connectionStateProperty()));
+      return nominalText;
+    }, titleTextField.textProperty(), featuredModListView.getSelectionModel().selectedItemProperty(), fafService.connectionStateProperty());
+  }
 
-    createGameButton.disableProperty().bind(
+  String calcInteractionLevel() {
+    if (gameService.getCurrentGame() == null || !playerService.getCurrentPlayer().isPresent() || contextGameProperty.get() == null) {
+      return "CREATE";
+    }
+    final String currentPlayer = playerService.getCurrentPlayer().get().getUsername();
+    final boolean isCurrentGameSameAsContextGame = contextGameProperty.get().getId() == gameService.getCurrentGame().getId();
+    final boolean isPlayerHost = gameService.getCurrentGame().getHost().equals(currentPlayer);
+    final boolean isGameStaging = gameService.getCurrentGame().getStatus() == GameStatus.STAGING;
+    if (isCurrentGameSameAsContextGame && isPlayerHost && isGameStaging) {
+      return "UPDATE";
+    }
+    else {
+      return "BROWSE";
+    }
+  }
+
+  private void init() {
+    bindGameVisibility();
+    initMapSelection(KnownFeaturedMod.DEFAULT.getBaseGameName());
+    initFeaturedModList();
+    initRatingBoundaries();
+    selectAppropriateMap();
+    setLastGameTitle();
+    initPassword();
+    titleTextField.textProperty().addListener((observable, oldValue, newValue) -> {
+      preferencesService.getPreferences().getLastGame().setLastGameTitle(newValue);
+      preferencesService.storeInBackground();
+      validateTitle(newValue);
+    });
+    validateTitle(titleTextField.getText());
+
+    createGameButton.textProperty().bind(createValidatedButtonTextBinding(i18n.get("game.create.create")));
+    updateGameButton.textProperty().bind(createValidatedButtonTextBinding(i18n.get("game.create.update")));
+
+    validatedButtonsDisableProperty.bind(
         titleTextField.textProperty().isEmpty()
-            .or(featuredModListView.getSelectionModel().selectedItemProperty().isNull().or(fafService.connectionStateProperty().isNotEqualTo(CONNECTED)))
+            .or(featuredModListView.getSelectionModel().selectedItemProperty().isNull())
+            .or(fafService.connectionStateProperty().isNotEqualTo(CONNECTED))
+            .or(mapListView.getSelectionModel().selectedItemProperty().isNull())
     );
+    interactionLevelProperty.bind(Bindings.createStringBinding(() -> calcInteractionLevel(), gameService.getCurrentGameStatusProperty(), contextGameProperty));
+
+    createGameButton.disableProperty().bind(validatedButtonsDisableProperty);
+    updateGameButton.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
+
+    createGameButton.visibleProperty().bind(interactionLevelProperty.isEqualTo("CREATE"));
+    updateGameButton.visibleProperty().bind(createGameButton.visibleProperty().not());
+    titleTextField.disableProperty().bind(updateGameButton.visibleProperty());
+    onlyForFriendsCheckBox.disableProperty().bind(updateGameButton.visibleProperty());
+    featuredModListView.disableProperty().bind(updateGameButton.visibleProperty());
+    setGamePathButton.disableProperty().bind(updateGameButton.visibleProperty());
+    passwordTextField.disableProperty().bind(updateGameButton.visibleProperty());
+    minRankingTextField.disableProperty().bind(updateGameButton.visibleProperty());
+    maxRankingTextField.disableProperty().bind(updateGameButton.visibleProperty());
   }
 
   private void validateTitle(String gameTitle) {
@@ -245,39 +360,62 @@ public class CreateGameController implements Controller<Pane> {
     onlyForFriendsCheckBox.selectedProperty().addListener(observable -> preferencesService.storeInBackground());
   }
 
-  protected void initMapSelection() {
-    filteredMapBeans = new FilteredList<>(
-        mapService.getInstalledMaps().filtered(mapBean -> mapBean.getType() == Type.SKIRMISH).sorted((o1, o2) -> o1.getDisplayName().compareToIgnoreCase(o2.getDisplayName()))
-    );
-
-    mapListView.setItems(filteredMapBeans);
-    mapListView.setCellFactory(param -> new StringListCell<>(MapBean::getDisplayName));
-    mapListView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> setSelectedMap(newValue));
+  protected void initMapSelection(String modTechnical) {
+    setAvailableMaps(modTechnical);
+    mapListView.setCellFactory(param -> new StringListCell<>(MapBean::getMapName));
+    mapListView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> JavaFxUtil.runLater(() -> {
+      PreviewType previewType = mapPreviewTypeComboBox.getSelectionModel().getSelectedItem();
+      Integer maxPositions = mapPreviewMaxPositionsComboBox.getSelectionModel().getSelectedItem();
+      setSelectedMap(newValue, previewType, maxPositions);
+    }));
   }
 
-  protected void setSelectedMap(MapBean newValue) {
+  protected void setAvailableMaps(String modTechnical) {
+    filteredMapBeans = new FilteredList<>(
+        mapService.getInstalledMaps(modTechnical).filtered(mapBean -> mapBean.getType() == Type.SKIRMISH).sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName()))
+    );
+
+    Path installedExePath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledExePath();
+    if (filteredMapBeans.isEmpty() && installedExePath != null && Files.isExecutable(installedExePath)) {
+      mapListView.setItems(mapService.getOfficialMaps());
+    }
+    else {
+      mapListView.setItems(filteredMapBeans);
+    }
+  }
+
+  protected void setSelectedMap(MapBean newValue, PreviewType previewType, int maxNumPlayers) {
     JavaFxUtil.assertApplicationThread();
 
     if (newValue == null) {
-      mapNameLabel.setText("");
+      mapPreview.setVisible(false);
       return;
     }
+    mapPreview.setVisible(true);
 
-    preferencesService.getPreferences().getLastGame().setLastMap(newValue.getFolderName());
+    preferencesService.getPreferences().getLastGame().setLastMap(newValue.getMapName());
     preferencesService.storeInBackground();
 
-    Image largePreview = mapService.loadPreview(newValue.getFolderName(), PreviewSize.LARGE);
-    mapPreviewPane.setBackground(new Background(new BackgroundImage(largePreview, NO_REPEAT, NO_REPEAT, CENTER,
+    String activeMod = KnownFeaturedMod.DEFAULT.getTechnicalName();
+    if (featuredModListView.getFocusModel().getFocusedItem() != null)
+    {
+      activeMod = featuredModListView.getFocusModel().getFocusedItem().getTechnicalName();
+    }
+
+    Image preview = mapService.loadPreview(activeMod, newValue.getMapName(), previewType, maxNumPlayers);
+    mapPreviewPane.setBackground(new Background(new BackgroundImage(preview, NO_REPEAT, NO_REPEAT, CENTER,
         new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, true, false))));
 
     MapSize mapSize = newValue.getSize();
     mapSizeLabel.setText(i18n.get("mapPreview.size", mapSize.getWidthInKm(), mapSize.getHeightInKm()));
-    mapNameLabel.setText(newValue.getDisplayName());
     mapPlayersLabel.setText(i18n.number(newValue.getPlayers()));
     mapDescriptionLabel.setText(Optional.ofNullable(newValue.getDescription())
         .map(Strings::emptyToNull)
         .map(FaStrings::removeLocalizationTag)
         .orElseGet(() -> i18n.get("map.noDescriptionAvailable")));
+
+    hpiArchiveLabel.setText(newValue.getHpiArchiveName());
+    hpiArchiveLabel.setVisible(true);
 
     ComparableVersion mapVersion = newValue.getVersion();
     if (mapVersion == null) {
@@ -330,17 +468,28 @@ public class CreateGameController implements Controller<Pane> {
     enforceRankingCheckBox.selectedProperty().addListener(observable -> preferencesService.storeInBackground());
   }
 
-  private void selectLastMap() {
-    String lastMap = preferencesService.getPreferences().getLastGame().getLastMap();
+  private void selectAppropriateMap() {
+    String someMap = preferencesService.getPreferences().getLastGame().getLastMap();
+    if (contextGameProperty.get() != null) {
+      someMap = contextGameProperty.get().getMapName();
+    }
+    else if (gameService.getCurrentGame() != null) {
+      someMap = gameService.getCurrentGame().getMapName();
+    }
     for (MapBean mapBean : mapListView.getItems()) {
-      if (mapBean.getFolderName().equalsIgnoreCase(lastMap)) {
+      if (mapBean.getMapName().equalsIgnoreCase(someMap)) {
         mapListView.getSelectionModel().select(mapBean);
         mapListView.scrollTo(mapBean);
         return;
       }
     }
-    if (mapListView.getSelectionModel().isEmpty()) {
+
+    if (mapListView.getItems().isEmpty()) {
+      setSelectedMap(null, null, 10);
+    }
+    else {
       mapListView.getSelectionModel().selectFirst();
+      mapListView.scrollTo(0);
     }
   }
 
@@ -351,6 +500,9 @@ public class CreateGameController implements Controller<Pane> {
   private void selectLastOrDefaultGameType() {
     JavaFxUtil.assertApplicationThread();
     String lastGameMod = preferencesService.getPreferences().getLastGame().getLastGameType();
+    if (gameService.getCurrentGame() != null) {
+      lastGameMod = gameService.getCurrentGame().getFeaturedMod();
+    }
     if (lastGameMod == null) {
       lastGameMod = KnownFeaturedMod.DEFAULT.getTechnicalName();
     }
@@ -370,36 +522,14 @@ public class CreateGameController implements Controller<Pane> {
     mapListView.scrollTo(mapIndex);
   }
 
-  public void onGenerateMapButtonClicked() {
-    onGenerateMap();
-  }
-
-  private void onGenerateMap() {
-    try {
-      mapGeneratorService.setGeneratorVersion(mapGeneratorService.queryMaxSupportedVersion());
-      GenerateMapController generateMapController = uiService.loadFxml("theme/play/generate_map.fxml");
-      mapGeneratorService.downloadGeneratorIfNecessary(mapGeneratorService.getGeneratorVersion())
-          .thenCompose(aVoid -> mapGeneratorService.getGeneratorStyles().thenAccept(generateMapController::setStyles));
-
-      Pane root = generateMapController.getRoot();
-      generateMapController.setCreateGameController(this);
-      Dialog dialog = uiService.showInDialog(gamesRoot, root, i18n.get("game.generateMap.dialog"));
-      generateMapController.setOnCloseButtonClickedListener(dialog::close);
-
-      root.requestFocus();
-    } catch (Exception e) {
-      log.error("Map generation failed", e);
-      notificationService.addImmediateErrorNotification(e, "mapGenerator.generationFailed");
-    }
-  }
-
   public void onCreateButtonClicked() {
     MapBean selectedMap = mapListView.getSelectionModel().getSelectedItem();
     onCloseButtonClicked();
-    if (mapService.isOfficialMap(selectedMap)) {
+    if (mapService.isOfficialMap(selectedMap.getMapName())) {
       hostGame(selectedMap);
     } else {
-      mapService.updateLatestVersionIfNecessary(selectedMap)
+      String modTechnical = featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName();
+      mapService.updateLatestVersionIfNecessary(modTechnical, selectedMap)
           .exceptionally(throwable -> {
             log.error("error when updating the map", throwable);
             hostGame(selectedMap);
@@ -410,10 +540,6 @@ public class CreateGameController implements Controller<Pane> {
   }
 
   private void hostGame(MapBean map) {
-    Set<String> mods = modManagerController.apply().stream()
-        .map(ModVersion::getUid)
-        .collect(Collectors.toSet());
-
     Integer minRating = null;
     Integer maxRating = null;
     boolean enforceRating;
@@ -432,8 +558,8 @@ public class CreateGameController implements Controller<Pane> {
         titleTextField.getText(),
         Strings.emptyToNull(passwordTextField.getText()),
         featuredModListView.getSelectionModel().getSelectedItem(),
-        map.getFolderName(),
-        mods,
+        map.getMapName(),
+        emptySet(),
         onlyForFriendsCheckBox.isSelected() ? GameVisibility.PRIVATE : GameVisibility.PUBLIC,
         minRating,
         maxRating,
@@ -444,6 +570,10 @@ public class CreateGameController implements Controller<Pane> {
       notificationService.addImmediateErrorNotification(throwable, "game.create.failed");
       return null;
     });
+  }
+
+  public void onUpdateButtonClicked() {
+    gameService.setMapForStagingGame(mapListView.getSelectionModel().getSelectedItem().getMapName());
   }
 
   public Pane getRoot() {
@@ -457,8 +587,8 @@ public class CreateGameController implements Controller<Pane> {
   /**
    * @return returns true of the map was found and false if not
    */
-  boolean selectMap(String mapFolderName) {
-    Optional<MapBean> mapBeanOptional = mapListView.getItems().stream().filter(mapBean -> mapBean.getFolderName().equalsIgnoreCase(mapFolderName)).findAny();
+  boolean selectMap(String mapName) {
+    Optional<MapBean> mapBeanOptional = mapListView.getItems().stream().filter(mapBean -> mapBean.getMapName().equalsIgnoreCase(mapName)).findAny();
     if (mapBeanOptional.isEmpty()) {
       return false;
     }
@@ -469,5 +599,13 @@ public class CreateGameController implements Controller<Pane> {
 
   void setOnCloseButtonClickedListener(Runnable onCloseButtonClickedListener) {
     this.onCloseButtonClickedListener = onCloseButtonClickedListener;
+  }
+
+  public void onSetGamePathClicked(ActionEvent actionEvent) {
+    String modTechnical = KnownFeaturedMod.DEFAULT.getTechnicalName();
+    if (featuredModListView.getSelectionModel().getSelectedItem() != null) {
+      modTechnical = featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName();
+    }
+    eventBus.post(new GameDirectoryChooseEvent(modTechnical));
   }
 }

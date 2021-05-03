@@ -15,8 +15,8 @@ public class MapBuilder {
   }
 
   public MapBuilder defaultValues() {
-    return displayName("Map name")
-        .folderName("map_name.v001")
+    return mapName("Map name")
+        .hpiArchiveName("map_name.v001")
         .type(Type.SKIRMISH)
         .mapSize(MapSize.valueOf(512, 512));
   }
@@ -26,13 +26,13 @@ public class MapBuilder {
     return this;
   }
 
-  public MapBuilder folderName(String technicalName) {
-    mapBean.setFolderName(technicalName);
+  public MapBuilder hpiArchiveName(String hpi) {
+    mapBean.setHpiArchiveName(hpi);
     return this;
   }
 
-  public MapBuilder displayName(String displayName) {
-    mapBean.setDisplayName(displayName);
+  public MapBuilder mapName(String name) {
+    mapBean.setMapName(name);
     return this;
   }
 

@@ -1,5 +1,6 @@
 package com.faforever.client.map;
 
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.HostGameEvent;
 import com.faforever.client.map.generator.MapGeneratorService;
@@ -34,7 +35,6 @@ import java.net.URL;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -99,7 +99,7 @@ public class MapDetailControllerTest extends AbstractPlainJavaFxTest {
 
     when(timeService.asDate(any(LocalDateTime.class))).thenReturn("test date");
     when(playerService.getCurrentPlayer()).thenReturn(Optional.of(currentPlayer));
-    when(mapService.downloadAndInstallMap(any(), any(DoubleProperty.class), any(StringProperty.class))).thenReturn(CompletableFuture.runAsync(() -> {
+    when(mapService.ensureMap(KnownFeaturedMod.DEFAULT.getTechnicalName(), any(), any(DoubleProperty.class), any(StringProperty.class))).thenReturn(CompletableFuture.runAsync(() -> {
     }));
     when(i18n.number(testMap.getPlayers())).thenReturn(String.valueOf(testMap.getPlayers()));
     when(i18n.get("map.id", testMap.getId())).thenReturn(testMap.getId());
@@ -109,7 +109,7 @@ public class MapDetailControllerTest extends AbstractPlainJavaFxTest {
     when(mapService.isInstalled(testMap.getFolderName())).thenReturn(true);
     when(mapService.hasPlayedMap(eq(currentPlayer.getId()), eq(testMap.getId()))).thenReturn(CompletableFuture.completedFuture(true));
     when(mapService.getFileSize(any(URL.class))).thenReturn(CompletableFuture.completedFuture(12));
-    when(mapService.getInstalledMaps()).thenReturn(installedMaps);
+    when(mapService.getInstalledMaps(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(installedMaps);
     instance = new MapDetailController(mapService, mapGeneratorService, notificationService, i18n, timeService, reportingService, playerService, reviewService, uiService, eventBus);
 
     loadFxml("theme/vault/map/map_detail.fxml", param -> {
@@ -131,14 +131,14 @@ public class MapDetailControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void onCreateButtonClickedMapNotInstalled() {
-    when(mapService.isInstalled(testMap.getFolderName())).thenReturn(false);
+    when(mapService.isInstalled(testMap.getFolderName(), anyString(), anyString())).thenReturn(false);
 
     instance.setMap(testMap);
     WaitForAsyncUtils.waitForFxEvents();
 
     instance.onCreateGameButtonClicked();
     WaitForAsyncUtils.waitForFxEvents();
-    verify(mapService).downloadAndInstallMap(any(), any(DoubleProperty.class), any(StringProperty.class));
+    verify(mapService).ensureMap(KnownFeaturedMod.DEFAULT.getTechnicalName(), any(), any(DoubleProperty.class), any(StringProperty.class));
     verify(eventBus).post(any(HostGameEvent.class));
     assertTrue(instance.uninstallButton.isVisible());
     assertFalse(instance.installButton.isVisible());

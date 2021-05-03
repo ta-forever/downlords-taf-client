@@ -1,8 +1,8 @@
 package com.faforever.client.player;
 
 import com.faforever.client.game.Game;
-import com.faforever.client.game.PlayerStatus;
 import com.faforever.client.remote.domain.GameStatus;
+import com.faforever.client.remote.domain.PlayerStatus;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -26,10 +26,10 @@ public class PlayerTest {
   @Test
   public void testStateChangesOnGameBeingSet() {
     List<List<Object>> callParameters = Arrays.asList(
-        Arrays.asList(GameStatus.OPEN, PlayerStatus.HOSTING, "junit"),
-        Arrays.asList(GameStatus.OPEN, PlayerStatus.LOBBYING, "whatever"),
-        Arrays.asList(GameStatus.PLAYING, PlayerStatus.PLAYING, "junit"),
-        Arrays.asList(GameStatus.CLOSED, PlayerStatus.IDLE, "junit"),
+        Arrays.asList(GameStatus.STAGING, PlayerStatus.HOSTING, "junit"),
+        Arrays.asList(GameStatus.STAGING, PlayerStatus.JOINING, "whatever"),
+        Arrays.asList(GameStatus.LIVE, PlayerStatus.PLAYING, "junit"),
+        Arrays.asList(GameStatus.ENDED, PlayerStatus.IDLE, "junit"),
         Arrays.asList(null, PlayerStatus.IDLE, "junit")
     );
 
@@ -53,10 +53,10 @@ public class PlayerTest {
   @Test
   public void testPlayerStateChangedOnGameStatusChanged() {
     Game game = new Game();
-    game.setStatus(GameStatus.PLAYING);
+    game.setStatus(GameStatus.LIVE);
     instance.setGame(game);
     assertSame(instance.getStatus(), PlayerStatus.PLAYING);
-    game.setStatus(GameStatus.CLOSED);
+    game.setStatus(GameStatus.ENDED);
     instance.setGame(null);
     assertSame(instance.getStatus(), PlayerStatus.IDLE);
   }

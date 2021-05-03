@@ -33,7 +33,7 @@ public class MissingGamePathNotifier implements InitializingBean {
   @Subscribe
   public void onMissingGamePathEvent(MissingGamePathEvent event) {
     List<Action> actions = Collections.singletonList(
-        new Action(i18n.get("missingGamePath.locate"), chooseEvent -> eventBus.post(new GameDirectoryChooseEvent()))
+        new Action(i18n.get("missingGamePath.locate"), chooseEvent -> eventBus.post(new GameDirectoryChooseEvent(event.getModTechnicalName())))
     );
     String notificationText = i18n.get("missingGamePath.notification");
 

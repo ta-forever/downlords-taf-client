@@ -19,6 +19,8 @@ public class GameLaunchMessage extends FafServerMessage {
   private int uid;
   private String mod;
   private String mapname;
+  private String mapCrc;
+  private String mapArchive;
   @NonNull
   private String name;
   private Integer expectedPlayers;

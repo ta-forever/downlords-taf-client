@@ -202,8 +202,10 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
       reportItem.visibleProperty().bind(newValue.socialStatusProperty().isNotEqualTo(SELF));
 
       joinGameItem.visibleProperty().bind(newValue.socialStatusProperty().isNotEqualTo(SELF)
-          .and(newValue.statusProperty().isEqualTo(PlayerStatus.LOBBYING)
-              .or(newValue.statusProperty().isEqualTo(PlayerStatus.HOSTING)))
+          .and(newValue.statusProperty().isEqualTo(PlayerStatus.JOINING)
+              .or(newValue.statusProperty().isEqualTo(PlayerStatus.HOSTING)
+              .or(newValue.statusProperty().isEqualTo(PlayerStatus.JOINED)
+              .or(newValue.statusProperty().isEqualTo(PlayerStatus.HOSTED)))))
           .and(Bindings.createBooleanBinding(() -> {
                 return newValue.getGame() != null
                     && newValue.getGame().getGameType() != GameType.MATCHMAKER;

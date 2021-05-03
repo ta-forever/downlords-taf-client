@@ -1,6 +1,7 @@
 package com.faforever.client.mod;
 
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.main.event.OpenModVaultEvent;
@@ -40,7 +41,7 @@ public class ModVaultController extends VaultEntityController<ModVersion> {
 
   public ModVaultController(ModService modService, I18n i18n, EventBus eventBus, PreferencesService preferencesService,
                                UiService uiService, NotificationService notificationService, ReportingService reportingService) {
-    super(uiService, notificationService, i18n, preferencesService, reportingService);
+    super(uiService, notificationService, i18n, preferencesService, reportingService, modService);
     this.eventBus = eventBus;
     this.modService = modService;
   }
@@ -101,7 +102,7 @@ public class ModVaultController extends VaultEntityController<ModVersion> {
   public void onUploadButtonClicked() {
     JavaFxUtil.runLater(() -> {
       DirectoryChooser directoryChooser = new DirectoryChooser();
-      directoryChooser.setInitialDirectory(preferencesService.getPreferences().getForgedAlliance().getModsDirectory().toFile());
+      directoryChooser.setInitialDirectory(preferencesService.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).getInstalledPath().toFile());
       directoryChooser.setTitle(i18n.get("modVault.upload.chooseDirectory"));
       File result = directoryChooser.showDialog(getRoot().getScene().getWindow());
 

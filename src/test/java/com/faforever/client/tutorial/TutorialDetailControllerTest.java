@@ -2,10 +2,11 @@ package com.faforever.client.tutorial;
 
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.WebViewConfigurer;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.test.AbstractPlainJavaFxTest;
 import javafx.scene.image.Image;
 import org.junit.Before;
@@ -44,10 +45,10 @@ public class TutorialDetailControllerTest extends AbstractPlainJavaFxTest {
     MapBean mapVersion = new MapBean();
     tutorial.setMapVersion(mapVersion);
     Image image = new Image("http://examle.com");
-    when(mapService.loadPreview(mapVersion, PreviewSize.LARGE)).thenReturn(image);
+    when(mapService.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), mapVersion, PreviewType.MINI, 10)).thenReturn(image);
     JavaFxUtil.runLater(() -> instance.setTutorial(tutorial));
     WaitForAsyncUtils.waitForFxEvents();
-    verify(mapService).loadPreview(mapVersion, PreviewSize.LARGE);
+    verify(mapService).loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), mapVersion, PreviewType.MINI, 10);
     assertEquals(instance.mapImage.getImage(),image);
     assertEquals(instance.titleLabel.getText(),"title");
     assertTrue(instance.mapContainer.isVisible());

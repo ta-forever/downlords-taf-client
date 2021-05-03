@@ -2,7 +2,6 @@ package com.faforever.client.chat;
 
 import com.faforever.client.audio.AudioService;
 import com.faforever.client.chat.event.UnreadPartyMessageEvent;
-import com.faforever.client.discord.JoinDiscordEvent;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.WebViewConfigurer;
 import com.faforever.client.i18n.I18n;
@@ -24,7 +23,6 @@ import javafx.scene.control.TextInputControl;
 import javafx.scene.text.TextFlow;
 import javafx.scene.web.WebView;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -34,8 +32,6 @@ import java.util.Arrays;
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class MatchmakingChatController extends AbstractChatTabController {
-
-  private final ApplicationEventPublisher applicationEventPublisher;
 
   public Tab matchmakingChatTabRoot;
   public WebView messagesWebView;
@@ -61,11 +57,10 @@ public class MatchmakingChatController extends AbstractChatTabController {
                                    ChatService chatService,
                                    WebViewConfigurer webViewConfigurer,
                                    CountryFlagService countryFlagService,
-                                   ChatUserService chatUserService, ApplicationEventPublisher applicationEventPublisher) {
+                                   ChatUserService chatUserService) {
     super(webViewConfigurer, userService, chatService, preferencesService, playerService, audioService,
         timeService, i18n, imageUploadService, notificationService, reportingService, uiService,
         eventBus, countryFlagService, chatUserService);
-    this.applicationEventPublisher = applicationEventPublisher;
   }
 
   @Override
@@ -121,10 +116,6 @@ public class MatchmakingChatController extends AbstractChatTabController {
     if (!hasFocus()) {
       eventBus.post(new UnreadPartyMessageEvent(chatMessage));
     }
-  }
-
-  public void onDiscordButtonClicked() {
-    applicationEventPublisher.publishEvent(new JoinDiscordEvent());
   }
 
   @VisibleForTesting

@@ -1,7 +1,6 @@
 package com.faforever.client.map;
 
 import com.faforever.client.api.dto.MapVersion;
-import com.faforever.client.api.dto.NeroxisGeneratorParams;
 import com.faforever.client.vault.review.Review;
 import com.faforever.client.vault.review.ReviewsSummary;
 import javafx.beans.Observable;
@@ -26,41 +25,43 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 
 public class MapBean implements Comparable<MapBean> {
 
-  private final StringProperty folderName;
-  private final StringProperty displayName;
+  private final StringProperty hpiArchiveName;
+  private final StringProperty mapName;
   private final IntegerProperty numberOfPlays;
   private final StringProperty description;
   private final IntegerProperty downloads;
   private final IntegerProperty players;
   private final ObjectProperty<MapSize> size;
   private final ObjectProperty<ComparableVersion> version;
+  private final StringProperty crc;
   private final StringProperty id;
   private final StringProperty author;
   private final BooleanProperty hidden;
   private final BooleanProperty ranked;
   private final ObjectProperty<URL> downloadUrl;
-  private final ObjectProperty<URL> smallThumbnailUrl;
-  private final ObjectProperty<URL> largeThumbnailUrl;
+  private final ObjectProperty<URL> thumbnailUrl;
   private final ObjectProperty<LocalDateTime> createTime;
   private final ObjectProperty<Type> type;
   private final ObjectProperty<ReviewsSummary> reviewsSummary;
   private final ListProperty<Review> reviews;
+  private Optional<Function<Void,String>> lazyCrcGetter;
 
   public MapBean() {
     id = new SimpleStringProperty();
-    displayName = new SimpleStringProperty();
-    folderName = new SimpleStringProperty();
+    mapName = new SimpleStringProperty();
+    hpiArchiveName = new SimpleStringProperty();
+    crc = new SimpleStringProperty();
     description = new SimpleStringProperty();
     numberOfPlays = new SimpleIntegerProperty(0);
     downloads = new SimpleIntegerProperty();
     players = new SimpleIntegerProperty();
     size = new SimpleObjectProperty<>();
     version = new SimpleObjectProperty<>();
-    smallThumbnailUrl = new SimpleObjectProperty<>();
-    largeThumbnailUrl = new SimpleObjectProperty<>();
+    thumbnailUrl = new SimpleObjectProperty<>();
     downloadUrl = new SimpleObjectProperty<>();
     author = new SimpleStringProperty();
     createTime = new SimpleObjectProperty<>();
@@ -70,6 +71,7 @@ public class MapBean implements Comparable<MapBean> {
         -> new Observable[]{param.scoreProperty(), param.textProperty()}));
     hidden = new SimpleBooleanProperty();
     ranked = new SimpleBooleanProperty();
+    lazyCrcGetter = Optional.empty();
   }
 
   public static MapBean fromMapDto(com.faforever.client.api.dto.Map map) {
@@ -78,16 +80,16 @@ public class MapBean implements Comparable<MapBean> {
     MapBean mapBean = new MapBean();
     Optional.ofNullable(map.getAuthor()).ifPresent(author -> mapBean.setAuthor(author.getLogin()));
     mapBean.setDescription(mapVersion.getDescription());
-    mapBean.setDisplayName(map.getDisplayName());
-    mapBean.setFolderName(mapVersion.getFolderName());
+    mapBean.setMapName(map.getDisplayName());
+    mapBean.setHpiArchiveName(mapVersion.getArchiveName());
+    mapBean.setCrc(mapVersion.getCrc());
     mapBean.setSize(MapSize.valueOf(mapVersion.getWidth(), mapVersion.getHeight()));
     mapBean.setDownloads(map.getStatistics().getDownloads());
     mapBean.setId(mapVersion.getId());
     mapBean.setPlayers(mapVersion.getMaxPlayers());
     mapBean.setVersion(mapVersion.getVersion());
     mapBean.setDownloadUrl(mapVersion.getDownloadUrl());
-    mapBean.setSmallThumbnailUrl(mapVersion.getThumbnailUrlSmall());
-    mapBean.setLargeThumbnailUrl(mapVersion.getThumbnailUrlLarge());
+    mapBean.setThumbnailUrl(mapVersion.getThumbnailUrl());
     mapBean.setCreateTime(mapVersion.getCreateTime().toLocalDateTime());
     mapBean.setNumberOfPlays(map.getStatistics().getPlays());
     mapBean.setRanked(mapVersion.getRanked());
@@ -110,16 +112,16 @@ public class MapBean implements Comparable<MapBean> {
     MapBean mapBean = new MapBean();
     Optional.ofNullable(mapVersion.getMap().getAuthor()).ifPresent(author -> mapBean.setAuthor(author.getLogin()));
     mapBean.setDescription(mapVersion.getDescription());
-    mapBean.setDisplayName(mapVersion.getMap().getDisplayName());
-    mapBean.setFolderName(mapVersion.getFolderName());
+    mapBean.setMapName(mapVersion.getMap().getDisplayName());
+    mapBean.setHpiArchiveName(mapVersion.getArchiveName());
+    mapBean.setCrc(mapVersion.getCrc());
     mapBean.setSize(MapSize.valueOf(mapVersion.getWidth(), mapVersion.getHeight()));
     mapBean.setDownloads(mapVersion.getMap().getStatistics().getDownloads());
     mapBean.setId(mapVersion.getId());
     mapBean.setPlayers(mapVersion.getMaxPlayers());
     mapBean.setVersion(mapVersion.getVersion());
     mapBean.setDownloadUrl(mapVersion.getDownloadUrl());
-    mapBean.setSmallThumbnailUrl(mapVersion.getThumbnailUrlSmall());
-    mapBean.setLargeThumbnailUrl(mapVersion.getThumbnailUrlLarge());
+    mapBean.setThumbnailUrl(mapVersion.getThumbnailUrl());
     mapBean.setCreateTime(mapVersion.getCreateTime().toLocalDateTime());
     mapBean.setNumberOfPlays(mapVersion.getMap().getStatistics().getPlays());
     mapBean.setReviewsSummary(ReviewsSummary.fromDto(mapVersion.getMap().getMapReviewsSummary()));
@@ -135,23 +137,6 @@ public class MapBean implements Comparable<MapBean> {
     });
     mapBean.setHidden(mapVersion.getHidden());
     mapBean.setRanked(mapVersion.getRanked());
-    return mapBean;
-  }
-
-  public static MapBean fromNeroxisGeneratedMapParams(NeroxisGeneratorParams mapParams) {
-    MapBean mapBean = new MapBean();
-    mapBean.setAuthor("Neroxis");
-    mapBean.setDescription("");
-    mapBean.setDisplayName(String.format("neroxis_map_generator_%s_mapSize=%dkm_spawns=%d", mapParams.getVersion(), (int) (mapParams.getSize() / 51.2), mapParams.getSpawns()));
-    mapBean.setFolderName(mapBean.getDisplayName());
-    mapBean.setSize(MapSize.valueOf(mapParams.getSize(), mapParams.getSize()));
-    mapBean.setDownloads(0);
-    mapBean.setId(mapBean.getDisplayName());
-    mapBean.setPlayers(mapParams.getSpawns());
-    mapBean.setVersion(new ComparableVersion("1"));
-    mapBean.setReviewsSummary(new ReviewsSummary());
-    mapBean.setHidden(false);
-    mapBean.setRanked(true);
     return mapBean;
   }
 
@@ -179,8 +164,8 @@ public class MapBean implements Comparable<MapBean> {
     return downloadUrl;
   }
 
-  public StringProperty displayNameProperty() {
-    return displayName;
+  public StringProperty mapNameProperty() {
+    return mapName;
   }
 
   public String getDescription() {
@@ -256,17 +241,27 @@ public class MapBean implements Comparable<MapBean> {
     return version;
   }
 
+  public String getCrc() {
+    if ((crc.get() == null || crc.get().equals("00000000")) && this.lazyCrcGetter.isPresent()) {
+      crc.setValue(this.lazyCrcGetter.get().apply(null));
+    }
+    return crc.get();
+  }
+  public void setCrc(String crc) { this.crc.set(crc); }
+  public void setLazyCrc(Function<Void,String> getter) { this.lazyCrcGetter = Optional.of(getter); }
+  public StringProperty crcProperty() { return crc; }
+
   @Override
   public int compareTo(@NotNull MapBean o) {
-    return getDisplayName().compareTo(o.getDisplayName());
+    return getMapName().compareTo(o.getMapName());
   }
 
-  public String getDisplayName() {
-    return displayName.get();
+  public String getMapName() {
+    return mapName.get();
   }
 
-  public void setDisplayName(String displayName) {
-    this.displayName.set(displayName);
+  public void setMapName(String mapName) {
+    this.mapName.set(mapName);
   }
 
   public StringProperty idProperty() {
@@ -281,40 +276,28 @@ public class MapBean implements Comparable<MapBean> {
     this.id.set(id);
   }
 
-  public String getFolderName() {
-    return folderName.get();
+  public String getHpiArchiveName() {
+    return hpiArchiveName.get();
   }
 
-  public void setFolderName(String folderName) {
-    this.folderName.set(folderName);
+  public void setHpiArchiveName(String hpiArchiveName) {
+    this.hpiArchiveName.set(hpiArchiveName);
   }
 
-  public StringProperty folderNameProperty() {
-    return folderName;
+  public StringProperty hpiArchiveNameProperty() {
+    return hpiArchiveName;
   }
 
-  public URL getLargeThumbnailUrl() {
-    return largeThumbnailUrl.get();
+  public URL getThumbnailUrl() {
+    return thumbnailUrl.get();
   }
 
-  public void setLargeThumbnailUrl(URL largeThumbnailUrl) {
-    this.largeThumbnailUrl.set(largeThumbnailUrl);
+  public void setThumbnailUrl(URL thumbnailUrl) {
+    this.thumbnailUrl.set(thumbnailUrl);
   }
 
-  public ObjectProperty<URL> largeThumbnailUrlProperty() {
-    return largeThumbnailUrl;
-  }
-
-  public URL getSmallThumbnailUrl() {
-    return smallThumbnailUrl.get();
-  }
-
-  public void setSmallThumbnailUrl(URL smallThumbnailUrl) {
-    this.smallThumbnailUrl.set(smallThumbnailUrl);
-  }
-
-  public ObjectProperty<URL> smallThumbnailUrlProperty() {
-    return smallThumbnailUrl;
+  public ObjectProperty<URL> thumbnailUrlProperty() {
+    return thumbnailUrl;
   }
 
   public LocalDateTime getCreateTime() {

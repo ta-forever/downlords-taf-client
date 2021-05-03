@@ -5,12 +5,11 @@ import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.HostGameEvent;
-import com.faforever.client.map.MapService.PreviewSize;
-import com.faforever.client.map.generator.MapGeneratorService;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
-import com.faforever.client.reporting.ReportingService;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.util.IdenticonUtil;
 import com.faforever.client.util.TimeService;
@@ -54,11 +53,10 @@ import java.util.concurrent.CompletableFuture;
 public class MapDetailController implements Controller<Node> {
 
   private final MapService mapService;
-  private final MapGeneratorService mapGeneratorService;
   private final NotificationService notificationService;
+  private final PreferencesService preferencesService;
   private final I18n i18n;
   private final TimeService timeService;
-  private final ReportingService reportingService;
   private final PlayerService playerService;
   private final ReviewService reviewService;
   private final UiService uiService;
@@ -70,9 +68,11 @@ public class MapDetailController implements Controller<Node> {
   public ImageView thumbnailImageView;
   public Label nameLabel;
   public Label authorLabel;
+  public Label mapVersionLabel;
+  public Label mapCrcLabel;
+  public Label mapHpiArchiveNameLabel;
   public ProgressBar progressBar;
   public Label mapDescriptionLabel;
-  public Label mapVersionLabel;
   public Node mapDetailRoot;
   public ScrollPane scrollPane;
   public Label dimensionsLabel;
@@ -111,13 +111,13 @@ public class MapDetailController implements Controller<Node> {
     installStatusChangeListener = change -> {
       while (change.next()) {
         for (MapBean mapBean : change.getAddedSubList()) {
-          if (map.getFolderName().equalsIgnoreCase(mapBean.getFolderName())) {
+          if (map.getMapName().equalsIgnoreCase(mapBean.getMapName())) {
             setInstalled(true);
             return;
           }
         }
         for (MapBean mapBean : change.getRemoved()) {
-          if (map.getFolderName().equals(mapBean.getFolderName())) {
+          if (map.getMapName().equals(mapBean.getMapName())) {
             setInstalled(false);
             return;
           }
@@ -160,19 +160,21 @@ public class MapDetailController implements Controller<Node> {
   public void setMap(MapBean map) {
     this.map = map;
     Image image;
-    if (map.getLargeThumbnailUrl() != null) {
-      image = mapService.loadPreview(map.getLargeThumbnailUrl(), PreviewSize.LARGE);
-    } else if (mapGeneratorService.isGeneratedMap(map.getDisplayName())) {
-      image = mapService.loadPreview(map.getDisplayName(), PreviewSize.LARGE);
+    String modTechnical = preferencesService.getPreferences().getLastGame().getLastGameType();
+    if (map.getThumbnailUrl() != null) {
+      image = mapService.loadPreview(modTechnical, map, PreviewType.MINI, 10);
     } else {
       image = IdenticonUtil.createIdenticon(map.getId());
     }
     thumbnailImageView.setImage(image);
     renewAuthorControls();
-    nameLabel.setText(map.getDisplayName());
+    nameLabel.setText(map.getMapName());
     authorLabel.setText(Optional.ofNullable(map.getAuthor()).orElse(i18n.get("map.unknownAuthor")));
     maxPlayersLabel.setText(i18n.number(map.getPlayers()));
-    mapIdLabel.setText(i18n.get("map.id", map.getId()));
+    mapIdLabel.setText("ID: " + i18n.get("map.id", map.getId()));
+    mapVersionLabel.setText("Version: " + map.getVersion().toString());
+    mapCrcLabel.setText("CRC32: " + map.getCrc());
+    mapHpiArchiveNameLabel.setText("Map Pack: " + map.getHpiArchiveName());
 
     MapSize mapSize = map.getSize();
     dimensionsLabel.setText(i18n.get("mapPreview.size", mapSize.getWidthInKm(), mapSize.getHeightInKm()));
@@ -180,7 +182,7 @@ public class MapDetailController implements Controller<Node> {
     LocalDateTime createTime = map.getCreateTime();
     dateLabel.setText(timeService.asDate(createTime));
 
-    boolean mapInstalled = mapService.isInstalled(map.getFolderName());
+    boolean mapInstalled = mapService.isInstalled(modTechnical, map.getMapName(), map.getCrc());
     setInstalled(mapInstalled);
 
     Player player = playerService.getCurrentPlayer().orElseThrow(() -> new IllegalStateException("No user is logged in"));
@@ -217,13 +219,13 @@ public class MapDetailController implements Controller<Node> {
     }
 
 
-    if (mapService.isOfficialMap(map.getFolderName())) {
+    if (mapService.isOfficialMap(map.getMapName())) {
       installButton.setVisible(false);
       uninstallButton.setVisible(false);
     } else {
-      ObservableList<MapBean> installedMaps = mapService.getInstalledMaps();
+      ObservableList<MapBean> installedMaps = mapService.getInstalledMaps(modTechnical);
       JavaFxUtil.addListener(installedMaps, new WeakListChangeListener<>(installStatusChangeListener));
-      setInstalled(mapService.isInstalled(map.getFolderName()));
+      setInstalled(mapService.isInstalled(modTechnical, map.getMapName(), map.getCrc()));
     }
   }
 
@@ -266,12 +268,12 @@ public class MapDetailController implements Controller<Node> {
   }
 
   public CompletableFuture<Void> installMap() {
-    return mapService.downloadAndInstallMap(map, progressBar.progressProperty(), progressLabel.textProperty())
+    return mapService.ensureMap(preferencesService.getPreferences().getLastGame().getLastGameType(), map, progressBar.progressProperty(), progressLabel.textProperty())
         .thenRun(() -> setInstalled(true))
         .exceptionally(throwable -> {
           log.error("Map installation failed", throwable);
           notificationService.addImmediateErrorNotification(throwable, "mapVault.installationFailed",
-              map.getDisplayName(), throwable.getLocalizedMessage());
+              map.getMapName(), throwable.getLocalizedMessage());
           setInstalled(false);
           return null;
         });
@@ -281,12 +283,12 @@ public class MapDetailController implements Controller<Node> {
     progressBar.progressProperty().unbind();
     progressBar.setProgress(-1);
 
-    mapService.uninstallMap(map)
+    mapService.uninstallMap(preferencesService.getPreferences().getLastGame().getLastGameType(), map.getMapName(), map.getCrc())
         .thenRun(() -> setInstalled(false))
         .exceptionally(throwable -> {
           log.error("Could not delete map", throwable);
           notificationService.addImmediateErrorNotification(throwable, "mapVault.couldNotDeleteMap",
-              map.getDisplayName(), throwable.getLocalizedMessage());
+              map.getMapName(), throwable.getLocalizedMessage());
           setInstalled(true);
           return null;
         });
@@ -301,10 +303,11 @@ public class MapDetailController implements Controller<Node> {
   }
 
   public void onCreateGameButtonClicked() {
-    if (!mapService.isInstalled(map.getFolderName())) {
-      installMap().thenRun(() -> eventBus.post(new HostGameEvent(map.getFolderName())));
+    String modTechnical = preferencesService.getPreferences().getLastGame().getLastGameType();
+    if (!mapService.isInstalled(modTechnical, map.getMapName(), map.getCrc())) {
+      installMap().thenRun(() -> eventBus.post(new HostGameEvent(map.getMapName())));
     } else {
-      eventBus.post(new HostGameEvent(map.getFolderName()));
+      eventBus.post(new HostGameEvent(map.getMapName()));
     }
   }
 

@@ -50,6 +50,8 @@ import org.testfx.util.WaitForAsyncUtils;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Optional;
+import java.util.function.Consumer;
 
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.core.Is.is;

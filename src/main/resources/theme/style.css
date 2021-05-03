@@ -630,6 +630,21 @@
   -fx-text-fill: -fx-mid-text-color;
 }
 
+.create-game-button {
+}
+
+.leave-game-button  {
+  -fx-background-color: -bad;
+}
+
+.start-game-button  {
+  -fx-background-color: -fx-accent;
+}
+
+.join-game-button  {
+  -fx-background-color: -fx-accent;
+}
+
 /***************** Settings window *****************/
 
 .settings .label {
@@ -1024,6 +1039,17 @@
 .game-detail .game-title {
   -fx-font-size: 1.5em;
 }
+
+.game-detail-framed {
+  -fx-background-color: -fx-background;
+  -fx-background: #FFFFFF09;
+  /* Should be derived by ladder function but it doesn't work well with transparency */
+  -fx-text-background-color: -fx-light-text-color;
+  -fx-background-insets: 0 0 0 0;
+  -fx-border-width: 1;
+  -fx-border-color: -fx-accent;
+}
+
 
 /***************** Rating change*****************/
 

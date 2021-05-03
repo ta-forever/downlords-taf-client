@@ -10,6 +10,7 @@ import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.game.GamePathHandler;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.login.LoginController;
 import com.faforever.client.main.event.NavigateEvent;
@@ -57,6 +58,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.image.Image;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundImage;
 import javafx.scene.layout.BackgroundPosition;
@@ -111,6 +113,7 @@ public class MainController implements Controller<Node> {
   private final ApplicationEventPublisher applicationEventPublisher;
   private final String mainWindowTitle;
   private final boolean alwaysReloadTabs;
+  DiscordSelectionMenuController discordSelectionMenuController;
 
   public Pane mainHeaderPane;
   public Pane contentPane;
@@ -130,6 +133,7 @@ public class MainController implements Controller<Node> {
   public Pane leftMenuPane;
   public Pane rightMenuPane;
   public Button notificationButton;
+  public Button discordButton;
   /** Dropdown for when there is not enough room for all navigation buttons to be displayed. */
   public MenuButton navigationDropdown;
 
@@ -231,6 +235,8 @@ public class MainController implements Controller<Node> {
         node.setVisible(hasSpace);
       });
     });
+
+    discordSelectionMenuController = uiService.loadFxml("theme/discord_selection_menu.fxml");
   }
 
   private List<MenuItem> createMenuItemsFromNavigation() {
@@ -437,7 +443,8 @@ public class MainController implements Controller<Node> {
 
     applicationEventPublisher.publishEvent(new LoggedInEvent());
 
-    gamePathHandler.detectAndUpdateGamePath();
+
+    gamePathHandler.detectAndUpdateGamePath(KnownFeaturedMod.DEFAULT.getTechnicalName(), KnownFeaturedMod.DEFAULT.getExecutableFileName());
     openStartTab();
   }
 
@@ -541,29 +548,15 @@ public class MainController implements Controller<Node> {
     return noCatch(() -> viewCache.get(item, () -> uiService.loadFxml(item.getFxmlFile())));
   }
 
-  public void onRevealMapFolder() {
-    Path mapPath = preferencesService.getPreferences().getForgedAlliance().getCustomMapsDirectory();
-    this.platformService.reveal(mapPath);
-  }
-
-  public void onRevealModFolder() {
-    Path modPath = preferencesService.getPreferences().getForgedAlliance().getModsDirectory();
-    this.platformService.reveal(modPath);
+  public void onRevealGamePaths() {
+    preferencesService.getPreferences().getTotalAnnihilationAllMods().forEach(
+        (prefs) -> this.platformService.reveal(prefs.getInstalledExePath())
+    );
   }
 
   public void onRevealLogFolder() {
     Path logPath = preferencesService.getFafLogDirectory();
     this.platformService.reveal(logPath);
-  }
-
-  public void onRevealReplayFolder() {
-    Path replayPath = preferencesService.getReplaysDirectory();
-    this.platformService.reveal(replayPath);
-  }
-
-  public void onRevealGamePrefsFolder() {
-    Path gamePrefsPath = preferencesService.getPreferences().getForgedAlliance().getPreferencesFile();
-    this.platformService.reveal(gamePrefsPath);
   }
 
   public void onChat(ActionEvent actionEvent) {
@@ -610,6 +603,10 @@ public class MainController implements Controller<Node> {
 
   public void setFxStage(FxStage fxWindow) {
     this.fxStage = fxWindow;
+  }
+
+  public void onDiscordButtonClicked(MouseEvent event) {
+    discordSelectionMenuController.getContextMenu().show(mainRoot.getScene().getWindow(), event.getScreenX(), event.getScreenY());
   }
 
   public class ToastDisplayer implements InvalidationListener {

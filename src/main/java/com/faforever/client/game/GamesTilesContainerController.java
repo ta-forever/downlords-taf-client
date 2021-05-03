@@ -5,6 +5,7 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.theme.UiService;
 import com.google.common.annotations.VisibleForTesting;
+import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -24,10 +25,14 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
@@ -37,19 +42,21 @@ public class GamesTilesContainerController implements Controller<Node> {
   private final UiService uiService;
   private final ListChangeListener<Game> gameListChangeListener;
   private final PreferencesService preferencesService;
+  private final GameService gameService;
   public FlowPane tiledFlowPane;
   public ScrollPane tiledScrollPane;
   private final ChangeListener<? super TilesSortingOrder> sortingListener;
   private final ObjectProperty<Game> selectedGame;
   private Comparator<Node> appliedComparator;
   @VisibleForTesting
-  Map<Integer, Node> uidToGameCard;
+  Map<Integer, GameTileController> uidToGameCard;
   private GameTooltipController gameTooltipController;
   private Tooltip tooltip;
 
-  public GamesTilesContainerController(UiService uiService, PreferencesService preferencesService) {
+  public GamesTilesContainerController(UiService uiService, PreferencesService preferencesService, GameService gameService) {
     this.uiService = uiService;
     this.preferencesService = preferencesService;
+    this.gameService = gameService;
     selectedGame = new SimpleObjectProperty<>();
 
     sortingListener = (observable, oldValue, newValue) -> {
@@ -65,27 +72,30 @@ public class GamesTilesContainerController implements Controller<Node> {
     gameListChangeListener = change -> {
       JavaFxUtil.assertApplicationThread();
         while (change.next()) {
-          change.getRemoved().forEach(gameInfoBean -> {
-            Node card = uidToGameCard.remove(gameInfoBean.getId());
-            if (card != null) {
-              Tooltip.uninstall(card, tooltip);
-              boolean remove = tiledFlowPane.getChildren().remove(card);
-              if (!remove) {
-                log.error("Tried to remove game tile that did not exist in UI.");
-              }
-            } else {
-              log.error("Tried to remove game tile that did not exist.");
-            }
-          });
+          change.getRemoved().forEach(gameInfoBean -> removeGameCard(gameInfoBean));
           change.getAddedSubList().forEach(GamesTilesContainerController.this::addGameCard);
           sortNodes();
         }
     };
+
+    gameService.getCurrentGameStatusProperty().addListener((obs,newValue,oldValue) -> selectCurrentGame());
+    gameService.getCurrentGameProperty().addListener((obs,newValue,oldValue) -> selectCurrentGame());
   }
 
   private void sortNodes() {
     ObservableList<Node> sortedChildren = tiledFlowPane.getChildren().sorted(appliedComparator);
-    tiledFlowPane.getChildren().setAll(sortedChildren);
+
+    // current game is always first
+    Game currentGame = gameService.getCurrentGame();
+    if (currentGame != null) {
+      Stream<Node> withPlayer = sortedChildren.stream().filter((o) -> currentGame.getId() == ((Game) o.getUserData()).getId());
+      Stream<Node> withoutPlayer = sortedChildren.stream().filter((o) -> currentGame.getId() != ((Game) o.getUserData()).getId());
+      List<Node> sor = Stream.concat(withPlayer, withoutPlayer).collect(Collectors.toCollection(ArrayList::new));
+      tiledFlowPane.getChildren().setAll(sor);
+    }
+    else {
+      tiledFlowPane.getChildren().setAll(sortedChildren);
+    }
   }
 
   public void initialize() {
@@ -100,6 +110,7 @@ public class GamesTilesContainerController implements Controller<Node> {
     });
 
     JavaFxUtil.fixScrollSpeed(tiledScrollPane);
+    selectCurrentGame();
   }
 
   ReadOnlyObjectProperty<Game> selectedGameProperty() {
@@ -116,7 +127,7 @@ public class GamesTilesContainerController implements Controller<Node> {
     games.forEach(this::addGameCard);
     JavaFxUtil.addListener(games, new WeakListChangeListener<>(gameListChangeListener));
 
-    selectFirstGame();
+    selectCurrentGame();
     sortNodes();
   }
 
@@ -133,6 +144,19 @@ public class GamesTilesContainerController implements Controller<Node> {
     }
   }
 
+  private void selectCurrentGame() {
+    ObservableList<Node> cards = tiledFlowPane.getChildren();
+    Game currentGame = gameService.getCurrentGame();
+    if (currentGame != null && !cards.isEmpty()) {
+      Platform.runLater(() -> {
+        selectedGame.set(currentGame);
+      });
+    }
+    else {
+      selectFirstGame();
+    }
+  }
+
   private void addGameCard(Game game) {
     GameTileController gameTileController = uiService.loadFxml("theme/play/game_card.fxml");
     gameTileController.setGame(game);
@@ -141,8 +165,8 @@ public class GamesTilesContainerController implements Controller<Node> {
     Node root = gameTileController.getRoot();
     root.setUserData(game);
     tiledFlowPane.getChildren().add(root);
-    uidToGameCard.put(game.getId(), root);
-    
+    uidToGameCard.put(game.getId(), gameTileController);
+
     root.setOnMouseEntered(event -> {
       gameTooltipController.setGame(game);
       if (tooltip.isShowing()) {
@@ -150,6 +174,22 @@ public class GamesTilesContainerController implements Controller<Node> {
       }
     });
     Tooltip.install(root, tooltip);
+  }
+
+  private void removeGameCard(Game game) {
+    GameTileController gameTileController = uidToGameCard.remove(game.getId());
+    gameTileController.sever();
+    Node card = gameTileController.getRoot();
+
+    if (card != null) {
+      Tooltip.uninstall(card, tooltip);
+      boolean remove = tiledFlowPane.getChildren().remove(card);
+      if (!remove) {
+        log.error("Tried to remove game tile that did not exist in UI.");
+      }
+    } else {
+      log.error("Tried to remove game tile that did not exist.");
+    }
   }
 
   public Node getRoot() {

@@ -4,6 +4,7 @@ import com.faforever.client.fx.Controller;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.list.NoSelectionModel;
 import javafx.collections.FXCollections;
@@ -34,16 +35,18 @@ public class MapsManagementController implements Controller<Node> {
 
   private final MapService mapService;
   private final UiService uiService;
+  PreferencesService preferencesService;
   private final I18n i18n;
 
   private final FilteredList<MapBean> maps;
   private Runnable closeButtonAction;
 
-  public MapsManagementController(UiService uiService, MapService mapService, I18n i18n) {
+  public MapsManagementController(UiService uiService, MapService mapService, PreferencesService preferencesService, I18n i18n) {
     this.uiService = uiService;
     this.mapService = mapService;
+    this.preferencesService = preferencesService;
     this.i18n = i18n;
-    maps = new FilteredList<>(mapService.getInstalledMaps());
+    maps = new FilteredList<>(mapService.getInstalledMaps(preferencesService.getPreferences().getLastGame().getLastGameType()));
   }
 
   @Override
@@ -80,8 +83,8 @@ public class MapsManagementController implements Controller<Node> {
 
   private Predicate<MapBean> getPredicateBy(MapFilter filter) {
     return switch (filter) {
-      case OFFICIAL_MAPS -> mapService::isOfficialMap;
-      case CUSTOM_MAPS -> mapService::isCustomMap;
+      case OFFICIAL_MAPS -> (mapBean) -> mapService.isOfficialMap(mapBean.getMapName());
+      case CUSTOM_MAPS -> (mapBean) -> !mapService.isOfficialMap(mapBean.getMapName());
       case ALL_MAPS -> null;
     };
   }

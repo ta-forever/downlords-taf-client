@@ -34,14 +34,14 @@ public class MissingGamePathNotifierTest {
 
   @Test
   public void testImmediateNotificationOnUrgentEvent() {
-    eventBus.post(new MissingGamePathEvent(true));
+    eventBus.post(new MissingGamePathEvent(true, KnownFeaturedMod.DEFAULT.getTechnicalName()));
 
     verify(notificationService).addNotification(any(ImmediateNotification.class));
   }
 
   @Test
   public void testPersistentNotificationOnDefaultEvent() {
-    eventBus.post(new MissingGamePathEvent());
+    eventBus.post(new MissingGamePathEvent(false, KnownFeaturedMod.DEFAULT.getTechnicalName()));
 
     verify(notificationService).addNotification(any(PersistentNotification.class));
   }

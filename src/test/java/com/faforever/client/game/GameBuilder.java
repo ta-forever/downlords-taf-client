@@ -22,10 +22,10 @@ public class GameBuilder {
     featuredModVersions(FXCollections.emptyObservableMap());
     victoryCondition(VictoryCondition.DEMORALIZATION);
     host("Host");
-    mapFolderName("mapName");
+    mapName("mapName");
     numPlayers(2);
     simMods(FXCollections.emptyObservableMap());
-    status(GameStatus.OPEN);
+    status(GameStatus.STAGIN);
     title("Title");
     teams(FXCollections.emptyObservableMap());
     id(1);
@@ -48,8 +48,8 @@ public class GameBuilder {
     return this;
   }
 
-  public GameBuilder mapFolderName(String mapFolderName) {
-    game.setMapFolderName(mapFolderName);
+  public GameBuilder mapName(String mapName) {
+    game.setMapName(mapName);
     return this;
   }
 

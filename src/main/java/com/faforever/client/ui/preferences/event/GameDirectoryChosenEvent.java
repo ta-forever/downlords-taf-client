@@ -10,6 +10,8 @@ import java.util.concurrent.CompletableFuture;
 @Value
 public class GameDirectoryChosenEvent {
   @Nullable
-  private Path path;
+  private Path executablePath;
+  String commandLineOptions;
   private Optional<CompletableFuture<Path>> future;
+  private String baseGameName;
 }

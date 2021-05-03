@@ -109,9 +109,9 @@ public class TrayIconManager implements InitializingBean {
     graphicsContext2D.setFontSmoothingType(FontSmoothingType.LCD);
     graphicsContext2D.setFont(javafx.scene.text.Font.loadFont(TrayIconManager.class.getResourceAsStream("/font/dfc-icons.ttf"), dimension));
     graphicsContext2D.setFill(Color.BLACK);
-    graphicsContext2D.fillOval(0, 0, dimension, dimension);
+    graphicsContext2D.fillOval(0, 0.15*dimension, dimension, 0.67*dimension);
     graphicsContext2D.setFill(Color.WHITE);
-    graphicsContext2D.fillText("\uE901", dimension / 2, dimension / 2);
+    graphicsContext2D.fillText("\uE903", dimension / 2, dimension / 2);
 
     SnapshotParameters snapshotParameters = new SnapshotParameters();
     snapshotParameters.setFill(javafx.scene.paint.Color.TRANSPARENT);

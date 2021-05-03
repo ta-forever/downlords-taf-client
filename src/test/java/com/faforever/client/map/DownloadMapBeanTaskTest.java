@@ -1,10 +1,17 @@
 package com.faforever.client.map;
 
+import com.faforever.client.fx.PlatformService;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.io.DownloadService;
+import com.faforever.client.notification.NotificationService;
 import com.faforever.client.preferences.Preferences;
 import com.faforever.client.preferences.PreferencesBuilder;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.test.AbstractPlainJavaFxTest;
+
+import com.google.errorprone.annotations.DoNotMock;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -16,7 +23,6 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import java.net.URL;
 import java.nio.file.Files;
-
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
@@ -34,7 +40,16 @@ public class DownloadMapBeanTaskTest extends AbstractPlainJavaFxTest {
   private PreferencesService preferencesService;
   @Mock
   private I18n i18n;
-
+  @Mock
+  private Preferences preferences;
+  @Mock
+  private TotalAnnihilationPrefs totalAnnihilation;
+  @Mock
+  private PlatformService platformService;
+  @Mock
+  private NotificationService notificationService;
+  @Mock
+  private DownloadService downloadService;
 
   @Before
   public void setUp() throws Exception {
@@ -44,7 +59,7 @@ public class DownloadMapBeanTaskTest extends AbstractPlainJavaFxTest {
         .then()
         .get();
 
-    instance = new DownloadMapTask(preferencesService, i18n);
+    instance = new DownloadMapTask(platformService, preferencesService, notificationService, downloadService, i18n);
 
 
     when(preferencesService.getPreferences()).thenReturn(preferences);
@@ -55,7 +70,7 @@ public class DownloadMapBeanTaskTest extends AbstractPlainJavaFxTest {
     expectedException.expectMessage("mapUrl");
     expectedException.expect(NullPointerException.class);
 
-    instance.setFolderName("");
+    instance.setHpiArchiveName("");
     instance.call();
   }
 
@@ -71,7 +86,7 @@ public class DownloadMapBeanTaskTest extends AbstractPlainJavaFxTest {
   @Test
   public void testCall() throws Exception {
     instance.setMapUrl(getClass().getResource("/maps/theta_passage_5.v0001.zip").toURI().toURL());
-    instance.setFolderName("");
+    instance.setHpiArchiveName("");
     instance.call();
 
     assertTrue(Files.exists(customMapsDirectory.getRoot().toPath().resolve("theta_passage_5.v0001").resolve("theta_passage_5_scenario.lua")));

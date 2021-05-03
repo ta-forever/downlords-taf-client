@@ -16,6 +16,8 @@ public class Player {
   private Integer numberOfGames;
   private Map<String, String> league;
   private Map<String, LeaderboardRating> ratings;
+  private PlayerStatus state;
+  private Integer currentGameUid;
 
   public Map<String, LeaderboardRating> getRatings() {
     return ratings;
@@ -80,4 +82,12 @@ public class Player {
   public void setId(int id) {
     this.id = id;
   }
+
+  public PlayerStatus getState() { return state; }
+
+  public void setState(PlayerStatus state) { this.state = state; }
+
+  public Integer getCurrentGameUid() { return currentGameUid; }
+
+  public void setCurrentGameUid(Integer uid) { this.currentGameUid = uid; }
 }

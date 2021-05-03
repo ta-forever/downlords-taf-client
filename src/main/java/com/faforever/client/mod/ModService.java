@@ -56,23 +56,18 @@ import java.nio.file.Paths;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.regex.Matcher;
+import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static com.faforever.client.notification.Severity.WARN;
 import static com.github.nocatch.NoCatch.noCatch;
-import static java.nio.charset.StandardCharsets.US_ASCII;
-import static java.nio.file.Files.createDirectories;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
-import static java.util.Collections.singletonList;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
 @Lazy
@@ -104,34 +99,34 @@ public class ModService implements InitializingBean, DisposableBean {
 
   @Override
   public void afterPropertiesSet() {
-    InvalidationListener modDirectoryChangedListener = observable -> {
-      modsDirectory = preferencesService.getPreferences().getForgedAlliance().getModsDirectory();
-      if (modsDirectory != null) {
-        installedModVersions.clear();
-        onModDirectoryReady();
-      }
-    };
-    taskService.submitTask(new CompletableTask<Void>(Priority.LOW) {
-      @Override
-      protected Void call() throws Exception {
-        updateTitle(i18n.get("modVault.loadingMods"));
-        modDirectoryChangedListener.invalidated(preferencesService.getPreferences().getForgedAlliance().modsDirectoryProperty());
-        return null;
-      }
-    });
-    JavaFxUtil.addListener(preferencesService.getPreferences().getForgedAlliance().modsDirectoryProperty(), modDirectoryChangedListener);
+//    InvalidationListener modDirectoryChangedListener = observable -> {
+//      modsDirectory = preferencesService.getPreferences().getForgedAlliance().getModsDirectory();
+//      if (modsDirectory != null) {
+//        installedModVersions.clear();
+//        onModDirectoryReady();
+//      }
+//    };
+//    taskService.submitTask(new CompletableTask<Void>(Priority.LOW) {
+//      @Override
+//      protected Void call() throws Exception {
+//        updateTitle(i18n.get("modVault.loadingMods"));
+//        modDirectoryChangedListener.invalidated(preferencesService.getPreferences().getForgedAlliance().modsDirectoryProperty());
+//        return null;
+//      }
+//    });
+//    JavaFxUtil.addListener(preferencesService.getPreferences().getForgedAlliance().modsDirectoryProperty(), modDirectoryChangedListener);
   }
 
   private void onModDirectoryReady() {
-    try {
-      createDirectories(modsDirectory);
-      Optional.ofNullable(directoryWatcherThread).ifPresent(Thread::interrupt);
-      directoryWatcherThread = startDirectoryWatcher(modsDirectory);
-    } catch (IOException e) {
-      logger.warn("Could not start mod directory watcher", e);
-      // TODO notify user
-    }
-    loadInstalledMods();
+//    try {
+//      createDirectories(modsDirectory);
+//      Optional.ofNullable(directoryWatcherThread).ifPresent(Thread::interrupt);
+//      directoryWatcherThread = startDirectoryWatcher(modsDirectory);
+//    } catch (IOException e) {
+//      logger.warn("Could not start mod directory watcher", e);
+//      // TODO notify user
+//    }
+//    loadInstalledMods();
   }
 
   private Thread startDirectoryWatcher(Path modsDirectory) {
@@ -156,13 +151,13 @@ public class ModService implements InitializingBean, DisposableBean {
   }
 
   public void loadInstalledMods() {
-    try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(modsDirectory, entry -> Files.isDirectory(entry))) {
-      for (Path path : directoryStream) {
-        addMod(path);
-      }
-    } catch (IOException e) {
-      logger.warn("Mods could not be read from: " + modsDirectory, e);
-    }
+//    try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(modsDirectory, entry -> Files.isDirectory(entry))) {
+//      for (Path path : directoryStream) {
+//        addMod(path);
+//      }
+//    } catch (IOException e) {
+//      logger.warn("Mods could not be read from: " + modsDirectory, e);
+//    }
   }
 
   public ObservableList<ModVersion> getInstalledModVersions() {
@@ -212,26 +207,6 @@ public class ModService implements InitializingBean, DisposableBean {
         .filter(mod -> mod.getModType() == ModType.UI)
         .map(ModVersion::getUid)
         .collect(Collectors.toSet());
-  }
-
-  public void enableSimMods(Set<String> simMods) throws IOException {
-    Map<String, Boolean> modStates = readModStates();
-
-    Set<String> installedUiMods = getInstalledUiModsUids();
-
-    for (Map.Entry<String, Boolean> entry : modStates.entrySet()) {
-      String uid = entry.getKey();
-
-      if (!installedUiMods.contains(uid)) {
-        // Only disable it if it's a sim mod; because it has not been selected
-        entry.setValue(false);
-      }
-    }
-    for (String simModUid : simMods) {
-      modStates.put(simModUid, true);
-    }
-
-    writeModStates(modStates);
   }
 
   public boolean isModInstalled(String uid) {
@@ -325,6 +300,16 @@ public class ModService implements InitializingBean, DisposableBean {
     ));
   }
 
+  public String getFeaturedModDisplayName(String modTechnical) {
+    String displayName = modTechnical;
+    try {
+      displayName = getFeaturedMod(modTechnical).get().getDisplayName();
+    } catch (InterruptedException e) {
+    } catch (ExecutionException e) {
+    }
+    return displayName;
+  }
+
   public CompletableFuture<Tuple<List<ModVersion>, Integer>> findByQueryWithPageCount(SearchConfig searchConfig, int count, int page) {
     return fafService.findModsByQueryWithPageCount(searchConfig, count, page);
   }
@@ -343,101 +328,12 @@ public class ModService implements InitializingBean, DisposableBean {
     return fafService.findModsByQueryWithPageCount(new SearchConfig(new SortConfig(SearchablePropertyMappings.HIGHEST_RATED_MOD_KEY, SortOrder.DESC), "latestVersion.hidden==\"false\""), count, page);
   }
 
-  public List<ModVersion> getActivatedSimAndUIMods() throws IOException {
-    Map<String, Boolean> modStates = readModStates();
-    return getInstalledModVersions().parallelStream()
-        .filter(mod -> modStates.containsKey(mod.getUid()) && modStates.get(mod.getUid()))
-        .collect(Collectors.toList());
-  }
-
-  public void overrideActivatedMods(List<ModVersion> modVersions) throws IOException {
-    Map<String, Boolean> modStates = modVersions.parallelStream().collect(Collectors.toMap(ModVersion::getUid, o -> true));
-    writeModStates(modStates);
-  }
-
-  private Map<String, Boolean> readModStates() throws IOException {
-    Path preferencesFile = preferencesService.getPreferences().getForgedAlliance().getPreferencesFile();
-    Map<String, Boolean> mods = new HashMap<>();
-
-    String preferencesContent = Files.readString(preferencesFile, US_ASCII);
-    Matcher matcher = ACTIVE_MODS_PATTERN.matcher(preferencesContent);
-    if (matcher.find()) {
-      Matcher activeModMatcher = ACTIVE_MOD_PATTERN.matcher(matcher.group(0));
-      while (activeModMatcher.find()) {
-        String modUid = activeModMatcher.group(1);
-        boolean enabled = Boolean.parseBoolean(activeModMatcher.group(2));
-
-        mods.put(modUid, enabled);
-      }
-    }
-
-    return mods;
-  }
-
-  private void writeModStates(Map<String, Boolean> modStates) throws IOException {
-    Path preferencesFile = preferencesService.getPreferences().getForgedAlliance().getPreferencesFile();
-    String preferencesContent = new String(Files.readAllBytes(preferencesFile), US_ASCII);
-
-    String currentActiveModsContent = null;
-    Matcher matcher = ACTIVE_MODS_PATTERN.matcher(preferencesContent);
-    if (matcher.find()) {
-      currentActiveModsContent = matcher.group(0);
-    }
-
-    StringBuilder newActiveModsContentBuilder = new StringBuilder("active_mods = {");
-
-    Iterator<Map.Entry<String, Boolean>> iterator = modStates.entrySet().iterator();
-    while (iterator.hasNext()) {
-      Map.Entry<String, Boolean> entry = iterator.next();
-      if (!entry.getValue()) {
-        continue;
-      }
-
-      newActiveModsContentBuilder.append("\n    ['");
-      newActiveModsContentBuilder.append(entry.getKey());
-      newActiveModsContentBuilder.append("'] = true");
-      if (iterator.hasNext()) {
-        newActiveModsContentBuilder.append(",");
-      }
-    }
-    newActiveModsContentBuilder.append("\n}");
-
-    if (currentActiveModsContent != null) {
-      preferencesContent = preferencesContent.replace(currentActiveModsContent, newActiveModsContentBuilder);
-    } else {
-      preferencesContent += newActiveModsContentBuilder.toString();
-    }
-
-    Files.write(preferencesFile, preferencesContent.getBytes(US_ASCII));
-  }
-
   private void removeMod(Path path) {
-    logger.debug("Removing mod: {}", path);
-    installedModVersions.remove(pathToMod.remove(path));
+
   }
 
   private void addMod(Path path) {
-    logger.debug("Adding mod: {}", path);
-    try {
-      ModVersion modVersion = extractModInfo(path);
-      pathToMod.put(path, modVersion);
-      if (!installedModVersions.contains(modVersion)) {
-        installedModVersions.add(modVersion);
-      }
-    } catch (ModLoadException e) {
-      logger.debug("Corrupt mod: " + path, e);
 
-      notificationService.addNotification(new PersistentNotification(i18n.get("corruptedMods.notification", path.getFileName()), WARN, singletonList(
-          new Action(i18n.get("corruptedMods.show"), event -> platformService.reveal(path))
-      )));
-    } catch (Exception e) {
-      logger.warn("Skipping mod because of exception during adding of mod: " + path, e);
-
-      notificationService.addNotification(new PersistentNotification(i18n.get("corruptedModsError.notification", path.getFileName()), WARN, singletonList(
-          new Action(i18n.get("corruptedMods.show"), event -> platformService.reveal(path))
-      )));
-
-    }
   }
 
   @Override

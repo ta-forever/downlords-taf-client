@@ -60,6 +60,7 @@ import com.faforever.client.remote.domain.MessageTarget;
 import com.faforever.client.remote.domain.NoticeMessage;
 import com.faforever.client.remote.domain.PeriodType;
 import com.faforever.client.remote.domain.PingMessage;
+import com.faforever.client.remote.domain.PlayerStatus;
 import com.faforever.client.remote.domain.RatingRange;
 import com.faforever.client.remote.domain.ReadyPartyMessage;
 import com.faforever.client.remote.domain.RemoveFoeMessage;
@@ -82,6 +83,7 @@ import com.faforever.client.remote.gson.GpgServerMessageTypeTypeAdapter;
 import com.faforever.client.remote.gson.LobbyModeTypeAdapter;
 import com.faforever.client.remote.gson.MatchmakingStateTypeAdapter;
 import com.faforever.client.remote.gson.MessageTargetTypeAdapter;
+import com.faforever.client.remote.gson.PlayerStateTypeAdapter;
 import com.faforever.client.remote.gson.RatingRangeTypeAdapter;
 import com.faforever.client.remote.gson.ServerMessageTypeAdapter;
 import com.faforever.client.remote.gson.ServerMessageTypeTypeAdapter;
@@ -93,6 +95,7 @@ import com.github.nocatch.NoCatch;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
 import com.google.common.hash.Hashing;
+import com.google.common.net.InetAddresses;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -116,11 +119,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import javax.security.auth.login.LoginException;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.net.URL;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -146,6 +152,7 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
       .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
       .registerTypeAdapter(VictoryCondition.class, VictoryConditionTypeAdapter.INSTANCE)
       .registerTypeAdapter(GameStatus.class, GameStateTypeAdapter.INSTANCE)
+      .registerTypeAdapter(PlayerStatus.class, PlayerStateTypeAdapter.INSTANCE)
       .registerTypeAdapter(GameAccess.class, GameAccessTypeAdapter.INSTANCE)
       .registerTypeAdapter(GameType.class, GameTypeTypeAdapter.INSTANCE)
       .registerTypeAdapter(ClientMessageType.class, ClientMessageTypeTypeAdapter.INSTANCE)
@@ -172,7 +179,7 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
   @org.jetbrains.annotations.NotNull
   private final ClientProperties clientProperties;
   private Task<Void> fafConnectionTask;
-  private String localIp;
+  private List<String> localIps;
   private ServerWriter serverWriter;
   private volatile CompletableFuture<LoginMessage> loginFuture;
   private CompletableFuture<SessionMessage> sessionFuture;
@@ -259,7 +266,29 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
 
             fafServerSocket.setKeepAlive(true);
 
-            localIp = fafServerSocket.getLocalAddress().getHostAddress();
+            localIps = new ArrayList<String>();
+            for (String service: new String[]{
+                "http://checkip.amazonaws.com",
+                "https://api.ipify.org/?format=txt",
+                "http://ipv4bot.whatismyipaddress.com/"}) {
+              try {
+                URL whatismyip = new URL(service);
+                BufferedReader in = new BufferedReader(new InputStreamReader(
+                    whatismyip.openStream()));
+                String publicIp = in.readLine();
+                log.info(String.format("%s reports my ip address %s", service, publicIp));
+                if (InetAddresses.isInetAddress(publicIp)) {
+                  localIps.add(publicIp);
+                  break;
+                }
+                else {
+                  log.info("(ignoring because it does not appear to be an isInetAddress)");
+                }
+              } catch (IOException e) {
+                log.info(String.format("unable to obtain ip address from %s", service));
+              };
+            }
+            localIps.add(fafServerSocket.getLocalAddress().getHostAddress());
 
             serverWriter = createServerWriter(outputStream);
 
@@ -548,7 +577,8 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
   private void logIn(String username, String password) {
     try {
       String uniqueId = uidService.generate(String.valueOf(sessionId.get()), preferencesService.getFafDataDirectory().resolve("uid.log"));
-      writeToServer(new LoginClientMessage(username, Hashing.sha256().hashString(password, UTF_8).toString(), sessionId.get(), uniqueId, localIp));
+      writeToServer(new LoginClientMessage(username, Hashing.sha256().hashString(password, UTF_8).toString(), sessionId.get(), uniqueId,
+          String.join(";", localIps)));
     } catch (IOException e) {
       onUIDNotExecuted(e);
     }

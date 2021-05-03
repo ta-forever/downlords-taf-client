@@ -172,7 +172,7 @@ public class MockFafApiAccessor implements FafApiAccessor {
   }
 
   @Override
-  public void uploadMap(Path file, boolean isRanked, ByteCountListener listener) {
+  public void uploadMap(Path file, boolean isRanked, List<java.util.Map<String,String>> mapDetails, ByteCountListener listener) {
     // do nothing
   }
 

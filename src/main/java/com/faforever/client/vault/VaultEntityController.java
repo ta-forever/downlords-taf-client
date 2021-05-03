@@ -2,10 +2,14 @@ package com.faforever.client.vault;
 
 import com.faforever.client.fx.AbstractViewController;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.fx.StringListCell;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.NavigateEvent;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.reporting.ReportingService;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.util.Tuple;
@@ -15,6 +19,7 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -34,6 +39,7 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.nio.file.Files;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -51,6 +57,7 @@ public abstract class VaultEntityController<T> extends AbstractViewController<No
   protected final I18n i18n;
   protected final PreferencesService preferencesService;
   protected final ReportingService reportingService;
+  protected final ModService modService;
   public Pane root;
   public StackPane vaultRoot;
   public HBox searchBox;
@@ -62,6 +69,8 @@ public abstract class VaultEntityController<T> extends AbstractViewController<No
   public Button backButton;
   public Button refreshButton;
   public Button uploadButton;
+  public HBox taInstallationBox;
+  public ComboBox<TotalAnnihilationPrefs> taInstallationComboBox;
   public HBox paginationGroup;
   public ScrollPane scrollPane;
   public SearchController searchController;
@@ -75,12 +84,13 @@ public abstract class VaultEntityController<T> extends AbstractViewController<No
   protected ObjectProperty<State> state;
   protected CompletableFuture<Tuple<List<T>, Integer>> currentSupplier;
 
-  public VaultEntityController(UiService uiService, NotificationService notificationService, I18n i18n, PreferencesService preferencesService, ReportingService reportingService) {
+  public VaultEntityController(UiService uiService, NotificationService notificationService, I18n i18n, PreferencesService preferencesService, ReportingService reportingService, ModService modService) {
     this.uiService = uiService;
     this.notificationService = notificationService;
     this.i18n = i18n;
     this.preferencesService = preferencesService;
     this.reportingService = reportingService;
+    this.modService = modService;
 
     state = new SimpleObjectProperty<>(State.UNINITIALIZED);
   }
@@ -154,6 +164,54 @@ public abstract class VaultEntityController<T> extends AbstractViewController<No
     AnchorPane.setRightAnchor(detailView, 0d);
     AnchorPane.setBottomAnchor(detailView, 0d);
     AnchorPane.setLeftAnchor(detailView, 0d);
+
+    taInstallationComboBox.setCellFactory(param -> new StringListCell<>(prefs -> String.format("%s [%s]", prefs.getInstalledPath().toString(), modService.getFeaturedModDisplayName(prefs.getModNameProperty().get()))));
+    taInstallationComboBox.setButtonCell(new StringListCell<>(prefs -> String.format("Install Maps Into Folder: %s [%s]", prefs.getInstalledPath().toString(), modService.getFeaturedModDisplayName(prefs.getModNameProperty().get()))));
+    ListChangeListener<TotalAnnihilationPrefs> taInstallationsListener = change -> setTaInstallations(change.getList().stream().collect(Collectors.toList()));
+    preferencesService.getTotalAnnihilationAllMods().addListener(taInstallationsListener);
+
+    setTaInstallations(preferencesService.getTotalAnnihilationAllMods());
+    taInstallationComboBox.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+      if (newValue != null) {
+        preferencesService.getPreferences().getLastGame().setLastGameType(newValue.getModNameProperty().get());
+        preferencesService.storeInBackground();
+        loadShowRoom();
+      }
+    });
+  }
+
+  protected void setTaInstallations(List<TotalAnnihilationPrefs> installations) {
+    List<TotalAnnihilationPrefs> installedMods = installations.stream()
+        .filter(prefs -> prefs != null && prefs.getInstalledPath() != null && Files.exists(prefs.getInstalledPath()))
+        .distinct()
+        .collect(Collectors.toList());
+    taInstallationComboBox.getItems().setAll(installedMods);
+    selectLastOrDefaultGameType();
+  }
+
+  private void selectLastOrDefaultGameType() {
+    String lastGameMod = preferencesService.getPreferences().getLastGame().getLastGameType();
+    if (lastGameMod == null) {
+      lastGameMod = KnownFeaturedMod.DEFAULT.getTechnicalName();
+    }
+
+    String finalLastGameMod = lastGameMod;
+    taInstallationComboBox.getItems().stream()
+        .filter(item -> item.getModNameProperty().get().equals(finalLastGameMod))
+        .findAny()
+        .ifPresent(item -> {
+          taInstallationComboBox.getSelectionModel().select(item);
+        });
+  }
+
+  public String getSelectedTaModName() {
+    TotalAnnihilationPrefs selectedPrefs = taInstallationComboBox.getSelectionModel().getSelectedItem();
+    if (selectedPrefs == null) {
+      return KnownFeaturedMod.DEFAULT.getTechnicalName();
+    }
+    else {
+      return selectedPrefs.getModNameProperty().get();
+    }
   }
 
   protected void loadShowRoom() {

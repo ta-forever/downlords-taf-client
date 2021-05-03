@@ -4,6 +4,7 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.main.event.NavigationItem;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.query.LogicalNodeController;
@@ -14,6 +15,7 @@ import com.faforever.client.theme.UiService;
 import com.faforever.client.util.Tuple;
 import com.faforever.client.vault.search.SearchController;
 import com.faforever.client.vault.search.SearchController.SearchConfig;
+import com.google.common.eventbus.EventBus;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -49,6 +51,8 @@ public class VaultEntityControllerTest extends AbstractPlainJavaFxTest {
   private NotificationService notificationService;
   @Mock
   private ReportingService reportingService;
+  @Mock
+  private ModService modService;
   @Mock
   private SearchController searchController;
   @Mock
@@ -104,12 +108,11 @@ public class VaultEntityControllerTest extends AbstractPlainJavaFxTest {
     when(vaultEntityShowRoomController.getPane()).thenReturn(showRoomPane);
 
     items = createMockElements(50);
-    instance = new VaultEntityController<>(uiService, notificationService, i18n, preferencesService, reportingService) {
+    instance = new VaultEntityController<>(uiService, notificationService, i18n, preferencesService, reportingService, modService) {
       @Override
       protected void initSearchController() {
         //Do Nothing
       }
-
       @Override
       protected Node getEntityCard(Integer integer) {
         GridPane card = new GridPane();

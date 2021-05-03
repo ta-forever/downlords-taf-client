@@ -1,6 +1,7 @@
 package com.faforever.client.preferences;
 
 import com.faforever.client.game.GamesTilesContainerController.TilesSortingOrder;
+import com.faforever.client.game.KnownFeaturedMod;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ListProperty;
@@ -19,9 +20,9 @@ import javafx.collections.ObservableMap;
 import javafx.scene.control.TableColumn.SortType;
 import javafx.util.Pair;
 import lombok.Getter;
-
 import java.net.HttpCookie;
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.ArrayList;
 
 import static javafx.collections.FXCollections.observableArrayList;
@@ -32,7 +33,7 @@ public class Preferences {
 
   private final WindowPrefs mainWindow;
   private final GeneratorPrefs generator;
-  private final ForgedAlliancePrefs forgedAlliance;
+  private final ListProperty<TotalAnnihilationPrefs> totalAnnihilation;
   private final LoginPrefs login;
   private final ChatPrefs chat;
   private final NotificationsPrefs notification;
@@ -46,6 +47,16 @@ public class Preferences {
   private final BooleanProperty preReleaseCheckEnabled;
   private final BooleanProperty showPasswordProtectedGames;
   private final BooleanProperty showModdedGames;
+  // TA options @todo they need to be in TotalAnnilationPreferences()
+  private final BooleanProperty forceRelayEnabled;
+  private final BooleanProperty proactiveResendEnabled;
+  private final BooleanProperty ircIntegrationEnabled;
+  private final BooleanProperty autoLaunchOnHostEnabled;
+  private final BooleanProperty autoLaunchOnJoinEnabled;
+  private final BooleanProperty autoRehostEnabled;
+  private final BooleanProperty autoJoinEnabled;
+  private final BooleanProperty requireUacEnabled;
+  // end TA options
   private final ListProperty<String> ignoredNotifications;
   private final StringProperty gamesViewMode;
   private final ListProperty<Pair<String, SortType>> gameListSorting;
@@ -68,7 +79,7 @@ public class Preferences {
     localization = new LocalizationPrefs();
     lastGame = new LastGamePrefs();
     mainWindow = new WindowPrefs();
-    forgedAlliance = new ForgedAlliancePrefs();
+    totalAnnihilation = new SimpleListProperty<TotalAnnihilationPrefs>(FXCollections.observableArrayList());
     themeName = new SimpleStringProperty(DEFAULT_THEME_NAME);
     ignoredNotifications = new SimpleListProperty<>(observableArrayList());
     notification = new NotificationsPrefs();
@@ -82,6 +93,14 @@ public class Preferences {
     storedCookies = new SimpleMapProperty<>(FXCollections.observableHashMap());
     showPasswordProtectedGames = new SimpleBooleanProperty(true);
     showModdedGames = new SimpleBooleanProperty(true);
+    forceRelayEnabled = new SimpleBooleanProperty(false);
+    proactiveResendEnabled = new SimpleBooleanProperty(false);
+    ircIntegrationEnabled = new SimpleBooleanProperty(false);
+    autoLaunchOnHostEnabled = new SimpleBooleanProperty(false);
+    autoLaunchOnJoinEnabled = new SimpleBooleanProperty(true);
+    autoRehostEnabled = new SimpleBooleanProperty(true);
+    autoJoinEnabled = new SimpleBooleanProperty(true);
+    requireUacEnabled = new SimpleBooleanProperty(true);
     disallowJoinsViaDiscord = new SimpleBooleanProperty();
     showGameDetailsSidePane = new SimpleBooleanProperty(false);
     advancedIceLogEnabled = new SimpleBooleanProperty(false);
@@ -135,8 +154,89 @@ public class Preferences {
     return localization;
   }
 
-  public ForgedAlliancePrefs getForgedAlliance() {
-    return forgedAlliance;
+  public ObservableList<TotalAnnihilationPrefs> getTotalAnnihilationAllMods() { return totalAnnihilation; }
+
+  public BooleanProperty getForceRelayEnabledProperty() {
+    return forceRelayEnabled;
+  }
+
+  public BooleanProperty getProactiveResendEnabledProperty() {
+    return proactiveResendEnabled;
+  }
+
+  public BooleanProperty getIrcIntegrationEnabledProperty() { return ircIntegrationEnabled; }
+
+  public BooleanProperty getAutoLaunchOnHostEnabledProperty() { return autoLaunchOnHostEnabled; }
+
+  public BooleanProperty getAutoLaunchOnJoinEnabledProperty() {  return autoLaunchOnJoinEnabled; }
+
+  public BooleanProperty getAutoRehostEnabledProperty() {
+    return autoRehostEnabled;
+  }
+
+  public BooleanProperty getAutoJoinEnabledProperty() {
+    return autoJoinEnabled;
+  }
+
+  public BooleanProperty getRequireUacEnabledProperty() {
+    return requireUacEnabled;
+  }
+
+  public boolean getForceRelayEnabled() {
+    return forceRelayEnabled.get();
+  }
+
+  public boolean getProactiveResendEnabled() {
+    return proactiveResendEnabled.get();
+  }
+
+  public boolean getIrcIntegrationEnabled() {
+    return ircIntegrationEnabled.get();
+  }
+
+  public boolean getAutoLaunchOnHostEnabled() {
+    return autoLaunchOnHostEnabled.get();
+  }
+
+  public boolean getAutoLaunchOnJoinEnabled() {
+    return autoLaunchOnJoinEnabled.get();
+  }
+
+  public boolean getAutoRehostEnabled() {
+    return autoRehostEnabled.get();
+  }
+
+  public boolean getAutoJoinEnabled() {
+    return autoJoinEnabled.get();
+  }
+
+  public boolean getRequireUacEnabled() {
+    return requireUacEnabled.get();
+  }
+
+  public TotalAnnihilationPrefs getTotalAnnihilation(String modTechnical) {
+    return setTotalAnnihilation(modTechnical, null, null);
+  }
+
+  public TotalAnnihilationPrefs setTotalAnnihilation(String modTechnical, Path installedExePath, String commandLineOptions) {
+    String baseGameName = modTechnical;
+    KnownFeaturedMod kfm = KnownFeaturedMod.fromString(modTechnical);
+    if (kfm != null) {
+      baseGameName = kfm.getBaseGameName();
+    }
+
+    for (TotalAnnihilationPrefs pref: totalAnnihilation) {
+      if (pref.getBaseGameName().equals(baseGameName)) {
+        if (installedExePath != null && commandLineOptions != null) {
+          pref.setInstalledExePath(installedExePath);
+          pref.setCommandLineOptions(commandLineOptions);
+        }
+        return pref;
+      }
+    }
+    TotalAnnihilationPrefs pref = new TotalAnnihilationPrefs(baseGameName, installedExePath, commandLineOptions);
+    totalAnnihilation.add(pref);
+    return pref;
   }
 
   public LoginPrefs getLogin() {

@@ -4,8 +4,9 @@ import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.notification.NotificationService;
+import com.faforever.client.preferences.PreferencesService;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -31,6 +32,7 @@ public class RemovableMapCellController extends ListCell<MapBean> implements Con
 
   private final MapService mapService;
   private final NotificationService notificationService;
+  private final PreferencesService preferencesService;
 
   @Override
   protected void updateItem(MapBean item, boolean empty) {
@@ -41,10 +43,11 @@ public class RemovableMapCellController extends ListCell<MapBean> implements Con
       if (item == null || empty) {
         setGraphic(null);
       } else {
-        previewMapView.setImage(mapService.loadPreview(item.getFolderName(), PreviewSize.SMALL));
-        mapNameLabel.setText(item.getDisplayName());
-        if (mapService.isCustomMap(item)) {
-          removeButton.setOnMouseClicked(event -> mapService.uninstallMap(item).exceptionally(throwable -> {
+        String modTechnical = preferencesService.getPreferences().getLastGame().getLastGameType();
+        previewMapView.setImage(mapService.loadPreview(modTechnical, item, PreviewType.MINI, 10));
+        mapNameLabel.setText(item.getMapName());
+        if (!mapService.isOfficialMap(item.getMapName())) {
+          removeButton.setOnMouseClicked(event -> mapService.uninstallMap(modTechnical, item.getMapName(), item.getCrc()).exceptionally(throwable -> {
             log.error("cannot uninstall the map", throwable);
             notificationService.addImmediateErrorNotification(throwable, "management.maps.uninstall.error");
             return null;

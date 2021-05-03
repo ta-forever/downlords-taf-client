@@ -19,6 +19,7 @@ import com.google.gson.GsonBuilder;
 import com.sun.jna.platform.win32.Shell32Util;
 import com.sun.jna.platform.win32.ShlObj;
 import javafx.beans.property.Property;
+import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
@@ -54,6 +55,9 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -69,20 +73,17 @@ import static com.github.nocatch.NoCatch.noCatch;
 @Service
 public class PreferencesService implements InitializingBean {
 
-  public static final String SUPREME_COMMANDER_EXE = "SupremeCommander.exe";
-  public static final String FORGED_ALLIANCE_EXE = "ForgedAlliance.exe";
-
   /**
    * Points to the FAF data directory where log files, config files and others are held. The returned value varies
    * depending on the operating system.
    */
-  protected static final Path FAF_DATA_DIRECTORY;
+  protected static final Path TAF_DATA_DIRECTORY;
   private static final Logger logger;
   private static final long STORE_DELAY = 1000;
   private static final Charset CHARSET = StandardCharsets.UTF_8;
   private static final String PREFS_FILE_NAME = "client.prefs";
-  private static final String APP_DATA_SUB_FOLDER = "Forged Alliance Forever";
-  private static final String USER_HOME_SUB_FOLDER = ".faforever";
+  private static final String APP_DATA_SUB_FOLDER = "Total Annihilation Forever";
+  private static final String USER_HOME_SUB_FOLDER = ".taforever";
   private static final String REPLAYS_SUB_FOLDER = "replays";
   private static final String CORRUPTED_REPLAYS_SUB_FOLDER = "corrupt";
   private static final String CACHE_SUB_FOLDER = "cache";
@@ -95,29 +96,24 @@ public class PreferencesService implements InitializingBean {
 
   static {
     if (org.bridj.Platform.isWindows()) {
-      FAF_DATA_DIRECTORY = Paths.get(Shell32Util.getFolderPath(ShlObj.CSIDL_COMMON_APPDATA), "FAForever");
+      TAF_DATA_DIRECTORY = Paths.get(Shell32Util.getFolderPath(ShlObj.CSIDL_COMMON_APPDATA), "TAForever");
     } else {
-      FAF_DATA_DIRECTORY = Paths.get(System.getProperty("user.home")).resolve(USER_HOME_SUB_FOLDER);
+      TAF_DATA_DIRECTORY = Paths.get(System.getProperty("user.home")).resolve(USER_HOME_SUB_FOLDER);
     }
-    CACHE_DIRECTORY = FAF_DATA_DIRECTORY.resolve(CACHE_SUB_FOLDER);
+    CACHE_DIRECTORY = TAF_DATA_DIRECTORY.resolve(CACHE_SUB_FOLDER);
     FEATURED_MOD_CACHE_PATH = CACHE_DIRECTORY.resolve(FEATURED_MOD_CACHE_SUB_FOLDER);
 
-    System.setProperty("logging.file.name", PreferencesService.FAF_DATA_DIRECTORY
+    System.setProperty("logging.file.name", PreferencesService.TAF_DATA_DIRECTORY
         .resolve("logs")
         .resolve("client.log")
         .toString());
     // duplicated, see getFafLogDirectory; make getFafLogDirectory or log dir static?
 
-    System.setProperty("ICE_ADVANCED_LOG", PreferencesService.FAF_DATA_DIRECTORY
+    System.setProperty("ICE_ADVANCED_LOG", PreferencesService.TAF_DATA_DIRECTORY
         .resolve("logs/iceAdapterLogs")
         .resolve("advanced-ice-adapter.log")
         .toString());
     // duplicated, see getIceAdapterLogDirectory; make getIceAdapterLogDirectory or ice log dir static?
-
-    System.setProperty("MAP_GENERATOR_LOG", PreferencesService.FAF_DATA_DIRECTORY
-        .resolve("logs")
-        .resolve("map-generator.log")
-        .toString());
 
     SLF4JBridgeHandler.removeHandlersForRootLogger();
     SLF4JBridgeHandler.install();
@@ -175,13 +171,6 @@ public class PreferencesService implements InitializingBean {
 
     setLoggingLevel();
     JavaFxUtil.addListener(preferences.debugLogEnabledProperty(), (observable, oldValue, newValue) -> setLoggingLevel());
-
-    Path gamePrefs = preferences.getForgedAlliance().getPreferencesFile();
-    if (Files.notExists(gamePrefs)) {
-      logger.info("Initializing game preferences file: {}", gamePrefs);
-      Files.createDirectories(gamePrefs.getParent());
-      Files.copy(getClass().getResourceAsStream("/game.prefs"), gamePrefs);
-    }
   }
 
   /**
@@ -189,10 +178,24 @@ public class PreferencesService implements InitializingBean {
    * migrations.
    */
   private void migratePreferences(Preferences preferences) {
-    if (preferences.getForgedAlliance().getPath() != null) {
-      preferences.getForgedAlliance().setInstallationPath(preferences.getForgedAlliance().getPath());
-      preferences.getForgedAlliance().setPath(null);
+
+    List<TotalAnnihilationPrefs> taPrefs = preferences.getTotalAnnihilationAllMods();
+    Map<String,TotalAnnihilationPrefs> toKeep = new HashMap<>();
+
+    for(TotalAnnihilationPrefs prefs: preferences.getTotalAnnihilationAllMods()) {
+      if (prefs.getInstalledExePath() != null && prefs.getBaseGameName() != null && prefs.getCommandLineOptions() != null) {
+        prefs.setBaseGameName(prefs.getBaseGameName());
+        prefs.setInstalledExePath(prefs.getInstalledExePath());
+        prefs.setCommandLineOptions(prefs.getCommandLineOptions());
+        toKeep.put(prefs.getBaseGameName(), prefs);
+      }
     }
+
+    taPrefs.clear();
+    for(Map.Entry<String,TotalAnnihilationPrefs> prefs: toKeep.entrySet()) {
+      taPrefs.add(prefs.getValue());
+    }
+
     storeInBackground();
   }
 
@@ -216,26 +219,15 @@ public class PreferencesService implements InitializingBean {
   }
 
   public Path getFafBinDirectory() {
-    return getFafDataDirectory().resolve("bin");
+    return getFafDataDirectory();
   }
 
   public Path getFafDataDirectory() {
-    return FAF_DATA_DIRECTORY;
+    return TAF_DATA_DIRECTORY;
   }
 
   public Path getIceAdapterLogDirectory() {
     return getFafLogDirectory().resolve("iceAdapterLogs");
-  }
-
-  /**
-   * This is where FAF stores maps and mods. This avoids writing to the My Documents folder on Windows
-   */
-  public Path getFAFVaultLocation() {
-    return ForgedAlliancePrefs.FAF_VAULT_PATH;
-  }
-
-  public Path getGPGVaultLocation() {
-    return ForgedAlliancePrefs.GPG_VAULT_PATH;
   }
 
   public Path getPatchReposDirectory() {
@@ -274,9 +266,6 @@ public class PreferencesService implements InitializingBean {
 
     }
 
-    if (preferences != null) {
-      preferences.getForgedAlliance().bindVaultPath();
-    }
   }
 
   public Preferences getPreferences() {
@@ -393,31 +382,21 @@ public class PreferencesService implements InitializingBean {
     return Optional.empty();
   }
 
-  @SneakyThrows
-  public boolean isGamePathValid() {
-    return isGamePathValidWithError(preferences.getForgedAlliance().getInstallationPath()) == null;
+  public boolean isGameExeValid(Path executablePath) {
+    return executablePath != null && !Files.isDirectory(executablePath) && Files.isExecutable(executablePath);
   }
 
-  public String isGamePathValidWithError(Path installationPath) throws IOException, NoSuchAlgorithmException {
-    boolean valid = installationPath != null && isGamePathValid(installationPath.resolve("bin"));
+  @SneakyThrows
+  public boolean isGameExeValid(String baseGameName) {
+    return isGameExeValidWithError(preferences.getTotalAnnihilation(baseGameName).getInstalledExePath()) == null;
+  }
+
+  public String isGameExeValidWithError(Path executablePath) {
+    boolean valid = executablePath != null && isGameExeValid(executablePath);
     if (!valid) {
       return "gamePath.select.noValidExe";
     }
-    Path binPath = installationPath.resolve("bin");
-    String exeHash;
-    if (Files.exists(binPath.resolve(FORGED_ALLIANCE_EXE))) {
-      exeHash = sha256OfFile(binPath.resolve(FORGED_ALLIANCE_EXE));
-    } else {
-      exeHash = sha256OfFile(binPath.resolve(SUPREME_COMMANDER_EXE));
-    }
-    for (String hash : clientProperties.getVanillaGameHashes()) {
-      logger.debug("Hash of Supreme Commander.exe in selected User directory: " + exeHash);
-      if (hash.equals(exeHash)) {
-        return "gamePath.select.vanillaGameSelected";
-      }
-    }
-
-    if (binPath.equals(getFafBinDirectory())) {
+    if (executablePath.equals(getFafBinDirectory())) {
       return "gamePath.select.fafDataSelected";
     }
 
@@ -439,13 +418,6 @@ public class PreferencesService implements InitializingBean {
       sb.append(String.format("%02X", b));
     }
     return sb.toString().toUpperCase();
-  }
-
-  public boolean isGamePathValid(Path binPath) {
-    return binPath != null
-        && (Files.isRegularFile(binPath.resolve(FORGED_ALLIANCE_EXE))
-        || Files.isRegularFile(binPath.resolve(SUPREME_COMMANDER_EXE))
-    );
   }
 
   public Path getCacheStylesheetsDirectory() {
@@ -495,5 +467,17 @@ public class PreferencesService implements InitializingBean {
     if (targetLogLevel == Level.DEBUG) {
       logger.debug("Confirming debug logging");
     }
+  }
+
+  public TotalAnnihilationPrefs getTotalAnnihilation(String modTechnical) {
+    return preferences.getTotalAnnihilation(modTechnical);
+  }
+
+  public TotalAnnihilationPrefs setTotalAnnihilation(String modTechnical, Path installedExePath, String commandLineOptions) {
+    return preferences.setTotalAnnihilation(modTechnical, installedExePath, commandLineOptions);
+  }
+
+  public ObservableList<TotalAnnihilationPrefs> getTotalAnnihilationAllMods() {
+    return preferences.getTotalAnnihilationAllMods();
   }
 }

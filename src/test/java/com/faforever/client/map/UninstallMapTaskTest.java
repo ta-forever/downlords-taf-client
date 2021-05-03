@@ -1,5 +1,7 @@
 package com.faforever.client.map;
 
+import com.faforever.client.game.KnownFeaturedMod;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.commons.io.ByteCopier;
 import org.junit.Before;
 import org.junit.Rule;
@@ -15,7 +17,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
@@ -31,6 +32,9 @@ public class UninstallMapTaskTest {
 
   @Mock
   private MapService mapService;
+
+  @Mock
+  PreferencesService preferencesService;
 
   private com.faforever.client.map.UninstallMapTask instance;
 
@@ -56,7 +60,8 @@ public class UninstallMapTaskTest {
     MapBean map = MapBeanBuilder.create().uid("b2cde810-15d0-4bfa-af6a-ec2d6ecd561b").get();
 
     Path mapPath = mapsDirectory.getRoot().toPath().resolve("theta_passage_5.v0001");
-    when(mapService.getPathForMap(map)).thenReturn(mapPath);
+    Path gamePath = preferencesService.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).getInstalledPath();
+    when(mapService.getPathForMap(gamePath, map)).thenReturn(mapPath);
 
     instance.setMap(map);
     instance.call();

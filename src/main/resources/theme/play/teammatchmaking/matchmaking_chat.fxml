@@ -23,18 +23,7 @@
             <HBox spacing="50.0">
                 <StackPane maxHeight="28.0">
                     <Label styleClass="discord-icon-background" maxWidth="16" maxHeight="16" />
-                    <Button styleClass="discord-button" onAction="#onDiscordButtonClicked">
-                        <graphic>
-                            <Region styleClass="icon,discord-icon,discord-color"/>
-                        </graphic>
-                        <tooltip>
-                            <Tooltip text="%discord.join"/>
-                        </tooltip>
-                    </Button>
                 </StackPane>
-                <TextFlow fx:id="topicText" maxWidth="1.7976931348623157E308">
-                    <Hyperlink fx:id="discordLink" text="https://discord.gg/jj9yGUP" onAction="#onDiscordButtonClicked" styleClass="discord-invite-link"/>
-                </TextFlow>
                 <padding>
                     <Insets left="5.0" right="5.0" top="4.0" bottom="2.0"/>
                 </padding>

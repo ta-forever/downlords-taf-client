@@ -6,10 +6,12 @@ import com.faforever.client.config.ClientProperties;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
+import com.faforever.client.fx.StringCell;
 import com.faforever.client.fx.StringListCell;
-import com.faforever.client.game.GameService;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.NavigationItem;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.Action;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.PersistentNotification;
@@ -19,10 +21,10 @@ import com.faforever.client.preferences.DateInfo;
 import com.faforever.client.preferences.LocalizationPrefs;
 import com.faforever.client.preferences.NotificationsPrefs;
 import com.faforever.client.preferences.Preferences;
-import com.faforever.client.preferences.Preferences.UnitDataBaseType;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TimeInfo;
 import com.faforever.client.preferences.ToastPosition;
+import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.preferences.WindowPrefs;
 import com.faforever.client.settings.LanguageItemController;
 import com.faforever.client.theme.Theme;
@@ -37,6 +39,7 @@ import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.FXCollections;
@@ -49,10 +52,13 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Spinner;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TableColumn;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.stage.FileChooser;
@@ -65,8 +71,6 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Path;
 import java.text.NumberFormat;
 import java.util.Collections;
 import java.util.List;
@@ -90,7 +94,7 @@ public class SettingsController implements Controller<Node> {
   private final PlatformService platformService;
   private final ClientProperties clientProperties;
   private final ClientUpdateService clientUpdateService;
-  private final GameService gameService;
+  private final ModService modService;
 
   public TextField executableDecoratorField;
   public TextField executionDirectoryField;
@@ -99,7 +103,17 @@ public class SettingsController implements Controller<Node> {
   public Toggle defaultColorsToggle;
   public CheckBox hideFoeToggle;
   public CheckBox forceRelayToggle;
-  public TextField gameLocationTextField;
+  public CheckBox proactiveResendToggle;
+  public CheckBox enableIrcIntegrationToggle;
+  public CheckBox enableAutoLaunchOnHostToggle;
+  public CheckBox enableAutoLaunchOnJoinToggle;
+  public CheckBox enableAutoRehostToggle;
+  public CheckBox enableAutoJoinToggle;
+  public CheckBox requireUacToggle;
+  public TableView<TotalAnnihilationPrefs> gameLocationTableView;
+  public TableColumn<TotalAnnihilationPrefs, String> gameLocationModTableColumn;
+  public TableColumn<TotalAnnihilationPrefs, String> gameLocationExecutableTableColumn;
+  public TableColumn<TotalAnnihilationPrefs, String> gameLocationCommandLineOptionsTableColumn;
   public CheckBox autoDownloadMapsToggle;
   public TextField maxMessagesTextField;
   public CheckBox imagePreviewToggle;
@@ -110,8 +124,10 @@ public class SettingsController implements Controller<Node> {
   public CheckBox playFriendOnlineSoundCheckBox;
   public CheckBox playFriendOfflineSoundCheckBox;
   public CheckBox displayFriendJoinsGameToastCheckBox;
+  public CheckBox displayPlayerJoinsGameToastCheckBox;
   public CheckBox displayFriendPlaysGameToastCheckBox;
   public CheckBox playFriendJoinsGameSoundCheckBox;
+  public CheckBox playPlayerJoinsGameSoundCheckBox;
   public CheckBox playFriendPlaysGameSoundCheckBox;
   public CheckBox displayPmReceivedToastCheckBox;
   public CheckBox playPmReceivedSoundCheckBox;
@@ -127,12 +143,11 @@ public class SettingsController implements Controller<Node> {
   public ComboBox<TimeInfo> timeComboBox;
   public ComboBox<DateInfo> dateComboBox;
   public ComboBox<ChatFormat> chatComboBox;
-  public ComboBox<UnitDataBaseType> unitDatabaseComboBox;
-  public CheckBox notifyOnAtMentionOnlyToggle;
+  public Label passwordChangeErrorLabel;
+    public CheckBox notifyOnAtMentionOnlyToggle;
   public Pane languagesContainer;
   public TextField backgroundImageLocation;
   public CheckBox disallowJoinsCheckBox;
-  public CheckBox secondaryVaultLocationToggle;
   public CheckBox advancedIceLogToggle;
   public CheckBox prereleaseToggle;
   public Region settingsHeader;
@@ -157,7 +172,7 @@ public class SettingsController implements Controller<Node> {
   public SettingsController(UserService userService, PreferencesService preferencesService, UiService uiService,
                             I18n i18n, EventBus eventBus, NotificationService notificationService,
                             PlatformService platformService, ClientProperties clientProperties,
-                            ClientUpdateService clientUpdateService, GameService gameService) {
+                            ClientUpdateService clientUpdateService, ModService modService) {
     this.userService = userService;
     this.preferencesService = preferencesService;
     this.uiService = uiService;
@@ -167,7 +182,7 @@ public class SettingsController implements Controller<Node> {
     this.platformService = platformService;
     this.clientProperties = clientProperties;
     this.clientUpdateService = clientUpdateService;
-    this.gameService = gameService;
+    this.modService = modService;
 
     availableLanguagesListener = observable -> {
       LocalizationPrefs localization = preferencesService.getPreferences().getLocalization();
@@ -286,23 +301,56 @@ public class SettingsController implements Controller<Node> {
     displayFriendOnlineToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendOnlineToastEnabledProperty());
     displayFriendOfflineToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendOfflineToastEnabledProperty());
     displayFriendJoinsGameToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendJoinsGameToastEnabledProperty());
+    displayPlayerJoinsGameToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().playerJoinsGameToastEnabledProperty());
     displayFriendPlaysGameToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendPlaysGameToastEnabledProperty());
     displayPmReceivedToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().privateMessageToastEnabledProperty());
     playFriendOnlineSoundCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendOnlineSoundEnabledProperty());
     playFriendOfflineSoundCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendOfflineSoundEnabledProperty());
     playFriendJoinsGameSoundCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendJoinsGameSoundEnabledProperty());
+    playPlayerJoinsGameSoundCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().playerJoinsGameSoundEnabledProperty());
     playFriendPlaysGameSoundCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendPlaysGameSoundEnabledProperty());
     playPmReceivedSoundCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().privateMessageSoundEnabledProperty());
     afterGameReviewCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().afterGameReviewEnabledProperty());
 
     notifyOnAtMentionOnlyToggle.selectedProperty().bindBidirectional(preferences.getNotification().notifyOnAtMentionOnlyEnabledProperty());
     enableSoundsToggle.selectedProperty().bindBidirectional(preferences.getNotification().soundsEnabledProperty());
-    forceRelayToggle.selectedProperty().bindBidirectional(preferences.getForgedAlliance().forceRelayProperty());
-    gameLocationTextField.textProperty().bindBidirectional(preferences.getForgedAlliance().installationPathProperty(), PATH_STRING_CONVERTER);
-    autoDownloadMapsToggle.selectedProperty().bindBidirectional(preferences.getForgedAlliance().autoDownloadMapsProperty());
+    gameLocationModTableColumn.setCellValueFactory(new PropertyValueFactory<>("getModName"));
+    gameLocationModTableColumn.setCellFactory(param -> new StringCell<>(technicalName -> modService.getFeaturedModDisplayName(technicalName)));
+    gameLocationExecutableTableColumn.setCellValueFactory(new PropertyValueFactory<>("getInstalledExePath"));
+    gameLocationCommandLineOptionsTableColumn.setCellValueFactory(new PropertyValueFactory<>("getCommandLineOptions"));
 
-    executableDecoratorField.textProperty().bindBidirectional(preferences.getForgedAlliance().executableDecoratorProperty());
-    executionDirectoryField.textProperty().bindBidirectional(preferences.getForgedAlliance().executionDirectoryProperty(), PATH_STRING_CONVERTER);
+    // ensure SettingsController knows about all the mods that ModService knows about
+    modService.getFeaturedMods()
+        .thenApply(modList -> {
+          modList.stream()
+            .filter(featuredMod -> featuredMod.isVisible())
+            .forEach(featuredMod -> preferencesService.getTotalAnnihilation(featuredMod.getTechnicalName()));
+          return modList;
+        });
+
+//    gameLocationExecutableTableColumn.setCellFactory(TextFieldTableCell.forTableColumn());
+//    gameLocationExecutableTableColumn.setOnEditCommit(
+//        t -> t.getTableView()
+//            .getItems()
+//            .get(t.getTablePosition().getRow())
+//            .setInstalledPath(Paths.get(t.getNewValue())));
+//
+//    gameLocationCommandLineOptionsTableColumn.setCellFactory(TextFieldTableCell.forTableColumn());
+//    gameLocationCommandLineOptionsTableColumn.setOnEditCommit(
+//       t -> t.getTableView()
+//            .getItems()
+//            .get(t.getTablePosition().getRow())
+//            .setCommandLineOptions(t.getNewValue()));
+
+    forceRelayToggle.selectedProperty().bindBidirectional(preferences.getForceRelayEnabledProperty());
+    proactiveResendToggle.selectedProperty().bindBidirectional(preferences.getProactiveResendEnabledProperty());
+    enableIrcIntegrationToggle.selectedProperty().bindBidirectional(preferences.getIrcIntegrationEnabledProperty());
+    enableAutoLaunchOnHostToggle.selectedProperty().bindBidirectional(preferences.getAutoLaunchOnHostEnabledProperty());
+    enableAutoLaunchOnJoinToggle.selectedProperty().bindBidirectional(preferences.getAutoLaunchOnJoinEnabledProperty());
+    enableAutoRehostToggle.selectedProperty().bindBidirectional(preferences.getAutoRehostEnabledProperty());
+    enableAutoJoinToggle.selectedProperty().bindBidirectional(preferences.getAutoJoinEnabledProperty());
+    requireUacToggle.selectedProperty().bindBidirectional(preferences.getRequireUacEnabledProperty());
+    updateGameLocationTable();
 
     backgroundImageLocation.textProperty().bindBidirectional(preferences.getMainWindow().backgroundImagePathProperty(), PATH_STRING_CONVERTER);
 
@@ -314,12 +362,6 @@ public class SettingsController implements Controller<Node> {
     autoChannelListView.managedProperty().bind(autoChannelListView.visibleProperty());
     autoChannelListView.visibleProperty().bind(Bindings.createBooleanBinding(() -> !autoChannelListView.getItems().isEmpty(), autoChannelListView.getItems()));
 
-    secondaryVaultLocationToggle.setSelected(preferences.getForgedAlliance().getVaultBaseDirectory().equals(preferencesService.getFAFVaultLocation()));
-    secondaryVaultLocationToggle.selectedProperty().addListener(observable -> {
-      Path vaultBaseDirectory = secondaryVaultLocationToggle.isSelected() ? preferencesService.getFAFVaultLocation() : preferencesService.getGPGVaultLocation();
-      preferences.getForgedAlliance().setVaultBaseDirectory(vaultBaseDirectory);
-    });
-
     advancedIceLogToggle.selectedProperty().bindBidirectional(preferences.advancedIceLogEnabledProperty());
 
     prereleaseToggle.selectedProperty().bindBidirectional(preferences.preReleaseCheckEnabledProperty());
@@ -330,13 +372,7 @@ public class SettingsController implements Controller<Node> {
     });
 
     debugLogToggle.selectedProperty().bindBidirectional(preferences.debugLogEnabledProperty());
-
-    initUnitDatabaseSelection(preferences);
-
-    initAllowReplaysWhileInGame(preferences);
-
     initNotifyMeOnAtMention();
-
     initGameDataCache();
   }
 
@@ -354,16 +390,9 @@ public class SettingsController implements Controller<Node> {
     notifyAtMentionDescription.setText(i18n.get("settings.chat.notifyOnAtMentionOnly.description", "@" + username));
   }
 
-  private void initAllowReplaysWhileInGame(Preferences preferences) {
-    allowReplayWhileInGameCheckBox.setSelected(preferences.getForgedAlliance().isAllowReplaysWhileInGame());
-    JavaFxUtil.bindBidirectional(allowReplayWhileInGameCheckBox.selectedProperty(), preferences.getForgedAlliance().allowReplaysWhileInGameProperty());
-    try {
-      gameService.isGamePrefsPatchedToAllowMultiInstances()
-          .thenAccept(isPatched -> allowReplayWhileInGameButton.setDisable(isPatched));
-    } catch (IOException e) {
-      log.warn("Failed evaluating if game.prefs file is patched for multiple instances.", e);
-      allowReplayWhileInGameButton.setDisable(true);
-    }
+  public void updateGameLocationTable()
+  {
+    gameLocationTableView.setItems(preferencesService.getTotalAnnihilationAllMods());
   }
 
   private void configureStartTab(Preferences preferences) {
@@ -382,22 +411,6 @@ public class SettingsController implements Controller<Node> {
     });
     startTabChoiceBox.getSelectionModel().select(mainWindow.getNavigationItem());
     mainWindow.navigationItemProperty().bind(startTabChoiceBox.getSelectionModel().selectedItemProperty());
-  }
-
-  private void initUnitDatabaseSelection(Preferences preferences) {
-    unitDatabaseComboBox.setButtonCell(new StringListCell<>(unitDataBaseType -> i18n.get(unitDataBaseType.getI18nKey())));
-    unitDatabaseComboBox.setCellFactory(param -> new StringListCell<>(unitDataBaseType -> i18n.get(unitDataBaseType.getI18nKey())));
-    unitDatabaseComboBox.setItems(FXCollections.observableArrayList(UnitDataBaseType.values()));
-    unitDatabaseComboBox.setFocusTraversable(true);
-
-    ChangeListener<UnitDataBaseType> unitDataBaseTypeChangeListener = (observable, oldValue, newValue) -> unitDatabaseComboBox.getSelectionModel().select(newValue);
-    unitDataBaseTypeChangeListener.changed(null, null, preferences.getUnitDataBaseType());
-    JavaFxUtil.addListener(preferences.unitDataBaseTypeProperty(), unitDataBaseTypeChangeListener);
-
-    unitDatabaseComboBox.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-      preferences.setUnitDataBaseType(newValue);
-      preferencesService.storeInBackground();
-    });
   }
 
   private void configureTimeSetting(Preferences preferences) {
@@ -510,7 +523,15 @@ public class SettingsController implements Controller<Node> {
   }
 
   public void onSelectGameLocation() {
-    eventBus.post(new GameDirectoryChooseEvent());
+    int index = gameLocationTableView.getSelectionModel().selectedIndexProperty().get();
+    final String modTechnical;
+    if (gameLocationModTableColumn.getCellObservableValue(index) == null) {
+      modTechnical = KnownFeaturedMod.DEFAULT.getTechnicalName();
+    }
+    else {
+      modTechnical = ((SimpleStringProperty)gameLocationModTableColumn.getCellObservableValue(index)).get();
+    }
+    eventBus.post(new GameDirectoryChooseEvent(modTechnical));
   }
 
   public void onSelectExecutionDirectory() {
@@ -567,19 +588,5 @@ public class SettingsController implements Controller<Node> {
     channelTextField.clear();
   }
 
-  public void onPatchGamePrefsForMultipleInstances() {
-    try {
-      gameService.patchGamePrefsForMultiInstances()
-          .thenRun(() -> JavaFxUtil.runLater(() -> allowReplayWhileInGameButton.setDisable(true)))
-          .exceptionally(throwable -> {
-            log.error("Game.prefs patch failed", throwable);
-            notificationService.addImmediateErrorNotification(throwable, "settings.fa.patchGamePrefsFailed");
-            return null;
-          });
-    } catch (Exception e) {
-      log.error("Game.prefs patch failed", e);
-      notificationService.addImmediateErrorNotification(e, "settings.fa.patchGamePrefsFailed");
-    }
-  }
 }
 

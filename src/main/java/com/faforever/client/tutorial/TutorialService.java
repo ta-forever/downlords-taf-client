@@ -26,6 +26,6 @@ public class TutorialService {
   }
 
   public void launchTutorial(Tutorial tutorial) {
-    gameService.launchTutorial(tutorial.getMapVersion(), tutorial.getTechnicalName());
+    //gameService.launchTutorial(tutorial.getMapVersion(), tutorial.getTechnicalName());
   }
 }

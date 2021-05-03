@@ -5,6 +5,7 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.main.event.OpenLocalReplayVaultEvent;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.query.SearchablePropertyMappings;
@@ -30,8 +31,11 @@ public class LocalReplayVaultController extends VaultEntityController<Replay> {
 
   private ReplayDetailController replayDetailController;
 
-  public LocalReplayVaultController(ReplayService replayService, UiService uiService, NotificationService notificationService, I18n i18n, PreferencesService preferencesService, ReportingService reportingService) {
-    super(uiService, notificationService, i18n, preferencesService, reportingService);
+  public LocalReplayVaultController(ReplayService replayService, UiService uiService,
+                                    NotificationService notificationService, I18n i18n,
+                                    PreferencesService preferencesService, ReportingService reportingService,
+                                    ModService modService) {
+    super(uiService, notificationService, i18n, preferencesService, reportingService, modService);
     this.replayService = replayService;
   }
 

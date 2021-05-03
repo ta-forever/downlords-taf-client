@@ -1,15 +1,15 @@
 package com.faforever.client.map.event;
 
-import com.faforever.client.map.MapBean;
+import java.nio.file.Path;
 
 public class MapUploadedEvent {
-  private MapBean mapInfo;
+  private Path stagingDirectory;
 
-  public MapUploadedEvent(MapBean mapBean) {
-    this.mapInfo = mapBean;
+  public MapUploadedEvent(Path stagingDirectory) {
+    this.stagingDirectory = stagingDirectory;
   }
 
-  public MapBean getMapInfo() {
-    return mapInfo;
+  public Path getStagingDirectory() {
+    return stagingDirectory;
   }
 }

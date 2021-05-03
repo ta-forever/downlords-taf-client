@@ -26,7 +26,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
@@ -92,6 +94,11 @@ public class MockChatService implements ChatService, InitializingBean {
   public ChatChannel getOrCreateChannel(String channelName) {
     channelUserListListeners.putIfAbsent(channelName, new ChatChannel(channelName));
     return channelUserListListeners.get(channelName);
+  }
+
+  @Override
+  public Set<String> getUserChannels(String username) {
+    return new HashSet<>();
   }
 
   @Override

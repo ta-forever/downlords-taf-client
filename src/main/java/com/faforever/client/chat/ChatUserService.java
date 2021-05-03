@@ -7,7 +7,7 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.game.PlayerStatus;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.player.Player;
 import com.faforever.client.preferences.ChatPrefs;
 import com.faforever.client.preferences.PreferencesService;
@@ -142,13 +142,17 @@ public class ChatUserService implements InitializingBean {
     PlayerStatus status = player.getStatus();
     Image playerStatusImage = switch (status) {
       case HOSTING -> uiService.getThemeImage(UiService.CHAT_LIST_STATUS_HOSTING);
-      case LOBBYING -> uiService.getThemeImage(UiService.CHAT_LIST_STATUS_LOBBYING);
+      case JOINING -> uiService.getThemeImage(UiService.CHAT_LIST_STATUS_JOINING);
+      case HOSTED -> uiService.getThemeImage(UiService.CHAT_LIST_STATUS_HOSTED);
+      case JOINED -> uiService.getThemeImage(UiService.CHAT_LIST_STATUS_JOINED);
       case PLAYING -> uiService.getThemeImage(UiService.CHAT_LIST_STATUS_PLAYING);
       default -> null;
     };
     Image mapImage;
     if (status != PlayerStatus.IDLE) {
-      mapImage = mapService.loadPreview(player.getGame().getMapFolderName(), PreviewSize.SMALL);
+      String modTechnical = player.getGame().getFeaturedMod();
+      String mapName = player.getGame().getMapName();
+      mapImage = mapService.loadPreview(modTechnical, mapName, PreviewType.MINI, 10);
     } else {
       mapImage = null;
     }

@@ -43,8 +43,8 @@ public class ReplayController extends AbstractViewController<Node> {
 
   @Override
   public void initialize() {
-    onlineReplayVaultController = uiService.loadFxml("theme/vault/vault_entity.fxml", OnlineReplayVaultController.class);
-    onlineReplayVaultTab.setContent(onlineReplayVaultController.getRoot());
+    //onlineReplayVaultController = uiService.loadFxml("theme/vault/vault_entity.fxml", OnlineReplayVaultController.class);
+    //onlineReplayVaultTab.setContent(onlineReplayVaultController.getRoot());
     localReplayVaultController = uiService.loadFxml("theme/vault/vault_entity.fxml", LocalReplayVaultController.class);
     localReplayVaultTab.setContent(localReplayVaultController.getRoot());
     lastTab = onlineReplayVaultTab;

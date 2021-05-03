@@ -3,16 +3,21 @@ package com.faforever.client.map;
 import com.faforever.client.config.CacheNames;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.config.ClientProperties.Vault;
-import com.faforever.client.fa.FaStrings;
+import com.faforever.client.fa.MapTool;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.io.FileUtils;
 import com.faforever.client.map.MapBean.Type;
-import com.faforever.client.map.generator.MapGeneratedEvent;
-import com.faforever.client.map.generator.MapGeneratorService;
+import com.faforever.client.notification.DismissAction;
+import com.faforever.client.notification.ImmediateNotification;
+import com.faforever.client.notification.NotificationService;
+import com.faforever.client.notification.Severity;
+import com.faforever.client.notification.TransientNotification;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
-import com.faforever.client.preferences.ForgedAlliancePrefs;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.remote.AssetService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.task.CompletableTask;
@@ -20,13 +25,12 @@ import com.faforever.client.task.CompletableTask.Priority;
 import com.faforever.client.task.TaskService;
 import com.faforever.client.teammatchmaking.MatchmakingQueue;
 import com.faforever.client.theme.UiService;
-import com.faforever.client.util.ProgrammingError;
 import com.faforever.client.util.Tuple;
 import com.faforever.client.vault.search.SearchController.SearchConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
-import com.google.common.eventbus.Subscribe;
+import javafx.application.Platform;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
@@ -34,11 +38,8 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.image.Image;
 import lombok.SneakyThrows;
-import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.luaj.vm2.LuaError;
-import org.luaj.vm2.LuaValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
@@ -53,67 +54,115 @@ import org.springframework.stereotype.Service;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
+import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 
-import static com.faforever.client.util.LuaUtil.loadFile;
+import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_ARCHIVE;
+import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_CRC;
+import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_DESCRIPTION;
+import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_SIZE;
 import static com.github.nocatch.NoCatch.noCatch;
 import static com.google.common.net.UrlEscapers.urlFragmentEscaper;
 import static java.lang.String.format;
-import static java.nio.file.Files.list;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
-import static java.util.stream.Collectors.toCollection;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 
 
 @Lazy
 @Service
 public class MapService implements InitializingBean, DisposableBean {
 
-  public static final String DEBUG = "debug";
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-  private static final String MAP_VERSION_REGEX = ".*[.v](?<version>\\d{4})$"; // Matches to an string like 'adaptive_twin_rivers.v0031'
+  public static final String DEBUG = "debug";
+
   private final PreferencesService preferencesService;
   private final TaskService taskService;
   private final ApplicationContext applicationContext;
   private final FafService fafService;
   private final AssetService assetService;
+  private final NotificationService notificationService;
   private final I18n i18n;
   private final UiService uiService;
-  private final MapGeneratorService mapGeneratorService;
   private final ClientProperties clientProperties;
   private final EventBus eventBus;
-  private final ForgedAlliancePrefs forgedAlliancePreferences;
   private final PlayerService playerService;
 
   private final String mapDownloadUrlFormat;
   private final String mapPreviewUrlFormat;
-  private final Map<Path, MapBean> pathToMap = new HashMap<>();
-  private final ObservableList<MapBean> installedMaps = FXCollections.observableArrayList();
-  private final Map<String, MapBean> mapsByFolderName = new HashMap<>();
-  @VisibleForTesting
-  Set<String> officialMaps = ImmutableSet.of(
-      "SCMP_001", "SCMP_002", "SCMP_003", "SCMP_004", "SCMP_005", "SCMP_006", "SCMP_007", "SCMP_008", "SCMP_009", "SCMP_010", "SCMP_011",
-      "SCMP_012", "SCMP_013", "SCMP_014", "SCMP_015", "SCMP_016", "SCMP_017", "SCMP_018", "SCMP_019", "SCMP_020", "SCMP_021", "SCMP_022",
-      "SCMP_023", "SCMP_024", "SCMP_025", "SCMP_026", "SCMP_027", "SCMP_028", "SCMP_029", "SCMP_030", "SCMP_031", "SCMP_032", "SCMP_033",
-      "SCMP_034", "SCMP_035", "SCMP_036", "SCMP_037", "SCMP_038", "SCMP_039", "SCMP_040", "X1MP_001", "X1MP_002", "X1MP_003", "X1MP_004",
-      "X1MP_005", "X1MP_006", "X1MP_007", "X1MP_008", "X1MP_009", "X1MP_010", "X1MP_011", "X1MP_012", "X1MP_014", "X1MP_017"
-  );
-  private Thread directoryWatcherThread;
+
+  private class Installation {
+    final String modTechnicalName;
+    private final Map<String, MapBean> mapsByName = new HashMap<>();
+    private final ObservableList<MapBean> maps = FXCollections.observableArrayList();
+    private List<String> downloadingList = new ArrayList<>(); // guard against multiple attempts to download same archive prolly due to clicky users
+    private Thread directoryWatcherThread;
+    private Integer enumerationsRequested = 0;
+
+    public Installation(String modTechnical) {
+      this.modTechnicalName = modTechnical;
+
+      maps.addListener((ListChangeListener<MapBean>) change -> {
+        while (change.next()) {
+          for (MapBean mapBean : change.getRemoved()) {
+            mapsByName.remove(mapBean.getMapName());
+          }
+          for (MapBean mapBean : change.getAddedSubList()) {
+            mapsByName.put(mapBean.getMapName(), mapBean);
+          }
+        }
+      });
+    }
+
+    private void removeMap(String mapName) {
+      maps.remove(mapsByName.remove(mapName));
+    }
+
+    private void addMap(String mapName, String mapDetail[]) {
+      MapBean mapBean = readMap(mapName, mapDetail);
+      addMap(mapBean);
+    }
+
+    private void addMap(MapBean mapBean) {
+      if (!mapsByName.containsKey(mapBean.getMapName())) {
+        mapsByName.put(mapBean.getMapName(), mapBean);
+        maps.add(mapBean);
+      }
+    }
+  }
+
+  // keyed by ModTechnical
+  private Map<String, Installation> installations = new HashMap<>();
+
+  public Installation getInstallation(String modTechnical) {
+    Installation installation = installations.get(modTechnical);
+    if (installation == null) {
+      installations.put(modTechnical, new Installation(modTechnical));
+    }
+    return installations.get(modTechnical);
+  }
 
   @Inject
   public MapService(PreferencesService preferencesService,
@@ -121,9 +170,9 @@ public class MapService implements InitializingBean, DisposableBean {
                     ApplicationContext applicationContext,
                     FafService fafService,
                     AssetService assetService,
+                    NotificationService notificationService,
                     I18n i18n,
                     UiService uiService,
-                    MapGeneratorService mapGeneratorService,
                     ClientProperties clientProperties,
                     EventBus eventBus, PlayerService playerService) {
     this.preferencesService = preferencesService;
@@ -131,91 +180,137 @@ public class MapService implements InitializingBean, DisposableBean {
     this.applicationContext = applicationContext;
     this.fafService = fafService;
     this.assetService = assetService;
+    this.notificationService = notificationService;
     this.i18n = i18n;
     this.uiService = uiService;
-    this.mapGeneratorService = mapGeneratorService;
     this.clientProperties = clientProperties;
     this.eventBus = eventBus;
-    forgedAlliancePreferences = preferencesService.getPreferences().getForgedAlliance();
     this.playerService = playerService;
     Vault vault = clientProperties.getVault();
     this.mapDownloadUrlFormat = vault.getMapDownloadUrlFormat();
     this.mapPreviewUrlFormat = vault.getMapPreviewUrlFormat();
 
-    installedMaps.addListener((ListChangeListener<MapBean>) change -> {
+    preferencesService.getTotalAnnihilationAllMods().addListener((ListChangeListener<TotalAnnihilationPrefs>) change -> {
       while (change.next()) {
-        for (MapBean mapBean : change.getRemoved()) {
-          mapsByFolderName.remove(mapBean.getFolderName().toLowerCase());
-        }
-        for (MapBean mapBean : change.getAddedSubList()) {
-          mapsByFolderName.put(mapBean.getFolderName().toLowerCase(), mapBean);
+        for (TotalAnnihilationPrefs taPrefs : change.getAddedSubList()) {
+          taPrefs.getInstalledExePathProperty().addListener((observable, oldValue, newValue) -> {
+            Platform.runLater(() -> {tryLoadMaps(taPrefs.getBaseGameName());});
+          });
+          Platform.runLater(() -> {tryLoadMaps(taPrefs.getBaseGameName());});
         }
       }
     });
+
+    for (TotalAnnihilationPrefs taPrefs: preferencesService.getTotalAnnihilationAllMods()) {
+      if (taPrefs == null) {
+        continue;
+      }
+      String modTechnical = taPrefs.getBaseGameName();
+      Installation installation = new Installation(modTechnical);
+      installations.put(modTechnical, installation);
+    }
   }
 
-  private static URL getDownloadUrl(String mapName, String baseUrl) {
-    return noCatch(() -> new URL(format(baseUrl, urlFragmentEscaper().escape(mapName).toLowerCase(Locale.US))));
+  @VisibleForTesting
+  Set<String> otaMaps = ImmutableSet.of(
+      "Anteer Straight", "Ashap Plateau", "Caldera's Rim", "Coast To Coast", "Dark Side", "Etorrep Glacier", "Evad River Confluence",
+      "Fox Holes", "Full Moon", "Gods of War", "Great Divide", "Greenhaven", "Hundred Isles", "Kill The Middle", "King of the Hill",
+      "Lava & Two Hills", "Lava Alley", "Lava Highground", "Lava Mania", "Lava Run", "Metal Heck", "Over Crude Water", "Painted Desert",
+      "Pincushion", "Red Hot Lava", "Red Planet", "Red Triangle", "Ring Atol", "Rock Alley", "Seven Islands", "SHERWOOD",
+      "Shore to Shore", "The Cold Place", "The Desert Triad", "The Pass", "Two Continents", "Yerrot Mountains"
+  );
+
+  @VisibleForTesting
+  Set<String> ccMaps = ImmutableSet.of(
+      "Acid Foursome", "Acid Pools", "Acid Trip", "Assault on Suburbia", "Biggie Biggs", "Block Wars", "Brain Coral", "Cavedog Links CC",
+      "Checker Ponds", "Cluster Freak", "Comet Catcher", "Core Prime Industrial Area", "Crater Islands", "Crystal Cracked",
+      "Crystal Isles", "Crystal Maze", "Crystal Treasure Island", "Dire Straits", "East Indeez", "Eastside Westside",
+      "Expanded Confluence", "Flooded Glaciers", "Gasbag Forests", "Gasplant Plain", "Higher Ground", "Ice Scream", "Icy Bergs",
+      "John's Pass", "Lake Shore", "Lusch Puppy", "Luschaven", "Metal Isles", "Moon Quartet", "Ooooweeee", "Pillopeens",
+      "Plains and Passes", "Polar Range", "Polyp Fields", "Red River North", "Red River", "Ror Shock", "Sail Away", "Sector 410b",
+      "Show Down", "Slate Gordon", "Slated Fate", "Steel Jungle", "Surface Meltdown", "Temblorian Mist", "The Barrier Reef", "The Bayou",
+      "Town & Country", "Trout Farm"
+  );
+
+  @VisibleForTesting
+  Set<String> btMaps = ImmutableSet.of(
+      "Aqua Verdigris", "Brilliant Cut Lake", "Canal Crossing", "Coremageddon", "Metal Gridlock", "Wretched Ridges"
+  );
+
+  @VisibleForTesting
+  Set<String> cdMaps = ImmutableSet.of(
+      "A Plethora of Ponds", "Abysmal Lake", "Ancient Issaquah", "Cloudious Prime", "Long Lakes", "LUSCHIE",
+      "Luschinfloggen", "Luschious", "Mounds of Mars", "PC Games' Evad River Delta",
+      "Starfish Isles", "Thundurlok Rok", "Tropical Paradise"
+  );
+
+  @VisibleForTesting
+  Set<String> officialMapArchives = ImmutableSet.of(
+      "btdata.ccx", "btmaps.ccx", "ccdata.ccx", "ccmaps.ccx", "ccmiss.ccx", "cdmaps.ccx", "rev31.gp3",
+      "tactics1.hpi", "tactics2.hpi", "tactics3.hpi", "tactics4.hpi", "tactics5.hpi", "tactics6.hpi", "tactics7.hpi", "tactics8.hpi",
+      "totala1.hpi", "totala2.hpi", "totala3.hpi", "totala4.hpi", "worlds.hpi", "afark.ufo", "aflea.ufo", "ascarab.ufo",
+      "cometctr.ufo", "cormabm.ufo", "cornecro.ufo", "corplas.ufo", "evadrivd.ufo", "example.ufo", "floggen.ufo", "mndsmars.ufo",
+      "tademo.ufo");
+
+  private static String HPI_ARCHIVE_TA_FEATURES_2013 = "TA_Features_2013.ccx";
+
+  private static URL getDownloadUrl(String hpiArchiveName, String baseUrl) {
+    return noCatch(() -> new URL(format(baseUrl, urlFragmentEscaper().escape(hpiArchiveName))));
   }
 
-  private static URL getPreviewUrl(String mapName, String baseUrl, PreviewSize previewSize) {
-    return noCatch(() -> new URL(format(baseUrl, previewSize.folderName, urlFragmentEscaper().escape(mapName).toLowerCase(Locale.US))));
+  private static URL getPreviewUrl(String mapName, String baseUrl, PreviewType previewType) {
+    return noCatch(() -> new URL(format(baseUrl, previewType.folderName, urlFragmentEscaper().escape(mapName))));
   }
 
   @Override
   public void afterPropertiesSet() {
     eventBus.register(this);
-    JavaFxUtil.addListener(forgedAlliancePreferences.installationPathProperty(), observable -> tryLoadMaps());
-    JavaFxUtil.addListener(forgedAlliancePreferences.customMapsDirectoryProperty(), observable -> tryLoadMaps());
-    tryLoadMaps();
+
+    for (TotalAnnihilationPrefs taPrefs: preferencesService.getTotalAnnihilationAllMods()) {
+      if (taPrefs == null) {
+        continue;
+      }
+      String modTechnical = taPrefs.getBaseGameName();
+      JavaFxUtil.addListener(taPrefs.getInstalledExePathProperty(), observable -> tryLoadMaps(modTechnical));
+      tryLoadMaps(modTechnical);
+    }
   }
 
-  private void tryLoadMaps() {
-    if (forgedAlliancePreferences.getInstallationPath() == null) {
-      logger.warn("Could not load maps: installation path is not set");
+  private void tryLoadMaps(String modTechnical) {
+    Path mapsDirectory = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath();
+    if (mapsDirectory == null) {
+      logger.warn(String.format("Could not load maps: installation path is not set for mod: %s",modTechnical));
       return;
     }
 
-    Path mapsDirectory = forgedAlliancePreferences.getCustomMapsDirectory();
-    if (mapsDirectory == null) {
-      logger.warn("Could not load maps: custom map directory is not set");
-      return;
-    }
+    Installation installation = getInstallation(modTechnical);
 
     try {
       Files.createDirectories(mapsDirectory);
-      Optional.ofNullable(directoryWatcherThread).ifPresent(Thread::interrupt);
-      directoryWatcherThread = startDirectoryWatcher(mapsDirectory);
+      Optional.ofNullable(installation.directoryWatcherThread).ifPresent(Thread::interrupt);
+      installation.directoryWatcherThread = startDirectoryWatcher(installation, mapsDirectory);
     } catch (IOException e) {
       logger.warn("Could not start map directory watcher", e);
       // TODO notify user
     }
 
-    installedMaps.clear();
-    loadInstalledMaps();
+    loadInstalledMaps(installation);
   }
 
-  private Thread startDirectoryWatcher(Path mapsDirectory) {
+  private Thread startDirectoryWatcher(Installation installation, Path mapsDirectory) {
     Thread thread = new Thread(() -> noCatch(() -> {
       try (WatchService watcher = mapsDirectory.getFileSystem().newWatchService()) {
-        forgedAlliancePreferences.getCustomMapsDirectory().register(watcher, ENTRY_DELETE, ENTRY_CREATE);
+        // beware potential bug: this used to register with forgedAlliancePreferences.getCustomMapsDirectory() ...
+        mapsDirectory.register(watcher, new WatchEvent.Kind[]{ENTRY_DELETE, ENTRY_MODIFY, ENTRY_CREATE});
+        PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:*.{ufo,hpi,ccx}");
         while (!Thread.interrupted()) {
           WatchKey key = watcher.take();
-          key.pollEvents().stream()
-              .filter(event -> event.kind() == ENTRY_DELETE || event.kind() == ENTRY_CREATE)
-              .forEach(event -> {
-                if (event.kind() == ENTRY_DELETE) {
-                  removeMap(mapsDirectory.resolve((Path) event.context()));
-                } else if (event.kind() == ENTRY_CREATE) {
-                  Path mapPath = mapsDirectory.resolve((Path) event.context());
-                  try {
-                    Thread.sleep(1000);
-                  } catch (InterruptedException e) {
-                    logger.debug("Thread interrupted ({})", e.getMessage());
-                  }
-                  addInstalledMap(mapPath);
-                }
-              });
+          List<WatchEvent<?>> events = key.pollEvents();
+          if (events.stream()
+              .filter(event -> matcher.matches((Path)event.context()) )
+              .findAny().isPresent()) {
+            Platform.runLater(() -> { loadInstalledMaps(installation); });
+          }
           key.reset();
         }
       } catch (InterruptedException e) {
@@ -227,149 +322,311 @@ public class MapService implements InitializingBean, DisposableBean {
     return thread;
   }
 
-  private void loadInstalledMaps() {
+  public void loadInstalledMaps(String modTechnical) {
+    Installation installation = getInstallation(modTechnical);
+    loadInstalledMaps(installation);
+  }
+
+  private void loadInstalledMaps(Installation installation) {
+    synchronized(installation.enumerationsRequested) {
+      ++installation.enumerationsRequested;
+      if (installation.enumerationsRequested > 1) {
+        return;
+      }
+    }
+
     taskService.submitTask(new CompletableTask<Void>(Priority.LOW) {
 
       protected Void call() {
         updateTitle(i18n.get("mapVault.loadingMaps"));
-        Path officialMapsPath = forgedAlliancePreferences.getInstallationPath().resolve("maps");
-        try (Stream<Path> customMapsDirectoryStream = list(forgedAlliancePreferences.getCustomMapsDirectory())) {
-          List<Path> mapPaths = new ArrayList<>();
-          customMapsDirectoryStream.collect(toCollection(() -> mapPaths));
-          officialMaps.stream()
-              .map(officialMapsPath::resolve)
-              .collect(toCollection(() -> mapPaths));
 
-          long totalMaps = mapPaths.size();
-          long mapsRead = 0;
-          for (Path mapPath : mapPaths) {
-            if (mapPath.getFileName().toString().equals(DEBUG)) {
-              continue;
-            }
-            updateProgress(++mapsRead, totalMaps);
-            addInstalledMap(mapPath);
+        Path exePath = preferencesService.getTotalAnnihilation(installation.modTechnicalName).getInstalledExePath();
+        if (exePath == null || !Files.isExecutable(exePath)) {
+          synchronized(installation.enumerationsRequested) {
+            installation.enumerationsRequested = 0;
           }
-        } catch (IOException e) {
-          logger.warn("Maps could not be read from: " + forgedAlliancePreferences.getCustomMapsDirectory(), e);
+          return null;
         }
-        return null;
+        Path gamePath = exePath.getParent();
+
+        List<MapBean> mapList = new ArrayList<>();
+        for (String[] details: MapTool.listMapsInstalled(gamePath, preferencesService.getCacheDirectory().resolve("maps"), false)) {
+          MapBean mapBean = readMap(details[0], details);
+          mapBean.setLazyCrc((aVoid) -> {
+            List<String[]> detailsWithCrc = MapTool.listMap(gamePath, mapBean.getMapName());
+            if (!detailsWithCrc.isEmpty()) {
+              return detailsWithCrc.get(0)[MAP_DETAIL_COLUMN_CRC];
+            }
+            else {
+              return "00000000";
+            }
+          });
+          mapList.add(mapBean);
+        }
+        installation.maps.clear();
+        installation.maps.addAll(mapList);
+        if (installation.maps.isEmpty()) {
+          logger.warn("no maps found for mod={}. inserting OTA maps", installation.modTechnicalName);
+          for (String map : otaMaps) {
+            installation.addMap(map, null);
+          }
+        }
+        updateProgress(1, 1);
+
+        boolean again = false;
+        synchronized(installation.enumerationsRequested) {
+          if (installation.enumerationsRequested > 1) {
+            installation.enumerationsRequested = 1;
+            again = true;
+          }
+          else {
+            installation.enumerationsRequested = 0;
+          }
+        }
+        if (again) {
+          return call();
+        }
+        else {
+          return null;
+        }
       }
     });
   }
 
-  private void removeMap(Path path) {
-    installedMaps.remove(pathToMap.remove(path));
-  }
+  @NotNull
+  public MapBean readMap(String mapName, String [] mapDetails) {
+    MapBean mapBean = new MapBean();
 
-  @VisibleForTesting
-  void addInstalledMap(Path path) throws MapLoadException {
+    String archiveName = "unknown.ufo";
+    String description = mapName;
+    String mapSizeStr = "16 x 16";
+    String crc = "00000000";
+
     try {
-      MapBean mapBean = readMap(path);
-      pathToMap.put(path, mapBean);
-      if (!mapsByFolderName.containsKey(mapBean.getFolderName())) {
-        installedMaps.add(mapBean);
+      if (mapDetails != null) {
+        archiveName = mapDetails[MAP_DETAIL_COLUMN_ARCHIVE];
+        description = mapDetails[MAP_DETAIL_COLUMN_DESCRIPTION];
+        mapSizeStr = mapDetails[MAP_DETAIL_COLUMN_SIZE];
+        crc = mapDetails[MAP_DETAIL_COLUMN_CRC];
       }
-    } catch (MapLoadException e) {
-      logger.warn("Map could not be read: " + path.getFileName(), e);
-    }
-  }
-
-  @Subscribe
-  public void onMapGenerated(MapGeneratedEvent event) {
-    addInstalledMap(getPathForMap(event.getMapName()));
-  }
-
-
-  @NotNull
-  public MapBean readMap(Path mapFolder) throws MapLoadException {
-    if (!Files.isDirectory(mapFolder)) {
-      throw new MapLoadException("Not a folder: " + mapFolder.toAbsolutePath());
-    }
-
-    try (Stream<Path> mapFolderFilesStream = list(mapFolder)) {
-      Path scenarioLuaPath = mapFolderFilesStream
-          .filter(file -> file.getFileName().toString().endsWith("_scenario.lua"))
-          .findFirst()
-          .orElseThrow(() -> new MapLoadException("Map folder does not contain a *_scenario.lua: " + mapFolder.toAbsolutePath()));
-
-      LuaValue luaRoot = noCatch(() -> loadFile(scenarioLuaPath), MapLoadException.class);
-      LuaValue scenarioInfo = luaRoot.get("ScenarioInfo");
-      LuaValue size = scenarioInfo.get("size");
-
-      MapBean mapBean = new MapBean();
-      mapBean.setFolderName(mapFolder.getFileName().toString());
-      mapBean.setDisplayName(scenarioInfo.get("name").toString());
-      mapBean.setDescription(FaStrings.removeLocalizationTag(scenarioInfo.get("description").toString()));
-      mapBean.setType(Type.fromString(scenarioInfo.get("type").toString()));
-      mapBean.setSize(MapSize.valueOf(size.get(1).toint(), size.get(2).toint()));
-      mapBean.setPlayers(scenarioInfo.get("Configurations").get("standard").get("teams").get(1).get("armies").length());
-
-      LuaValue mapVersion = scenarioInfo.get("map_version");
-      if (!mapVersion.isnil()) {
-        mapBean.setVersion(new ComparableVersion(mapVersion.toString()));
-      }
-
-      return mapBean;
-    } catch (IOException | LuaError e) {
-      throw new MapLoadException(e);
-    }
-  }
-
-  @SneakyThrows(IOException.class)
-  @NotNull
-  @Cacheable(value = CacheNames.MAP_PREVIEW, unless = "#result == null")
-  public Image loadPreview(String mapName, PreviewSize previewSize) {
-    if (mapGeneratorService.isGeneratedMap(mapName)) {
-      Path previewPath = forgedAlliancePreferences.getCustomMapsDirectory().resolve(mapName).resolve(mapName + "_preview.png");
-      if (Files.exists(previewPath)) {
-        return new Image(Files.newInputStream(previewPath));
-      } else {
-        return mapGeneratorService.getGeneratedMapPreviewImage();
+      else {
+        logger.warn("null map details for map: {}", mapName);
       }
     }
-    return loadPreview(getPreviewUrl(mapName, mapPreviewUrlFormat, previewSize), previewSize);
+    catch (ArrayIndexOutOfBoundsException e) {
+      logger.warn("index out of bounds for map: {}. details: {}", String.join("/",mapDetails));
+    }
+
+    String mapSizeArray[] = mapSizeStr.replaceAll("[^0-9x]", "").split("x");
+
+    mapBean.setDownloadUrl(getDownloadUrl(archiveName, mapDownloadUrlFormat));
+    mapBean.setMapName(mapName);
+    mapBean.setCrc(crc);
+    mapBean.setDescription(description.replaceAll("[ ][ ]+", "\n"));  // some maps insert spaces into description to move to new line when displayed in TA lobby
+    mapBean.setHpiArchiveName(archiveName);
+    mapBean.setPlayers(10);
+    mapBean.setType(Type.SKIRMISH);
+
+    mapBean.setSize(MapSize.valueOf(0, 0));
+    try {
+      if (mapSizeArray.length == 2) {
+        Integer w = Integer.parseInt(mapSizeArray[0].trim());
+        Integer h = Integer.parseInt(mapSizeArray[1].trim());
+        mapBean.setSize(MapSize.valueOf(w, h));
+      }
+    }
+    catch (NumberFormatException e) {
+      logger.error("Map '{}' has unparsable size '{}'", mapName, mapSizeStr);
+    }
+
+    return mapBean;
   }
 
-
-  public ObservableList<MapBean> getInstalledMaps() {
-    return installedMaps;
+  public ObservableList<MapBean> getInstalledMaps(String modTechnical) {
+    Installation installation = getInstallation(modTechnical);
+    return installation.maps;
   }
 
-  public Optional<MapBean> getMapLocallyFromName(String mapFolderName) {
-    logger.debug("Trying to find map '{}' locally", mapFolderName);
-    String mapFolderKey = mapFolderName.toLowerCase();
-    return Optional.ofNullable(mapsByFolderName.get(mapFolderKey));
+  public ObservableList<MapBean> getOfficialMaps() {
+    ObservableList<MapBean> maps = FXCollections.observableArrayList();
+    maps.add(readMap("SHERWOOD", new String[]{"SHERWOOD", "totala2.hpi", "ead82fc5", "TAF had trouble finding your maps so we just put this one in cos we know you probably have it", "7 x 7", "3"}));
+    return maps;
+  }
+
+  public Optional<MapBean> getMapLocallyFromName(String modTechnical, String mapName) {
+    logger.debug("Trying to find map '{}' locally", mapName);
+    return Optional.ofNullable(installations.getOrDefault(modTechnical, new Installation(modTechnical)).mapsByName.get(mapName));
   }
 
   public boolean isOfficialMap(String mapName) {
+    Set<String> officialMaps = new HashSet<>();
+    officialMaps.addAll(otaMaps);
+    officialMaps.addAll(ccMaps);
+    officialMaps.addAll(btMaps);
+    officialMaps.addAll(cdMaps);
     return officialMaps.stream().anyMatch(name -> name.equalsIgnoreCase(mapName));
   }
 
-  public boolean isOfficialMap(MapBean map) {
-    return isOfficialMap(map.getFolderName());
-  }
-
-  public boolean isCustomMap(MapBean map) {
-    return !isOfficialMap(map);
+  public boolean isOfficialArchive(Path archivePath) {
+    String archvieFileName = archivePath.getFileName().toString();
+    return officialMapArchives.stream().anyMatch(name -> name.equalsIgnoreCase(archvieFileName));
   }
 
   /**
    * Returns {@code true} if the given map is available locally, {@code false} otherwise.
    */
 
-  public boolean isInstalled(String mapFolderName) {
-    return mapsByFolderName.containsKey(mapFolderName.toLowerCase());
+  public boolean isInstalled(String modTechnical, String mapName, String mapCrc) {
+    Installation installation = getInstallation(modTechnical);
+    return installation.mapsByName.containsKey(mapName) && installation.mapsByName.get(mapName).getCrc().equals(mapCrc);
   }
 
-
-  public CompletableFuture<Void> download(String technicalMapName) {
-    URL mapUrl = getDownloadUrl(technicalMapName, mapDownloadUrlFormat);
-    return downloadAndInstallMap(technicalMapName, mapUrl, null, null);
+  public void removeConflictingArchives(String modTechnical, java.util.Map<String,MapBean> preExistingMaps, Path newArchive) {
+    Path installationPath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath();
+    List<String[]> archiveMaps = MapTool.listMapsInArchive(newArchive, null, false);
+    archiveMaps.stream()
+        .map(mapDetails -> mapDetails[MapTool.MAP_DETAIL_COLUMN_NAME])
+        .filter(mapName -> preExistingMaps.containsKey(mapName))
+        .map(mapName -> preExistingMaps.get(mapName).getHpiArchiveName())
+        .distinct()
+        .filter(archive -> !archive.equals(newArchive.getFileName()))
+        .forEach(archive -> removeArchive(installationPath.resolve(archive)));
   }
 
+  private void removeArchive(Path archivePath) {
+    if (isOfficialArchive(archivePath)) {
+      logger.info("Ignoring attempt to delete official map archive '{}' ...", archivePath);
+      return;
+    }
 
-  public CompletableFuture<Void> downloadAndInstallMap(MapBean map, @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
-    return downloadAndInstallMap(map.getFolderName(), map.getDownloadUrl(), progressProperty, titleProperty);
+    Path cachedArchivePath = preferencesService.getCacheDirectory().resolve("maps").resolve(archivePath.getFileName());
+    try {
+      if (Files.exists(cachedArchivePath) && Files.size(cachedArchivePath) == Files.size(archivePath)) {
+        logger.info("Deleting archive {} (a file of that name and size can be found at {})", archivePath, cachedArchivePath);
+        Files.delete(archivePath);
+        notificationService.addNotification(new ImmediateNotification(
+            i18n.get("mapVault.removingArchive", archivePath),
+            i18n.get("mapVault.removingArchiveAlreadyAt", cachedArchivePath),
+            Severity.INFO, Collections.singletonList(new DismissAction(i18n))));
+        return;
+      }
+    } catch (IOException e) { }
+
+    try {
+      if (Files.exists(cachedArchivePath)) {
+        // cached file exists but is of different size.  lets append crc and (attempt to) move to cache
+        long archiveCrc = FileUtils.getCRC(archivePath.toFile());
+        cachedArchivePath = preferencesService.getCacheDirectory().resolve("maps").resolve(archivePath.getFileName() + "." + Long.toHexString(archiveCrc));
+      }
+    } catch (IOException e) { }
+
+    try {
+      if (Files.exists(cachedArchivePath)) {
+        logger.info("Deleting archive {} (a file of that name and crc can be found at {})", archivePath, cachedArchivePath);
+        Files.delete(archivePath);
+        notificationService.addNotification(new ImmediateNotification(
+            i18n.get("mapVault.removingArchive", archivePath),
+            i18n.get("mapVault.removingArchiveAlreadyAt", cachedArchivePath),
+            Severity.INFO, Collections.singletonList(new DismissAction(i18n))));
+        return;
+      }
+      else {
+        logger.info("Moving archive {} to {})", archivePath, cachedArchivePath);
+        Files.move(archivePath, cachedArchivePath);
+        notificationService.addNotification(new ImmediateNotification(
+            i18n.get("mapVault.removingArchive", archivePath),
+            i18n.get("mapVault.removingArchiveMoveTo", cachedArchivePath),
+            Severity.INFO, Collections.singletonList(new DismissAction(i18n))));
+        return;
+      }
+    } catch (IOException e) {
+      logger.warn("Unable to remove archive {}!", archivePath);
+    }
+  }
+
+  public CompletableFuture<Void> ensureMap(String modTechnicalName, MapBean map, @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
+    return ensureMap(modTechnicalName, map.getMapName(), map.getCrc(), map.getHpiArchiveName(), progressProperty, titleProperty);
+  }
+
+  public CompletableFuture<Void> ensureMap(String modTechnicalName, String mapName, String mapCrc, String downloadHpiArchiveName, @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
+    Path installationPath = preferencesService.getTotalAnnihilation(modTechnicalName).getInstalledPath();
+    List<String> downloadList = new ArrayList<>();
+    if (!Files.exists(installationPath.resolve(HPI_ARCHIVE_TA_FEATURES_2013))) {
+      downloadList.add(HPI_ARCHIVE_TA_FEATURES_2013);
+    }
+
+    MapBean installedMap = getInstallation(modTechnicalName).mapsByName.getOrDefault(mapName, null);
+    if (installedMap != null && installedMap.getMapName().equals(mapName) &&
+        (installedMap.getCrc().equals("00000000") || installedMap.getCrc().equals(mapCrc))) {
+      logger.info("{}/{}/{} already installed", installedMap.getHpiArchiveName(), installedMap.getMapName(), installedMap.getCrc());
+    }
+    else {
+      downloadList.add(downloadHpiArchiveName);
+      if (installedMap != null) {
+        // but crc is different
+        removeArchive(installationPath.resolve(installedMap.getHpiArchiveName()));
+      }
+    }
+
+    if (downloadList.isEmpty()) {
+      return CompletableFuture.completedFuture(null);
+    }
+
+    downloadList = downloadList.stream()
+        .filter(archive -> !getInstallation(modTechnicalName).downloadingList.contains(archive))
+        .collect(Collectors.toList());
+    getInstallation(modTechnicalName).downloadingList.addAll(downloadList);
+
+    if (downloadList.isEmpty()) {
+      logger.info("[ensureMap] Dude, hold up! {} is already downloading", downloadHpiArchiveName);
+      return CompletableFuture.completedFuture(null);
+    }
+
+    CompletableFuture<Void> future = downloadAndInstallArchive(modTechnicalName, downloadList.get(0), progressProperty, titleProperty);
+    if (downloadList.size() > 1) {
+      future = future.thenCompose(aVoid -> downloadAndInstallArchive(modTechnicalName, downloadHpiArchiveName, progressProperty, titleProperty));
+    }
+
+    // we already removed any pre-existing archive containing mapName, but the new archive might contain other maps that conflict with existing archives
+    HashMap<String,MapBean> existingMaps = new HashMap<>();
+    existingMaps.putAll(getInstallation(modTechnicalName).mapsByName);
+    future = future.thenRun(() -> {
+      removeConflictingArchives(
+        modTechnicalName,
+        existingMaps,
+        installationPath.resolve(downloadHpiArchiveName));
+      getInstallation(modTechnicalName).downloadingList.removeIf(archive -> Arrays.asList(downloadHpiArchiveName,HPI_ARCHIVE_TA_FEATURES_2013).contains(archive));
+    });
+    return future;
+  }
+
+  public CompletableFuture<Void> downloadAndInstallArchive(String modTechnical, String hpiArchiveName) {
+    return downloadAndInstallArchive(modTechnical, hpiArchiveName, null, null);
+  }
+
+  private CompletableFuture<Void> downloadAndInstallArchive(String modTechnicalName, String hpiArchive, @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
+    logger.info("downloadAndInstallArchive {}", hpiArchive);
+
+    URL downloadUrl = getDownloadUrl(hpiArchive, mapDownloadUrlFormat);
+    Path mapsDirectory = preferencesService.getTotalAnnihilation(modTechnicalName).getInstalledPath();
+    if (mapsDirectory == null) {
+      logger.warn(String.format("Could not load maps: installation path is not set for mod: %s",modTechnicalName));
+      return CompletableFuture.completedFuture(null);
+    }
+
+    DownloadMapTask task = applicationContext.getBean(DownloadMapTask.class);
+    task.setMapUrl(downloadUrl);
+    task.setInstallationPath(mapsDirectory);
+    task.setHpiArchiveName(hpiArchive);
+
+    if (progressProperty != null) {
+      progressProperty.bind(task.progressProperty());
+    }
+    if (titleProperty != null) {
+      titleProperty.bind(task.titleProperty());
+    }
+
+    return taskService.submitTask(task).getFuture();
   }
 
   public CompletableFuture<Tuple<List<MapBean>, Integer>> getRecommendedMapsWithPageCount(int count, int page) {
@@ -395,75 +652,82 @@ public class MapService implements InitializingBean, DisposableBean {
     return fafService.getMostPlayedMapsWithPageCount(count, page);
   }
 
+  public void generatePreview(String modTechnical, String mapName, Path cachedFile, PreviewType previewType, int maxPositions) {
+    if (previewType == PreviewType.MINI && Files.exists(cachedFile)) {
+      return;
+    }
+
+    Path gamePath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath();
+    if (gamePath == null) {
+      gamePath = preferencesService.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).getInstalledPath();
+    }
+    if (gamePath == null) {
+      return;
+    }
+
+    MapTool.generatePreview(gamePath, mapName, cachedFile.getParent().getParent(), previewType, maxPositions);
+  }
+
   /**
    * Loads the preview of a map or returns a "unknown map" image.
    */
 
-  @Cacheable(value = CacheNames.MAP_PREVIEW)
-  public Image loadPreview(MapBean map, PreviewSize previewSize) {
-    URL url;
-    switch (previewSize) {
-      case SMALL:
-        url = map.getSmallThumbnailUrl();
-        break;
-      case LARGE:
-        url = map.getLargeThumbnailUrl();
-        break;
-      default:
-        throw new ProgrammingError("Uncovered preview size: " + previewSize);
-    }
-    return loadPreview(url, previewSize);
+  @SneakyThrows()
+  @NotNull
+  @Cacheable(value = CacheNames.MAP_PREVIEW, condition = "#previewType.getDisplayName().equals('Minimap')")// && #result != null && !#result.isError()")
+  public Image loadPreview(String modTechnicalName, String mapName, PreviewType previewType, int maxPositions) {
+    return loadPreview(modTechnicalName, mapName, getPreviewUrl(mapName, mapPreviewUrlFormat, previewType), previewType, maxPositions);
   }
 
-  @Cacheable(value = CacheNames.MAP_PREVIEW)
-  public Image loadPreview(URL url, PreviewSize previewSize) {
-    return assetService.loadAndCacheImage(url, Paths.get("maps").resolve(previewSize.folderName),
+  @Cacheable(value = CacheNames.MAP_PREVIEW, condition = "#previewType.getDisplayName().equals('Minimap')")// && #result != null && !#result.isError()")
+  public Image loadPreview(String modTechnical, MapBean map, PreviewType previewType, int maxNumPlayers) {
+    URL url = map.getThumbnailUrl();
+    return loadPreview(modTechnical, map.getMapName(), url, previewType, maxNumPlayers);
+  }
+
+  @Cacheable(value = CacheNames.MAP_PREVIEW, condition = "#previewType.getDisplayName().equals('Minimap')")// && #result != null && !#result.isError()")
+  private Image loadPreview(String modTechnical, String mapName, URL url, PreviewType previewType, int maxPositions) {
+
+    String urlString = url.toString();
+    String cachedFilename = urlString.substring(urlString.lastIndexOf('/') + 1);
+    Path cacheSubFolder = Paths.get("maps").resolve(previewType.getFolderName(maxPositions));
+    Path cachedFile = preferencesService.getCacheDirectory().resolve(cacheSubFolder).resolve(cachedFilename);
+
+    generatePreview(modTechnical, mapName, cachedFile, previewType, maxPositions);
+
+    Image im = assetService.loadAndCacheImage(url, Paths.get("maps").resolve(previewType.getFolderName(maxPositions)),
         () -> uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
+    return im;
   }
 
 
-  public CompletableFuture<Void> uninstallMap(MapBean map) {
-    if (isOfficialMap(map.getFolderName())) {
+  public CompletableFuture<Void> uninstallMap(String modTechnicalName, String mapName, String mapCrc) {
+    if (isOfficialMap(mapName)) {
       throw new IllegalArgumentException("Attempt to uninstall an official map");
     }
+
+    if (!isInstalled(modTechnicalName, mapName, mapCrc)) {
+      CompletableFuture<Void> result = new CompletableFuture<>();
+      result.complete(null);
+      return result;
+    }
+
+    Path mapsDirectory = preferencesService.getTotalAnnihilation(modTechnicalName).getInstalledPath();
+    Installation installation = installations.get(modTechnicalName);
+    MapBean installedMap = installation.mapsByName.get(mapName);
+
     UninstallMapTask task = applicationContext.getBean(UninstallMapTask.class);
-    task.setMap(map);
+    task.setInstallationPath(mapsDirectory);
+    task.setHpiArchiveName(installedMap.getHpiArchiveName());
     return taskService.submitTask(task).getFuture();
   }
 
-
-  public Path getPathForMap(MapBean map) {
-    return getPathForMapInsensitive(map.getFolderName());
-  }
-
-  private Path getMapsDirectory(String technicalName) {
-    if (isOfficialMap(technicalName)) {
-      return forgedAlliancePreferences.getInstallationPath().resolve("maps");
-    }
-    return forgedAlliancePreferences.getCustomMapsDirectory();
-  }
-
-  public Path getPathForMap(String technicalName) {
-    Path path = getMapsDirectory(technicalName).resolve(technicalName);
-    if (Files.notExists(path)) {
-      return null;
-    }
-    return path;
-  }
-
-  public Path getPathForMapInsensitive(String approxName) {
-    for (Path entry : noCatch(() -> Files.newDirectoryStream(getMapsDirectory(approxName)))) {
-      if (entry.getFileName().toString().equalsIgnoreCase(approxName)) {
-        return entry;
-      }
-    }
-    return null;
-  }
-
-  public CompletableTask<Void> uploadMap(Path mapPath, boolean ranked) {
+  public CompletableTask<Void> uploadMap(Path stagingDirectory, String archiveFileName, boolean ranked, List<Map<String,String>> mapDetails) {
     MapUploadTask mapUploadTask = applicationContext.getBean(MapUploadTask.class);
-    mapUploadTask.setMapPath(mapPath);
+    mapUploadTask.setArchiveFileName(archiveFileName);
+    mapUploadTask.setStagingDirectory(stagingDirectory);
     mapUploadTask.setRanked(ranked);
+    mapUploadTask.setMapDetails(mapDetails);
 
     return taskService.submitTask(mapUploadTask);
   }
@@ -474,10 +738,10 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   /**
-   * Tries to find a map my its folder name, first locally then on the server.
+   * Tries to find a map by its folder name, first locally then on the server.
    */
-  public CompletableFuture<Optional<MapBean>> findByMapFolderName(String folderName) {
-    Optional<MapBean> installed = getMapLocallyFromName(folderName);
+  public CompletableFuture<Optional<MapBean>> findByMapFolderName(String modTechnical, String folderName) {
+    Optional<MapBean> installed = getMapLocallyFromName(modTechnical, folderName);
     if (installed.isPresent()) {
       return CompletableFuture.completedFuture(installed);
     }
@@ -485,30 +749,24 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   public CompletableFuture<MapBean> getMapLatestVersion(MapBean map) {
-    String folderName = map.getFolderName();
-    if (containsVersionControl(folderName)) {
-      return fafService.getMapLatestVersion(folderName).thenApply(latestMap -> latestMap.orElse(map));
-    }
-    return CompletableFuture.completedFuture(map);
+    String folderName = map.getMapName();
+    return fafService.getMapLatestVersion(folderName).thenApply(latestMap -> latestMap.orElse(map));
+    //return CompletableFuture.completedFuture(map);
   }
 
-  private boolean containsVersionControl(String mapFolderName) {
-    return Pattern.matches(MAP_VERSION_REGEX, mapFolderName);
-  }
-
-  public CompletableFuture<MapBean> updateLatestVersionIfNecessary(MapBean map) {
+  public CompletableFuture<MapBean> updateLatestVersionIfNecessary(String modTechnical, MapBean map) {
     return getMapLatestVersion(map).thenCompose(latestMap -> {
       CompletableFuture<Void> downloadFuture;
-      if (!isInstalled(latestMap.getFolderName())) {
-        downloadFuture = download(latestMap.getFolderName());
+      if (!isInstalled(modTechnical, latestMap.getMapName(), latestMap.getCrc())) {
+        downloadFuture = ensureMap(modTechnical, map, null, null);
       } else {
         downloadFuture = CompletableFuture.completedFuture(null);
       }
       return downloadFuture.thenApply(aVoid -> latestMap);
     }).thenCompose(latestMap -> {
       CompletableFuture<Void> uninstallFuture;
-      if (!latestMap.getFolderName().equals(map.getFolderName())) {
-        uninstallFuture = uninstallMap(map);
+      if (!latestMap.getMapName().equals(map.getMapName())) {
+        uninstallFuture = uninstallMap(modTechnical, map.getMapName(), map.getCrc());
       } else {
         uninstallFuture = CompletableFuture.completedFuture(null);
       }
@@ -542,32 +800,6 @@ public class MapService implements InitializingBean, DisposableBean {
     return fafService.getMatchmakerMapsWithPageCount(matchmakerQueue.getQueueId(), meanRating, count, page);
   }
 
-  private CompletableFuture<Void> downloadAndInstallMap(String folderName, URL downloadUrl, @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
-    if (mapGeneratorService.isGeneratedMap(folderName)) {
-      return mapGeneratorService.generateMap(folderName).thenRun(() -> {
-      });
-    }
-
-    if (isInstalled(folderName)) {
-      logger.debug("Map '{}' exists locally already. Download is not required", folderName);
-      return CompletableFuture.completedFuture(null);
-    }
-
-    DownloadMapTask task = applicationContext.getBean(DownloadMapTask.class);
-    task.setMapUrl(downloadUrl);
-    task.setFolderName(folderName);
-
-    if (progressProperty != null) {
-      progressProperty.bind(task.progressProperty());
-    }
-    if (titleProperty != null) {
-      titleProperty.bind(task.titleProperty());
-    }
-
-    return taskService.submitTask(task).getFuture()
-        .thenAccept(aVoid -> noCatch(() -> addInstalledMap(getPathForMapInsensitive(folderName))));
-  }
-
   public CompletableFuture<Tuple<List<MapBean>, Integer>> getOwnedMapsWithPageCount(int loadMoreCount, int page) {
     Player player = playerService.getCurrentPlayer()
         .orElseThrow(() -> new IllegalStateException("Current player not set"));
@@ -587,17 +819,45 @@ public class MapService implements InitializingBean, DisposableBean {
 
   @Override
   public void destroy() {
-    Optional.ofNullable(directoryWatcherThread).ifPresent(Thread::interrupt);
+    for (Installation installation: installations.values()) {
+      Optional.ofNullable(installation.directoryWatcherThread).ifPresent(Thread::interrupt);
+    }
   }
 
-  public enum PreviewSize {
+  public enum PreviewType {
     // These must match the preview URLs
-    SMALL("small"), LARGE("large");
+    MINI("mini"),
+    POSITIONS("positions"),
+    MEXES("mexes"),
+    GEOS("geos"),
+    ROCKS("rocks"),
+    TREES("trees");
 
-    String folderName;
+    private String folderName;
 
-    PreviewSize(String folderName) {
+    PreviewType(String folderName) {
       this.folderName = folderName;
+    }
+
+    public String getDisplayName() {
+      switch (this) {
+        case MINI: return "Minimap";
+        case POSITIONS: return "Positions";
+        case MEXES: return "Metal Patches";
+        case GEOS: return "Geo Vents";
+        case ROCKS: return "Reclaim (metal)";
+        case TREES: return "Reclaim (energy)";
+        default: return "null";
+      }
+    }
+
+    String getFolderName(int maxNumPlayers) {
+      switch (this) {
+        case MINI:
+          return this.folderName;
+        default:
+          return String.format("%s_%s", this.folderName, maxNumPlayers);
+      }
     }
   }
 }

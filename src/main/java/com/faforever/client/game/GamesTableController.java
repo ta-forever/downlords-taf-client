@@ -7,11 +7,12 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.StringCell;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.RatingRange;
 import com.faforever.client.theme.UiService;
-import com.google.common.base.Joiner;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
@@ -44,7 +45,6 @@ import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -56,20 +56,22 @@ public class GamesTableController implements Controller<Node> {
   private final ObjectProperty<Game> selectedGame = new SimpleObjectProperty<>();
   private final MapService mapService;
   private final JoinGameHelper joinGameHelper;
+  private final GameService gameService;
+  private final ModService modService;
   private final I18n i18n;
   private final UiService uiService;
   private final PreferencesService preferencesService;
   public TableView<Game> gamesTable;
   public TableColumn<Game, Image> mapPreviewColumn;
+  public TableColumn<Game, String> modsColumn;
+  public TableColumn<Game, GameStatus> statusColumn;
   public TableColumn<Game, String> gameTitleColumn;
   public TableColumn<Game, PlayerFill> playersColumn;
   public TableColumn<Game, Number> averageRatingColumn;
   public TableColumn<Game, RatingRange> ratingRangeColumn;
-  public TableColumn<Game, String> modsColumn;
   public TableColumn<Game, String> hostColumn;
   public TableColumn<Game, Boolean> passwordProtectionColumn;
   public TableColumn<Game, String> coopMissionName;
-  private final ChangeListener<Boolean> showModdedGamesChangedListener = (observable, oldValue, newValue) -> modsColumn.setVisible(newValue);
   private final ChangeListener<Boolean> showPasswordProtectedGamesChangedListener = (observable, oldValue, newValue) -> passwordProtectionColumn.setVisible(newValue);
   private GameTooltipController gameTooltipController;
   private Tooltip tooltip;
@@ -87,6 +89,7 @@ public class GamesTableController implements Controller<Node> {
   }
 
   public void initializeGameTable(ObservableList<Game> games, Function<String, String> coopMissionNameProvider, boolean listenToFilterPreferences) {
+
     gameTooltipController = uiService.loadFxml("theme/play/game_tooltip.fxml");
     tooltip = JavaFxUtil.createCustomTooltip(gameTooltipController.getRoot());
     tooltip.showingProperty().addListener((observable, oldValue, newValue) -> {
@@ -106,16 +109,17 @@ public class GamesTableController implements Controller<Node> {
     applyLastSorting(gamesTable);
     gamesTable.setOnSort(this::onColumnSorted);
 
-    JavaFxUtil.addListener(sortedList, (Observable observable) -> selectFirstGame());
-    selectFirstGame();
+    JavaFxUtil.addListener(sortedList, (Observable observable) -> selectCurrentGame());
+    selectCurrentGame();
 
     passwordProtectionColumn.setCellValueFactory(param -> param.getValue().passwordProtectedProperty());
     passwordProtectionColumn.setCellFactory(param -> passwordIndicatorColumn());
 
-    mapPreviewColumn.setCellFactory(param -> new MapPreviewTableCell(uiService));
+passwordProtectionColumn.setVisible(preferencesService.getPreferences().isShowPasswordProtectedGames());    mapPreviewColumn.setCellFactory(param -> new MapPreviewTableCell(uiService));
     mapPreviewColumn.setCellValueFactory(param -> Bindings.createObjectBinding(
-        () -> mapService.loadPreview(param.getValue().getMapFolderName(), PreviewSize.SMALL),
-        param.getValue().mapFolderNameProperty()
+        () -> mapService
+            .loadPreview(param.getValue().getFeaturedMod(), param.getValue().getMapName(), PreviewType.MINI, 10),
+        param.getValue().mapNameProperty()
     ));
 
     gameTitleColumn.setCellValueFactory(param -> param.getValue().titleProperty());
@@ -125,12 +129,14 @@ public class GamesTableController implements Controller<Node> {
         param.getValue().numPlayersProperty(), param.getValue().maxPlayersProperty())
     );
     playersColumn.setCellFactory(param -> playersCell());
+    statusColumn.setCellValueFactory(param -> param.getValue().statusProperty());
     ratingRangeColumn.setCellValueFactory(param -> new SimpleObjectProperty<>(new RatingRange(param.getValue().getMinRating(), param.getValue().getMaxRating())));
     ratingRangeColumn.setCellFactory(param -> ratingTableCell());
     hostColumn.setCellValueFactory(param -> param.getValue().hostProperty());
     hostColumn.setCellFactory(param -> new StringCell<>(String::toString));
     modsColumn.setCellValueFactory(this::modCell);
     modsColumn.setCellFactory(param -> new StringCell<>(String::toString));
+
     coopMissionName.setVisible(coopMissionNameProvider != null);
 
     if (averageRatingColumn != null) {
@@ -143,7 +149,7 @@ public class GamesTableController implements Controller<Node> {
 
     if (coopMissionNameProvider != null) {
       coopMissionName.setCellFactory(param -> new StringCell<>(name -> name));
-      coopMissionName.setCellValueFactory(param -> new SimpleObjectProperty<>(coopMissionNameProvider.apply(param.getValue().getMapFolderName())));
+      coopMissionName.setCellValueFactory(param -> new SimpleObjectProperty<>(coopMissionNameProvider.apply(param.getValue().getMapName())));
     }
 
     gamesTable.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue)
@@ -151,9 +157,7 @@ public class GamesTableController implements Controller<Node> {
 
     //bindings do not work as that interferes with some bidirectional bindings in the TableView itself
     if (listenToFilterPreferences && coopMissionNameProvider == null) {
-      modsColumn.setVisible(preferencesService.getPreferences().isShowModdedGames());
       passwordProtectionColumn.setVisible(preferencesService.getPreferences().isShowPasswordProtectedGames());
-      JavaFxUtil.addListener(preferencesService.getPreferences().showModdedGamesProperty(), new WeakChangeListener<>(showModdedGamesChangedListener));
       JavaFxUtil.addListener(preferencesService.getPreferences().showPasswordProtectedGamesProperty(), new WeakChangeListener<>(showPasswordProtectedGamesChangedListener));
     }
   }
@@ -183,21 +187,26 @@ public class GamesTableController implements Controller<Node> {
 
   @NotNull
   private ObservableValue<String> modCell(CellDataFeatures<Game, String> param) {
-    int simModCount = param.getValue().getSimMods().size();
-    List<String> modNames = param.getValue().getSimMods().entrySet().stream()
-        .limit(2)
-        .map(Entry::getValue)
-        .collect(Collectors.toList());
-    if (simModCount > 2) {
-      return new SimpleStringProperty(i18n.get("game.mods.twoAndMore", modNames.get(0), modNames.size() - 1));
-    }
-    return new SimpleStringProperty(Joiner.on(i18n.get("textSeparator")).join(modNames));
+    String modTechnical = param.getValue().getFeaturedMod();
+    String displayName = modService.getFeaturedModDisplayName(modTechnical);
+    return new SimpleStringProperty(displayName);
   }
 
   private void selectFirstGame() {
     TableView.TableViewSelectionModel<Game> selectionModel = gamesTable.getSelectionModel();
     if (selectionModel.getSelectedItem() == null && !gamesTable.getItems().isEmpty()) {
       JavaFxUtil.runLater(() -> selectionModel.select(0));
+    }
+  }
+
+  private void selectCurrentGame() {
+    TableView.TableViewSelectionModel<Game> selectionModel = gamesTable.getSelectionModel();
+    Game currentGame = gameService.getCurrentGame();
+    if (currentGame != null && !gamesTable.getItems().isEmpty()) {
+      JavaFxUtil.runLater(() -> selectionModel.select(currentGame));
+    }
+    else {
+      selectFirstGame();
     }
   }
 

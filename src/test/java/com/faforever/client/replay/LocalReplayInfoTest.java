@@ -18,7 +18,7 @@ public class LocalReplayInfoTest {
   private static int uid = 1234;
   private static String title = "Test Game";
   private static String mapname = "test_map";
-  private static GameStatus state = GameStatus.CLOSED;
+  private static GameStatus state = GameStatus.ENDED;
   private static VictoryCondition gameType = VictoryCondition.DEMORALIZATION;
   private static String featuredMod = "faf";
   private static int maxPlayers = 6;
@@ -36,7 +36,7 @@ public class LocalReplayInfoTest {
     game.setHost(host);
     game.setId(uid);
     game.setTitle(title);
-    game.setMapFolderName(mapname);
+    game.setMapName(mapname);
     game.setStatus(state);
     game.setVictoryCondition(gameType);
     game.setFeaturedMod(featuredMod);

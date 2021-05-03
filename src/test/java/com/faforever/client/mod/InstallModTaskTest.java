@@ -1,9 +1,12 @@
 package com.faforever.client.mod;
 
+import com.faforever.client.fx.PlatformService;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.preferences.Preferences;
 import com.faforever.client.preferences.PreferencesBuilder;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.test.AbstractPlainJavaFxTest;
 import org.junit.Before;
 import org.junit.Rule;
@@ -14,7 +17,6 @@ import org.mockito.Mock;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
@@ -41,7 +43,7 @@ public class InstallModTaskTest extends AbstractPlainJavaFxTest {
         .then()
         .get();
 
-    instance = new InstallModTask(preferencesService, i18n);
+    instance = new InstallModTask(platformService, preferencesService, i18n);
 
     when(preferencesService.getCacheDirectory()).thenReturn(cacheDirectory.getRoot().toPath());
     when(preferencesService.getPreferences()).thenReturn(preferences);

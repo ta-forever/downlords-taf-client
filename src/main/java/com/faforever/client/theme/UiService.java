@@ -105,8 +105,10 @@ public class UiService implements InitializingBean, DisposableBean {
   public static final String CHAT_SECTION_COMPACT = "theme/chat/compact/chat_section.html";
   public static final String CHAT_TEXT_EXTENDED = "theme/chat/extended/chat_text.html";
   public static final String CHAT_TEXT_COMPACT = "theme/chat/compact/chat_text.html";
-  public static final String CHAT_LIST_STATUS_HOSTING = "theme/images/player_status/host.png";
-  public static final String CHAT_LIST_STATUS_LOBBYING = "theme/images/player_status/lobby.png";
+  public static final String CHAT_LIST_STATUS_HOSTING = "theme/images/player_status/hosting.png";
+  public static final String CHAT_LIST_STATUS_JOINING = "theme/images/player_status/joining.png";
+  public static final String CHAT_LIST_STATUS_HOSTED = "theme/images/player_status/hosted.png";
+  public static final String CHAT_LIST_STATUS_JOINED = "theme/images/player_status/joined.png";
   public static final String CHAT_LIST_STATUS_PLAYING = "theme/images/player_status/playing.png";
   public static final String AEON_STYLE_CLASS = "aeon-icon";
   public static final String CYBRAN_STYLE_CLASS = "cybran-icon";

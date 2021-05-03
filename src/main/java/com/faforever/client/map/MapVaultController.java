@@ -1,12 +1,14 @@
 package com.faforever.client.map;
 
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.main.event.OpenMapVaultEvent;
 import com.faforever.client.main.event.ShowMapPoolEvent;
 import com.faforever.client.map.event.MapUploadedEvent;
 import com.faforever.client.map.management.MapsManagementController;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.query.SearchablePropertyMappings;
@@ -14,23 +16,28 @@ import com.faforever.client.reporting.ReportingService;
 import com.faforever.client.teammatchmaking.MatchmakingQueue;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.dialog.Dialog;
+import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.faforever.client.vault.VaultEntityController;
 import com.faforever.client.vault.search.SearchController.SearchConfig;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import javafx.scene.Node;
-import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
+import javafx.stage.FileChooser.ExtensionFilter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Component
@@ -48,8 +55,8 @@ public class MapVaultController extends VaultEntityController<MapBean> {
   private MatchmakingQueue matchmakingQueue;
 
   public MapVaultController(MapService mapService, I18n i18n, EventBus eventBus, PreferencesService preferencesService,
-                            UiService uiService, NotificationService notificationService, ReportingService reportingService) {
-    super(uiService, notificationService, i18n, preferencesService, reportingService);
+                            UiService uiService, NotificationService notificationService, ReportingService reportingService, ModService modService) {
+    super(uiService, notificationService, i18n, preferencesService, reportingService, modService);
     this.mapService = mapService;
     this.eventBus = eventBus;
   }
@@ -81,6 +88,7 @@ public class MapVaultController extends VaultEntityController<MapBean> {
     searchController.addTextFilter("displayName", i18n.get("map.name"));
     searchController.addTextFilter("author.login", i18n.get("map.author"));
     searchController.addDateRangeFilter("latestVersion.updateTime", i18n.get("map.uploadedDateTime"), 0);
+    taInstallationBox.setVisible(true);
 
     LinkedHashMap<String, String> mapSizeMap = new LinkedHashMap<>();
     mapSizeMap.put("1km", "64");
@@ -95,6 +103,16 @@ public class MapVaultController extends VaultEntityController<MapBean> {
     searchController.addCategoryFilter("latestVersion.height", i18n.get("map.height"), mapSizeMap);
     searchController.addRangeFilter("latestVersion.maxPlayers", i18n.get("map.maxPlayers"), 0, 16, 1);
     searchController.addToggleFilter("latestVersion.ranked", i18n.get("map.onlyRanked"), "true");
+
+    Path defaultTaPath = preferencesService.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).getInstalledExePath();
+    if (eventBus != null && (defaultTaPath == null || !Files.exists(defaultTaPath)))
+    {
+      JavaFxUtil.runLater(() -> {
+        CompletableFuture<Path> gameDirectoryFuture = new CompletableFuture<>();
+        eventBus.post(new GameDirectoryChooseEvent(KnownFeaturedMod.DEFAULT.getTechnicalName(), gameDirectoryFuture));
+        gameDirectoryFuture.thenAccept(path -> Optional.ofNullable(path).ifPresent(path1 -> setTaInstallations(preferencesService.getTotalAnnihilationAllMods())));
+      });
+    }
   }
 
   @Override
@@ -144,10 +162,11 @@ public class MapVaultController extends VaultEntityController<MapBean> {
 
   public void onUploadButtonClicked() {
     JavaFxUtil.runLater(() -> {
-      DirectoryChooser directoryChooser = new DirectoryChooser();
-      directoryChooser.setInitialDirectory(preferencesService.getPreferences().getForgedAlliance().getCustomMapsDirectory().toFile());
-      directoryChooser.setTitle(i18n.get("mapVault.upload.chooseDirectory"));
-      File result = directoryChooser.showDialog(getRoot().getScene().getWindow());
+      FileChooser fileChooser = new FileChooser();
+      fileChooser.setInitialDirectory(preferencesService.getTotalAnnihilation(getSelectedTaModName()).getInstalledPath().toFile());
+      fileChooser.setTitle(i18n.get("mapVault.upload.chooseDirectory"));
+      fileChooser.getExtensionFilters().addAll(new ExtensionFilter("TA Map Archives", "*.ufo"));
+      File result = fileChooser.showOpenDialog(getRoot().getScene().getWindow());
 
       if (result == null) {
         return;
@@ -187,7 +206,7 @@ public class MapVaultController extends VaultEntityController<MapBean> {
 
   private void openUploadWindow(Path path) {
     MapUploadController mapUploadController = uiService.loadFxml("theme/vault/map/map_upload.fxml");
-    mapUploadController.setMapPath(path);
+    mapUploadController.prepareUpload(path);
 
     Node root = mapUploadController.getRoot();
     Dialog dialog = uiService.showInDialog(vaultRoot, root, i18n.get("mapVault.upload.title"));

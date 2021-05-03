@@ -2,9 +2,10 @@ package com.faforever.client.tutorial;
 
 import com.faforever.client.fx.AbstractViewController;
 import com.faforever.client.fx.WebViewConfigurer;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import javafx.beans.binding.Bindings;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -67,10 +68,10 @@ public class TutorialDetailController extends AbstractViewController<Node> {
     this.tutorial = tutorial;
     titleLabel.textProperty().bind(tutorial.titleProperty());
     if (tutorial.getMapVersion() != null) {
-      mapNameLabel.textProperty().bind(Bindings.createStringBinding(() -> i18n.get("tutorial.mapName", tutorial.getMapVersion().getDisplayName()),
+      mapNameLabel.textProperty().bind(Bindings.createStringBinding(() -> i18n.get("tutorial.mapName", tutorial.getMapVersion().getMapName()),
           tutorial.mapVersionProperty(),
-          tutorial.getMapVersion().displayNameProperty()));
-      mapImage.setImage(mapService.loadPreview(tutorial.getMapVersion(), PreviewSize.LARGE));
+          tutorial.getMapVersion().mapNameProperty()));
+      mapImage.setImage(mapService.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), tutorial.getMapVersion(), PreviewType.MINI, 10));
       mapContainer.setVisible(true);
     } else {
       mapContainer.setVisible(false);

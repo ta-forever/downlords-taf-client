@@ -12,7 +12,6 @@ import com.faforever.client.api.dto.MapVersion;
 import com.faforever.client.api.dto.MapVersionReview;
 import com.faforever.client.api.dto.Mod;
 import com.faforever.client.api.dto.ModVersionReview;
-import com.faforever.client.api.dto.NeroxisGeneratorParams;
 import com.faforever.client.api.dto.PlayerAchievement;
 import com.faforever.client.chat.avatar.AvatarBean;
 import com.faforever.client.chat.avatar.event.AvatarChangedEvent;
@@ -491,13 +490,7 @@ public class FafService {
         .filter(Objects::nonNull)
         .map(MapBean::fromMapVersionDto)
         .collect(Collectors.toList());
-    mapVersions.addAll(poolAssignments.stream()
-        .map(MapPoolAssignment::getMapParams)
-        .filter(mapParams -> mapParams instanceof NeroxisGeneratorParams)
-        .distinct()
-        .map(mapParams -> MapBean.fromNeroxisGeneratedMapParams((NeroxisGeneratorParams) mapParams))
-        .collect(Collectors.toList()));
-    mapVersions.sort(Comparator.comparing(MapBean::getSize).thenComparing(MapBean::getDisplayName, String.CASE_INSENSITIVE_ORDER));
+    mapVersions.sort(Comparator.comparing(MapBean::getSize).thenComparing(MapBean::getMapName, String.CASE_INSENSITIVE_ORDER));
     return paginateResult(count, page, mapVersions);
   }
 

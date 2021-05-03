@@ -7,19 +7,15 @@ faf-client:
     draw-probability: 0.1
 
   links:
-    linksTecHelpDiscord: https://discord.gg/BMDMUKS
-    linksTecHelpForum: https://forum.faforever.com/category/4/i-need-help
-    linksRules: ${faf-client.website.base-url}/rules
-    linksModerationReport: ${faf-client.website.base-url}/account/report
-    linksFacebook: https://www.facebook.com/ForgedAllianceForever/
-    linksDevNews: https://faforeverdevblog.tumblr.com
-    linksYoutube: https://www.youtube.com/channel/UCkAWiUu4QE172kv-ZuyR42w
+    linksHomepage: https://www.taforever.com
+    linksTecHelpDiscord: https://discord.gg/KP7ndRagrM
+    linksTecHelpForum: https://www.tauniverse.com/forum/forumdisplay.php?f=41
 
   vault:
     map_rules_url: https://forum.faforever.com/topic/323/faf-map-vault-rules-regulations
     mod_rules_url: https://forum.faforever.com/topic/607/faf-mod-vault-rules-regulations
     map_validation_url: ${faf-client.api.base-url}/maps/validate
-    mapDownloadUrlFormat: ${faf-client.vault.base-url}/maps/%s.zip
+    mapDownloadUrlFormat: ${faf-client.vault.base-url}/maps/%s
     mapPreviewUrlFormat: ${faf-client.vault.base-url}/maps/previews/%s/%s.png
 
   website:
@@ -36,9 +32,6 @@ faf-client:
     spookiesUrl: https://faforever.github.io/spooky-db/#/
     rackOversUrl: https://unitdb.faforever.com?settings64=eyJwcmV2aWV3Q29ybmVyIjoiTm9uZSJ9
 
-  vanillaGameHashes:
-    - 1AFBCD0CA85546470660FA8AC09B230E870EC65C8D1B33FEB6731BB5D4C366C5
-
   map-generator:
     repoAndOwnerName: FAForever/Neroxis-Map-Generator
     queryLatestVersionUrl: https://api.github.com/repos/${faf-client.map-generator.repoAndOwnerName}/releases/latest
@@ -48,22 +41,30 @@ faf-client:
     minSupportedMajorVersion: 0
 
   translation-project-url: https://poeditor.com/join/project/2oWfdaZQZj
-  client-config-url: https://content.faforever.com/dfc-config.json
+  client-config-url: https://content.taforever.com/dfc-config.json
   client-config-connect-timeout: 10s
   show-ice-adapter-debug-Window: ${SHOW_ICE_ADAPTER_DEBUG_WINDOW:false}
 
   discord:
-    discord_prerelease_feedback_channel_url: https://discord.gg/fZc4BsE
-    application_id: 464069837237518357
-    small_image_key: faf_logo_small
-    big_image_key: faf_logo_big
-    join-url: https://discord.gg/PfGcWas
+    discord_prerelease_feedback_channel_url: https://discord.gg/KP7ndRagrM
+    application_id: 785128540886532097
+    small_image_key: taf-logo-crystal-nodt-512
+    big_image_key: taf-logo-crystal-dt-512
+    servers:
+      - title: TA Escalation
+        url: https://discord.gg/W2ErD5H
+      - title: TA Forever
+        url: https://discord.gg/hTRDqn3mkX
+      - title: TA Twilight
+        url: https://discord.gg/V9fmjnbV6e
+      - title: TA Universe
+        url: https://discord.gg/Z4hJpVbmyW
 
 spring:
   profiles:
     active: ${CLIENT_PROFILE:prod}
   application:
-    name: Downlord's FAF Client
+    name: Downlord's TAF Client
   main:
     web-application-type: none
 

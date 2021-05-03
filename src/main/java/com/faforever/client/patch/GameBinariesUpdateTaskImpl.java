@@ -2,6 +2,7 @@ package com.faforever.client.patch;
 
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.fx.PlatformService;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.task.CompletableTask;
@@ -29,8 +30,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.stream.Stream;
-
-import static com.faforever.client.preferences.PreferencesService.FORGED_ALLIANCE_EXE;
+import static com.faforever.client.preferences.TotalAnnihilationPrefs.TOTAL_ANNIHILATION_EXE;
 import static com.github.nocatch.NoCatch.noCatch;
 import static java.nio.file.Files.copy;
 import static java.nio.file.Files.createDirectories;
@@ -83,7 +83,7 @@ public class GameBinariesUpdateTaskImpl extends CompletableTask<Void> implements
     Assert.checkNullIllegalState(version, "Field 'version' must not be null");
     logger.info("Updating binaries to {}", version);
 
-    Path exePath = preferencesService.getFafBinDirectory().resolve(FORGED_ALLIANCE_EXE);
+    Path exePath = preferencesService.getFafBinDirectory().resolve(TOTAL_ANNIHILATION_EXE);
 
     copyGameFilesToFafBinDirectory();
     downloadFafExeIfNecessary(exePath);
@@ -118,32 +118,7 @@ public class GameBinariesUpdateTaskImpl extends CompletableTask<Void> implements
 
   @VisibleForTesting
   void copyGameFilesToFafBinDirectory() throws IOException {
-    logger.debug("Copying Forged Alliance binaries FAF folder");
 
-    Path fafBinDirectory = preferencesService.getFafBinDirectory();
-    createDirectories(fafBinDirectory);
-
-    Path faBinPath = preferencesService.getPreferences().getForgedAlliance().getInstallationPath().resolve("bin");
-
-    try (Stream<Path> faBinPathStream = Files.list(faBinPath)) {
-      faBinPathStream
-          .filter(path -> BINARIES_TO_COPY.contains(path.getFileName().toString()))
-          .forEach(source -> {
-            Path destination = fafBinDirectory.resolve(source.getFileName());
-
-            logger.debug("Copying file '{}' to '{}'", source, destination);
-            noCatch(() -> createDirectories(destination.getParent()));
-            noCatch(() -> {
-              if (!Files.exists(destination)) {
-                copy(source, destination, REPLACE_EXISTING);
-              }
-            });
-
-            if (org.bridj.Platform.isWindows()) {
-              noCatch(() -> setAttribute(destination, "dos:readonly", false));
-            }
-          });
-    }
   }
 
   @Override

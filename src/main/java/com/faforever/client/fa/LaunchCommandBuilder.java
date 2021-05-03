@@ -1,10 +1,6 @@
 package com.faforever.client.fa;
 
-import com.faforever.client.game.Faction;
-import com.faforever.client.preferences.ForgedAlliancePrefs;
-import com.google.common.base.Strings;
 import org.springframework.util.Assert;
-import org.springframework.util.StringUtils;
 
 import java.net.Inet4Address;
 import java.net.URI;
@@ -14,31 +10,40 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static com.faforever.client.util.Assert.checkNullIllegalState;
 
 public class LaunchCommandBuilder {
 
   private static final Pattern QUOTED_STRING_PATTERN = Pattern.compile("([^\"]\\S*|\"+.+?\"+)\\s*");
-  private static final String DEFAULT_EXECUTABLE_DECORATOR = "\"%s\"";
+  private static final String QUOTED_STRING_DECORATOR = "\"%s\"";
 
+  private boolean requireUac;
+  private Path gpgnet4taExecutable;
+  private String baseModName;
+  private Path gameInstalledPath;
+  private String gameExecutable;
+  private String gameCommandLineOptions;
+  private boolean upnpEnabled;
+  private boolean proactiveResendEnabled;
+  private boolean autoLaunch;
+
+  private Integer uid;
+  private String username;
+  private String country;
   private Float mean;
   private Float deviation;
-  private String country;
-  private String clan;
-  private String username;
-  private Integer uid;
-  private Path executable;
+
   private List<String> additionalArgs;
   private Integer localGpgPort;
-  private Path logFile;
-  private Path replayFile;
-  private Integer replayId;
   private URI replayUri;
-  private Faction faction;
-  private String executableDecorator;
-  private boolean rehost;
-  private Integer localReplayPort;
+  private Path logFile;
+  private String ircUrl;
+  private String commandInputFile;
+
+  private Integer launchServerPort;
+  private boolean startLaunchServer;
 
   public static LaunchCommandBuilder create() {
     return new LaunchCommandBuilder();
@@ -53,18 +58,58 @@ public class LaunchCommandBuilder {
     return result;
   }
 
+  public LaunchCommandBuilder launchServerPort(int port) {
+    this.launchServerPort = port;
+    return this;
+  }
+
+  public LaunchCommandBuilder startLaunchServer(boolean start) {
+    this.startLaunchServer = start;
+    return this;
+  }
+
+  public LaunchCommandBuilder requireUac(boolean requireUac) {
+    this.requireUac = requireUac;
+    return this;
+  }
+
+  public LaunchCommandBuilder gpgnet4taExecutable(Path gpgnet4taExecutable) {
+    this.gpgnet4taExecutable = gpgnet4taExecutable;
+    return this;
+  }
+
+    public LaunchCommandBuilder baseModName(String modName) {
+    this.baseModName = modName;
+    return this;
+  }
+
+  public LaunchCommandBuilder gameInstalledPath(Path gameInstalledPath) {
+    this.gameInstalledPath = gameInstalledPath;
+    return this;
+  }
+
+  public LaunchCommandBuilder gameExecutable(String gameExecutable) {
+    this.gameExecutable = gameExecutable;
+    return this;
+  }
+
+  public LaunchCommandBuilder gameCommandLineOptions(String gameCommandLineOptions) {
+    this.gameCommandLineOptions = gameCommandLineOptions;
+    return this;
+  }
+
+  public LaunchCommandBuilder upnpEnabled(boolean upnpEnabled) {
+    this.upnpEnabled = upnpEnabled;
+    return this;
+  }
+
+  public LaunchCommandBuilder proactiveResendEnabled(boolean proactiveResendEnabled) {
+    this.proactiveResendEnabled = proactiveResendEnabled;
+    return this;
+  }
+
   public LaunchCommandBuilder localGpgPort(int localGpgPort) {
     this.localGpgPort = localGpgPort;
-    return this;
-  }
-
-  public LaunchCommandBuilder localReplayPort(int localReplayPort) {
-    this.localReplayPort = localReplayPort;
-    return this;
-  }
-
-  public LaunchCommandBuilder executable(Path executable) {
-    this.executable = executable;
     return this;
   }
 
@@ -88,18 +133,8 @@ public class LaunchCommandBuilder {
     return this;
   }
 
-  public LaunchCommandBuilder clan(String clan) {
-    this.clan = clan;
-    return this;
-  }
-
   public LaunchCommandBuilder username(String username) {
     this.username = username;
-    return this;
-  }
-
-  public LaunchCommandBuilder logFile(Path logFile) {
-    this.logFile = logFile;
     return this;
   }
 
@@ -108,110 +143,139 @@ public class LaunchCommandBuilder {
     return this;
   }
 
-  public LaunchCommandBuilder replayId(Integer replayId) {
-    this.replayId = replayId;
-    return this;
-  }
-
-  public LaunchCommandBuilder replayFile(Path replayFile) {
-    this.replayFile = replayFile;
-    return this;
-  }
-
   public LaunchCommandBuilder replayUri(URI replayUri) {
     this.replayUri = replayUri;
     return this;
   }
 
-  public LaunchCommandBuilder faction(Faction faction) {
-    this.faction = faction;
+  public LaunchCommandBuilder logFile(Path logFile) {
+    this.logFile = logFile;
     return this;
   }
 
-  public LaunchCommandBuilder rehost(boolean rehost) {
-    this.rehost = rehost;
+  public LaunchCommandBuilder ircUrl(String ircUrl) {
+    this.ircUrl = ircUrl;
+    return this;
+  }
+
+  public LaunchCommandBuilder autoLaunch(boolean autoLaunch) {
+    this.autoLaunch = autoLaunch;
+    return this;
+  }
+
+  public LaunchCommandBuilder commandInputFile(String commandInputFile) {
+    this.commandInputFile = commandInputFile;
     return this;
   }
 
   public List<String> build() {
-    checkNullIllegalState(executableDecorator, "executableDecorator has not been set");
-    checkNullIllegalState(executable, "executable has not been set");
+    checkNullIllegalState(gpgnet4taExecutable, "gpgnet4ta executable has not been set");
     Assert.state(!(replayUri != null && uid != null), "uid and replayUri cannot be set at the same time");
     Assert.state(!(uid != null && username == null), "username has not been set");
 
     List<String> command = new ArrayList<>();
-    command.addAll(split(String.format(executableDecorator, "\"" + executable.toAbsolutePath().toString() + "\"")));
-    command.addAll(Arrays.asList(
-        "/init", ForgedAlliancePrefs.INIT_FILE_NAME,
-        "/nobugreport"
-    ));
+    command.add(String.format(QUOTED_STRING_DECORATOR, gpgnet4taExecutable.toAbsolutePath().toString()));
 
-    if (faction != null) {
-      command.add(String.format("/%s", faction.getString()));
+    if (this.startLaunchServer) {
+      command.add("--launchserver");
     }
 
-    if (logFile != null) {
-      command.add("/log");
-      command.add(logFile.toAbsolutePath().toString());
+    if (this.launchServerPort != null) {
+      command.add("--launchserverport");
+      command.add(String.valueOf(launchServerPort));
+    }
+
+    if (requireUac) {
+      command.add("--uac");
+    }
+
+    if (baseModName != null) {
+      command.add("--gamemod");
+      command.add(baseModName);
+    }
+
+    if (gameInstalledPath != null) {
+      command.add("--gamepath");
+      command.add(String.format(QUOTED_STRING_DECORATOR, gameInstalledPath.toAbsolutePath().toString()));
+    }
+
+    if (gameExecutable != null) {
+      command.add("--gameexe");
+      command.add(String.format(QUOTED_STRING_DECORATOR, gameExecutable));
+    }
+
+    if (gameCommandLineOptions != null) {
+      command.add("--gameargs");
+      command.add(String.format(QUOTED_STRING_DECORATOR, gameCommandLineOptions));
+    }
+
+    if (upnpEnabled) {
+      //command.add("--upnp");
+    }
+
+    if (proactiveResendEnabled) {
+      command.add("--proactiveresend");
+    }
+
+    if (autoLaunch) {
+      command.add("--autolaunch");
     }
 
     String localIp = Inet4Address.getLoopbackAddress().getHostAddress();
     if (localGpgPort != null) {
-      command.add("/gpgnet");
+      command.add("--gpgnet");
       command.add(localIp + ":" + localGpgPort);
     }
 
     if (mean != null) {
-      command.add("/mean");
-      command.add(String.valueOf(mean));
+      //command.add("--mean");
+      //command.add(String.valueOf(mean));
     }
 
     if (deviation != null) {
-      command.add("/deviation");
-      command.add(String.valueOf(deviation));
+      //command.add("--deviation");
+      //command.add(String.valueOf(deviation));
     }
 
-    if (replayFile != null) {
-      command.add("/replay");
-      command.add(replayFile.toAbsolutePath().toString());
-    } else if (replayUri != null) {
-      command.add("/replay");
-      command.add(replayUri.toASCIIString());
+    if (country != null && !country.isEmpty()) {
+      //command.add("--country");
+      //command.add(country);
     }
 
-    if (uid != null && localReplayPort != null) {
-      command.add("/savereplay");
-      command.add("gpgnet://" + localIp + ":" + localReplayPort + "/" + uid + "/" + username + ".SCFAreplay");
+    if (logFile != null) {
+      command.add("--logfile");
+      command.add(String.format(QUOTED_STRING_DECORATOR, logFile.toString()));
     }
 
-    if (country != null) {
-      command.add("/country");
-      command.add(country);
+    if (ircUrl != null) {
+      command.add("--irc");
+      command.add(ircUrl);
     }
 
-    if (!StringUtils.isEmpty(clan)) {
-      command.add("/clan");
-      command.add(clan);
-    }
-
-    if (replayId != null) {
-      command.add("/replayid");
-      command.add(String.valueOf(replayId));
-    }
-
-    if (rehost) {
-      command.add("/rehost");
+    if (commandInputFile != null) {
+      command.add("--cmdfile");
+      command.add(commandInputFile);
     }
 
     if (additionalArgs != null) {
-      command.addAll(additionalArgs);
+      List<String> args = additionalArgs.stream()
+          .map((String arg) -> arg.replace("/", "--"))
+          .collect(Collectors.toList());
+
+      List<String> allowedArgs = Arrays.asList("--numgames", "--players");
+      List<String> validArgs = new ArrayList<String>();
+      boolean isValid = false;
+      for(String arg: args) {
+        if (arg.length()>2 && arg.startsWith("--")) {
+          isValid = allowedArgs.contains(arg);
+        }
+        if (isValid) {
+          validArgs.add(arg);
+        }
+      }
+      //command.addAll(validArgs);
     }
 
     return command;
-  }
-
-  public LaunchCommandBuilder executableDecorator(String executableDecorator) {
-    this.executableDecorator = Strings.isNullOrEmpty(executableDecorator) ? DEFAULT_EXECUTABLE_DECORATOR : executableDecorator;
-    return this;
   }
 }

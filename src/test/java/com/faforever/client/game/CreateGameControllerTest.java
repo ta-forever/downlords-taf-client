@@ -4,7 +4,6 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapBuilder;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.generator.MapGeneratorService;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.mod.ModManagerController;
 import com.faforever.client.mod.ModService;
@@ -36,7 +35,6 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -85,8 +83,6 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
   @Mock
   private FafService fafService;
   @Mock
-  private MapGeneratorService mapGeneratorService;
-  @Mock
   private ModManagerController modManagerController;
   @Mock
   private GenerateMapController generateMapController;
@@ -97,23 +93,16 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
 
   @Before
   public void setUp() throws Exception {
-    instance = new CreateGameController(mapService, modService, gameService, preferencesService, i18n, notificationService, reportingService, fafService, mapGeneratorService, uiService);
+    instance = new CreateGameController(mapService, modService, gameService, preferencesService, i18n, notificationService, reportingService, fafService, uiService);
 
     mapList = FXCollections.observableArrayList();
 
-    preferences = PreferencesBuilder.create().defaultValues()
-        .forgedAlliancePrefs()
-        .installationPath(Paths.get(""))
-        .then()
-        .get();
-    when(mapGeneratorService.downloadGeneratorIfNecessary(any())).thenReturn(completedFuture(null));
-    when(mapGeneratorService.getGeneratorStyles()).thenReturn(completedFuture(List.of()));
-    when(uiService.showInDialog(any(), any(), anyString())).thenReturn(new Dialog());
-    when(uiService.loadFxml("theme/play/generate_map.fxml")).thenReturn(generateMapController);
+    preferences = new Preferences();
+    preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledExePath(Paths.get("."));
     when(preferencesService.getPreferences()).thenReturn(preferences);
     when(mapService.getInstalledMaps()).thenReturn(mapList);
     when(modService.getFeaturedMods()).thenReturn(completedFuture(emptyList()));
-    when(mapService.loadPreview(anyString(), any())).thenReturn(new Image("/theme/images/default_achievement.png"));
+    when(mapService.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), anyString(), any())).thenReturn(new Image("/theme/images/default_achievement.png"));
     when(i18n.get(any(), any())).then(invocation -> invocation.getArgument(0));
     when(i18n.number(anyInt())).then(invocation -> invocation.getArgument(0).toString());
     when(fafService.connectionStateProperty()).thenReturn(new SimpleObjectProperty<>(ConnectionState.CONNECTED));
@@ -135,14 +124,14 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testMapSearchTextFieldFilteringPopulated() {
-    mapList.add(MapBuilder.create().defaultValues().displayName("Test1").get());
-    mapList.add(MapBuilder.create().defaultValues().folderName("test2").get());
-    mapList.add(MapBuilder.create().defaultValues().displayName("foo").get());
+    mapList.add(MapBuilder.create().defaultValues().mapName("Test1").get());
+    mapList.add(MapBuilder.create().defaultValues().hpiArchiveName("test2").get());
+    mapList.add(MapBuilder.create().defaultValues().mapName("foo").get());
 
     instance.mapSearchTextField.setText("Test");
 
-    assertThat(instance.filteredMapBeans.get(0).getFolderName(), is("test2"));
-    assertThat(instance.filteredMapBeans.get(1).getDisplayName(), is("Test1"));
+    assertThat(instance.filteredMapBeans.get(0).getHpiArchiveName(), is("test2"));
+    assertThat(instance.filteredMapBeans.get(1).getMapName(), is("Test1"));
   }
 
   @Test
@@ -176,8 +165,8 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testMapSearchTextFieldKeyPressedUpForPopulated() {
-    mapList.add(MapBuilder.create().defaultValues().displayName("Test1").get());
-    mapList.add(MapBuilder.create().defaultValues().displayName("Test1").get());
+    mapList.add(MapBuilder.create().defaultValues().mapName("Test1").get());
+    mapList.add(MapBuilder.create().defaultValues().mapName("Test1").get());
     instance.mapSearchTextField.setText("Test");
 
     instance.mapSearchTextField.getOnKeyPressed().handle(keyDownPressed);
@@ -190,8 +179,8 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testMapSearchTextFieldKeyPressedDownForPopulated() {
-    mapList.add(MapBuilder.create().defaultValues().displayName("Test1").get());
-    mapList.add(MapBuilder.create().defaultValues().displayName("Test1").get());
+    mapList.add(MapBuilder.create().defaultValues().mapName("Test1").get());
+    mapList.add(MapBuilder.create().defaultValues().mapName("Test1").get());
     instance.mapSearchTextField.setText("Test");
 
     instance.mapSearchTextField.getOnKeyPressed().handle(keyDownPressed);
@@ -257,10 +246,10 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testSelectLastMap() {
-    MapBean lastMapBean = MapBuilder.create().defaultValues().folderName("foo").get();
+    MapBean lastMapBean = MapBuilder.create().defaultValues().hpiArchiveName("foo").get();
     preferences.getLastGame().setLastMap("foo");
 
-    mapList.add(MapBuilder.create().defaultValues().folderName("Test1").get());
+    mapList.add(MapBuilder.create().defaultValues().hpiArchiveName("Test1").get());
     mapList.add(lastMapBean);
 
     WaitForAsyncUtils.asyncFx(() -> instance.initialize());
@@ -272,7 +261,7 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
   @Test
   public void testInitGameTypeComboBoxEmpty() throws Exception {
     instance = new CreateGameController(mapService, modService, gameService, preferencesService, i18n, notificationService,
-        reportingService, fafService, mapGeneratorService, uiService);
+        reportingService, fafService, uiService);
 
     loadFxml("theme/play/create_game.fxml", clazz -> {
       if (clazz.equals(ModManagerController.class)) {

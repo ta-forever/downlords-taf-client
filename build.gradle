@@ -98,7 +98,7 @@ bootRun {
 jar {
   manifest {
     attributes "Main-Class": "com.faforever.client.Main",
-        "Implementation-Title": "Downlord's FAF Client",
+        "Implementation-Title": "Downlord's TAF Client",
         "Implementation-Version": version,
         "Implementation-Vendor": "Downlord"
   }
@@ -135,7 +135,7 @@ task buildInstall4jMediaFiles(type: Install4jTask) {
   description 'Creates install4j media files'
   dependsOn 'installDist'
 
-  projectFile = file('downlords-faf-client.install4j')
+  projectFile = file('downlords-taf-client.install4j')
   release = version
 
   switch (project.ext.javafxPlatform) {
@@ -146,7 +146,7 @@ task buildInstall4jMediaFiles(type: Install4jTask) {
       mediaTypes = ['macos', 'macosFolder', 'macosArchive', 'macosFolderArchive']
       break
     case "win":
-      mediaTypes = ['windows', 'windowsArchive']
+      mediaTypes = ['windows']
       break
   }
 

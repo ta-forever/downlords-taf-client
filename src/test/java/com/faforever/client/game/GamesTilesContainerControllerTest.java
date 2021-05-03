@@ -7,6 +7,7 @@ import com.faforever.client.preferences.PreferencesBuilder;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.test.AbstractPlainJavaFxTest;
 import com.faforever.client.theme.UiService;
+import com.faforever.client.user.UserService;
 import javafx.beans.Observable;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -40,6 +41,8 @@ public class GamesTilesContainerControllerTest extends AbstractPlainJavaFxTest {
   @Mock
   private PreferencesService preferencesService;
   @Mock
+  private GameService gameService;
+  @Mock
   private GameTooltipController gameTooltipController;
 
   private GamesTilesContainerController instance;
@@ -47,7 +50,7 @@ public class GamesTilesContainerControllerTest extends AbstractPlainJavaFxTest {
 
   @Before
   public void setUp() throws Exception {
-    instance = new GamesTilesContainerController(uiService, preferencesService);
+    instance = new GamesTilesContainerController(uiService, preferencesService, gameService);
 
     when(uiService.loadFxml("theme/play/game_card.fxml")).thenReturn(gameTileController);
     when(uiService.loadFxml("theme/play/game_tooltip.fxml")).thenReturn(gameTooltipController);

@@ -2,10 +2,11 @@ package com.faforever.client.replay;
 
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.rating.RatingService;
 import com.faforever.client.util.RatingUtil;
 import com.faforever.client.util.TimeService;
@@ -67,9 +68,9 @@ public class ReplayCardController implements Controller<Node> {
     Optional<MapBean> optionalMap = Optional.ofNullable(replay.getMap());
     if (optionalMap.isPresent()) {
       MapBean map = optionalMap.get();
-      Image image = mapService.loadPreview(map.getFolderName(), PreviewSize.SMALL);
+      Image image = mapService.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), map.getMapName(), PreviewType.MINI, 10);
       mapThumbnailImageView.setImage(image);
-      onMapLabel.setText(i18n.get("game.onMapFormat", map.getDisplayName()));
+      onMapLabel.setText(i18n.get("game.onMapFormat", map.getMapName()));
     } else {
       onMapLabel.setText(i18n.get("game.onUnknownMap"));
     }

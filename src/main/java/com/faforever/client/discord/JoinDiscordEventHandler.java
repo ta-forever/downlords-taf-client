@@ -1,6 +1,5 @@
 package com.faforever.client.discord;
 
-import com.faforever.client.config.ClientProperties;
 import com.faforever.client.fx.PlatformService;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -24,13 +23,11 @@ import java.net.URI;
 @Slf4j
 public class JoinDiscordEventHandler {
 
-  private final ClientProperties clientProperties;
   private final PlatformService platformService;
 
   @EventListener(value = JoinDiscordEvent.class)
-  public void onJoin() {
-    String joinUrl = clientProperties.getDiscord().getJoinUrl();
-    joinViaDiscord(joinUrl);
+  public void onJoin(JoinDiscordEvent event) {
+    joinViaDiscord(event.getUrl());
   }
 
   private void joinViaBrowser(String joinUrl) {
@@ -75,13 +72,13 @@ public class JoinDiscordEventHandler {
       }
 
       @Override
-      public void handleTransportError(@NotNull WebSocketSession session, @NotNull Throwable exception) throws Exception {
+      public void handleTransportError(@NotNull WebSocketSession session, @NotNull Throwable exception) {
         log.info("Unable to contact Discord app", exception);
         joinViaBrowser(joinUrl);
       }
 
       @Override
-      public void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus closeStatus) throws Exception {
+      public void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus closeStatus) {
         if (!closeStatus.equals(CloseStatus.NORMAL)) {
           log.info("Unable to contact Discord app: {}", closeStatus);
           joinViaBrowser(joinUrl);

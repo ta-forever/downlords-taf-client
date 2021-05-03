@@ -218,7 +218,8 @@ public class ReplayService {
       LocalReplayInfo replayInfo = replayFileReader.parseMetaData(replayFile);
 
       CompletableFuture<FeaturedMod> featuredModFuture = modService.getFeaturedMod(replayInfo.getFeaturedMod());
-      CompletableFuture<Optional<MapBean>> mapBeanFuture = mapService.findByMapFolderName(replayInfo.getMapname());
+      FeaturedMod featuredMod = featuredModFuture.join();
+      CompletableFuture<Optional<MapBean>> mapBeanFuture = mapService.findByMapFolderName(featuredMod.getTechnicalName(), replayInfo.getMapname());
 
       return CompletableFuture.allOf(featuredModFuture, mapBeanFuture).thenApply(ignoredVoid -> {
         Optional<MapBean> mapBean = mapBeanFuture.join();
@@ -278,7 +279,7 @@ public class ReplayService {
         .scheme(FAF_LIFE_PROTOCOL)
         .host(clientProperties.getReplay().getRemoteHost())
         .path("/" + gameId + "/" + playerName + SUP_COM_REPLAY_FILE_ENDING)
-        .queryParam("map", UrlEscapers.urlFragmentEscaper().escape(game.getMapFolderName()))
+        .queryParam("map", UrlEscapers.urlFragmentEscaper().escape(game.getMapName()))
         .queryParam("mod", game.getFeaturedMod())
         .build()
         .toUri();

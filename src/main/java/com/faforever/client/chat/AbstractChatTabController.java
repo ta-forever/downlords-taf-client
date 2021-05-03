@@ -136,7 +136,7 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
   private int lastEntryId;
   private boolean isChatReady;
   /**
-   * Either a channel like "#aeolus" or a user like "Visionik".
+   * Either a channel like "#coreprime" or a user like "Visionik".
    */
   private String receiver;
   private Pattern mentionPattern;

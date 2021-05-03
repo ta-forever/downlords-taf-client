@@ -1,5 +1,6 @@
 package com.faforever.client.map;
 
+import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.generator.MapGeneratorService;
 import com.faforever.client.notification.NotificationService;
@@ -68,16 +69,16 @@ public class MapCardControllerTest extends AbstractPlainJavaFxTest {
 
   @Before
   public void setUp() throws Exception {
-    when(mapService.downloadAndInstallMap(any(), isNull(), isNull())).thenReturn(CompletableFuture.runAsync(() -> {
+    when(mapService.ensureMap(KnownFeaturedMod.DEFAULT.getTechnicalName(), any(), isNull(), isNull())).thenReturn(CompletableFuture.runAsync(() -> {
     }));
-    when(mapService.uninstallMap(any())).thenReturn(CompletableFuture.runAsync(() -> {
+    when(mapService.uninstallMap(any(), any())).thenReturn(CompletableFuture.runAsync(() -> {
     }));
     installedMaps = FXCollections.observableArrayList();
-    when(mapService.getInstalledMaps()).thenReturn(installedMaps);
+    when(mapService.getInstalledMaps(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(installedMaps);
     instance = new MapCardController(mapService, mapGeneratorService, notificationService, i18n, reportingService);
     mapBean = new MapBean();
-    mapBean.setFolderName("testMap");
-    mapBean.setDisplayName("testMap");
+    mapBean.setHpiArchiveName("testMap");
+    mapBean.setMapName("testMap");
     mapBean.setAuthor("axel12");
     mapBean.setRanked(true);
     mapBean.setHidden(false);

@@ -68,6 +68,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -206,6 +207,16 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
         .anyMatch(MODERATOR_PREFIXES::contains);
 
     return getOrCreateChatUser(username, channel.getName(), isModerator);
+  }
+
+  public Set<String> getUserChannels(String username) {
+    Set<String> channelNames = new HashSet<>();
+    channels.forEach((channelName, channel) -> {
+      if (channel.getUser(username) != null) {
+        channelNames.add(channelName);
+      }
+    });
+    return channelNames;
   }
 
   @Subscribe

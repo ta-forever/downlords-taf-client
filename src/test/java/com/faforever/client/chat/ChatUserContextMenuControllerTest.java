@@ -176,8 +176,8 @@ public class ChatUserContextMenuControllerTest extends AbstractPlainJavaFxTest {
   @Test
   public void testJoinGameContextMenuShownForHostingUser() {
     Game game = new Game();
-    game.setFeaturedMod(KnownFeaturedMod.FAF.getTechnicalName());
-    game.setStatus(GameStatus.OPEN);
+    game.setFeaturedMod(KnownFeaturedMod.DEFAULT.getTechnicalName());
+    game.setStatus(GameStatus.STAGING);
     game.setHost(player.getUsername());
 
     player.setSocialStatus(OTHER);
@@ -192,7 +192,7 @@ public class ChatUserContextMenuControllerTest extends AbstractPlainJavaFxTest {
   public void testJoinGameContextMenuNotShownForMatchmakerPlayer() {
     Game game = new Game();
     game.setGameType(GameType.MATCHMAKER);
-    game.setStatus(GameStatus.OPEN);
+    game.setStatus(GameStatus.STAGING);
     game.setHost(player.getUsername());
 
     player.setSocialStatus(OTHER);

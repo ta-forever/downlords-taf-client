@@ -5,12 +5,9 @@ import com.faforever.client.chat.avatar.AvatarBean;
 import com.faforever.client.game.Game;
 import com.faforever.client.game.PlayerStatus;
 import com.faforever.client.leaderboard.LeaderboardRating;
-import com.faforever.client.remote.domain.GameStatus;
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.MapProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleMapProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -49,6 +46,7 @@ public class Player {
   private final IntegerProperty numberOfGames;
   private final ObjectProperty<Instant> idleSince;
   private final ObservableList<NameRecord> names;
+  private final IntegerProperty currentGameUid;
 
   public Player(com.faforever.client.remote.domain.Player player) {
     this();
@@ -78,6 +76,7 @@ public class Player {
     socialStatus = new SimpleObjectProperty<>(OTHER);
     idleSince = new SimpleObjectProperty<>(Instant.now());
     names = FXCollections.observableArrayList();
+    currentGameUid = new SimpleIntegerProperty(-1);
   }
 
   public Player(String username) {
@@ -86,6 +85,9 @@ public class Player {
   }
 
   public static Player fromDto(com.faforever.client.api.dto.Player dto) {
+    // com.faforever.client.remote.domain.Player is populated by server
+    // com.faforever.client.api.dto.Player is populated by API
+    // com.faforever.client.player.Player is us
     Player player = new Player(dto.getLogin());
     player.setId(Integer.parseInt(dto.getId()));
     player.setUsername(dto.getLogin());
@@ -240,7 +242,11 @@ public class Player {
     return status.get();
   }
 
-  public ReadOnlyObjectProperty<PlayerStatus> statusProperty() {
+  public void setStatus(PlayerStatus status) {
+    this.status.set(status);
+  }
+
+  public ObjectProperty<PlayerStatus> statusProperty() {
     return status;
   }
 
@@ -250,25 +256,6 @@ public class Player {
 
   public void setGame(Game game) {
     this.game.set(game);
-    if (game == null) {
-      status.unbind();
-      status.set(PlayerStatus.IDLE);
-    } else {
-      status.bind(Bindings.createObjectBinding(() -> {
-        if (getGame() == null) {
-          return PlayerStatus.IDLE;
-        }
-        if (getGame().getStatus() == GameStatus.OPEN) {
-          if (getGame().getHost().equalsIgnoreCase(username.get())) {
-            return PlayerStatus.HOSTING;
-          }
-          return PlayerStatus.LOBBYING;
-        } else if (getGame().getStatus() == GameStatus.CLOSED) {
-          return PlayerStatus.IDLE;
-        }
-        return PlayerStatus.PLAYING;
-      }, game.statusProperty()));
-    }
   }
 
   public ObjectProperty<Game> gameProperty() {
@@ -292,9 +279,14 @@ public class Player {
   }
 
   public void updateFromDto(com.faforever.client.remote.domain.Player player) {
+    // com.faforever.client.remote.domain.Player is populated by server
+    // com.faforever.client.api.dto.Player is populated by API
+    // com.faforever.client.player.Player is us
     setId(player.getId());
     setClan(player.getClan());
     setCountry(player.getCountry());
+    setStatus(PlayerStatus.fromDto(player.getState()));
+    setCurrentGameUid(player.getCurrentGameUid());
 
     if (player.getRatings() != null) {
       Map<String, LeaderboardRating> ratingMap = new HashMap<>();
@@ -307,5 +299,17 @@ public class Player {
       setAvatarUrl(player.getAvatar().getUrl());
       setAvatarTooltip(player.getAvatar().getTooltip());
     }
+  }
+
+  public int getCurrentGameUid() {
+    return currentGameUid.get();
+  }
+
+  public void setCurrentGameUid(int uid) {
+    this.currentGameUid.set(uid);
+  }
+
+  public IntegerProperty currentGameUidProperty() {
+    return currentGameUid;
   }
 }

@@ -17,13 +17,12 @@
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.ComboBox?>
 <GridPane xmlns:fx="http://javafx.com/fxml/1" fx:id="createGameRoot" hgap="10.0" styleClass="create-game-root" vgap="10.0" xmlns="http://javafx.com/javafx/8.0.141" fx:controller="com.faforever.client.game.CreateGameController">
     <columnConstraints>
         <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="256.0"/>
         <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="256.0"/>
-        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="256.0"/>
-        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="128.0"/>
-        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="128.0"/>
+        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="360.0"/>
     </columnConstraints>
     <rowConstraints>
         <RowConstraints vgrow="NEVER"/>
@@ -39,7 +38,8 @@
         <TextField fx:id="titleTextField" promptText="%game.create.title" styleClass="game-title-input" GridPane.columnSpan="2147483647" />
         <PasswordField fx:id="passwordTextField" promptText="%game.create.password" GridPane.rowIndex="1" />
         <CheckBox fx:id="onlyForFriendsCheckBox" mnemonicParsing="false" text="%game.create.onlyFriends" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-        <HBox alignment="CENTER_RIGHT" spacing="10.0" maxWidth="1.7976931348623157E308" GridPane.columnIndex="2" GridPane.columnSpan="2147483647" GridPane.rowIndex="1">
+
+        <HBox alignment="CENTER" maxWidth="1.7976931348623157E308" spacing="10.0" GridPane.columnIndex="2" GridPane.columnSpan="2147483647" GridPane.rowIndex="1">
             <children>
                 <Label alignment="CENTER_RIGHT" text="%game.create.rating" textAlignment="JUSTIFY" GridPane.columnIndex="2" GridPane.rowIndex="1" />
                 <TextField fx:id="minRankingTextField" minWidth="30.0" prefWidth="60.0" promptText="%games.create.minRating" HBox.hgrow="NEVER" />
@@ -62,16 +62,11 @@
         <Label styleClass="h2" text="%game.create.gameType" GridPane.rowIndex="3"/>
         <ListView fx:id="featuredModListView" prefHeight="100.0" GridPane.rowIndex="4" GridPane.rowSpan="2"/>
 
-        <!-- Mods -->
-        <Label styleClass="h2" text="%game.create.mods" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
-        <fx:include fx:id="modManager" source="../mod_manager.fxml" GridPane.columnIndex="1" GridPane.rowIndex="4"
-                    GridPane.rowSpan="2"/>
-
         <!-- Map List -->
-        <Label styleClass="h2" text="%game.create.map" GridPane.columnIndex="2" GridPane.rowIndex="3"/>
-        <TextField fx:id="mapSearchTextField" promptText="%game.create.searchMap" GridPane.columnIndex="2"
+        <Label styleClass="h2" text="%game.create.map" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+        <TextField fx:id="mapSearchTextField" promptText="%game.create.searchMap" GridPane.columnIndex="1"
                    GridPane.rowIndex="4"/>
-        <VBox spacing="10.0" GridPane.columnIndex="2" GridPane.rowIndex="5" GridPane.vgrow="ALWAYS">
+        <VBox spacing="10.0" GridPane.columnIndex="1" GridPane.rowIndex="5" GridPane.vgrow="ALWAYS">
             <children>
                 <ListView fx:id="mapListView" maxHeight="1.7976931348623157E308" VBox.vgrow="ALWAYS"/>
                 <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false"
@@ -79,21 +74,24 @@
             </children>
         </VBox>
 
-        <!-- Map Preview, Random Map -->
-        <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" GridPane.columnIndex="3"
+        <!-- Map Preview -->
+        <VBox fx:id="mapPreview" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" GridPane.columnIndex="2"
               GridPane.columnSpan="2" GridPane.rowIndex="3" GridPane.rowSpan="3" GridPane.vgrow="ALWAYS">
+            <HBox alignment="CENTER" spacing="10.0">
+                <Label alignment="TOP_LEFT" maxHeight="1.7976931348623157E308"
+                       maxWidth="1.7976931348623157E308" text="Preview" wrapText="true"/>
+                <ComboBox fx:id="mapPreviewTypeComboBox" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" />
+                <Label alignment="TOP_LEFT" maxHeight="1.7976931348623157E308"
+                       maxWidth="1.7976931348623157E308" text="Positions" wrapText="true"/>
+                <ComboBox fx:id="mapPreviewMaxPositionsComboBox" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" />
+            </HBox>
+            <Separator GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS"/>
             <StackPane>
                 <Pane fx:id="mapPreviewPane" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
                       styleClass="map-preview"/>
-                <VBox alignment="BOTTOM_LEFT" styleClass="image-dimmer">
-                    <children>
-                        <Label fx:id="mapNameLabel" maxWidth="1.7976931348623157E308" minWidth="0.0"
-                               styleClass="card-title" text="&lt;Very long map title to see if wrapping works&gt;"
-                               wrapText="true"/>
-                    </children>
-                </VBox>
             </StackPane>
             <HBox alignment="CENTER" spacing="10.0">
+                <Label fx:id="hpiArchiveLabel" text="&lt;archive.ufo&gt;"/>
                 <Label fx:id="mapSizeLabel" text="&lt;Size&gt;" GridPane.columnIndex="1" GridPane.rowIndex="1">
                     <graphic>
                         <Region styleClass="icon,map-size-icon" />
@@ -111,35 +109,27 @@
                 <Label fx:id="mapDescriptionLabel" alignment="TOP_LEFT" maxHeight="1.7976931348623157E308"
                        maxWidth="1.7976931348623157E308" text="&lt;Description&gt;" wrapText="true"/>
             </ScrollPane>
-
-            <Button fx:id="generateMapButton" contentDisplay="RIGHT" maxWidth="1.7976931348623157E308"
-                    mnemonicParsing="false" onAction="#onGenerateMapButtonClicked" styleClass="game-generate-map"
-                    text="%game.generateMap">
-                <graphic>
-                    <Label styleClass="button-mini-label" text="%game.create.generatedMapNew">
-                        <Insets left="250"/>
-                    </Label>
-                </graphic>
-            </Button>
+            <Separator GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS"/>
         </VBox>
 
-        <!-- Cancel, Ok -->
-        <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onCloseButtonClicked"
-                   styleClass="more-button-padding" text="%cancel" GridPane.columnIndex="0" GridPane.halignment="LEFT"
+        <!-- Set Game Path -->
+        <Button fx:id="setGamePathButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onSetGamePathClicked"
+                styleClass="more-button-padding" text="%game.create.install" GridPane.columnIndex="0" GridPane.halignment="LEFT"
+                GridPane.rowIndex="6">
+        </Button>
+
+        <!-- Dismiss, Ok -->
+        <Button minWidth="-Infinity" mnemonicParsing="false" onAction="#onCloseButtonClicked"
+                   styleClass="more-button-padding" text="%dismiss" GridPane.columnIndex="2" GridPane.halignment="CENTER"
                    GridPane.rowIndex="6">
-            <GridPane.margin>
-                <Insets/>
-            </GridPane.margin>
         </Button>
         <Button fx:id="createGameButton" defaultButton="true" minWidth="-Infinity" mnemonicParsing="false"
                    onAction="#onCreateButtonClicked" styleClass="more-button-padding" text="%game.create.create"
-                   GridPane.columnIndex="3" GridPane.columnSpan="2" GridPane.halignment="RIGHT" GridPane.rowIndex="6">
-            <GridPane.margin>
-                <Insets top="15"/>
-            </GridPane.margin>
-            <padding>
-                <Insets left="30.0" right="30.0"/>
-            </padding>
+                   GridPane.columnIndex="2" GridPane.halignment="RIGHT" GridPane.rowIndex="6">
+        </Button>
+        <Button fx:id="updateGameButton" defaultButton="true" minWidth="-Infinity" mnemonicParsing="false"
+                onAction="#onUpdateButtonClicked" styleClass="more-button-padding" text="%game.create.update"
+                GridPane.columnIndex="2" GridPane.halignment="RIGHT" GridPane.rowIndex="6">
         </Button>
 
     </children>

@@ -5,6 +5,7 @@ import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.collections.MapChangeListener;
 
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 public interface ChatService {
@@ -26,6 +27,8 @@ public interface ChatService {
   ChatChannelUser getOrCreateChatUser(String username, String channel);
 
   ChatChannelUser getOrCreateChatUser(String username, String channel, boolean isModerator);
+
+  Set<String> getUserChannels(String username);
 
   void addUsersListener(String channelName, MapChangeListener<String, ChatChannelUser> listener);
 

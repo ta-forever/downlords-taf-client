@@ -20,11 +20,6 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Optional;
 
-import static com.faforever.client.game.PlayerStatus.HOSTING;
-import static com.faforever.client.game.PlayerStatus.IDLE;
-import static com.faforever.client.game.PlayerStatus.LOBBYING;
-import static com.faforever.client.game.PlayerStatus.PLAYING;
-
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class UserFilterController implements Controller<Node> {
@@ -171,8 +166,8 @@ public class UserFilterController implements Controller<Node> {
     }
 
     PlayerStatus playerStatus = playerOptional.get().getStatus();
-    if (playerStatusFilter == LOBBYING) {
-      return LOBBYING == playerStatus || HOSTING == playerStatus;
+    if (playerStatusFilter == PlayerStatus.JOINING) {
+      return PlayerStatus.JOINING == playerStatus || PlayerStatus.HOSTING == playerStatus || PlayerStatus.JOINED == playerStatus || PlayerStatus.HOSTED == playerStatus;
     } else {
       return playerStatusFilter == playerStatus;
     }
@@ -194,17 +189,17 @@ public class UserFilterController implements Controller<Node> {
   }
 
   public void onGameStatusPlaying() {
-    updateGameStatusMenuText(playerStatusFilter == PLAYING ? null : PLAYING);
+    updateGameStatusMenuText(playerStatusFilter == PlayerStatus.PLAYING ? null : PlayerStatus.PLAYING);
     filterUsers();
   }
 
   public void onGameStatusLobby() {
-    updateGameStatusMenuText(playerStatusFilter == LOBBYING ? null : LOBBYING);
+    updateGameStatusMenuText(playerStatusFilter == PlayerStatus.JOINING ? null : PlayerStatus.JOINING);
     filterUsers();
   }
 
   public void onGameStatusNone() {
-    updateGameStatusMenuText(playerStatusFilter == IDLE ? null : IDLE);
+    updateGameStatusMenuText(playerStatusFilter == PlayerStatus.IDLE ? null : PlayerStatus.IDLE);
     filterUsers();
   }
 

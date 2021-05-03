@@ -11,53 +11,56 @@ public class VersionTest {
 
   @Test(expected = NullPointerException.class)
   public void shouldFailOnNullFromVersion() {
-    Version.shouldUpdate(null, "v1.0.0");
+    Version.shouldUpdate(null, "v1.0.0-taf-1.0");
   }
 
   @Test(expected = NullPointerException.class)
   public void shouldFailOnNullToVersion() {
-    Version.shouldUpdate("v1.0.0", null);
+    Version.shouldUpdate("v1.0.0-taf-1.0", null);
   }
 
   @Test
   public void shouldUpdateIfRemoteIsNewer() {
-    assertFalse(Version.shouldUpdate("1.1.0", "1.1.0"));
-    assertFalse(Version.shouldUpdate("1.1.0", "v1.1.0"));
-    assertTrue(Version.shouldUpdate("1.0.0-alpha", "v1.0.0-beta"));
-    assertTrue(Version.shouldUpdate("1.0.0-alpha", "v1.0.0-RC1"));
-    assertTrue(Version.shouldUpdate("1.0.0-RC1", "v1.0.0-RC2"));
-    assertFalse(Version.shouldUpdate("1.0.0-beta", "v1.0.0-alpha"));
-    assertTrue(Version.shouldUpdate("1.0.9", "v1.1.0"));
-    assertFalse(Version.shouldUpdate("1.1.0", "v1.0.9"));
-    assertTrue(Version.shouldUpdate("v1.0.9", "1.1.0"));
-    assertFalse(Version.shouldUpdate("1.1.0", "1.0.9"));
-    assertTrue(Version.shouldUpdate("1.1.0", "v1.1.1"));
-    assertTrue(Version.shouldUpdate("1.9.9", "v2.0.0"));
+    assertFalse(Version.shouldUpdate("1.1.0-taf-1.0", "1.1.0-taf-1.0"));
+    assertFalse(Version.shouldUpdate("1.1.0-taf-1.0", "v1.1.0-taf-1.0"));
+    assertTrue(Version.shouldUpdate("1.0.0-taf-1.0-alpha", "v1.0.0-taf-1.0-beta"));
+    assertTrue(Version.shouldUpdate("1.0.0-taf-1.0-alpha", "v1.0.0-taf-1.0-RC1"));
+    assertTrue(Version.shouldUpdate("1.0.0-taf-1.0-RC1", "v1.0.0-taf-1.0-RC2"));
+    assertFalse(Version.shouldUpdate("1.0.0-taf-1.0-beta", "v1.0.0-taf-1.0-alpha"));
+    assertTrue(Version.shouldUpdate("1.0.0-taf-0.9", "v1.0.0-taf-1.0"));
+    assertFalse(Version.shouldUpdate("1.0.0-taf-1.0", "v1.0.0-taf-0.9"));
+    assertTrue(Version.shouldUpdate("v1.0.0-taf-0.9", "1.0.0-taf-1.0"));
+    assertFalse(Version.shouldUpdate("1.0.0-taf-1.0", "1.0.0-taf-0.9"));
+    assertTrue(Version.shouldUpdate("1.0.0-taf-1.0", "v1.0.0-taf-1.1"));
+    assertTrue(Version.shouldUpdate("1.0.0-taf-1.9", "v1.0.0-taf-2.0"));
+    assertTrue(Version.shouldUpdate("1.2.1-taf-0.4", "v1.2.2-taf-0.4"));
+    assertTrue(Version.shouldUpdate("1.2.1-taf-0.4", "v1.2.2-taf-0.1"));
+    assertTrue(Version.shouldUpdate("1.2.1-taf-0.4", "v1.2.2-taf-0.5"));
   }
 
   @Test
   public void shouldNotUpdateIfSnapshot() {
-    assertFalse(Version.shouldUpdate("snapshot", "v9.9.99"));
+    assertFalse(Version.shouldUpdate("snapshot", "v9.9.99-taf-9.9"));
   }
 
   @Test
   public void shouldNotUpdateIfToVersionIsNotSemver() {
-    assertFalse(Version.shouldUpdate("1.1.7", "xyz"));
+    assertFalse(Version.shouldUpdate("1.1.7-taf-0.1", "xyz"));
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void shouldFailIfToVersionIsNotSemver() {
-    assertFalse(Version.shouldUpdate("xyz", "1.1.5"));
+    assertFalse(Version.shouldUpdate("xyz", "1.1.5-taf-0.1"));
   }
 
   @Test
   public void shouldNotUpdateIfRemoteIsSame() {
-    assertFalse(Version.shouldUpdate("1.1.5", "v1.1.5"));
+    assertFalse(Version.shouldUpdate("1.1.5-taf-0.1", "v1.1.5-taf-0.1"));
   }
 
   @Test
   public void shouldNotUpdateIfRemoteIsOlder() {
-    assertFalse(Version.shouldUpdate("1.1.9", "v1.1.5"));
+    assertFalse(Version.shouldUpdate("1.2.1-taf-0.4", "v1.2.1-taf-0.3"));
   }
 
   public static void setCurrentVersion(String version) throws NoSuchFieldException, IllegalAccessException {

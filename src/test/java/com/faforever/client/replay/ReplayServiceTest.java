@@ -7,7 +7,6 @@ import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapBeanBuilder;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.generator.MapGeneratorService;
 import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.PersistentNotification;
@@ -170,8 +169,6 @@ public class ReplayServiceTest {
   @Mock
   private EventBus publisher;
   @Mock
-  private MapGeneratorService mapGeneratorService;
-  @Mock
   private ExecutorService executorService;
   @Mock
   private UserService userService;
@@ -317,7 +314,6 @@ public class ReplayServiceTest {
 
     when(replayFileReader.parseMetaData(replayFile)).thenReturn(replayInfo);
     when(replayFileReader.readRawReplayData(replayFile)).thenReturn(REPLAY_FIRST_BYTES_GENERATED_MAP);
-    when(mapGeneratorService.isGeneratedMap(TEST_MAP_NAME_GENERATED)).thenReturn(true);
 
 
     instance.runReplay(replay);

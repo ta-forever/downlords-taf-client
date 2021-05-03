@@ -21,11 +21,11 @@ public class GameInfoMessageBuilder {
 
   public GameInfoMessageBuilder defaultValues() {
     gameInfoMessage.setHost("Some host");
-    gameInfoMessage.setFeaturedMod(KnownFeaturedMod.FAF.getTechnicalName());
-    gameInfoMessage.setMapname("scmp_007");
+    gameInfoMessage.setFeaturedMod(KnownFeaturedMod.DEFAULT.getTechnicalName());
+    gameInfoMessage.setMapName("scmp_007");
     gameInfoMessage.setMaxPlayers(4);
     gameInfoMessage.setNumPlayers(1);
-    gameInfoMessage.setState(GameStatus.OPEN);
+    gameInfoMessage.setState(GameStatus.STAGING);
     gameInfoMessage.setTitle("Test preferences");
     gameInfoMessage.setTeams(new HashMap<>());
     gameInfoMessage.setPasswordProtected(false);
@@ -58,7 +58,7 @@ public class GameInfoMessageBuilder {
   }
 
   public GameInfoMessageBuilder mapName(String mapName) {
-    gameInfoMessage.setMapname(mapName);
+    gameInfoMessage.setMapName(mapName);
     return this;
   }
 

@@ -15,7 +15,7 @@ import com.faforever.client.game.GamesTableController;
 import com.faforever.client.game.NewGameInfo;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
+import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.remote.domain.GameStatus;
@@ -70,7 +70,7 @@ import static javafx.collections.FXCollections.observableList;
 public class CoopController extends AbstractViewController<Node> {
 
   private static final Predicate<Game> OPEN_COOP_GAMES_PREDICATE = gameInfoBean ->
-      gameInfoBean.getStatus() == GameStatus.OPEN && gameInfoBean.getGameType() == GameType.COOP;
+      gameInfoBean.isOpen() && gameInfoBean.getGameType() == GameType.COOP;
 
   private final ReplayService replayService;
   private final GameService gameService;
@@ -164,7 +164,7 @@ public class CoopController extends AbstractViewController<Node> {
         JavaFxUtil.runLater(selectionModel::selectFirst);
       }
     }).exceptionally(throwable -> {
-      notificationService.addPersistentErrorNotification(throwable, "coop.couldNotLoad", throwable.getLocalizedMessage());
+      //notificationService.addPersistentErrorNotification(throwable, "coop.couldNotLoad", throwable.getLocalizedMessage());
       return null;
     });
   }
@@ -249,7 +249,7 @@ public class CoopController extends AbstractViewController<Node> {
   private void setSelectedMission(CoopMission mission) {
     JavaFxUtil.runLater(() -> {
       descriptionWebView.getEngine().loadContent(mission.getDescription());
-      mapImageView.setImage(mapService.loadPreview(mission.getMapFolderName(), PreviewSize.SMALL));
+      mapImageView.setImage(mapService.loadPreview(COOP.getTechnicalName(), mission.getMapFolderName(), PreviewType.MINI, 10));
     });
 
     loadLeaderboard();

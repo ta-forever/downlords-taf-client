@@ -351,11 +351,11 @@ public class MockFafServerAccessor implements FafServerAccessor {
     gameInfoMessage.setUid(uid);
     gameInfoMessage.setTitle(title);
     gameInfoMessage.setFeaturedMod(featuredMod);
-    gameInfoMessage.setMapname(mapName);
+    gameInfoMessage.setMapName(mapName);
     gameInfoMessage.setNumPlayers(numPlayers);
     gameInfoMessage.setMaxPlayers(maxPlayers);
     gameInfoMessage.setHost(host);
-    gameInfoMessage.setState(GameStatus.OPEN);
+    gameInfoMessage.setState(GameStatus.STAGING);
     gameInfoMessage.setSimMods(Collections.emptyMap());
     gameInfoMessage.setTeams(Collections.emptyMap());
     gameInfoMessage.setPasswordProtected(access == GameAccess.PASSWORD);

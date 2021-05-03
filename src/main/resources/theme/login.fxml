@@ -23,9 +23,9 @@
               <children>
                   <StackPane onMouseClicked="#onMouseClicked">
                       <VBox.margin>
-                          <Insets bottom="70.0" top="70.0"/>
+                          <Insets bottom="70.0" top="70.0" />
                       </VBox.margin>
-                      <Region styleClass="login-logo"/>
+                      <Region scaleY="0.8" styleClass="login-logo" />
                   </StackPane>
                   <VBox fx:id="loginProgressPane" alignment="CENTER" maxWidth="1.7976931348623157E308">
                       <children>
@@ -118,7 +118,7 @@
           <children>
               <Button fx:id="serverStatusButton" onMouseClicked="#seeServerStatus" text="See server status">
                   <graphic>
-                      <Region styleClass="icon,info-icon"/>
+                      <Region styleClass="icon,info-icon" />
                   </graphic>
                   <HBox.margin>
                       <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />

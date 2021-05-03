@@ -2,6 +2,7 @@ package com.faforever.client.teammatchmaking;
 
 import com.faforever.client.api.dto.MatchmakerQueue;
 import com.faforever.client.leaderboard.Leaderboard;
+import com.faforever.client.mod.FeaturedMod;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
@@ -25,6 +26,7 @@ public class MatchmakingQueue {
   private final BooleanProperty joined;
   private final ObjectProperty<MatchingStatus> matchingStatus;
   private final ObjectProperty<Leaderboard> leaderboard;
+  private final ObjectProperty<FeaturedMod> featuredMod;
 
   public MatchmakingQueue() {
     this.queueId = new SimpleIntegerProperty();
@@ -36,6 +38,7 @@ public class MatchmakingQueue {
     this.joined = new SimpleBooleanProperty(false);
     this.matchingStatus = new SimpleObjectProperty<>(null);
     this.leaderboard = new SimpleObjectProperty<>(null);
+    this.featuredMod = new SimpleObjectProperty<>(null);
   }
 
   public static MatchmakingQueue fromDto(MatchmakerQueue dto) {
@@ -43,6 +46,7 @@ public class MatchmakingQueue {
     queue.setQueueId(Integer.parseInt(dto.getId()));
     queue.setQueueName(dto.getTechnicalName());
     queue.setLeaderboard(Leaderboard.fromDto(dto.getLeaderboard()));
+    queue.setFeaturedMod(FeaturedMod.fromFeaturedMod(dto.getFeaturedMod()));
     return queue;
   }
 
@@ -117,6 +121,18 @@ public class MatchmakingQueue {
 
   public ObjectProperty<Leaderboard> leaderboardProperty() {
     return leaderboard;
+  }
+
+  public FeaturedMod getFeaturedMod() {
+    return featuredMod.get();
+  }
+
+  public void setFeaturedMod(FeaturedMod featuredMod) {
+    this.featuredMod.set(featuredMod);
+  }
+
+  public ObjectProperty<FeaturedMod> featuredModProperty() {
+    return featuredMod;
   }
 
   public int getPartiesInQueue() {

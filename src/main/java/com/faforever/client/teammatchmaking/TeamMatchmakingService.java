@@ -177,7 +177,7 @@ public class TeamMatchmakingService {
 
               //TODO: check current state / other queues
               if (message.getState() == MatchmakingState.START) {
-                gameService.startSearchMatchmaker();
+                gameService.startSearchMatchmaker(q.getFeaturedMod().getTechnicalName());
 
                 Optional<PartyMember> ownPartyMember = party.getMembers().stream()
                     .filter(m -> m.getPlayer().getId() == playerService.getCurrentPlayer().map(Player::getId).orElse(-1))
@@ -243,7 +243,7 @@ public class TeamMatchmakingService {
   }
 
   public boolean joinQueue(MatchmakingQueue queue) {
-    if (!ensureValidGamePath()) {
+    if (!ensureValidGamePath(queue.getFeaturedMod().getTechnicalName())) {
       return false;
     }
 
@@ -318,9 +318,10 @@ public class TeamMatchmakingService {
       return;
     }
 
-    if (!ensureValidGamePath()) {
-      return;
-    }
+    // can't ensureValidGamePath since mod is unknown
+    // if (!ensureValidGamePath()) {
+    //   return;
+    // }
 
     fafServerAccessor.acceptPartyInvite(player); // TODO: fafServerAccessor callsshould move to fafService
     eventBus.post(new OpenTeamMatchmakingEvent());
@@ -341,9 +342,10 @@ public class TeamMatchmakingService {
       return;
     }
 
-    if (!ensureValidGamePath()) {
-      return;
-    }
+    // can't ensureValidGamePath since mod is unknown
+    // if (!ensureValidGamePath()) {
+    //   return;
+    // }
 
     playerService.getPlayerForUsername(player).ifPresent(fafServerAccessor::inviteToParty);
   }
@@ -392,9 +394,9 @@ public class TeamMatchmakingService {
     fafServerAccessor.setPartyFactions(factions);
   }
 
-  private boolean ensureValidGamePath() {
-    if (!preferencesService.isGamePathValid()) {
-      eventBus.post(new MissingGamePathEvent(true));
+  private boolean ensureValidGamePath(String modTechnical) {
+    if (!preferencesService.isGameExeValid(modTechnical)) {
+      eventBus.post(new MissingGamePathEvent(modTechnical));
       return false;
     }
     return true;

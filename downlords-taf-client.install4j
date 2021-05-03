@@ -1,16 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install4j version="8.0.8" transformSequenceNumber="8">
-  <directoryPresets config="./src/media/appicon" />
-  <application name="Downlord's FAF Client" applicationId="2848-7798-9769-5013" mediaDir="./build/install4j" lzmaCompression="true" pack200Compression="true" shortName="dfc" publisher="Downlord" publisherWeb="https://github.com/FAForever/downlords-faf-client" allPathsRelative="true" autoSave="true" macVolumeId="e230e730a6fc064c" javaMinVersion="15" javaMaxVersion="15" allowBetaVM="true">
-    <searchSequence empty="true" />
+  <directoryPresets config="./README_INSTALL.TXT" />
+  <application name="TA Forever Client" applicationId="1364-9624-6962-8970" mediaDir="./build/install4j" lzmaCompression="true" pack200Compression="true" shortName="tafclient" publisher="TA Forever" publisherWeb="http://www.taforever.com" version="0.1" allPathsRelative="true" autoSave="true" macVolumeId="e230e730a6fc064c" javaMinVersion="14" javaMaxVersion="14" allowBetaVM="true" jdkMode="jdk">
+    <searchSequence>
+      <registry />
+      <directory location="jre" />
+    </searchSequence>
+    <jreBundles jdkProviderId="AdoptOpenJDK" release="openjdk14/jdk-14.0.2+12" />
   </application>
   <files>
     <roots>
       <root id="506" location="${installer:sys.programDataDir}" />
     </roots>
     <mountPoints>
+      <mountPoint id="884" location="natives" />
       <mountPoint id="23" />
-      <mountPoint id="507" root="506" location="FAForever" />
+      <mountPoint id="885" root="506" location="TAForever" />
     </mountPoints>
     <entries>
       <dirEntry mountPoint="23" file="./build/resources/native" fileMode="755" overrideFileMode="true" entryMode="subdir" subDirectory="natives" />
@@ -21,11 +26,12 @@
           <entry location="faf-uid.exe" />
         </exclude>
       </dirEntry>
+      <fileEntry mountPoint="23" file="README_INSTALL.TXT" />
     </entries>
   </files>
   <launchers>
-    <launcher name="FAF Client" id="25">
-      <executable name="downlords-faf-client" iconSet="true" executableMode="gui" changeWorkingDirectory="false" workingDirectory="bin" singleInstance="true" checkConsoleParameter="true" dpiAware="true" />
+    <launcher name="DownlordsTafClient" id="25" menuName="DownlordsTafClient">
+      <executable name="downlords-taf-client" iconSet="true" executableMode="gui" changeWorkingDirectory="false" workingDirectory="bin" singleInstance="true" checkConsoleParameter="true" dpiAware="true" />
       <splashScreen show="true" width="640" height="400" bitmapFile="./src/media/splash/splash.png" textOverlay="true">
         <text>
           <statusLine x="11" y="378" fontSize="10" fontColor="255,255,255" />
@@ -82,17 +88,17 @@
                   <property name="additionalExecutables" type="array" class="java.io.File" length="3">
                     <element index="0">
                       <object class="java.io.File">
-                        <string>/ForgedAlliance.exe</string>
+                        <string>natives/faf-ice-adapter.jar</string>
                       </object>
                     </element>
                     <element index="1">
                       <object class="java.io.File">
-                        <string>natives/faf-ice-adapter.jar</string>
+                        <string>${installer:sys.installationDir}/jre/bin/java.exe</string>
                       </object>
                     </element>
                     <element index="2">
                       <object class="java.io.File">
-                        <string>${installer:sys.installationDir}/jre/bin/java.exe</string>
+                        <string>natives/gpgnet4ta/gpgnet4ta.exe</string>
                       </object>
                     </element>
                   </property>
@@ -260,19 +266,12 @@ return console.askOkCancel(message, true);
                 <serializedBean>
                   <property name="file">
                     <object class="java.io.File">
-                      <string>downlords-faf-client</string>
+                      <string>downlords-taf-client</string>
                     </object>
                   </property>
                   <property name="name" type="string">${compiler:sys.fullName}</property>
                 </serializedBean>
                 <condition>context.getBooleanVariable("desktopIcon")</condition>
-              </action>
-              <action id="251" beanClass="com.install4j.runtime.beans.actions.desktop.CreateFileAssociationAction" actionElevationType="elevated" rollbackBarrierExitCode="0">
-                <serializedBean>
-                  <property name="description" type="string">Forged Alliance Forever Replay</property>
-                  <property name="extension" type="string">fafreplay</property>
-                  <property name="launcherId" type="string">25</property>
-                </serializedBean>
               </action>
               <action id="424" beanClass="com.install4j.runtime.beans.actions.files.AddWindowsFileRightsAction" actionElevationType="elevated" rollbackBarrierExitCode="0">
                 <serializedBean>
@@ -280,12 +279,31 @@ return console.askOkCancel(message, true);
                   <property name="files" type="array" class="java.io.File" length="1">
                     <element index="0">
                       <object class="java.io.File">
-                        <string>${installer:sys.programDataDir}/FAForever</string>
+                        <string>${installer:sys.programDataDir}/TAForever</string>
                       </object>
                     </element>
                   </property>
                   <property name="read" type="boolean" value="true" />
                   <property name="write" type="boolean" value="true" />
+                </serializedBean>
+              </action>
+              <action id="1009" beanClass="com.install4j.runtime.beans.actions.misc.RunExecutableAction" actionElevationType="elevated" rollbackBarrierExitCode="0">
+                <serializedBean>
+                  <property name="arguments" type="array" elementType="string" length="3">
+                    <element index="0">/install</element>
+                    <element index="1">/passive</element>
+                    <element index="2">/norestart</element>
+                  </property>
+                  <property name="executable">
+                    <object class="java.io.File">
+                      <string>natives/gpgnet4ta/vcredist_x86.exe</string>
+                    </object>
+                  </property>
+                  <property name="workingDirectory">
+                    <object class="java.io.File">
+                      <string>.</string>
+                    </object>
+                  </property>
                 </serializedBean>
               </action>
             </actions>
@@ -338,17 +356,17 @@ return console.askOkCancel(message, true);
                   <property name="additionalExecutables" type="array" class="java.io.File" length="3">
                     <element index="0">
                       <object class="java.io.File">
-                        <string>ForgedAlliance.exe</string>
+                        <string>natives/faf-ice-adapter.jar</string>
                       </object>
                     </element>
                     <element index="1">
                       <object class="java.io.File">
-                        <string>natives/faf-ice-adapter.jar</string>
+                        <string>${installer:sys.installationDir}/jre/bin/java.exe</string>
                       </object>
                     </element>
                     <element index="2">
                       <object class="java.io.File">
-                        <string>${installer:sys.installationDir}/jre/bin/java.exe</string>
+                        <string>natives/gpgnet4ta/gpgnet4ta.exe</string>
                       </object>
                     </element>
                   </property>
@@ -381,7 +399,7 @@ return console.askYesNo(message, true);
               </formComponent>
               <formComponent id="809" beanClass="com.install4j.runtime.beans.formcomponents.CheckboxComponent">
                 <serializedBean>
-                  <property name="helpText" type="string">Deletes C:\ProgramData\FaForever and $USER_HOME$\AppData\Roaming\Forged Alliance Forever</property>
+                  <property name="helpText" type="string">Deletes C:\ProgramData\TAForever and $USER_HOME$\AppData\Roaming\Total Annihilation Forever</property>
                   <property name="labelText" type="string">Delete metadata like settings and game files.</property>
                   <property name="variableName" type="string">delAll</property>
                 </serializedBean>
@@ -396,12 +414,12 @@ return console.askYesNo(message, true);
                   <property name="files" type="array" class="java.io.File" length="2">
                     <element index="0">
                       <object class="java.io.File">
-                        <string>${installer:sys.programDataDir}/FAForever</string>
+                        <string>${installer:sys.programDataDir}/TAForever</string>
                       </object>
                     </element>
                     <element index="1">
                       <object class="java.io.File">
-                        <string>${installer:sys.appdataDir}/Forged Alliance Forever</string>
+                        <string>${installer:sys.appdataDir}/Total Annihilation Forever</string>
                       </object>
                     </element>
                   </property>
@@ -645,32 +663,45 @@ return console.askYesNo(message, true);
         <entry location="lib/faf-uid" />
         <entry location="lib/uid" />
       </exclude>
-      <jreBundle usePack200="false" jreBundleSource="preCreated" includedJre="windows-amd64-15.0.1" directDownload="true" />
+      <jreBundle usePack200="false" jreBundleSource="generated" directDownload="true" />
     </windows>
-    <windowsArchive name="Windows Archive" id="330" installDir="downlords-faf-client-${compiler:sys.version}">
+    <windowsArchive name="Windows Archive" id="330" installDir="downlords-taf-client-${compiler:sys.version}">
       <exclude>
         <entry location="lib/faf-ice-adapter" />
         <entry location="lib/faf-uid" />
       </exclude>
-      <jreBundle jreBundleSource="preCreated" includedJre="windows-amd64-15.0.1" />
+      <jreBundle jreBundleSource="generated" />
     </windowsArchive>
-    <unixArchive name="Unix Archive" id="331" installDir="downlords-faf-client-${compiler:sys.version}">
+    <unixArchive name="Unix Archive" id="331" installDir="downlords-taf-client-${compiler:sys.version}">
       <exclude>
         <entry location="lib/faf-ice-adapter.exe" />
         <entry location="lib/faf-uid.exe" />
       </exclude>
     </unixArchive>
-    <linuxRPM name="Linux RPM" id="332" installDir="/opt/downlords-faf-client-${compiler:sys.version}">
+    <linuxRPM name="Linux RPM" id="332" installDir="/opt/downlords-taf-client-${compiler:sys.version}">
       <exclude>
         <entry location="lib/faf-ice-adapter.exe" />
         <entry location="lib/faf-uid.exe" />
       </exclude>
     </linuxRPM>
-    <linuxDeb name="Linux Deb Archive" id="333" installDir="/opt/downlords-faf-client-${compiler:sys.version}" dependencies="oracle-java8-installer" description="Downlord's FAF Client" maintainerEmail="michel.jung89@gmail.com">
+    <linuxDeb name="Linux Deb Archive" id="333" installDir="/opt/downlords-taf-client-${compiler:sys.version}" dependencies="oracle-java8-installer" description="Downlord's TAF Client" maintainerEmail="michel.jung89@gmail.com">
       <exclude>
         <entry location="lib/faf-ice-adapter.exe" />
         <entry location="lib/faf-uid.exe" />
       </exclude>
     </linuxDeb>
+    <windows name="Windows x86" id="1097" installDir="${compiler:sys.fullName}" jreBitType="32">
+      <exclude>
+        <entry location="lib/faf-uid" />
+        <entry location="lib/uid" />
+      </exclude>
+      <jreBundle usePack200="false" jreBundleSource="generated" directDownload="true" />
+    </windows>
   </mediaSets>
+  <buildIds buildAll="false">
+    <mediaSet refId="26" />
+    <mediaSet refId="331" />
+    <mediaSet refId="1097" />
+  </buildIds>
+  <buildOptions verbose="true" />
 </install4j>
