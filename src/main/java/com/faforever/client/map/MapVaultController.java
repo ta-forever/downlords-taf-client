@@ -64,7 +64,7 @@ public class MapVaultController extends VaultEntityController<MapBean> {
   @Override
   public void initialize() {
     super.initialize();
-    manageVaultButton.setVisible(true);
+    manageVaultButton.setVisible(false);
     manageVaultButton.setText(i18n.get("management.maps.openButton.label"));
     preferencesService.getRemotePreferencesAsync().thenAccept(clientConfiguration ->
         recommendedShowRoomPageCount = clientConfiguration.getRecommendedMaps().size() / TOP_ELEMENT_COUNT)
