@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Locale;
@@ -98,8 +99,8 @@ public class I18n implements InitializingBean {
     try {
       return messageSource.getMessage(key, args, locale);
     } catch (Exception e) {
-      log.error("Could not load message {} with locale {} defaulting to US english", key, locale, e);
-      return messageSource.getMessage(key, args, Locale.US);
+      log.debug("Could not load message {} with locale {} defaulting to US english", key, locale, e);
+      return messageSource.getMessage(key, args, key, Locale.US);
     }
   }
 
@@ -111,7 +112,7 @@ public class I18n implements InitializingBean {
     try {
       return messageSource.getMessage(key, args, defaultMessage, locale);
     } catch (Exception e) {
-      log.error("Could not load message {} with locale {} defaulting to US english", key, locale, e);
+      log.debug("Could not load message {} with locale {} defaulting to US english", key, locale, e);
       return messageSource.getMessage(key, args, defaultMessage, Locale.US);
     }
   }
