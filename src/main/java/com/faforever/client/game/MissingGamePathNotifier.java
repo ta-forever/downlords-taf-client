@@ -1,6 +1,7 @@
 package com.faforever.client.game;
 
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.Action;
 import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.NotificationService;
@@ -24,6 +25,7 @@ public class MissingGamePathNotifier implements InitializingBean {
   private final EventBus eventBus;
   private final I18n i18n;
   private final NotificationService notificationService;
+  private final ModService modService;
 
   @Override
   public void afterPropertiesSet() {
@@ -35,7 +37,7 @@ public class MissingGamePathNotifier implements InitializingBean {
     List<Action> actions = Collections.singletonList(
         new Action(i18n.get("missingGamePath.locate"), chooseEvent -> eventBus.post(new GameDirectoryChooseEvent(event.getModTechnicalName())))
     );
-    String notificationText = i18n.get("missingGamePath.notification");
+    String notificationText = i18n.get("missingGamePath.notification", modService.getFeaturedModDisplayName(event.getModTechnicalName()));
 
     if (event.isImmediateUserActionRequired()) {
       notificationService.addNotification(new ImmediateNotification(notificationText, notificationText, Severity.WARN, actions));

@@ -3,7 +3,6 @@ package com.faforever.client.game;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.preferences.PreferencesService;
-import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.preferences.event.MissingGamePathEvent;
 import com.faforever.client.ui.preferences.event.GameDirectoryChosenEvent;
 import com.google.common.eventbus.EventBus;
@@ -52,7 +51,6 @@ public class GamePathHandler implements InitializingBean {
     this.i18n = i18n;
     this.eventBus = eventBus;
     this.preferencesService = preferencesService;
-
   }
 
   @Override
@@ -65,7 +63,7 @@ public class GamePathHandler implements InitializingBean {
    */
   @Subscribe
   public void onGameDirectoryChosenEvent(GameDirectoryChosenEvent event) {
-    final String baseGameName = event.getBaseGameName();
+    final String modTechnical = event.getModTechnicalName();
     final Path gameExecutablePath = event.getExecutablePath();
     final String commandLineOptions = event.getCommandLineOptions();
 
@@ -93,31 +91,31 @@ public class GamePathHandler implements InitializingBean {
     }
 
     logger.info("Found game at {}", gameExecutablePath);
-    preferencesService.setTotalAnnihilation(baseGameName, gameExecutablePath, commandLineOptions);
+    preferencesService.setTotalAnnihilation(modTechnical, gameExecutablePath, commandLineOptions);
     preferencesService.storeInBackground();
     future.ifPresent(pathCompletableFuture -> pathCompletableFuture.complete(gameExecutablePath));
   }
 
 
-  private void detectGamePath(String baseGameName, String expectedExeName) {
+  private void detectGamePath(String modTechnicalName, String expectedExeName) {
     for (Path path : USUAL_GAME_PATHS) {
       if (path == null) continue;
       Path executable = path.resolve(expectedExeName);
       if (preferencesService.isGameExeValid(executable)) {
-        onGameDirectoryChosenEvent(new GameDirectoryChosenEvent(executable, "", Optional.empty(), baseGameName));
+        onGameDirectoryChosenEvent(new GameDirectoryChosenEvent(executable, "", Optional.empty(), modTechnicalName));
         return;
       }
     }
 
     logger.info("Game path could not be detected");
-    eventBus.post(new MissingGamePathEvent(baseGameName));
+    eventBus.post(new MissingGamePathEvent(modTechnicalName));
   }
 
-  public void detectAndUpdateGamePath(String baseGameName, String hintExeName) {
-    Path taExePath = preferencesService.getTotalAnnihilation(baseGameName).getInstalledExePath();
+  public void detectAndUpdateGamePath(String modTechnicalName, String hintExeName) {
+    Path taExePath = preferencesService.getTotalAnnihilation(modTechnicalName).getInstalledExePath();
     if (taExePath == null || Files.notExists(taExePath)) {
       logger.info("Game path is not specified or non-existent, trying to detect");
-      detectGamePath(baseGameName, hintExeName);
+      detectGamePath(modTechnicalName, hintExeName);
     }
   }
 }

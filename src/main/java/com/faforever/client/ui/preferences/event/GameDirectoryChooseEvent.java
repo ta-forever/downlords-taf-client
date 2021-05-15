@@ -10,21 +10,21 @@ import java.util.concurrent.CompletableFuture;
  * Event to be fired whenever the game directory needs to be set.
  */
 public class GameDirectoryChooseEvent {
-  private final String baseGameName;
+  private final String modTechnicalName;
   private final CompletableFuture<Path> future;
 
-  public GameDirectoryChooseEvent(String baseGameName) {
+  public GameDirectoryChooseEvent(String modTechnicalName) {
     this.future = null;
-    this.baseGameName = baseGameName;
+    this.modTechnicalName = modTechnicalName;
   }
 
-  public GameDirectoryChooseEvent(String baseGameName, @Nullable CompletableFuture<Path> future) {
+  public GameDirectoryChooseEvent(String modTechnicalName, @Nullable CompletableFuture<Path> future) {
     this.future = future;
-    this.baseGameName = baseGameName;
+    this.modTechnicalName = modTechnicalName;
   }
 
   public Optional<CompletableFuture<Path>> getFuture() {
     return Optional.ofNullable(future);
   }
-  public String getBaseGameName() { return baseGameName; }
+  public String getModTechnicalName() { return modTechnicalName; }
 }

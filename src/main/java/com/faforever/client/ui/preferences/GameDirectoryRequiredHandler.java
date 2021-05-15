@@ -20,7 +20,6 @@ import java.io.File;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Path;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 
 @Component
@@ -32,7 +31,6 @@ public class GameDirectoryRequiredHandler implements InitializingBean {
   private final EventBus eventBus;
   private final ModService modService;
   private final I18n i18n;
-  private CompletableFuture<Path> future;
 
   @Override
   public void afterPropertiesSet() {
@@ -42,8 +40,8 @@ public class GameDirectoryRequiredHandler implements InitializingBean {
   @Subscribe
   public void onChooseGameDirectory(GameDirectoryChooseEvent event) {
     JavaFxUtil.runLater(() -> {
-      final String baseGameName = event.getBaseGameName();
-      String displayName = modService.getFeaturedModDisplayName(baseGameName);
+      final String modTechnicalName = event.getModTechnicalName();
+      String displayName = modService.getFeaturedModDisplayName(modTechnicalName);
       Path path;
       {
         FileChooser fileChooser = new FileChooser();
@@ -68,7 +66,7 @@ public class GameDirectoryRequiredHandler implements InitializingBean {
         result.ifPresent(options -> { commandLineOptions[0] = options; });
       }
 
-      eventBus.post(new GameDirectoryChosenEvent(path, commandLineOptions[0], event.getFuture(), event.getBaseGameName()));
+      eventBus.post(new GameDirectoryChosenEvent(path, commandLineOptions[0], event.getFuture(), modTechnicalName));
 
     });
   }
