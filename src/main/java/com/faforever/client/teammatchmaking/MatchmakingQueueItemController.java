@@ -131,14 +131,14 @@ public class MatchmakingQueueItemController implements Controller<VBox> {
   public void onJoinLeaveQueueClicked(ActionEvent actionEvent) {
     if (queue.isJoined()) {
       teamMatchmakingService.leaveQueue(queue);
+      refreshingLabel.setVisible(true);
     } else {
       boolean success = teamMatchmakingService.joinQueue(queue);
+      refreshingLabel.setVisible(success);
       if (!success) {
         joinLeaveQueueButton.setSelected(false);
-        refreshingLabel.setVisible(false);
       }
     }
-    refreshingLabel.setVisible(true);
   }
 
   public void showMapPool(ActionEvent actionEvent) {
