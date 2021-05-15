@@ -33,22 +33,22 @@
                         </padding>
                     </HBox>
                     <ImageView fx:id="playerStatusImageView" HBox.hgrow="ALWAYS" visible="false"/>
-                    <Label fx:id="uefLabel" styleClass="faction-indicator" alignment="BOTTOM_CENTER" >
+                    <Label fx:id="uefLabel" styleClass="faction-indicator" alignment="BOTTOM_CENTER" visible="false" managed="false">
                         <graphic>
                             <Region styleClass="icon, uef-icon" />
                         </graphic>
                     </Label>
-                    <Label fx:id="cybranLabel" styleClass="faction-indicator" alignment="BOTTOM_CENTER" >
+                    <Label fx:id="cybranLabel" styleClass="faction-indicator" alignment="BOTTOM_CENTER" visible="false" managed="false">
                         <graphic>
                             <Region styleClass="icon, cybran-icon" />
                         </graphic>
                     </Label>
-                    <Label fx:id="aeonLabel" styleClass="faction-indicator" alignment="BOTTOM_CENTER" >
+                    <Label fx:id="aeonLabel" styleClass="faction-indicator" alignment="BOTTOM_CENTER" visible="false" managed="false">
                         <graphic>
                             <Region styleClass="icon, aeon-icon" />
                         </graphic>
                     </Label>
-                    <Label fx:id="seraphimLabel" styleClass="faction-indicator" alignment="BOTTOM_CENTER" >
+                    <Label fx:id="seraphimLabel" styleClass="faction-indicator" alignment="BOTTOM_CENTER" visible="false" managed="false">
                         <graphic>
                             <Region styleClass="icon, seraphim-icon" />
                         </graphic>

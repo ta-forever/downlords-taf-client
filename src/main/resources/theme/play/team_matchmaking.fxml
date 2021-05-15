@@ -75,28 +75,28 @@
                                     </HBox>
                                 </children>
                             </VBox>
-                            <ToggleButton fx:id="uefButton" mnemonicParsing="false"
+                            <ToggleButton fx:id="uefButton" mnemonicParsing="false" visible="false" managed="false"
                                           styleClass="faction-button, tmm, uef"
                                           onAction="#onFactionButtonClicked" selected="true">
                                 <graphic>
                                     <Region styleClass="uef-icon"/>
                                 </graphic>
                             </ToggleButton>
-                            <ToggleButton fx:id="cybranButton" mnemonicParsing="false"
+                            <ToggleButton fx:id="cybranButton" mnemonicParsing="false" visible="false" managed="false"
                                           styleClass="faction-button, tmm, cybran"
                                           onAction="#onFactionButtonClicked" selected="true">
                                 <graphic>
                                     <Region styleClass="cybran-icon"/>
                                 </graphic>
                             </ToggleButton>
-                            <ToggleButton fx:id="aeonButton" mnemonicParsing="false"
+                            <ToggleButton fx:id="aeonButton" mnemonicParsing="false" visible="false" managed="false"
                                           styleClass="faction-button, tmm, aeon"
                                           onAction="#onFactionButtonClicked" selected="true">
                                 <graphic>
                                     <Region styleClass="aeon-icon"/>
                                 </graphic>
                             </ToggleButton>
-                            <ToggleButton fx:id="seraphimButton" mnemonicParsing="false"
+                            <ToggleButton fx:id="seraphimButton" mnemonicParsing="false" visible="false" managed="false"
                                           styleClass="faction-button, tmm, seraphim"
                                           onAction="#onFactionButtonClicked" selected="true">
                                 <graphic>
@@ -137,7 +137,7 @@
                     </GridPane>
                     <Separator/>
                     <Label fx:id="queueHeadingLabel" styleClass="h1-tmm" text="%teammatchmaking.queueTitle"/>
-                    <HBox fx:id="queueBox" spacing="12.0"/>
+                    <VBox fx:id="queueBox" spacing="12.0"/>
                 </children>
                 <padding>
                     <Insets bottom="5.0" left="20.0" right="20.0" top="23.0"/>
