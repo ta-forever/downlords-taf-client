@@ -172,7 +172,6 @@ public class MapDetailController implements Controller<Node> {
     authorLabel.setText(Optional.ofNullable(map.getAuthor()).orElse(i18n.get("map.unknownAuthor")));
     maxPlayersLabel.setText(i18n.number(map.getPlayers()));
     mapIdLabel.setText("ID: " + i18n.get("map.id", map.getId()));
-    mapVersionLabel.setText("Version: " + map.getVersion().toString());
     mapCrcLabel.setText("CRC32: " + map.getCrc());
     mapHpiArchiveNameLabel.setText("Map Pack: " + map.getHpiArchiveName());
 
@@ -215,7 +214,7 @@ public class MapDetailController implements Controller<Node> {
         .map(FaStrings::removeLocalizationTag)
         .orElseGet(() -> i18n.get("map.noDescriptionAvailable")));
     if (map.getVersion() != null) {
-      mapVersionLabel.setText(map.getVersion().toString());
+      mapVersionLabel.setText(i18n.get("map.version") + ": " + map.getVersion().toString());
     }
 
 
