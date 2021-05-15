@@ -14,7 +14,6 @@ import com.faforever.client.notification.DismissAction;
 import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.Severity;
-import com.faforever.client.notification.TransientNotification;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
@@ -55,7 +54,6 @@ import org.springframework.stereotype.Service;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -70,13 +68,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_ARCHIVE;
@@ -86,7 +82,6 @@ import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_SIZE;
 import static com.github.nocatch.NoCatch.noCatch;
 import static com.google.common.net.UrlEscapers.urlFragmentEscaper;
 import static java.lang.String.format;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
@@ -675,18 +670,17 @@ public class MapService implements InitializingBean, DisposableBean {
 
   @SneakyThrows()
   @NotNull
-  @Cacheable(value = CacheNames.MAP_PREVIEW, condition = "#previewType.getDisplayName().equals('Minimap')")// && #result != null && !#result.isError()")
+  @Cacheable(value = CacheNames.MAP_PREVIEW)
   public Image loadPreview(String modTechnicalName, String mapName, PreviewType previewType, int maxPositions) {
     return loadPreview(modTechnicalName, mapName, getPreviewUrl(mapName, mapPreviewUrlFormat, previewType), previewType, maxPositions);
   }
 
-  @Cacheable(value = CacheNames.MAP_PREVIEW, condition = "#previewType.getDisplayName().equals('Minimap')")// && #result != null && !#result.isError()")
-  public Image loadPreview(String modTechnical, MapBean map, PreviewType previewType, int maxNumPlayers) {
+  @Cacheable(value = CacheNames.MAP_PREVIEW)
+  public Image loadPreview(String modTechnical, MapBean map, PreviewType previewType, int maxPositions) {
     URL url = map.getThumbnailUrl();
-    return loadPreview(modTechnical, map.getMapName(), url, previewType, maxNumPlayers);
+    return loadPreview(modTechnical, map.getMapName(), url, previewType, maxPositions);
   }
 
-  @Cacheable(value = CacheNames.MAP_PREVIEW, condition = "#previewType.getDisplayName().equals('Minimap')")// && #result != null && !#result.isError()")
   private Image loadPreview(String modTechnical, String mapName, URL url, PreviewType previewType, int maxPositions) {
 
     String urlString = url.toString();
@@ -701,6 +695,26 @@ public class MapService implements InitializingBean, DisposableBean {
     return im;
   }
 
+  @CacheEvict(value = CacheNames.MAP_PREVIEW, allEntries = true)
+  public void resetPreviews(String mapName) {
+    for (PreviewType previewType: PreviewType.values()) {
+      for (int maxPositions=2; maxPositions<=10; ++maxPositions) {
+        resetPreview(getPreviewUrl(mapName, mapPreviewUrlFormat, previewType), previewType, maxPositions);
+      }
+    }
+  }
+
+  private void resetPreview(URL url, PreviewType previewType, int maxPositions) {
+    String urlString = url.toString();
+    String cachedFilename = urlString.substring(urlString.lastIndexOf('/') + 1);
+    Path cacheSubFolder = Paths.get("maps").resolve(previewType.getFolderName(maxPositions));
+    Path cachedFile = preferencesService.getCacheDirectory().resolve(cacheSubFolder).resolve(cachedFilename);
+    try {
+      Files.deleteIfExists(cachedFile);
+    } catch (IOException e) {
+      logger.error("Unable to delete cached preview {}", cachedFile);
+    }
+  }
 
   public CompletableFuture<Void> uninstallMap(String modTechnicalName, String mapName, String mapCrc) {
     if (isOfficialMap(mapName)) {

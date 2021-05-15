@@ -94,7 +94,7 @@
 
             <Separator GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS"/>
             <StackPane>
-                <Pane fx:id="mapPreviewPane" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
+                <Pane fx:id="mapPreviewPane" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" onMouseClicked="#onMapAPreviewPaneClicked"
                       styleClass="map-preview" prefHeight="360"/>
             </StackPane>
             <HBox alignment="CENTER" spacing="10.0">

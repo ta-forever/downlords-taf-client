@@ -41,12 +41,15 @@ import javafx.event.ActionEvent;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundImage;
 import javafx.scene.layout.BackgroundSize;
@@ -615,5 +618,20 @@ public class CreateGameController implements Controller<Pane> {
       modTechnicalName = featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName();
     }
     eventBus.post(new GameDirectoryChooseEvent(modTechnicalName));
+  }
+
+  public void onMapAPreviewPaneClicked(MouseEvent mouseEvent) {
+    ContextMenu contextMenu = new ContextMenu();
+    MenuItem menuItem = new MenuItem();
+    menuItem.setText("Update preview");
+    menuItem.setOnAction((param) -> {
+      mapService.resetPreviews(mapListView.getSelectionModel().getSelectedItem().getMapName());
+      setSelectedMap(
+          mapListView.getSelectionModel().getSelectedItem(),
+          mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(),
+          mapPreviewMaxPositionsComboBox.getSelectionModel().getSelectedItem());
+    });
+    contextMenu.getItems().add(menuItem);
+    contextMenu.show(this.getRoot().getScene().getWindow(), mouseEvent.getScreenX(), mouseEvent.getScreenY());
   }
 }
