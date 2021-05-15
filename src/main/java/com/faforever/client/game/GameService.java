@@ -613,7 +613,6 @@ public class GameService implements InitializingBean {
 
     log.info("Matchmaking search has been started");
     inMatchmakerQueue.set(true);
-    String inGameIrcUrl = getInGameIrcUrl(getCurrentPlayer().getUsername());
 
     return
         modService.getFeaturedMod(modTechnical)
@@ -626,7 +625,7 @@ public class GameService implements InitializingBean {
               gameLaunchMessage.getArgs().add("/team " + gameLaunchMessage.getTeam());
               gameLaunchMessage.getArgs().add("/players " + gameLaunchMessage.getExpectedPlayers());
               gameLaunchMessage.getArgs().add("/startspot " + gameLaunchMessage.getMapPosition());
-              startGame(gameLaunchMessage, inGameIrcUrl, true);
+              startGame(gameLaunchMessage, null, true);
             }))
         .exceptionally(throwable -> {
           if (throwable.getCause() instanceof CancellationException) {
