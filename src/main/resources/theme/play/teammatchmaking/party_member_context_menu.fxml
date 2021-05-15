@@ -25,7 +25,7 @@
       <MenuItem fx:id="reportItem" mnemonicParsing="false" onAction="#onReport" text="%chat.userContext.report"
                 visible="false"/>
     <SeparatorMenuItem mnemonicParsing="false" />
-      <MenuItem fx:id="viewReplaysItem" mnemonicParsing="false" onAction="#onViewReplaysSelected"
+      <MenuItem fx:id="viewReplaysItem" disable="true" mnemonicParsing="false" onAction="#onViewReplaysSelected"
                 text="%chat.userContext.viewReplays"/>
   </items>
 </ContextMenu>
