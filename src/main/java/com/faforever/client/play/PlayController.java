@@ -8,6 +8,7 @@ import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.main.event.OpenCoopEvent;
 import com.faforever.client.main.event.OpenCustomGamesEvent;
 import com.faforever.client.main.event.OpenTeamMatchmakingEvent;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.teammatchmaking.TeamMatchmakingController;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -27,6 +28,7 @@ public class PlayController extends AbstractViewController<Node> {
   private static final PseudoClass UNREAD_PSEUDO_STATE = PseudoClass.getPseudoClass("unread");
 
   private final EventBus eventBus;
+  private final PreferencesService preferencesService;
   public Node playRoot;
   public Tab teamMatchmakingTab;
   public Tab customGamesTab;
@@ -39,15 +41,32 @@ public class PlayController extends AbstractViewController<Node> {
   private AbstractViewController<?> lastTabController;
   private Tab lastTab;
 
-  public PlayController(EventBus eventBus) {
+  public PlayController(EventBus eventBus, PreferencesService preferencesService) {
     this.eventBus = eventBus;
+    this.preferencesService = preferencesService;
   }
 
   @Override
   public void initialize() {
     eventBus.register(this);
-    lastTab = teamMatchmakingTab;
-    lastTabController = teamMatchmakingController;
+
+    String preferencesLastPlayTab = preferencesService.getPreferences().getLastPlayTab();
+    if (preferencesLastPlayTab == null) {
+      lastTab = teamMatchmakingTab;
+      lastTabController = teamMatchmakingController;
+    }
+    else if (preferencesLastPlayTab.equals(customGamesTab.getText())) {
+      lastTab = customGamesTab;
+      lastTabController = customGamesController;
+    }
+    else if (preferencesLastPlayTab.equals(teamMatchmakingTab.getText())) {
+      lastTab = teamMatchmakingTab;
+      lastTabController = teamMatchmakingController;
+    } else {
+      lastTab = teamMatchmakingTab;
+      lastTabController = teamMatchmakingController;
+    }
+
     playRootTabPane.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
       if (isHandlingEvent) {
         return;
@@ -81,6 +100,10 @@ public class PlayController extends AbstractViewController<Node> {
       }
       playRootTabPane.getSelectionModel().select(lastTab);
       lastTabController.display(navigateEvent);
+
+      preferencesService.getPreferences().setLastPlayTab(lastTab.getText());
+      preferencesService.storeInBackground();
+
     } finally {
       isHandlingEvent = false;
     }

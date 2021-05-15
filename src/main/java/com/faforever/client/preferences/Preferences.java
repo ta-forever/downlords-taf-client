@@ -59,6 +59,7 @@ public class Preferences {
   // end TA options
   private final ListProperty<String> ignoredNotifications;
   private final StringProperty gamesViewMode;
+  private final StringProperty lastPlayTab; // matchmaker or custom
   private final ListProperty<Pair<String, SortType>> gameListSorting;
   private final ObjectProperty<TilesSortingOrder> gameTileSortingOrder;
   private final ObjectProperty<UnitDataBaseType> unitDataBaseType;
@@ -85,6 +86,7 @@ public class Preferences {
     notification = new NotificationsPrefs();
     matchmaker = new MatchmakerPrefs();
     gamesViewMode = new SimpleStringProperty();
+    lastPlayTab = new SimpleStringProperty();
     news = new NewsPrefs();
     developer = new DeveloperPrefs();
     gameListSorting = new SimpleListProperty<>(observableArrayList());
@@ -144,6 +146,18 @@ public class Preferences {
 
   public StringProperty gamesViewModeProperty() {
     return gamesViewMode;
+  }
+
+  public String getLastPlayTab() {
+    return lastPlayTab.get();
+  }
+
+  public void setLastPlayTab(String lastPlayTab) {
+    this.lastPlayTab.set(lastPlayTab);
+  }
+
+  public StringProperty lastPlayTabProperty() {
+    return lastPlayTab;
   }
 
   public WindowPrefs getMainWindow() {
