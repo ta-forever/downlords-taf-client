@@ -77,7 +77,6 @@ public class CustomGamesController extends AbstractViewController<Node> {
   public CheckBox showPasswordProtectedGamesCheckBox;
   private final ChangeListener<Boolean> filterConditionsChangedListener = (observable, oldValue, newValue) -> updateFilteredItems();
   private GamesTilesContainerController gamesTilesContainerController;
-  private final ChangeListener<Game> gameChangeListener;
 
   private Dialog createGameDialog;
   private CreateGameController createGameController;
@@ -90,8 +89,6 @@ public class CustomGamesController extends AbstractViewController<Node> {
     this.modService = modService;
     this.eventBus = eventBus;
     this.i18n = i18n;
-
-    gameChangeListener = (observable, oldValue, newValue) -> setSelectedGame(newValue);
   }
 
   public void initialize() {
@@ -149,8 +146,6 @@ public class CustomGamesController extends AbstractViewController<Node> {
 
     JavaFxUtil.bind(gameDetailPane.visibleProperty(), toggleGameDetailPaneButton.selectedProperty());
     JavaFxUtil.bind(gameDetailPane.managedProperty(), gameDetailPane.visibleProperty());
-
-    setSelectedGame(null);
 
     toggleGameDetailPaneButton.selectedProperty().addListener(observable -> {
       preferencesService.getPreferences().setShowGameDetailsSidePane(toggleGameDetailPaneButton.isSelected());
@@ -235,10 +230,10 @@ public class CustomGamesController extends AbstractViewController<Node> {
     if (gamesTableController == null) {
       gamesTableController = uiService.loadFxml("theme/play/games_table.fxml");
       gamesTableController.selectedGameProperty().addListener((observable, oldValue, newValue) -> setSelectedGame(newValue));
-    gamesTableController.initializeGameTable(filteredItems);
+      gamesTableController.initializeGameTable(filteredItems);
 
-    Node root = gamesTableController.getRoot();
-    populateContainer(root);
+      Node root = gamesTableController.getRoot();
+      populateContainer(root);
     }
     else {
       gameViewContainer.getChildren().setAll(gamesTableController.getRoot());
@@ -257,11 +252,10 @@ public class CustomGamesController extends AbstractViewController<Node> {
   public void onTilesButtonClicked() {
     if (gamesTilesContainerController == null) {
       gamesTilesContainerController = uiService.loadFxml("theme/play/games_tiles_container.fxml");
-      JavaFxUtil.addListener(gamesTilesContainerController.selectedGameProperty(), new WeakChangeListener<>(gameChangeListener));
-
-    Node root = gamesTilesContainerController.getRoot();
-    populateContainer(root);
-    gamesTilesContainerController.createTiledFlowPane(filteredItems, chooseSortingTypeChoiceBox);
+      Node root = gamesTilesContainerController.getRoot();
+      populateContainer(root);
+      gamesTilesContainerController.selectedGameProperty().addListener((observable, oldValue, newValue) -> setSelectedGame(newValue));
+      gamesTilesContainerController.createTiledFlowPane(filteredItems, chooseSortingTypeChoiceBox);
     }
     else {
       gameViewContainer.getChildren().setAll(gamesTilesContainerController.getRoot());

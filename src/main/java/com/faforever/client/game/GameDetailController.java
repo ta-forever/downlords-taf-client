@@ -158,7 +158,6 @@ public class GameDetailController implements Controller<Pane> {
     mapImageView.visibleProperty().bind(game.isNotNull());
     gameTypeLabel.visibleProperty().bind(game.isNotNull());
 
-    setGame(null);
     if (playerService.getCurrentPlayer().isPresent()) {
       updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
     }
@@ -214,15 +213,16 @@ public class GameDetailController implements Controller<Pane> {
   }
 
   public void setGame(Game game) {
+    if (game == null) {
+      return;
+    }
+
     Optional.ofNullable(this.game.get()).ifPresent(oldGame -> {
       Optional.ofNullable(weakThisGameTeamsListener).ifPresent(listener -> oldGame.getTeams().removeListener(listener));
       Optional.ofNullable(weakThisGameStatusListener).ifPresent(listener -> oldGame.statusProperty().removeListener(listener));
     });
 
     this.game.set(game);
-    if (game == null) {
-      return;
-    }
 
     gameTitleLabel.textProperty().bind(game.titleProperty());
     hostLabel.textProperty().bind(game.hostProperty());
