@@ -113,7 +113,6 @@ public class MainController implements Controller<Node> {
   private final ApplicationEventPublisher applicationEventPublisher;
   private final String mainWindowTitle;
   private final boolean alwaysReloadTabs;
-  DiscordSelectionMenuController discordSelectionMenuController;
 
   public Pane mainHeaderPane;
   public Pane contentPane;
@@ -133,7 +132,6 @@ public class MainController implements Controller<Node> {
   public Pane leftMenuPane;
   public Pane rightMenuPane;
   public Button notificationButton;
-  public Button discordButton;
   /** Dropdown for when there is not enough room for all navigation buttons to be displayed. */
   public MenuButton navigationDropdown;
 
@@ -236,12 +234,15 @@ public class MainController implements Controller<Node> {
       });
     });
 
-    discordSelectionMenuController = uiService.loadFxml("theme/discord_selection_menu.fxml");
+    leftMenuPane.getChildrenUnmodifiable().stream()
+        .filter(menuItem -> menuItem.getUserData() instanceof NavigationItem)
+        .forEach(menuItem -> menuItem.managedProperty().bind(menuItem.disabledProperty().not()));
   }
 
   private List<MenuItem> createMenuItemsFromNavigation() {
     return leftMenuPane.getChildrenUnmodifiable().stream()
         .filter(menuItem -> menuItem.getUserData() instanceof NavigationItem)
+        .filter(menuItem -> !menuItem.isDisabled() && menuItem.isVisible())
         .map(menuButton -> {
           MenuItem menuItem = new MenuItem(((Labeled) menuButton).getText());
           menuItem.setOnAction(event -> eventBus.post(new NavigateEvent((NavigationItem) menuButton.getUserData())));
@@ -603,10 +604,6 @@ public class MainController implements Controller<Node> {
 
   public void setFxStage(FxStage fxWindow) {
     this.fxStage = fxWindow;
-  }
-
-  public void onDiscordButtonClicked(MouseEvent event) {
-    discordSelectionMenuController.getContextMenu().show(mainRoot.getScene().getWindow(), event.getScreenX(), event.getScreenY());
   }
 
   public class ToastDisplayer implements InvalidationListener {

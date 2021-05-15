@@ -31,7 +31,7 @@ public class DiscordSelectionMenuController implements Controller<ContextMenu> {
   }
 
   public void initialize() {
-    menuItems = new ArrayList<MenuItem>();
+    menuItems = new ArrayList<>();
     List<DiscordServer> discordServers = this.clientProperties.getDiscord().getServers();
     Collections.shuffle(discordServers);
     for (DiscordServer server: discordServers) {
@@ -45,7 +45,7 @@ public class DiscordSelectionMenuController implements Controller<ContextMenu> {
     applicationEventPublisher.publishEvent(new JoinDiscordEvent(url));
   }
 
-  ContextMenu getContextMenu() {
+  public ContextMenu getContextMenu() {
     return discordSelectionContextMenu;
   }
 
