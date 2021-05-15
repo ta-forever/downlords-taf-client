@@ -33,6 +33,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.transformation.FilteredList;
 import javafx.css.PseudoClass;
@@ -171,14 +172,11 @@ public class CreateGameController implements Controller<Pane> {
       }
     });
 
-    mapPreviewTypeComboBox.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-      setSelectedMap(mapListView.getSelectionModel().getSelectedItem(), newValue, mapPreviewMaxPositionsComboBox.getSelectionModel().getSelectedItem());
-    });
-    mapPreviewMaxPositionsComboBox.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-      setSelectedMap(mapListView.getSelectionModel().getSelectedItem(), mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(), newValue);
-    });
+    mapPreviewTypeComboBox.getSelectionModel().selectedItemProperty().addListener(
+        (observable, oldValue, newValue) -> setSelectedMap(mapListView.getSelectionModel().getSelectedItem(), newValue, mapPreviewMaxPositionsComboBox.getSelectionModel().getSelectedItem()));
+    mapPreviewMaxPositionsComboBox.getSelectionModel().selectedItemProperty().addListener(
+        (observable, oldValue, newValue) -> setSelectedMap(mapListView.getSelectionModel().getSelectedItem(), mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(), newValue));
 
-    mapPreviewPane.prefHeightProperty().bind(mapPreviewPane.widthProperty());
     mapSearchTextField.textProperty().addListener((observable, oldValue, newValue) -> {
       if (newValue.isEmpty()) {
         filteredMapBeans.setPredicate(null);
@@ -208,34 +206,8 @@ public class CreateGameController implements Controller<Pane> {
       mapListView.scrollTo(newMapIndex);
     });
 
-    Function<FeaturedMod, String> isDefaultModString = mod ->
-        Objects.equals(mod.getTechnicalName(), KnownFeaturedMod.DEFAULT.getTechnicalName()) ?
-            " " + i18n.get("game.create.defaultGameTypeMarker") : null;
-
-    featuredModListView.setCellFactory(param ->
-        new DualStringListCell<>(
-            FeaturedMod::getDisplayName,
-            isDefaultModString,
-            FeaturedMod::getDescription,
-            STYLE_CLASS_DUAL_LIST_CELL, uiService
-        )
-    );
-
     JavaFxUtil.makeNumericTextField(minRankingTextField, MAX_RATING_LENGTH, true);
     JavaFxUtil.makeNumericTextField(maxRankingTextField, MAX_RATING_LENGTH, true);
-
-    modService.getFeaturedMods().thenAccept(featuredModBeans -> JavaFxUtil.runLater(() -> {
-      featuredModListView.setItems(FXCollections.observableList(featuredModBeans).filtered(FeaturedMod::isVisible));
-      featuredModListView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> JavaFxUtil.runLater(() -> {
-        setAvailableMaps(newValue.getTechnicalName());
-        Path installedExePath = preferencesService.getTotalAnnihilation(newValue.getTechnicalName()).getInstalledExePath();
-        setGamePathButton.setStyle(installedExePath == null || !Files.isExecutable(installedExePath)
-            ? "-fx-background-color: -fx-accent"
-            : "-fx-background-color: -fx-background");
-        selectAppropriateMap();
-      }));
-      selectLastOrDefaultGameType();
-    }));
 
     final String activeMod;
     if (featuredModListView.getFocusModel().getFocusedItem() == null) {
@@ -305,6 +277,7 @@ public class CreateGameController implements Controller<Pane> {
     selectAppropriateMap();
     setLastGameTitle();
     initPassword();
+
     titleTextField.textProperty().addListener((observable, oldValue, newValue) -> {
       preferencesService.getPreferences().getLastGame().setLastGameTitle(newValue);
       preferencesService.storeInBackground();
@@ -337,6 +310,15 @@ public class CreateGameController implements Controller<Pane> {
     maxRankingTextField.disableProperty().bind(updateGameButton.visibleProperty());
   }
 
+  public void sever() {
+    createGameButton.textProperty().unbind();
+    updateGameButton.textProperty().unbind();
+    validatedButtonsDisableProperty.unbind();
+    interactionLevelProperty.unbind();
+    onlyForFriendsCheckBox.selectedProperty().unbind();
+    enforceRankingCheckBox.selectedProperty().unbind();
+  }
+
   private void validateTitle(String gameTitle) {
     titleTextField.pseudoClassStateChanged(PSEUDO_CLASS_INVALID, Strings.isNullOrEmpty(gameTitle));
   }
@@ -363,11 +345,13 @@ public class CreateGameController implements Controller<Pane> {
   protected void initMapSelection(String modTechnical) {
     setAvailableMaps(modTechnical);
     mapListView.setCellFactory(param -> new StringListCell<>(MapBean::getMapName));
-    mapListView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> JavaFxUtil.runLater(() -> {
+    ChangeListener<MapBean> selectedMapChangeListener = (observable, oldValue, newValue) -> JavaFxUtil.runLater(() -> {
       PreviewType previewType = mapPreviewTypeComboBox.getSelectionModel().getSelectedItem();
       Integer maxPositions = mapPreviewMaxPositionsComboBox.getSelectionModel().getSelectedItem();
       setSelectedMap(newValue, previewType, maxPositions);
-    }));
+    });
+    mapListView.getSelectionModel().selectedItemProperty().addListener(selectedMapChangeListener);
+    selectedMapChangeListener.changed(null, null, mapListView.getSelectionModel().selectedItemProperty().getValue());
   }
 
   protected void setAvailableMaps(String modTechnical) {
@@ -396,10 +380,12 @@ public class CreateGameController implements Controller<Pane> {
     preferencesService.getPreferences().getLastGame().setLastMap(newValue.getMapName());
     preferencesService.storeInBackground();
 
-    String activeMod = KnownFeaturedMod.DEFAULT.getTechnicalName();
-    if (featuredModListView.getFocusModel().getFocusedItem() != null)
-    {
+    String activeMod;
+    if (featuredModListView.getFocusModel().getFocusedItem() != null) {
       activeMod = featuredModListView.getFocusModel().getFocusedItem().getTechnicalName();
+    }
+    else {
+      activeMod = preferencesService.getPreferences().getLastGame().getLastGameType();
     }
 
     Image preview = mapService.loadPreview(activeMod, newValue.getMapName(), previewType, maxNumPlayers);
@@ -426,10 +412,33 @@ public class CreateGameController implements Controller<Pane> {
   }
 
   private void initFeaturedModList() {
-    featuredModListView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-      preferencesService.getPreferences().getLastGame().setLastGameType(newValue.getTechnicalName());
-      preferencesService.storeInBackground();
-    });
+    Function<FeaturedMod, String> isDefaultModString = mod ->
+        Objects.equals(mod.getTechnicalName(), KnownFeaturedMod.DEFAULT.getTechnicalName()) ?
+            " " + i18n.get("game.create.defaultGameTypeMarker") : null;
+
+    featuredModListView.setCellFactory(param ->
+        new DualStringListCell<>(
+            FeaturedMod::getDisplayName,
+            isDefaultModString,
+            FeaturedMod::getDescription,
+            STYLE_CLASS_DUAL_LIST_CELL, uiService
+        )
+    );
+
+    modService.getFeaturedMods().thenAccept(featuredModBeans -> JavaFxUtil.runLater(() -> {
+      featuredModListView.setItems(FXCollections.observableList(featuredModBeans).filtered(FeaturedMod::isVisible));
+      featuredModListView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> JavaFxUtil.runLater(() -> {
+        setAvailableMaps(newValue.getTechnicalName());
+        Path installedExePath = preferencesService.getTotalAnnihilation(newValue.getTechnicalName()).getInstalledExePath();
+        setGamePathButton.setStyle(installedExePath == null || !Files.isExecutable(installedExePath)
+            ? "-fx-background-color: -fx-accent"
+            : "-fx-background-color: -fx-background");
+        selectAppropriateMap();
+        preferencesService.getPreferences().getLastGame().setLastGameType(newValue.getTechnicalName());
+        preferencesService.storeInBackground();
+      }));
+      selectLastOrDefaultGameType();
+    }));
   }
 
   private void initRatingBoundaries() {
@@ -453,7 +462,6 @@ public class CreateGameController implements Controller<Pane> {
       preferencesService.getPreferences().getLastGame().setLastGameMinRating(minRating);
       preferencesService.storeInBackground();
     });
-
     maxRankingTextField.textProperty().addListener((observable, oldValue, newValue) -> {
       Integer maxRating = null;
       if (!newValue.isEmpty()) {
@@ -602,10 +610,10 @@ public class CreateGameController implements Controller<Pane> {
   }
 
   public void onSetGamePathClicked(ActionEvent actionEvent) {
-    String modTechnical = KnownFeaturedMod.DEFAULT.getTechnicalName();
+    String modTechnicalName = KnownFeaturedMod.DEFAULT.getTechnicalName();
     if (featuredModListView.getSelectionModel().getSelectedItem() != null) {
-      modTechnical = featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName();
+      modTechnicalName = featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName();
     }
-    eventBus.post(new GameDirectoryChooseEvent(modTechnical));
+    eventBus.post(new GameDirectoryChooseEvent(modTechnicalName));
   }
 }

@@ -6,6 +6,7 @@ import com.faforever.client.game.GamesTilesContainerController.TilesSortingOrder
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.HostGameEvent;
 import com.faforever.client.main.event.NavigateEvent;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.dialog.Dialog;
@@ -50,6 +51,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
   private final UiService uiService;
   private final GameService gameService;
   private final PreferencesService preferencesService;
+  private final ModService modService;
   private final EventBus eventBus;
   private final I18n i18n;
 
@@ -77,11 +79,15 @@ public class CustomGamesController extends AbstractViewController<Node> {
   private GamesTilesContainerController gamesTilesContainerController;
   private final ChangeListener<Game> gameChangeListener;
 
-  public CustomGamesController(UiService uiService, GameService gameService, PreferencesService preferencesService,
+  private Dialog createGameDialog;
+  private CreateGameController createGameController;
+
+  public CustomGamesController(UiService uiService, GameService gameService, PreferencesService preferencesService, ModService modService,
                                EventBus eventBus, I18n i18n) {
     this.uiService = uiService;
     this.gameService = gameService;
     this.preferencesService = preferencesService;
+    this.modService = modService;
     this.eventBus = eventBus;
     this.i18n = i18n;
 
@@ -188,11 +194,14 @@ public class CustomGamesController extends AbstractViewController<Node> {
       CompletableFuture<Path> gameDirectoryFuture = new CompletableFuture<>();
       eventBus.post(new GameDirectoryChooseEvent(KnownFeaturedMod.DEFAULT.getTechnicalName(), gameDirectoryFuture));
       gameDirectoryFuture.thenAccept(path -> Optional.ofNullable(path).ifPresent(path1 -> onCreateGame(mapFolderName, contextGame)));
+
       return;
     }
 
-    CreateGameController createGameController = uiService.loadFxml("theme/play/create_game.fxml");
-    createGameController.setGamesRoot(gamesRoot);
+    if (createGameController == null) {
+      createGameController = uiService.loadFxml("theme/play/create_game.fxml");
+      createGameController.setGamesRoot(gamesRoot);
+    }
     createGameController.setContextGame(contextGame);
 
     if (mapFolderName != null && !createGameController.selectMap(mapFolderName)) {
@@ -210,8 +219,10 @@ public class CustomGamesController extends AbstractViewController<Node> {
         title = i18n.get("games.browseMaps");
         break;
     }
-    Dialog dialog = uiService.showInDialog(gamesRoot, root, title);
-    createGameController.setOnCloseButtonClickedListener(dialog::close);
+    createGameDialog = uiService.showInDialog(gamesRoot, root, title);
+    createGameController.setOnCloseButtonClickedListener(() -> {
+      createGameDialog.close();
+    });
 
     root.requestFocus();
   }
