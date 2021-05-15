@@ -12,7 +12,6 @@ import com.faforever.client.player.PlayerOnlineEvent;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.SocialStatus;
 import com.faforever.client.player.UserOfflineEvent;
-import com.faforever.client.player.event.CurrentPlayerInfo;
 import com.faforever.client.preferences.ChatPrefs;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
@@ -91,8 +90,6 @@ import static javafx.collections.FXCollections.observableMap;
 @RequiredArgsConstructor
 public class KittehChatService implements ChatService, InitializingBean, DisposableBean {
 
-  public static final int MAX_GAMES_FOR_NEWBIE_CHANNEL = 50;
-  private static final String NEWBIE_CHANNEL_NAME = "#newbie";
   private static final Set<Character> MODERATOR_PREFIXES = Set.of('~', '&', '@', '%');
   private final ChatUserService chatUserService;
   private final PreferencesService preferencesService;
@@ -228,14 +225,6 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   public void onLoggedOutEvent(LoggedOutEvent event) {
     disconnect();
     eventBus.post(UpdateApplicationBadgeEvent.ofNewValue(0));
-  }
-
-  @Subscribe
-  public void onCurrentPlayerInfo(CurrentPlayerInfo currentPlayerInfo) {
-    if (!newbieChannelJoined && currentPlayerInfo.getCurrentPlayer().getNumberOfGames() < MAX_GAMES_FOR_NEWBIE_CHANNEL) {
-      joinChannel(NEWBIE_CHANNEL_NAME);
-    }
-    newbieChannelJoined = true;
   }
 
   @Subscribe
