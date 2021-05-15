@@ -149,7 +149,7 @@ public class ChatUserService implements InitializingBean {
       default -> null;
     };
     Image mapImage;
-    if (status != PlayerStatus.IDLE) {
+    if (status != PlayerStatus.IDLE && player.getGame() != null) {
       String modTechnical = player.getGame().getFeaturedMod();
       String mapName = player.getGame().getMapName();
       mapImage = mapService.loadPreview(modTechnical, mapName, PreviewType.MINI, 10);
