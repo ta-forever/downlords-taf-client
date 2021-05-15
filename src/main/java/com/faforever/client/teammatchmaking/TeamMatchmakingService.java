@@ -149,7 +149,7 @@ public class TeamMatchmakingService {
       queuesReadyForUpdate.set(false);
       matchmakingQueues.add(matchmakingQueueFromApi);
       matchmakingQueueFromApi.joinedProperty().addListener((observable, oldValue, newValue) -> {
-        currentlyInQueue.set(matchmakingQueues.stream().anyMatch(MatchmakingQueue::isJoined));
+        JavaFxUtil.runLater(() -> currentlyInQueue.set(matchmakingQueues.stream().anyMatch(MatchmakingQueue::isJoined)));
       });
       copyQueueInfo(matchmakingQueueFromApi, messageQueue);
     } else {
@@ -396,7 +396,7 @@ public class TeamMatchmakingService {
 
   private boolean ensureValidGamePath(String modTechnical) {
     if (!preferencesService.isGameExeValid(modTechnical)) {
-      eventBus.post(new MissingGamePathEvent(modTechnical));
+      eventBus.post(new MissingGamePathEvent(true, modTechnical));
       return false;
     }
     return true;
