@@ -97,7 +97,7 @@ public class Preferences {
     showModdedGames = new SimpleBooleanProperty(true);
     forceRelayEnabled = new SimpleBooleanProperty(false);
     proactiveResendEnabled = new SimpleBooleanProperty(false);
-    ircIntegrationEnabled = new SimpleBooleanProperty(false);
+    ircIntegrationEnabled = new SimpleBooleanProperty(true);
     autoLaunchOnHostEnabled = new SimpleBooleanProperty(false);
     autoLaunchOnJoinEnabled = new SimpleBooleanProperty(true);
     autoRehostEnabled = new SimpleBooleanProperty(true);
