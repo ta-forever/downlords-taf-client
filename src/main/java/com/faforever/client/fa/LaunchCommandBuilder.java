@@ -40,7 +40,7 @@ public class LaunchCommandBuilder {
   private URI replayUri;
   private Path logFile;
   private String ircUrl;
-  private String commandInputFile;
+  private Integer consolePort;
 
   private Integer launchServerPort;
   private boolean startLaunchServer;
@@ -163,8 +163,8 @@ public class LaunchCommandBuilder {
     return this;
   }
 
-  public LaunchCommandBuilder commandInputFile(String commandInputFile) {
-    this.commandInputFile = commandInputFile;
+  public LaunchCommandBuilder consolePort(Integer consolePort) {
+    this.consolePort = consolePort;
     return this;
   }
 
@@ -252,9 +252,9 @@ public class LaunchCommandBuilder {
       command.add(ircUrl);
     }
 
-    if (commandInputFile != null) {
-      command.add("--cmdfile");
-      command.add(commandInputFile);
+    if (consolePort != null) {
+      command.add("--consoleport");
+      command.add(String.valueOf(consolePort));
     }
 
     if (additionalArgs != null) {

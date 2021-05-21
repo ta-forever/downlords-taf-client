@@ -1,6 +1,5 @@
 package com.faforever.client.fa;
 
-import com.faforever.client.game.Faction;
 import com.faforever.client.player.Player;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
@@ -9,7 +8,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
@@ -40,7 +38,8 @@ public class TotalAnnihilationService {
 
   private Process launchServerProcess;
   private boolean launchServerHasUac;
-  private int launchServerPort;
+  private int launchServerPort; // the gpgnet4ta process listening on this port may have UAC and the only thing it can do is start TotalA.exe
+  private int consolePort;      // the gpgnet4ta process listening on this port doesn't need root privileges to do any of its tasks (/quit, /map and all the non UAC stuff related to /launch)
   private Timer launchServerKeepAliveTimer;
   private KeepAliveTimerTask launchServerKeepAliveTimerTask;
 
@@ -85,6 +84,16 @@ public class TotalAnnihilationService {
       }
     }
 
+  }
+
+  public void sendToConsole(String command) {
+    logger.info("Sending command '{}' to gpgnet4ta console port: {}", command, this.consolePort);
+    try (Socket socket = new Socket("127.0.0.1", this.consolePort)) {
+      socket.getOutputStream().write(command.getBytes());
+      socket.getOutputStream().flush();
+    } catch (IOException e) {
+      logger.warn("Unable to connect to gpgnet4ta console port");
+    }
   }
 
   // The launch server listens on a tcp port for instructions to invoke TotalA.exe using DirectPlay API.
@@ -153,9 +162,10 @@ public class TotalAnnihilationService {
 
 
   public Process startGame(String modTechnical, int uid, @Nullable List<String> additionalArgs, int gpgPort,
-                           Player currentPlayer, String ircUrl, boolean autoLaunch, String commandInputFile) throws IOException {
+                           Player currentPlayer, String ircUrl, boolean autoLaunch) throws IOException {
 
     startLaunchServer(modTechnical);
+    this.consolePort = getFreeTcpPort();
 
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
     Path launcherExecutable = getLauncherExectuable();
@@ -178,7 +188,7 @@ public class TotalAnnihilationService {
         .logFile(preferencesService.getNewGameLogFile(uid))
         .localGpgPort(gpgPort)
         .ircUrl(ircUrl)
-        .commandInputFile(commandInputFile)
+        .consolePort(this.consolePort)
         .launchServerPort(this.launchServerPort)
         .build();
 

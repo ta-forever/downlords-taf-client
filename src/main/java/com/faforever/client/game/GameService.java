@@ -146,8 +146,6 @@ public class GameService implements InitializingBean {
   @VisibleForTesting
   String matchedQueueRatingType;
   private Process process;
-  private PrintStream processPrintStream;
-  private File processPrintStreamFile;
   private boolean rehostRequested;
 
   @Inject
@@ -696,9 +694,7 @@ public class GameService implements InitializingBean {
 
   public void startBattleRoom() {
     if (isRunning()) {
-      log.info("[startBattleRoom] Sending /launch to game console");
-      this.processPrintStream.println("/launch");
-      this.processPrintStream.flush();
+      this.totalAnnihilationService.sendToConsole("/launch");
     }
   }
 
@@ -712,8 +708,7 @@ public class GameService implements InitializingBean {
       String mapDetails = String.join(UNIT_SEPARATOR, mapsDetails.get(0));
       String command = String.format("/map %s", mapDetails);
       log.info("[setMapForStagingGame] Sending '{}' to game console", command);
-      this.processPrintStream.println(command);
-      this.processPrintStream.flush();
+      this.totalAnnihilationService.sendToConsole(command);
     }
     else {
       log.info("[setMapForStagingGame] attempt to set map while current game is not in STAGING state. ignoring");
@@ -735,22 +730,11 @@ public class GameService implements InitializingBean {
     replayServer.start(uid, () -> getByUid(uid))
         .thenCompose(port ->  iceAdapter.start())
         .thenAccept(adapterPort -> {
-          try {
-            List<String> args = fixMalformedArgs(gameLaunchMessage.getArgs());
-            processPrintStreamFile = File.createTempFile("taforever",null,null);
-            process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, gameLaunchMessage.getUid(), args,
-                adapterPort, getCurrentPlayer(), ircUrl, autoLaunch, processPrintStreamFile.getAbsolutePath()));
-            processPrintStream = new PrintStream(processPrintStreamFile);
-            setGameRunning(true);
-            spawnTerminationListener(process);
-
-          } catch (FileNotFoundException e) {
-            log.warn("[startGame] unable to open processPrintStreamFile: {}", e);
-          }
-          catch (IOException e) {
-            log.warn("[startGame] unable to create processPrintStream: {}", e);
-          }
-
+          List<String> args = fixMalformedArgs(gameLaunchMessage.getArgs());
+          process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, gameLaunchMessage.getUid(), args,
+              adapterPort, getCurrentPlayer(), ircUrl, autoLaunch));
+          setGameRunning(true);
+          spawnTerminationListener(process);
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be started", throwable);
@@ -1043,9 +1027,7 @@ public class GameService implements InitializingBean {
 
   public void killGame() {
     if (process != null && process.isAlive()) {
-      log.info("Sending /quit to game console");
-      this.processPrintStream.println("/quit");
-      this.processPrintStream.flush();
+      this.totalAnnihilationService.sendToConsole("/quit");
     }
   }
 
