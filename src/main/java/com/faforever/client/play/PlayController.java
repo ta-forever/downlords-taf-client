@@ -52,8 +52,8 @@ public class PlayController extends AbstractViewController<Node> {
 
     String preferencesLastPlayTab = preferencesService.getPreferences().getLastPlayTab();
     if (preferencesLastPlayTab == null) {
-      lastTab = teamMatchmakingTab;
-      lastTabController = teamMatchmakingController;
+      lastTab = customGamesTab;
+      lastTabController = customGamesController;
     }
     else if (preferencesLastPlayTab.equals(customGamesTab.getText())) {
       lastTab = customGamesTab;
@@ -63,8 +63,8 @@ public class PlayController extends AbstractViewController<Node> {
       lastTab = teamMatchmakingTab;
       lastTabController = teamMatchmakingController;
     } else {
-      lastTab = teamMatchmakingTab;
-      lastTabController = teamMatchmakingController;
+      lastTab = customGamesTab;
+      lastTabController = customGamesController;
     }
 
     playRootTabPane.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
