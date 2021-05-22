@@ -160,9 +160,10 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
       }
       createChannelTab("#" + newValue.getUsername() + PARTY_CHANNEL_SUFFIX);
     });
-    if (teamMatchmakingService.getParty().getOwner() != null) {
+    try {
       createChannelTab("#" + teamMatchmakingService.getParty().getOwner().getUsername() + PARTY_CHANNEL_SUFFIX);
     }
+    catch (NullPointerException e) { }
 
     fafService.requestMatchmakerInfo();
   }

@@ -10,8 +10,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
+import java.io.UnsupportedEncodingException;
 import java.lang.invoke.MethodHandles;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.function.Supplier;
@@ -43,14 +45,19 @@ public class AssetService {
     }
 
     String urlString = url.toString();
+    try {
+      urlString = java.net.URLDecoder.decode(urlString, StandardCharsets.UTF_8.name());
+    } catch (UnsupportedEncodingException e) { }
+
     String filename = urlString.substring(urlString.lastIndexOf('/') + 1);
     Path cachePath = preferencesService.getCacheDirectory().resolve(cacheSubFolder).resolve(filename);
     if (Files.exists(cachePath)) {
-      logger.debug("Using cached image: {}", cachePath);
+      logger.info("Using cached image: {}", cachePath);
       return new Image(noCatch(() -> cachePath.toUri().toURL().toExternalForm()), width, height, true, true);
     }
 
-    logger.debug("Fetching image {}", url);
+    logger.info("Cached image not exists: {}", cachePath);
+    logger.info("Fetching image from: {}", url);
 
     Image image = new Image(url.toString(), width, height, true, true, true);
     JavaFxUtil.persistImage(image, cachePath, filename.substring(filename.lastIndexOf('.') + 1));

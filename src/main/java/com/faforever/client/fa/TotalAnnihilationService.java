@@ -163,7 +163,7 @@ public class TotalAnnihilationService {
 
   public Process startGame(String modTechnical, int uid, @Nullable List<String> additionalArgs, int gpgPort,
                            Player currentPlayer, String ircUrl, boolean autoLaunch) throws IOException {
-
+    linuxFree47624();
     startLaunchServer(modTechnical);
     this.consolePort = getFreeTcpPort();
 
@@ -244,6 +244,21 @@ public class TotalAnnihilationService {
 
   private LaunchCommandBuilder defaultLaunchCommand() {
     return LaunchCommandBuilder.create();
+  }
+
+  private void linuxFree47624() {
+    if (org.bridj.Platform.isLinux()) {
+      logger.warn("shutting down dplaysvr.exe so that gpgnet4ta.exe can grab port 47624");
+      ProcessBuilder processBuilder = new ProcessBuilder();
+      processBuilder.command(List.of("killall", "dplaysvr.exe"));
+      try {
+        processBuilder.start().waitFor();
+      } catch (InterruptedException e) {
+        logger.warn("InterruptedException shutting down dplaysvr.exe: {}", e.getMessage());
+      } catch (IOException e) {
+        logger.warn("IOException shutting down dplaysvr.exe: {}", e.getMessage());
+      }
+    }
   }
 
   @NotNull

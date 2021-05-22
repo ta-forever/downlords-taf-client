@@ -73,28 +73,30 @@ public class MapTool {
 
   static private List<String[]> run(Path gamePath, String hpiSpecs, String mapName, boolean doCrc, Path previewCacheDirectory, PreviewType previewType, int maxPositions, Path featuresCacheDirectory) {
     String nativeDir = System.getProperty("nativeDir", "lib");
-    Path exe = Paths.get(nativeDir).resolve("gpgnet4ta").resolve("maptool.exe");
+    Path exe = Paths.get(nativeDir).resolve("gpgnet4ta").resolve(
+        org.bridj.Platform.isLinux() ? "maptool" : "maptool.exe"
+    );
     Path workingDirectory = exe.getParent();
 
-    String QUOTED = "\"%s\"";
     List<String> command = new ArrayList<>();
-    command.add(String.format(QUOTED, exe.toAbsolutePath()));
+    command.add(exe.toAbsolutePath().toString());
     command.add("--gamepath");
-    command.add(String.format(QUOTED, gamePath));
+    command.add(gamePath.toString());
+
     if (hpiSpecs != null) {
       command.add("--hpispecs");
-      command.add(String.format(QUOTED, hpiSpecs));
+      command.add(hpiSpecs);
     }
     if (mapName != null) {
       command.add("--mapname");
-      command.add(String.format(QUOTED, mapName));
+      command.add(mapName);
     }
     if (doCrc) {
       command.add("--hash");
     }
     if (previewCacheDirectory != null) {
       command.add("--thumb");
-      command.add(String.format(QUOTED, previewCacheDirectory));
+      command.add(previewCacheDirectory.toString());
     }
     if (previewType != null) {
       command.add("--thumbtypes");
@@ -106,13 +108,13 @@ public class MapTool {
     }
     if (featuresCacheDirectory != null) {
       command.add("--featurescachedir");
-      command.add(String.format(QUOTED, featuresCacheDirectory));
+      command.add(featuresCacheDirectory.toString());
     }
 
     ProcessBuilder processBuilder = new ProcessBuilder();
     processBuilder.directory(workingDirectory.toFile());
     processBuilder.command(command);
-    logger.info("Enumerating maps: {}", String.join(" ", processBuilder.command()));
+    logger.info("{}", processBuilder.command());
 
     List<String[]> mapList = new ArrayList<>();
 
@@ -122,7 +124,9 @@ public class MapTool {
     try {
       final String UNIT_SEPARATOR = Character.toString((char)0x1f);
       Process process = processBuilder.start();
+
       BufferedReader input = new BufferedReader(new InputStreamReader(process.getInputStream()));
+
       String line;
       while ((line = input.readLine()) != null) {
         maptoolDataReceived += line + "\n";
@@ -139,6 +143,13 @@ public class MapTool {
         }
       }
       input.close();
+
+      BufferedReader err = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+      while ((line = err.readLine()) != null) {
+        logger.error(line);
+      }
+      err.close();
+
       process.waitFor();
     }
     catch (IOException | InterruptedException e )

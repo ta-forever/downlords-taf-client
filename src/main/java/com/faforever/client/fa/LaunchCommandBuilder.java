@@ -16,9 +16,6 @@ import static com.faforever.client.util.Assert.checkNullIllegalState;
 
 public class LaunchCommandBuilder {
 
-  private static final Pattern QUOTED_STRING_PATTERN = Pattern.compile("([^\"]\\S*|\"+.+?\"+)\\s*");
-  private static final String QUOTED_STRING_DECORATOR = "\"%s\"";
-
   private boolean requireUac;
   private Path gpgnet4taExecutable;
   private String baseModName;
@@ -47,15 +44,6 @@ public class LaunchCommandBuilder {
 
   public static LaunchCommandBuilder create() {
     return new LaunchCommandBuilder();
-  }
-
-  private static List<String> split(String string) {
-    Matcher matcher = QUOTED_STRING_PATTERN.matcher(string);
-    ArrayList<String> result = new ArrayList<>();
-    while (matcher.find()) {
-      result.add(matcher.group(1).replace("\"", ""));
-    }
-    return result;
   }
 
   public LaunchCommandBuilder launchServerPort(int port) {
@@ -174,7 +162,10 @@ public class LaunchCommandBuilder {
     Assert.state(!(uid != null && username == null), "username has not been set");
 
     List<String> command = new ArrayList<>();
-    command.add(String.format(QUOTED_STRING_DECORATOR, gpgnet4taExecutable.toAbsolutePath().toString()));
+    if (org.bridj.Platform.isLinux()) {
+      command.add("wine");
+    }
+    command.add(gpgnet4taExecutable.toAbsolutePath().toString());
 
     if (this.startLaunchServer) {
       command.add("--launchserver");
@@ -196,17 +187,17 @@ public class LaunchCommandBuilder {
 
     if (gameInstalledPath != null) {
       command.add("--gamepath");
-      command.add(String.format(QUOTED_STRING_DECORATOR, gameInstalledPath.toAbsolutePath().toString()));
+      command.add(gameInstalledPath.toAbsolutePath().toString());
     }
 
     if (gameExecutable != null) {
       command.add("--gameexe");
-      command.add(String.format(QUOTED_STRING_DECORATOR, gameExecutable));
+      command.add(gameExecutable);
     }
 
-    if (gameCommandLineOptions != null) {
+    if (gameCommandLineOptions != null && !gameCommandLineOptions.isEmpty()) {
       command.add("--gameargs");
-      command.add(String.format(QUOTED_STRING_DECORATOR, gameCommandLineOptions));
+      command.add(gameCommandLineOptions);
     }
 
     if (upnpEnabled) {
@@ -244,7 +235,7 @@ public class LaunchCommandBuilder {
 
     if (logFile != null) {
       command.add("--logfile");
-      command.add(String.format(QUOTED_STRING_DECORATOR, logFile.toString()));
+      command.add(logFile.toString());
     }
 
     if (ircUrl != null) {
