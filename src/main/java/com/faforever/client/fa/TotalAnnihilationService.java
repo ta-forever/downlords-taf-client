@@ -104,13 +104,9 @@ public class TotalAnnihilationService {
       String gameMod, Path gamePath, boolean autoLaunch, boolean lockOptions, int players, boolean proactiveResend,
       String gpgNetUrl, @Nullable String ircUrl, Path logFile, int launchServerPort
   ) {
-    Path exePath = getNativeGpgnet4taDir().resolve("gpgnet4ta.exe");
+    Path exePath = getNativeGpgnet4taDir().resolve(org.bridj.Platform.isLinux() ? "gpgnet4ta" : "gpgnet4ta.exe");
 
     List<String> command = new ArrayList<>();
-    if (org.bridj.Platform.isLinux()) {
-      command.add("wine");
-    }
-
     command.addAll(List.of(
         exePath.toAbsolutePath().toString(),
         "--lobbybindaddress", bindAddress,
