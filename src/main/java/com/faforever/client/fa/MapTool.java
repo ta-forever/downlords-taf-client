@@ -73,7 +73,7 @@ public class MapTool {
 
   static private List<String[]> run(Path gamePath, String hpiSpecs, String mapName, boolean doCrc, Path previewCacheDirectory, PreviewType previewType, int maxPositions, Path featuresCacheDirectory) {
     String nativeDir = System.getProperty("nativeDir", "lib");
-    Path exe = Paths.get(nativeDir).resolve("gpgnet4ta").resolve(
+    Path exe = Paths.get(nativeDir).resolve("bin").resolve(
         org.bridj.Platform.isLinux() ? "maptool" : "maptool.exe"
     );
     Path workingDirectory = exe.getParent();

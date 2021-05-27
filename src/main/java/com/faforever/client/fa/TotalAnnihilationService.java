@@ -48,7 +48,7 @@ public class TotalAnnihilationService {
 
   Path getNativeGpgnet4taDir() {
     String nativeDir = System.getProperty("nativeDir", "lib");
-    return Paths.get(nativeDir).resolve("gpgnet4ta");
+    return Paths.get(nativeDir).resolve("bin");
   }
 
   private List<String> getRegisterDplayCommand(String gameMod, Path gamePath, Path gameExe, String gameArgs) {

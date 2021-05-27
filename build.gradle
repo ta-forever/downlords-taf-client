@@ -113,7 +113,11 @@ distributions {
             jar,
             downloadIceAdapter.outputs.files,
             downloadUnixUid.outputs.files,
-            downloadWindowsUid.outputs.files
+            downloadWindowsUid.outputs.files,
+            extractUnixGpgnet4Ta.outputs.files,
+            extractWindowsGpgnet4Ta.outputs.files,
+            extractUnixTafToolbox.outputs.files,
+            extractWindowsTafToolbox.output.files
         ]
       }
       exclude('**/i4jruntime*.jar')
@@ -182,7 +186,67 @@ task downloadWindowsUid(type: Download) {
   onlyIfNewer true
 }
 
-task downloadNativeDependencies(dependsOn: [downloadUnixUid, downloadWindowsUid, downloadIceAdapter]) {
+task downloadUnixGpgnet4Ta(type: Download) {
+  group "native dependencies"
+  src "https://content.taforever.com/gpgnet4ta/v${gpgnet4ta_version}/gpgnet4ta-ubuntu-focal-x64.tar.gz"
+  dest file("${buildDir}/resources/native/gpgnet4ta-ubuntu-focal-x64.tar.gz")
+  onlyIfNewer true
+}
+
+task extractUnixGpgnet4Ta(type: Copy, dependsOn: [downloadUnixGpgnet4Ta]) {
+  group "native dependencies"
+  def zipFile = file("${buildDir}/resources/native/gpgnet4ta-ubuntu-focal-x64.tar.gz")
+  def outputDir = file("${buildDir}/resources/native")
+  from tarTree(resources.gzip(zipFile))
+  into outputDir
+}
+
+task downloadWindowsGpgnet4Ta(type: Download) {
+  group "native dependencies"
+  src "https://content.taforever.com/gpgnet4ta/v${gpgnet4ta_version}/gpgnet4ta-win-x86.zip"
+  dest file("${buildDir}/resources/native/gpgnet4ta-win-x86.zip")
+  onlyIfNewer true
+}
+
+task extractWindowsGpgnet4Ta(type: Copy, dependsOn: [downloadWindowsGpgnet4Ta]) {
+  group "native dependencies"
+  def zipFile = file("${buildDir}/resources/native/gpgnet4ta-win-x86.zip")
+  def outputDir = file("${buildDir}/resources/native")
+  from zipTree(zipFile)
+  into outputDir
+}
+
+task downloadUnixTafToolbox(type: Download) {
+  group "native dependencies"
+  src "https://github.com/ta-forever/taftoolbox/releases/download/v${taftoolbox_version}/taftoolbox-ubuntu-focal-x64.tar.gz"
+  dest file("${buildDir}/resources/native/taftoolbox-ubuntu-focal-x64.tar.gz")
+  onlyIfNewer true
+}
+
+task extractUnixTafToolbox(type: Copy, dependsOn: [downloadUnixTafToolbox]) {
+  group "native dependencies"
+  def zipFile = file("${buildDir}/resources/native/taftoolbox-ubuntu-focal-x64.tar.gz")
+  def outputDir = file("${buildDir}/resources/native")
+  from tarTree(resources.gzip(zipFile))
+  into outputDir
+}
+
+task downloadWindowsTafToolbox(type: Download) {
+  group "native dependencies"
+  src "https://github.com/ta-forever/taftoolbox/releases/download/v${taftoolbox_version}/taftoolbox-win-x86.zip"
+  dest file("${buildDir}/resources/native/taftoolbox-win-x86.zip")
+  onlyIfNewer true
+}
+
+task extractWindowsTafToolbox(type: Copy, dependsOn: [downloadWindowsTafToolbox]) {
+  group "native dependencies"
+  def zipFile = file("${buildDir}/resources/native/taftoolbox-win-x86.zip")
+  def outputDir = file("${buildDir}/resources/native")
+  from zipTree(zipFile)
+  into outputDir
+}
+
+task downloadNativeDependencies(dependsOn: [downloadUnixUid, downloadWindowsUid, downloadIceAdapter, extractUnixGpgnet4Ta, extractWindowsGpgnet4Ta, extractUnixTafToolbox, extractWindowsTafToolbox]) {
   group "native dependencies"
 }
 

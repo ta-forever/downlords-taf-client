@@ -98,7 +98,7 @@
                     </element>
                     <element index="2">
                       <object class="java.io.File">
-                        <string>natives/gpgnet4ta/gpgnet4ta.exe</string>
+                        <string>natives/bin/gpgnet4ta.exe</string>
                       </object>
                     </element>
                   </property>
@@ -287,25 +287,6 @@ return console.askOkCancel(message, true);
                   <property name="write" type="boolean" value="true" />
                 </serializedBean>
               </action>
-              <action id="1009" beanClass="com.install4j.runtime.beans.actions.misc.RunExecutableAction" actionElevationType="elevated" rollbackBarrierExitCode="0">
-                <serializedBean>
-                  <property name="arguments" type="array" elementType="string" length="3">
-                    <element index="0">/install</element>
-                    <element index="1">/passive</element>
-                    <element index="2">/norestart</element>
-                  </property>
-                  <property name="executable">
-                    <object class="java.io.File">
-                      <string>natives/gpgnet4ta/vcredist_x86.exe</string>
-                    </object>
-                  </property>
-                  <property name="workingDirectory">
-                    <object class="java.io.File">
-                      <string>.</string>
-                    </object>
-                  </property>
-                </serializedBean>
-              </action>
             </actions>
             <formComponents>
               <formComponent id="173" beanClass="com.install4j.runtime.beans.formcomponents.ProgressComponent">
@@ -366,7 +347,7 @@ return console.askOkCancel(message, true);
                     </element>
                     <element index="2">
                       <object class="java.io.File">
-                        <string>natives/gpgnet4ta/gpgnet4ta.exe</string>
+                        <string>natives/bin/gpgnet4ta.exe</string>
                       </object>
                     </element>
                   </property>
