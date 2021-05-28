@@ -747,7 +747,7 @@ public class GameService implements InitializingBean {
 
   private void notifyRecentlyPlayedGameEnded(Game game) {
     NotificationsPrefs notification = preferencesService.getPreferences().getNotification();
-    if (notification.isAfterGameReviewEnabled() && notification.isTransientNotificationsEnabled()) {
+    if (false && notification.isAfterGameReviewEnabled() && notification.isTransientNotificationsEnabled()) {
       notificationService.addNotification(new PersistentNotification(i18n.get("game.ended", game.getTitle()),
           Severity.INFO,
           singletonList(new Action(i18n.get("game.rate"), actionEvent -> eventBus.post(new ShowReplayEvent(game.getId()))))));
@@ -779,10 +779,10 @@ public class GameService implements InitializingBean {
       try {
         rehostRequested = false;
         int exitCode = process.waitFor();
-        log.info("Total Annihilation terminated with exit code {}", exitCode);
+        log.info("gpgnet4ta terminated with exit code {}", exitCode);
         if (exitCode != 0) {
           Optional<Path> logFile = preferencesService.getMostRecentGameLogFile();
-          notificationService.addImmediateErrorNotification(new RuntimeException(String.format("Forged Alliance Crashed with exit code %d. " +
+          notificationService.addImmediateErrorNotification(new RuntimeException(String.format("gpgnet4ta crashed with exit code %d. " +
                   "See %s for more information", exitCode, logFile.map(Path::getFileName).map(Path::toString).orElse(""))),
               "game.crash", logFile.map(Path::toString).orElse(""));
         }

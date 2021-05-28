@@ -18,7 +18,7 @@ public class FeaturedModBeanBuilder {
     featuredMod.setTechnicalName("faf");
     featuredMod.setVisible(true);
     featuredMod.setDescription("Standard mod");
-    featuredMod.setDisplayName("Forged Alliance Forever");
+    featuredMod.setDisplayName("Total Annihilation Forever");
     featuredMod.setGitUrl("http://localhost/example.git");
     return this;
   }

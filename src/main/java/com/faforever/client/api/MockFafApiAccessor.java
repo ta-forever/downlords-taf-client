@@ -128,7 +128,7 @@ public class MockFafApiAccessor implements FafApiAccessor {
   @Override
   public List<com.faforever.client.api.dto.FeaturedMod> getFeaturedMods() {
     com.faforever.client.api.dto.FeaturedMod featuredMod = new com.faforever.client.api.dto.FeaturedMod();
-    featuredMod.setDisplayName("Forged Alliance Forever");
+    featuredMod.setDisplayName("Total Annihilation Forever");
     featuredMod.setTechnicalName("faf");
     featuredMod.setVisible(true);
     featuredMod.setDescription("Description");
