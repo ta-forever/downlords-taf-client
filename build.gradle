@@ -113,11 +113,7 @@ distributions {
             jar,
             downloadIceAdapter.outputs.files,
             downloadUnixUid.outputs.files,
-            downloadWindowsUid.outputs.files,
-            extractUnixGpgnet4Ta.outputs.files,
-            extractWindowsGpgnet4Ta.outputs.files,
-            extractUnixTafToolbox.outputs.files,
-            extractWindowsTafToolbox.output.files
+            downloadWindowsUid.outputs.files
         ]
       }
       exclude('**/i4jruntime*.jar')

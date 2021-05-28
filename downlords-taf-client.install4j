@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install4j version="8.0.8" transformSequenceNumber="8">
   <directoryPresets config="./README_INSTALL.TXT" />
-  <application name="TA Forever Client" applicationId="1364-9624-6962-8970" mediaDir="./build/install4j" lzmaCompression="true" pack200Compression="true" shortName="tafclient" publisher="TA Forever" publisherWeb="http://www.taforever.com" version="0.1" allPathsRelative="true" autoSave="true" macVolumeId="e230e730a6fc064c" javaMinVersion="15" javaMaxVersion="15" allowBetaVM="true" jdkMode="jdk">
+  <application name="TA Forever Client" applicationId="1364-9624-6962-8970" mediaDir="./build/install4j" lzmaCompression="true" pack200Compression="true" shortName="tafclient" publisher="TA Forever" publisherWeb="http://www.taforever.com" version="0.13.1" allPathsRelative="true" autoSave="true" macVolumeId="e230e730a6fc064c" javaMinVersion="15" javaMaxVersion="15" allowBetaVM="true" jdkMode="jdk">
     <searchSequence>
       <registry />
       <directory location="jre" />
@@ -26,7 +26,6 @@
           <entry location="faf-uid.exe" />
         </exclude>
       </dirEntry>
-      <fileEntry mountPoint="23" file="README_INSTALL.TXT" />
     </entries>
   </files>
   <launchers>
@@ -60,8 +59,7 @@
 -DnativeDir=natives
 -Dprism.dirtyopts=false
 -Dprism.forceGPU=true
--Djava.library.path=.
-        </content>
+-Djava.library.path=.</content>
       </vmOptionsFile>
       <iconImageFiles>
         <file path="./src/media/appicon/16.png" />
@@ -85,7 +83,7 @@
               </action>
               <action id="695" beanClass="com.install4j.runtime.beans.actions.misc.CheckRunningProcessesAction" actionElevationType="none" rollbackBarrierExitCode="0" failureStrategy="askQuit">
                 <serializedBean>
-                  <property name="additionalExecutables" type="array" class="java.io.File" length="3">
+                  <property name="additionalExecutables" type="array" class="java.io.File" length="4">
                     <element index="0">
                       <object class="java.io.File">
                         <string>natives/faf-ice-adapter.jar</string>
@@ -99,6 +97,11 @@
                     <element index="2">
                       <object class="java.io.File">
                         <string>natives/bin/gpgnet4ta.exe</string>
+                      </object>
+                    </element>
+                    <element index="3">
+                      <object class="java.io.File">
+                        <string>natives/bin/talauncher.exe</string>
                       </object>
                     </element>
                   </property>
@@ -334,7 +337,7 @@ return console.askOkCancel(message, true);
               <action id="21" beanClass="com.install4j.runtime.beans.actions.misc.RequireInstallerPrivilegesAction" actionElevationType="none" />
               <action id="807" beanClass="com.install4j.runtime.beans.actions.misc.CheckRunningProcessesAction" actionElevationType="none" rollbackBarrierExitCode="0" failureStrategy="askQuit">
                 <serializedBean>
-                  <property name="additionalExecutables" type="array" class="java.io.File" length="3">
+                  <property name="additionalExecutables" type="array" class="java.io.File" length="4">
                     <element index="0">
                       <object class="java.io.File">
                         <string>natives/faf-ice-adapter.jar</string>
@@ -348,6 +351,11 @@ return console.askOkCancel(message, true);
                     <element index="2">
                       <object class="java.io.File">
                         <string>natives/bin/gpgnet4ta.exe</string>
+                      </object>
+                    </element>
+                    <element index="3">
+                      <object class="java.io.File">
+                        <string>natives/bin/talauncher.exe</string>
                       </object>
                     </element>
                   </property>
@@ -641,8 +649,21 @@ return console.askYesNo(message, true);
   <mediaSets>
     <windows name="Windows" id="26" installDir="${compiler:sys.fullName}">
       <exclude>
-        <entry location="lib/faf-uid" />
-        <entry location="lib/uid" />
+        <entry location="natives/bin/gpgnet4ta" />
+        <entry location="natives/bin/libIrcCore.so" />
+        <entry location="natives/bin/libIrcCore.so.3" />
+        <entry location="natives/bin/libIrcCore.so.3.6" />
+        <entry location="natives/bin/libIrcCore.so.3.6.0" />
+        <entry location="natives/bin/libIrcModel.so" />
+        <entry location="natives/bin/libIrcModel.so.3" />
+        <entry location="natives/bin/libIrcModel.so.3.6" />
+        <entry location="natives/bin/libIrcModel.so.3.6.0" />
+        <entry location="natives/bin/libIrcUtil.so" />
+        <entry location="natives/bin/libIrcUtil.so.3" />
+        <entry location="natives/bin/libIrcUtil.so.3.6" />
+        <entry location="natives/bin/libIrcUtil.so.3.6.0" />
+        <entry location="natives/bin/maptool" />
+        <entry location="natives/faf-uid" />
       </exclude>
       <jreBundle usePack200="false" jreBundleSource="generated" directDownload="true" />
     </windows>
@@ -655,8 +676,14 @@ return console.askYesNo(message, true);
     </windowsArchive>
     <unixArchive name="Unix Archive" id="331" installDir="downlords-taf-client-${compiler:sys.version}">
       <exclude>
-        <entry location="lib/faf-ice-adapter.exe" />
-        <entry location="lib/faf-uid.exe" />
+        <entry location="natives/bin/gpgnet4ta.exe" />
+        <entry location="natives/bin/maptool.exe" />
+        <entry location="natives/bin/platforms" />
+        <entry location="natives/bin/Qt5Gui.dll" />
+        <entry location="natives/bin/Qt5Qml.dll" />
+        <entry location="natives/bin/Qt5Test.dll" />
+        <entry location="natives/bin/Qt5Widgets.dll" />
+        <entry location="natives/faf-uid.exe" />
       </exclude>
     </unixArchive>
     <linuxRPM name="Linux RPM" id="332" installDir="/opt/downlords-taf-client-${compiler:sys.version}">
@@ -671,18 +698,10 @@ return console.askYesNo(message, true);
         <entry location="lib/faf-uid.exe" />
       </exclude>
     </linuxDeb>
-    <windows name="Windows x86" id="1097" installDir="${compiler:sys.fullName}" jreBitType="32">
-      <exclude>
-        <entry location="lib/faf-uid" />
-        <entry location="lib/uid" />
-      </exclude>
-      <jreBundle usePack200="false" jreBundleSource="generated" directDownload="true" />
-    </windows>
   </mediaSets>
   <buildIds buildAll="false">
     <mediaSet refId="26" />
     <mediaSet refId="331" />
-    <mediaSet refId="1097" />
   </buildIds>
   <buildOptions verbose="true" />
 </install4j>
