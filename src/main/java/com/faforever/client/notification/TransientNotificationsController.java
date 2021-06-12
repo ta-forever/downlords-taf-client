@@ -1,6 +1,8 @@
 package com.faforever.client.notification;
 
 import com.faforever.client.fx.Controller;
+import com.faforever.client.game.GameService;
+import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.ToastPosition;
 import com.faforever.client.theme.UiService;
@@ -21,6 +23,7 @@ public class TransientNotificationsController implements Controller<Node> {
 
   private final UiService uiService;
   private final PreferencesService preferencesService;
+  private final GameService gameService;
   public VBox transientNotificationsRoot;
 
   public void initialize() {
@@ -49,9 +52,11 @@ public class TransientNotificationsController implements Controller<Node> {
   }
 
   public void addNotification(TransientNotification notification) {
-    TransientNotificationController controller = uiService.loadFxml("theme/transient_notification.fxml");
-    controller.setNotification(notification);
-    Region controllerRoot = controller.getRoot();
-    transientNotificationsRoot.getChildren().add(0, controllerRoot);
+    if (!gameService.isGameRunning()) {
+      TransientNotificationController controller = uiService.loadFxml("theme/transient_notification.fxml");
+      controller.setNotification(notification);
+      Region controllerRoot = controller.getRoot();
+      transientNotificationsRoot.getChildren().add(0, controllerRoot);
+    }
   }
 }
