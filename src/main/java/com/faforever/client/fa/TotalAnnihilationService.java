@@ -1,5 +1,6 @@
 package com.faforever.client.fa;
 
+import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.Player;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
@@ -168,21 +169,30 @@ public class TotalAnnihilationService {
 
     @Override
     public void run() {
-      try (Socket socket = new Socket("127.0.0.1", launchServerPort)) {
-        socket.getOutputStream().write("/keepalive".getBytes());
-        socket.getOutputStream().flush();
-        retries = 10;
-        connectedOnce = true;
-
-      } catch (IOException e) {
-        if (connectedOnce) {
-          retries--;
+      if (launchServerProcess.isAlive()) {
+        try (Socket socket = new Socket("127.0.0.1", launchServerPort)) {
+          socket.setSoTimeout(300);
+          socket.getOutputStream().write("/keepalive".getBytes());
+          socket.getOutputStream().flush();
+          retries = 10;
+          connectedOnce = true;
         }
+        catch (IOException e) {
+          logger.warn("timeout connecting to launch server on port {}", launchServerPort);
+          if (connectedOnce) {
+            retries--;
+          }
+        }
+      }
+      else {
+        logger.warn("launch server not alive ...");
+        retries--;
       }
 
       if (retries <= 0) {
-        logger.warn("cannot keepalive launch server on port {}", launchServerPort);
+        logger.warn("cannot keepalive launch server on port {} ... giving up", launchServerPort);
         launchServerKeepAliveTimer.cancel();
+        launchServerProcess.destroyForcibly();
         launchServerProcess = null;
         launchServerKeepAliveTimer = null;
         launchServerKeepAliveTimerTask = null;
@@ -212,6 +222,7 @@ public class TotalAnnihilationService {
       return launchServerProcess;
     }
 
+    linuxFree47624();
     this.launchServerPort = getFreeTcpPort();
     this.launchServerHasUac = preferencesService.getPreferences().getRequireUacEnabled();
 
@@ -241,8 +252,6 @@ public class TotalAnnihilationService {
 
   public Process startGame(String modTechnical, int uid, @Nullable List<String> additionalArgs, int gpgPort,
                            Player currentPlayer, String ircUrl, boolean autoLaunch) throws IOException {
-    linuxFree47624();
-    startLaunchServer(modTechnical);
     this.consolePort = getFreeTcpPort();
 
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
@@ -296,7 +305,7 @@ public class TotalAnnihilationService {
     processBuilder.directory(launchWorkingDirectory.toFile());
     processBuilder.command(launchCommand);
 
-    logger.info("Starting TA service: {}", String.join(" ", processBuilder.command()));
+    logger.info("{}", processBuilder.command());
     Process process = processBuilder.start();
 
     return process;

@@ -65,12 +65,10 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import javax.inject.Inject;
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.net.URI;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -442,7 +440,7 @@ public class GameService implements InitializingBean {
             }
             this.process = processForReplay;
             setGameRunning(true);
-            spawnTerminationListener(this.process);
+            spawnTerminationListener(this.process, true);
           } catch (IOException e) {
             notifyCantPlayReplay(replayId, e);
           }
@@ -537,7 +535,7 @@ public class GameService implements InitializingBean {
           }
           this.process = processCreated;
           setGameRunning(true);
-          spawnTerminationListener(this.process);
+          spawnTerminationListener(this.process, true);
         }))
         .exceptionally(throwable -> {
           notifyCantPlayReplay(gameId, throwable);
@@ -700,15 +698,18 @@ public class GameService implements InitializingBean {
 
   public void setMapForStagingGame(String mapName) {
     if (isRunning() && currentGame.get() != null && currentGame.get().getStatus()==GameStatus.STAGING) {
-      List<String[]> mapsDetails = MapTool.listMap(preferencesService.getTotalAnnihilation(currentGame.get().getFeaturedMod()).getInstalledPath(), mapName);
-      if (mapsDetails.isEmpty()) {
-        log.info("[setMapForStagingGame] unable to get details for map {}", mapName);
+      try {
+        List<String[]> mapsDetails = MapTool.listMap(preferencesService.getTotalAnnihilation(currentGame.get().getFeaturedMod()).getInstalledPath(), mapName);
+        final String UNIT_SEPARATOR = Character.toString((char)0x1f);
+        String mapDetails = String.join(UNIT_SEPARATOR, mapsDetails.get(0));
+        String command = String.format("/map %s", mapDetails);
+        log.info("[setMapForStagingGame] Sending '{}' to game console", command);
+        this.totalAnnihilationService.sendToConsole(command);
       }
-      final String UNIT_SEPARATOR = Character.toString((char)0x1f);
-      String mapDetails = String.join(UNIT_SEPARATOR, mapsDetails.get(0));
-      String command = String.format("/map %s", mapDetails);
-      log.info("[setMapForStagingGame] Sending '{}' to game console", command);
-      this.totalAnnihilationService.sendToConsole(command);
+      catch (IOException e) {
+        log.info("[setMapForStagingGame] unable to get details for map {}", mapName);
+        notificationService.addImmediateErrorNotification(e, "maptool.error");
+      }
     }
     else {
       log.info("[setMapForStagingGame] attempt to set map while current game is not in STAGING state. ignoring");
@@ -731,15 +732,20 @@ public class GameService implements InitializingBean {
         .thenCompose(port ->  iceAdapter.start())
         .thenAccept(adapterPort -> {
           List<String> args = fixMalformedArgs(gameLaunchMessage.getArgs());
+
+          Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(modTechnical));
+          spawnTerminationListener(launchServerProcess, false);
+
           process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, gameLaunchMessage.getUid(), args,
               adapterPort, getCurrentPlayer(), ircUrl, autoLaunch));
           setGameRunning(true);
-          spawnTerminationListener(process);
+          spawnTerminationListener(process, true);
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be started", throwable);
           notificationService.addImmediateErrorNotification(throwable, "game.start.couldNotStart");
           iceAdapter.stop();
+          fafService.notifyGameEnded();
           setGameRunning(false);
           return null;
         });
@@ -769,22 +775,18 @@ public class GameService implements InitializingBean {
   }
 
   @VisibleForTesting
-  void spawnTerminationListener(Process process) {
-    spawnTerminationListener(process, true);
-  }
-
-  @VisibleForTesting
   void spawnTerminationListener(Process process, Boolean forOnlineGame) {
     executorService.execute(() -> {
       try {
         rehostRequested = false;
+        String command = process.info().command().orElse("<unknown>");
+        String commandFileName = Paths.get(command).getFileName().toString();
         int exitCode = process.waitFor();
-        log.info("gpgnet4ta terminated with exit code {}", exitCode);
+        log.info("'{}' terminated with exit code {}", commandFileName, exitCode);
         if (exitCode != 0) {
-          Optional<Path> logFile = preferencesService.getMostRecentGameLogFile();
-          notificationService.addImmediateErrorNotification(new RuntimeException(String.format("gpgnet4ta crashed with exit code %d. " +
-                  "See %s for more information", exitCode, logFile.map(Path::getFileName).map(Path::toString).orElse(""))),
-              "game.crash", logFile.map(Path::toString).orElse(""));
+          String logPath = preferencesService.getFafLogDirectory().toString();
+          String message = String.format("'%s' exited with code %d. See '%s' for further information", command, exitCode, logPath);
+          notificationService.addImmediateErrorNotification(new RuntimeException(message),"game.crash", commandFileName, logPath);
         }
 
         synchronized (gameRunning) {

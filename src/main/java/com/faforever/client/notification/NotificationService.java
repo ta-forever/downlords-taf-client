@@ -36,6 +36,8 @@ public class NotificationService {
   private final List<OnImmediateNotificationListener> onServerNotificationListeners = new ArrayList<>();
   private final ReportingService reportingService;
 
+  private final List<ImmediateNotification> pendingImmediateNotifications = new ArrayList<>();
+
   // TODO fix circular reference
   @Inject
   private I18n i18n;
@@ -61,6 +63,9 @@ public class NotificationService {
    */
 
   public void addNotification(ImmediateNotification notification) {
+    if (onImmediateNotificationListeners.isEmpty()) {
+      pendingImmediateNotifications.add(notification);
+    }
     onImmediateNotificationListeners.forEach(listener -> listener.onImmediateNotification(notification));
   }
 
@@ -101,6 +106,11 @@ public class NotificationService {
 
   public void addImmediateNotificationListener(OnImmediateNotificationListener listener) {
     onImmediateNotificationListeners.add(listener);
+  }
+
+  public void flushPendingImmediateNotifications() {
+    pendingImmediateNotifications.forEach(notification -> addNotification(notification));
+    pendingImmediateNotifications.clear();
   }
 
   public void addServerNotificationListener(OnImmediateNotificationListener listener) {

@@ -353,6 +353,7 @@ public class MainController implements Controller<Node> {
       setWindowPosition(stage, mainWindowPrefs);
     }
     registerWindowListeners();
+    notificationService.flushPendingImmediateNotifications();
   }
 
   private void setWindowPosition(Stage stage, WindowPrefs mainWindowPrefs) {

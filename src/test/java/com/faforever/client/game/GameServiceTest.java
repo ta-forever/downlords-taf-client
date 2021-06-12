@@ -402,7 +402,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
 
     Process process = mock(Process.class);
 
-    instance.spawnTerminationListener(process);
+    instance.spawnTerminationListener(process, true);
 
     disconnectedFuture.get(5000, TimeUnit.MILLISECONDS);
 

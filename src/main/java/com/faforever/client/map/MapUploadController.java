@@ -141,6 +141,7 @@ public class MapUploadController implements Controller<Node> {
       jsonFos.close();
     } catch (IOException e) {
       logger.warn("unable to prep archive for upload:", e);
+      notificationService.addImmediateErrorNotification(e, "maptool.error");
     }
   }
 
@@ -206,6 +207,16 @@ public class MapUploadController implements Controller<Node> {
   }
 
   public void onUploadClicked() {
+
+    if (mapDetails == null) {
+      notificationService.addImmediateWarnNotification("mapVault.upload.nullDetails");
+      return;
+    }
+    if (mapDetails.isEmpty()) {
+      notificationService.addImmediateWarnNotification("mapVault.upload.noDetails");
+      return;
+    }
+
     enterUploadingState();
 
     uploadProgressPane.setVisible(true);
