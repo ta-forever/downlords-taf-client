@@ -86,6 +86,14 @@
                                        </StackPane>
                                    </graphic>
                                </Button>
+                               <Button styleClass="discord-button" onMouseClicked="#onDiscordButtonClicked">
+                                   <graphic>
+                                       <Region styleClass="icon,discord-icon,discord-color"/>
+                                   </graphic>
+                                   <tooltip>
+                                       <Tooltip text="%discord.join"/>
+                                   </tooltip>
+                               </Button>
                            </children>
                            <HBox.margin>
                                <Insets right="10.0"/>

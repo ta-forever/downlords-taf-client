@@ -5,7 +5,6 @@ import com.faforever.client.chat.event.UnreadPartyMessageEvent;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.WebViewConfigurer;
 import com.faforever.client.i18n.I18n;
-import com.faforever.client.main.DiscordSelectionMenuController;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
@@ -17,12 +16,9 @@ import com.faforever.client.util.TimeService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
 import javafx.collections.MapChangeListener;
-import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TextInputControl;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.StackPane;
 import javafx.scene.text.TextFlow;
 import javafx.scene.web.WebView;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -40,11 +36,9 @@ public class MatchmakingChatController extends AbstractChatTabController {
   public WebView messagesWebView;
   public TextInputControl messageTextField;
   public TextFlow topicText;
-  public StackPane discordStackPane;
 
   private ChatChannel channel;
   private MapChangeListener<String, ChatChannelUser> usersChangeListener;
-  DiscordSelectionMenuController discordSelectionMenuController;
 
   // TODO cut dependencies
   public MatchmakingChatController(UserService userService,
@@ -65,8 +59,6 @@ public class MatchmakingChatController extends AbstractChatTabController {
     super(webViewConfigurer, userService, chatService, preferencesService, playerService, audioService,
         timeService, i18n, imageUploadService, notificationService, reportingService, uiService,
         eventBus, countryFlagService, chatUserService);
-
-    discordSelectionMenuController = uiService.loadFxml("theme/discord_selection_menu.fxml");
   }
 
   @Override
@@ -121,10 +113,6 @@ public class MatchmakingChatController extends AbstractChatTabController {
     if (!hasFocus()) {
       eventBus.post(new UnreadPartyMessageEvent(chatMessage));
     }
-  }
-
-  public void onDiscordButtonClicked(MouseEvent event) {
-    discordSelectionMenuController.getContextMenu().show(discordStackPane.getScene().getWindow(), event.getScreenX(), event.getScreenY());
   }
 
   @VisibleForTesting

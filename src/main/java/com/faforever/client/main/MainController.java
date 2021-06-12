@@ -141,6 +141,8 @@ public class MainController implements Controller<Node> {
   Popup persistentNotificationsPopup;
   private NavigationItem currentItem;
   private FxStage fxStage;
+  private DiscordSelectionMenuController discordSelectionMenuController;
+
 
   @Inject
   public MainController(PreferencesService preferencesService, I18n i18n,
@@ -158,6 +160,7 @@ public class MainController implements Controller<Node> {
     this.applicationEventPublisher = applicationEventPublisher;
     this.viewCache = CacheBuilder.newBuilder().build();
     this.mainWindowTitle = clientProperties.getMainWindowTitle();
+    this.discordSelectionMenuController = uiService.loadFxml("theme/discord_selection_menu.fxml");
     alwaysReloadTabs = Arrays.asList(environment.getActiveProfiles()).contains(FafClientApplication.PROFILE_RELOAD);
   }
 
@@ -605,6 +608,10 @@ public class MainController implements Controller<Node> {
 
   public void setFxStage(FxStage fxWindow) {
     this.fxStage = fxWindow;
+  }
+
+  public void onDiscordButtonClicked(MouseEvent event) {
+    discordSelectionMenuController.getContextMenu().show(this.getRoot().getScene().getWindow(), event.getScreenX(), event.getScreenY());
   }
 
   public class ToastDisplayer implements InvalidationListener {
