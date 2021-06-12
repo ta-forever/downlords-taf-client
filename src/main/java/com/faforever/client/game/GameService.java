@@ -301,7 +301,7 @@ public class GameService implements InitializingBean {
             (getCurrentGame() == null || getCurrentGame().getId() == game.getId()) &&
             game.getGameType() != GameType.MATCHMAKER
             ) {
-          joinGame(nextGame.get(), null);
+          joinGame(nextGame.get(), null, false);
           nextGame.set(null);
         }
 
@@ -364,7 +364,7 @@ public class GameService implements InitializingBean {
     notificationService.addImmediateWarnNotification("teammatchmaking.notification.customAlreadyInQueue.message");
   }
 
-  public CompletableFuture<Void> joinGame(Game game, String password) {
+  public CompletableFuture<Void> joinGame(Game game, String password, boolean joinChannel) {
     if (isRunning()) {
       log.debug("Game is running, ignoring join request");
       notificationService.addImmediateWarnNotification("game.gameRunning");
@@ -373,7 +373,7 @@ public class GameService implements InitializingBean {
 
     if (!preferencesService.isGameExeValid(game.getFeaturedMod())) {
       CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(game.getFeaturedMod());
-      return gameDirectoryFuture.thenCompose(path -> joinGame(game, password));
+      return gameDirectoryFuture.thenCompose(path -> joinGame(game, password, joinChannel));
     }
 
     if (inMatchmakerQueue.get()) {
@@ -405,7 +405,9 @@ public class GameService implements InitializingBean {
 
             boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchOnJoinEnabled() && game.getStatus() == GameStatus.BATTLEROOM;
             startGame(gameLaunchMessage, inGameIrcUrl, autoLaunch);
-            JavaFxUtil.runLater(() -> eventBus.post(new JoinChannelEvent(inGameIrcChannel)));
+            if (joinChannel) {
+              JavaFxUtil.runLater(() -> eventBus.post(new JoinChannelEvent(inGameIrcChannel)));
+            }
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be joined", throwable);
@@ -929,7 +931,7 @@ public class GameService implements InitializingBean {
 
         if (currentPlayer.getStatus() == PlayerStatus.IDLE && getCurrentGame() == null) {
           log.info("auto-joining game: {}", game);
-          this.joinGame(game, null);
+          this.joinGame(game, null, false);
         }
         else if (this.nextGame.get() == null) {
           log.info("will auto-join game when current game terminates: {}", game);
