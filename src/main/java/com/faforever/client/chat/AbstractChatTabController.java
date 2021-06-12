@@ -418,11 +418,11 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
     messageTextField.setDisable(true);
 
     final String text = messageTextField.getText();
-    chatService.sendMessageInBackground(receiver, text).thenAccept(message -> {
+    chatService.sendMessageInBackground(receiver, text).thenAccept(message -> JavaFxUtil.runLater(() -> {
       messageTextField.clear();
       messageTextField.setDisable(false);
       messageTextField.requestFocus();
-    }).exceptionally(throwable -> {
+    })).exceptionally(throwable -> {
       throwable = ConcurrentUtil.unwrapIfCompletionException(throwable);
       logger.warn("Message could not be sent: {}", text, throwable);
       notificationService.addImmediateErrorNotification(throwable, "chat.sendFailed");
