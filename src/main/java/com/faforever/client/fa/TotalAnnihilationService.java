@@ -222,7 +222,6 @@ public class TotalAnnihilationService {
       return launchServerProcess;
     }
 
-    linuxFree47624();
     this.launchServerPort = getFreeTcpPort();
     this.launchServerHasUac = preferencesService.getPreferences().getRequireUacEnabled();
 
@@ -252,6 +251,7 @@ public class TotalAnnihilationService {
 
   public Process startGame(String modTechnical, int uid, @Nullable List<String> additionalArgs, int gpgPort,
                            Player currentPlayer, String ircUrl, boolean autoLaunch) throws IOException {
+    this.linuxFree47624();
     this.consolePort = getFreeTcpPort();
 
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
