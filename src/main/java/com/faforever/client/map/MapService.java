@@ -708,16 +708,10 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   private Image loadPreview(String modTechnical, String mapName, URL url, PreviewType previewType, int maxPositions) {
-
-    String urlString = url.toString();
-    String cachedFilename = urlString.substring(urlString.lastIndexOf('/') + 1);
-    Path cacheSubFolder = Paths.get("maps").resolve(previewType.getFolderName(maxPositions));
-    Path cachedFile = preferencesService.getCacheDirectory().resolve(cacheSubFolder).resolve(cachedFilename);
-
+    Path cacheDir = preferencesService.getCacheDirectory().resolve("maps").resolve(previewType.getFolderName(maxPositions));
+    Path cachedFile = cacheDir.resolve(mapName+".png");
     generatePreview(modTechnical, mapName, cachedFile, previewType, maxPositions);
-
-    Image im = assetService.loadAndCacheImage(url, Paths.get("maps").resolve(previewType.getFolderName(maxPositions)),
-        () -> uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
+    Image im = assetService.loadAndCacheImage(url, cacheDir, () -> uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
     return im;
   }
 
