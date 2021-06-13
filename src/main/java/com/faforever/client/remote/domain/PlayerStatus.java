@@ -36,7 +36,6 @@ public enum PlayerStatus {
   public static PlayerStatus fromString(String string) {
     PlayerStatus playerStatus = fromString.get(string != null ? string.toLowerCase(Locale.US) : null);
     if (playerStatus == null) {
-      logger.warn("Unknown player state: {}", string);
       return IDLE;
     }
     return playerStatus;
