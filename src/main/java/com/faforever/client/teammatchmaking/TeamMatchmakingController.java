@@ -28,6 +28,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TabPane;
+import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.ColumnConstraints;
@@ -39,6 +40,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.http.util.TextUtils;
 import org.jetbrains.annotations.VisibleForTesting;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
@@ -90,7 +92,7 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
   public ImageView avatarImageView;
   public ImageView countryImageView;
   public Label clanLabel;
-  public Label usernameLabel;
+  public TextField usernameTextField;
   public Label gameCountLabel;
   public Label leagueLabel;
   public VBox queueBox;
@@ -148,6 +150,17 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
         teamMatchmakingService.getPlayersInGame().remove(player);
       }
     }));
+
+    player.aliasProperty().addListener((observable, oldValue, newValue) -> new java.util.Timer().schedule(
+        new java.util.TimerTask() {
+          @Override
+          public void run() {
+            if (newValue.equals(player.getAlias())) {
+              log.info("sending player alias '{}' to server", player.getAlias());
+              teamMatchmakingService.sendPlayerAlias(player.getAlias());
+            }
+          }
+        }, 1000));
 
     teamMatchmakingService.getParty().getMembers().addListener((InvalidationListener) c -> {
       refreshingLabel.setVisible(false);
@@ -227,7 +240,7 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
     clanLabel.visibleProperty().bind(player.clanProperty().isNotEmpty().and(player.clanProperty().isNotNull()));
     clanLabel.textProperty().bind(createStringBinding(() ->
         Strings.isNullOrEmpty(player.getClan()) ? "" : String.format("[%s]", player.getClan()), player.clanProperty()));
-    usernameLabel.textProperty().bind(player.usernameProperty());
+    usernameTextField.textProperty().bindBidirectional(player.aliasProperty());
     crownLabel.visibleProperty().bind(createBooleanBinding(() ->
             teamMatchmakingService.getParty().getMembers().size() > 1 && teamMatchmakingService.getParty().getOwner().equals(player),
         teamMatchmakingService.getParty().ownerProperty(), teamMatchmakingService.getParty().getMembers()));

@@ -92,4 +92,6 @@ public interface FafServerAccessor {
   void leaveParty();
 
   void setPartyFactions(List<Faction> factions);
+
+  public void setPlayerAlias(String alias);
 }

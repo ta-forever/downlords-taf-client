@@ -22,6 +22,7 @@
                         <children>
                             <Label fx:id="clanLabel" styleClass="clan" text="[CLAN]" />
                             <Label fx:id="usernameLabel" styleClass="member-name" text="&lt;Username&gt;" />
+                            <Label fx:id="aliasLabel" styleClass="player-card-text" text="&lt;alias&gt;" />
                             <ImageView fx:id="avatarImageView" fitHeight="20.0" fitWidth="40.0" preserveRatio="true">
                                 <HBox.margin>
                                     <Insets left="5.0"/>

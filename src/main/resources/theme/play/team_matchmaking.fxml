@@ -17,6 +17,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.control.TextField?>
 <StackPane xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/11.0.1"
            fx:controller="com.faforever.client.teammatchmaking.TeamMatchmakingController" fx:id="teamMatchmakingRoot">
     <GridPane fx:id="contentPane">
@@ -51,7 +52,7 @@
                                                     <Insets bottom="-4.0"/>
                                                 </padding>
                                             </Label>
-                                            <Label fx:id="usernameLabel" styleClass="name" text="&lt;Username&gt;"/>
+                                            <TextField fx:id="usernameTextField" promptText="%teammatchmaking.alias.prompt" minWidth="200"/>
                                             <ImageView fx:id="avatarImageView" fitHeight="20.0" fitWidth="40.0"
                                                        preserveRatio="true">
                                                 <HBox.margin>

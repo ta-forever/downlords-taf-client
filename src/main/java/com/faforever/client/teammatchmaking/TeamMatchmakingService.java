@@ -394,6 +394,10 @@ public class TeamMatchmakingService {
     fafServerAccessor.setPartyFactions(factions);
   }
 
+  public void sendPlayerAlias(String alias) {
+    fafServerAccessor.setPlayerAlias(alias);
+  }
+
   private boolean ensureValidGamePath(String modTechnical) {
     if (!preferencesService.isGameExeValid(modTechnical)) {
       eventBus.post(new MissingGamePathEvent(true, modTechnical));

@@ -11,6 +11,7 @@ public class Player {
   private int id;
   private String clan;
   private String login;
+  private String alias;
   private Avatar avatar;
   private String country;
   private Integer numberOfGames;
@@ -41,6 +42,14 @@ public class Player {
 
   public void setLogin(String login) {
     this.login = login;
+  }
+
+  public String getAlias() {
+    return alias;
+  }
+
+  public void setAlias(String alias) {
+    this.alias = alias;
   }
 
   public Avatar getAvatar() {
