@@ -374,6 +374,7 @@ public class TeamMatchmakingService {
           ifPresent(partyMember -> {
             newPartyMember.setFactions(partyMember.getFactions());
             sendFactionSelection(partyMember.getFactions());
+            sendPlayerAlias(partyMember.getPlayer().getAlias());
           });
 
       party.setOwner(currentPlayer);

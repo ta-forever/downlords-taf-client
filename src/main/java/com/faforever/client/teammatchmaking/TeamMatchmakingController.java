@@ -132,6 +132,7 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
     ObservableList<Faction> factions = preferencesService.getPreferences().getMatchmaker().getFactions();
     selectFactions(factions);
     teamMatchmakingService.sendFactionSelection(factions);
+    teamMatchmakingService.sendPlayerAlias(player.getAlias());
 
     teamMatchmakingService.getParty().getMembers().addListener((Observable o) -> renderPartyMembers());
     if (teamMatchmakingService.isQueuesReadyForUpdate()) {
@@ -156,11 +157,10 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
           @Override
           public void run() {
             if (newValue.equals(player.getAlias())) {
-              log.info("sending player alias '{}' to server", player.getAlias());
               teamMatchmakingService.sendPlayerAlias(player.getAlias());
             }
           }
-        }, 1000));
+        }, 3000));
 
     teamMatchmakingService.getParty().getMembers().addListener((InvalidationListener) c -> {
       refreshingLabel.setVisible(false);
