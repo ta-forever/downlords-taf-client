@@ -21,6 +21,7 @@ public class PartyInfoMessage extends FafServerMessage {
   @Data
   public static class PartyMember {
     private Integer player;
+    private String alias;
     private List<String> factions;
 
     // gson deserializes factions based on name, faction ids are used here

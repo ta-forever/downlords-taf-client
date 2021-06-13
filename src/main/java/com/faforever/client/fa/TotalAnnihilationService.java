@@ -227,8 +227,8 @@ public class TotalAnnihilationService {
     this.launchServerHasUac = preferencesService.getPreferences().getRequireUacEnabled();
 
     logger.info("[startLaunchServer] starting on port {}", this.launchServerPort);
-    List<String> command = getLaunchServerCommand(this.launchServerPort, this.launchServerHasUac);
-    this.launchServerProcess = launch(getNativeGpgnet4taDir(), command);
+    List<String> startLaunchServerCommand = getLaunchServerCommand(this.launchServerPort, this.launchServerHasUac);
+    this.launchServerProcess = launch(getNativeGpgnet4taDir(), startLaunchServerCommand);
 
     if (launchServerKeepAliveTimer != null) {
       launchServerKeepAliveTimer.cancel();
@@ -245,9 +245,9 @@ public class TotalAnnihilationService {
 
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
     Path totalA = prefs.getInstalledExePath().getFileName();
-    List<String> command = getTotalACommand(totalA);
-    command.addAll(Arrays.asList(prefs.getCommandLineOptions().split(" ")));
-    return launch(prefs.getInstalledPath(), command);
+    List<String> startGameOfflineCommand = getTotalACommand(totalA);
+    startGameOfflineCommand.addAll(Arrays.asList(prefs.getCommandLineOptions().split(" ")));
+    return launch(prefs.getInstalledPath(), startGameOfflineCommand);
   }
 
   public Process startGame(String modTechnical, int uid, @Nullable List<String> additionalArgs, int gpgPort,

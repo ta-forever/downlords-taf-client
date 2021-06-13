@@ -148,7 +148,7 @@ public class IceAdapterImpl implements IceAdapter, InitializingBean, DisposableB
   }
 
   @Override
-  public CompletableFuture<Integer> start() {
+  public CompletableFuture<Integer> start(String playerAlias) {
     iceAdapterClientFuture = new CompletableFuture<>();
     Thread thread = new Thread(() -> {
       String nativeDir = System.getProperty("nativeDir", "lib");
@@ -166,7 +166,7 @@ public class IceAdapterImpl implements IceAdapter, InitializingBean, DisposableB
           "-jar",
           getBinaryName(workDirectory),
           "--id", String.valueOf(currentPlayer.getId()),
-          "--login", currentPlayer.getUsername(),
+          "--login", playerAlias,
           "--rpc-port", String.valueOf(adapterPort),
           "--gpgnet-port", String.valueOf(gpgPort)
       );

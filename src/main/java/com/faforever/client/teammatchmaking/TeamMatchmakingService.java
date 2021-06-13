@@ -182,7 +182,10 @@ public class TeamMatchmakingService {
                 Optional<PartyMember> ownPartyMember = party.getMembers().stream()
                     .filter(m -> m.getPlayer().getId() == playerService.getCurrentPlayer().map(Player::getId).orElse(-1))
                     .findFirst();
-                ownPartyMember.ifPresent(m -> sendFactionSelection(m.getFactions()));
+                ownPartyMember.ifPresent(m -> {
+                  sendFactionSelection(m.getFactions());
+                  sendPlayerAlias(m.getPlayer().getAlias());
+                });
               }
             }
         );
@@ -459,6 +462,7 @@ public class TeamMatchmakingService {
       log.warn("Could not find party member {}", member.getPlayer());
       return null;
     } else {
+      JavaFxUtil.runLater(() -> player.get().setAlias(member.getAlias()));
       return new PartyMember(player.get(), member.getFactions());
     }
   }

@@ -356,7 +356,7 @@ public class GameService implements InitializingBean {
 
     return updateGameIfNecessary(newGameInfo.getFeaturedMod(), null, Map.of(), newGameInfo.getSimMods())
         .thenCompose(aVoid -> fafService.requestHostGame(newGameInfo))
-        .thenAccept(gameLaunchMessage -> startGame(gameLaunchMessage, inGameIrcUrl, autoLaunch))
+        .thenAccept(gameLaunchMessage -> startGame(gameLaunchMessage, inGameIrcUrl, autoLaunch, playerService.getCurrentPlayer().get().getUsername()))
         .thenRun(() -> JavaFxUtil.runLater(() -> eventBus.post(new JoinChannelEvent(inGameChannel))));
   }
 
@@ -404,7 +404,7 @@ public class GameService implements InitializingBean {
             });
 
             boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchOnJoinEnabled() && game.getStatus() == GameStatus.BATTLEROOM;
-            startGame(gameLaunchMessage, inGameIrcUrl, autoLaunch);
+            startGame(gameLaunchMessage, inGameIrcUrl, autoLaunch, playerService.getCurrentPlayer().get().getUsername());
             if (joinChannel) {
               JavaFxUtil.runLater(() -> eventBus.post(new JoinChannelEvent(inGameIrcChannel)));
             }
@@ -623,7 +623,7 @@ public class GameService implements InitializingBean {
               gameLaunchMessage.getArgs().add("/team " + gameLaunchMessage.getTeam());
               gameLaunchMessage.getArgs().add("/players " + gameLaunchMessage.getExpectedPlayers());
               gameLaunchMessage.getArgs().add("/startspot " + gameLaunchMessage.getMapPosition());
-              startGame(gameLaunchMessage, null, true);
+              startGame(gameLaunchMessage, null, true, playerService.getCurrentPlayer().get().getAlias());
             }))
         .exceptionally(throwable -> {
           if (throwable.getCause() instanceof CancellationException) {
@@ -722,7 +722,7 @@ public class GameService implements InitializingBean {
    * Actually starts the game, including relay and replay server. Call this method when everything else is prepared
    * (mod/map download, connectivity check etc.)
    */
-  private void startGame(GameLaunchMessage gameLaunchMessage, String ircUrl, boolean autoLaunch) {
+  private void startGame(GameLaunchMessage gameLaunchMessage, String ircUrl, boolean autoLaunch, String playerAlias) {
     if (isRunning()) {
       log.warn("Total Annihilation is already running, not starting game");
       return;
@@ -731,7 +731,7 @@ public class GameService implements InitializingBean {
     String modTechnical = gameLaunchMessage.getMod();
     int uid = gameLaunchMessage.getUid();
     replayServer.start(uid, () -> getByUid(uid))
-        .thenCompose(port ->  iceAdapter.start())
+        .thenCompose(port ->  iceAdapter.start(playerAlias))
         .thenAccept(adapterPort -> {
           List<String> args = fixMalformedArgs(gameLaunchMessage.getArgs());
 
