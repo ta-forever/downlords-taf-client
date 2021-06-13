@@ -86,21 +86,21 @@
                                        </StackPane>
                                    </graphic>
                                </Button>
-                               <Button styleClass="discord-button" onMouseClicked="#onDiscordButtonClicked">
-                                   <graphic>
-                                       <Region styleClass="icon,discord-icon,discord-color"/>
-                                   </graphic>
-                                   <tooltip>
-                                       <Tooltip text="%discord.join"/>
-                                   </tooltip>
-                               </Button>
                            </children>
                            <HBox.margin>
                                <Insets right="10.0"/>
                            </HBox.margin>
                        </StackPane>
-                      <fx:include source="user_button.fxml" />
-                  </children>
+                       <Button styleClass="discord-button" onMouseClicked="#onDiscordButtonClicked">
+                           <graphic>
+                               <Region styleClass="icon,discord-icon,discord-color"/>
+                           </graphic>
+                           <tooltip>
+                               <Tooltip text="%discord.join"/>
+                           </tooltip>
+                       </Button>
+                       <fx:include source="user_button.fxml" />
+                   </children>
                   <HBox.margin>
                      <Insets right="135.0" />
                   </HBox.margin>
