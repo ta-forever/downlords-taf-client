@@ -925,9 +925,12 @@ public class GameService implements InitializingBean {
           // host can prevent auto joins by setting a password
           !game.isPasswordProtected() &&
 
+          // matchmaker isn't for auto-joining
+          game.getGameType() != GameType.MATCHMAKER &&
+
           // only auto-join if host shares a common chat channel with us
           currentPlayerChannels.stream().anyMatch(channel ->
-              channel.startsWith("#") && !chatService.isDefaultChannel(channel) && playerChannels.contains(channel))) {
+              channel.matches("^#.+\\[.+\\]$") && !chatService.isDefaultChannel(channel) && playerChannels.contains(channel))) {
 
         if (currentPlayer.getStatus() == PlayerStatus.IDLE && getCurrentGame() == null) {
           log.info("auto-joining game: {}", game);
