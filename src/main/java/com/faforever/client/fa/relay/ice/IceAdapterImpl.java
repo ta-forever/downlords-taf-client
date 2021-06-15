@@ -166,7 +166,9 @@ public class IceAdapterImpl implements IceAdapter, InitializingBean, DisposableB
           "-jar",
           getBinaryName(workDirectory),
           "--id", String.valueOf(currentPlayer.getId()),
-          "--login", playerAlias,
+          "--login", playerAlias.equals(currentPlayer.getUsername())
+              ? playerAlias
+              : playerAlias + "/" + currentPlayer.getUsername(),
           "--rpc-port", String.valueOf(adapterPort),
           "--gpgnet-port", String.valueOf(gpgPort)
       );
