@@ -2,9 +2,11 @@ package com.faforever.client.chat;
 
 import com.faforever.client.audio.AudioService;
 import com.faforever.client.chat.event.ChatUserCategoryChangeEvent;
+import com.faforever.client.chat.event.UnreadPrivateMessageEvent;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.fx.WebViewConfigurer;
+import com.faforever.client.game.PlayerStatus;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.Player;
@@ -70,6 +72,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static com.faforever.client.fx.PlatformService.URL_REGEX_PATTERN;
+import static com.faforever.client.game.GameService.GAME_CHANNEL_REGEX;
 import static com.faforever.client.player.SocialStatus.FOE;
 import static java.util.Locale.US;
 
@@ -329,6 +332,30 @@ public class ChannelTabController extends AbstractChatTabController {
       audioService.playChatMentionSound();
       showNotificationIfNecessary(chatMessage);
       incrementUnreadMessagesCount(1);
+      setUnread(true);
+    }
+  }
+
+  @Override
+  public void onChatMessage(ChatMessage chatMessage) {
+    Optional<Player> playerOptional = playerService.getPlayerForUsername(chatMessage.getUsername());
+    ChatPrefs chatPrefs = preferencesService.getPreferences().getChat();
+
+    if (playerOptional.isPresent() && playerOptional.get().getSocialStatus() == FOE && chatPrefs.getHideFoeMessages()) {
+      return;
+    }
+
+    super.onChatMessage(chatMessage);
+
+    PlayerStatus localPlayerStatus = PlayerStatus.IDLE;
+    if (playerService.getCurrentPlayer().isPresent()) {
+      localPlayerStatus = playerService.getCurrentPlayer().get().getStatus();
+    }
+    if (!hasFocus() && chatMessage.getSource() != null && chatMessage.getSource().matches(GAME_CHANNEL_REGEX) &&
+        Set.of(PlayerStatus.IDLE, PlayerStatus.HOSTING, PlayerStatus.JOINING).contains(localPlayerStatus)
+    ) {
+      audioService.playPrivateMessageSound();
+      showNotificationIfNecessary(chatMessage);
       setUnread(true);
     }
   }

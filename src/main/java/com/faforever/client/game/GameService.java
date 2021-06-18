@@ -103,7 +103,8 @@ public class GameService implements InitializingBean {
 
   @VisibleForTesting
   static final String DEFAULT_RATING_TYPE = "global";
-  static final String GAME_CHANNEL_REGEX = "^#.+\\[.+\\]$";
+
+  public static final String GAME_CHANNEL_REGEX = "^#.+\\[.+\\]$";
 
   @VisibleForTesting
   final BooleanProperty gameRunning;
