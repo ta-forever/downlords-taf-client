@@ -85,7 +85,7 @@ public class JoinGameHelper {
       enterPasswordController.setIgnoreRating(ignoreRating);
       enterPasswordController.showPasswordDialog(StageHolder.getStage());
     } else {
-      gameService.joinGame(game, password, true)
+      gameService.joinGame(game, password)
           .exceptionally(throwable -> {
             logger.warn("Game could not be joined", throwable);
             notificationService.addImmediateErrorNotification(throwable, "games.couldNotJoin");
