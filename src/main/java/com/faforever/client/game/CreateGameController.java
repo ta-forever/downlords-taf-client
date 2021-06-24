@@ -35,6 +35,8 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
+import javafx.collections.WeakListChangeListener;
 import javafx.collections.transformation.FilteredList;
 import javafx.css.PseudoClass;
 import javafx.event.ActionEvent;
@@ -67,8 +69,11 @@ import org.springframework.stereotype.Component;
 import java.lang.ref.WeakReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -280,6 +285,7 @@ public class CreateGameController implements Controller<Pane> {
     selectAppropriateMap();
     setLastGameTitle();
     initPassword();
+    initMapListListeners();
 
     titleTextField.textProperty().addListener((observable, oldValue, newValue) -> {
       preferencesService.getPreferences().getLastGame().setLastGameTitle(newValue);
@@ -355,6 +361,27 @@ public class CreateGameController implements Controller<Pane> {
     });
     mapListView.getSelectionModel().selectedItemProperty().addListener(selectedMapChangeListener);
     selectedMapChangeListener.changed(null, null, mapListView.getSelectionModel().selectedItemProperty().getValue());
+  }
+
+  private final List<ListChangeListener<MapBean>> installedMapsChangeListeners = new ArrayList<>();
+  protected void initMapListListeners() {
+    try {
+      fafService.getFeaturedMods().get().stream().forEach(mod -> {
+        ListChangeListener<MapBean> changeListener = ch -> JavaFxUtil.runLater(() -> {
+          String activeMod = featuredModListView.getFocusModel().getFocusedItem().getTechnicalName();
+          if (activeMod.equals(mod.getTechnicalName())) {
+            setAvailableMaps(activeMod);
+            selectAppropriateMap();
+          }
+        });
+        installedMapsChangeListeners.add(changeListener);
+        mapService.getInstalledMaps(mod.getTechnicalName()).addListener(new WeakListChangeListener<>(changeListener));
+      });
+    } catch (InterruptedException e) {
+      log.error("[initMapListListeners] InterruptedException: {}", e.getMessage());
+    } catch (ExecutionException e) {
+      log.error("[initMapListListeners] ExecutionException: {}", e.getMessage());
+    }
   }
 
   protected void setAvailableMaps(String modTechnical) {
