@@ -82,6 +82,6 @@ public class PreferencesServiceTest {
 
   @Test
   public void testGetNewLogFile() throws Exception {
-    assertTrue(GAME_LOG_PATTERN.matcher(instance.getNewGameLogFile(0).getFileName().toString()).matches());
+    assertTrue(GAME_LOG_PATTERN.matcher(instance.getNewLogFile("game",0).getFileName().toString()).matches());
   }
 }

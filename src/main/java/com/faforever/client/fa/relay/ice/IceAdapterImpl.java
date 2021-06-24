@@ -136,7 +136,8 @@ public class IceAdapterImpl implements IceAdapter, InitializingBean, DisposableB
     GpgClientCommand command = gpgGameMessage.getCommand();
 
     if (command == GpgClientCommand.REHOST) {
-      eventBus.post(new RehostRequestEvent());
+      //eventBus.post(new RehostRequestEvent());
+      log.info("[onGpgGameMessage] REHOST not implemented");
       return;
     }
     if (command == GpgClientCommand.GAME_FULL) {

@@ -90,7 +90,6 @@ public class PreferencesService implements InitializingBean {
   private static final String FEATURED_MOD_CACHE_SUB_FOLDER = "featured_mod";
   private static final String CACHE_STYLESHEETS_SUB_FOLDER = Paths.get(CACHE_SUB_FOLDER, "stylesheets").toString();
   private static final Path CACHE_DIRECTORY;
-  private static final Pattern GAME_LOG_PATTERN = Pattern.compile("game(_\\d*)?.log");
   private static final int NUMBER_GAME_LOGS_STORED = 10;
   private static final Path FEATURED_MOD_CACHE_PATH;
 
@@ -355,22 +354,24 @@ public class PreferencesService implements InitializingBean {
     return getFafDataDirectory().resolve("themes");
   }
 
-  public Path getNewGameLogFile(int gameUID) {
+  public Path getNewLogFile(String baseFileName, int sequenceNumber) {
+    final Pattern logPattern = Pattern.compile(baseFileName + "(_\\d*)?.log");
     try (Stream<Path> listOfLogFiles = Files.list(getFafLogDirectory())) {
       listOfLogFiles
-          .filter(p -> GAME_LOG_PATTERN.matcher(p.getFileName().toString()).matches())
+          .filter(p -> logPattern.matcher(p.getFileName().toString()).matches())
           .sorted(Comparator.comparingLong(p -> ((Path) p).toFile().lastModified()).reversed())
           .skip(NUMBER_GAME_LOGS_STORED - 1)
           .forEach(p -> noCatch(() -> Files.delete(p)));
     } catch (IOException e) {
       logger.error("Could not list log directory.", e);
     } catch (NoCatchException e) {
-      logger.error("Could not delete game log file");
+      logger.error("Could not delete log file");
     }
-    return getFafLogDirectory().resolve(String.format("game_%d.log", gameUID));
+    return getFafLogDirectory().resolve(String.format("%s_%d.log", baseFileName, sequenceNumber));
   }
 
   public Optional<Path> getMostRecentGameLogFile() {
+    final Pattern GAME_LOG_PATTERN = Pattern.compile("game(_\\d*)?.log");
     try (Stream<Path> listOfLogFiles = Files.list(getFafLogDirectory())) {
       return listOfLogFiles
           .filter(p -> GAME_LOG_PATTERN.matcher(p.getFileName().toString()).matches()).max(Comparator.comparingLong(p -> p.toFile().lastModified()));

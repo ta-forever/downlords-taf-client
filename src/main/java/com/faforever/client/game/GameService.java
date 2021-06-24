@@ -62,6 +62,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.stereotype.Service;
 
 import javax.inject.Inject;
@@ -145,7 +146,7 @@ public class GameService implements InitializingBean {
   @VisibleForTesting
   String matchedQueueRatingType;
   private Process process;
-  private boolean rehostRequested;
+  private Optional<Game> rehostRequested;
 
   @Inject
   public GameService(ClientProperties clientProperties,
@@ -213,6 +214,7 @@ public class GameService implements InitializingBean {
           log.info("[currentGameListener] killGame() because new currentGame==null && currentPlayer.status() != PLAYING");
           killGame();
         }
+
         return;
       }
 
@@ -285,7 +287,6 @@ public class GameService implements InitializingBean {
     return new ChangeListener<>() {
       @Override
       public void changed(ObservableValue<? extends GameStatus> observable, GameStatus oldStatus, GameStatus newStatus) {
-
         if (observable.getValue() == GameStatus.ENDED) {
           observable.removeListener(this);
         }
@@ -308,16 +309,6 @@ public class GameService implements InitializingBean {
           GameService.this.notifyRecentlyPlayedGameEnded(game);
         }
 
-        // chat room is only advertised on the game board if host creates another game ... here we prompt host to do that
-        if ((oldStatus.isInProgress() || oldStatus == GameStatus.BATTLEROOM) &&
-            newStatus == GameStatus.ENDED &&
-            getCurrentPlayer() != null && getCurrentPlayer().getUsername().equals(game.getHost()) &&
-            (getCurrentGame() == null || getCurrentGame().getId() == game.getId()) &&
-            game.getGameType() != GameType.MATCHMAKER &&
-            preferencesService.getPreferences().getAutoRehostEnabled()) {
-          eventBus.post(new HostGameEvent(game.getMapName()));
-        }
-
         if (Objects.equals(currentGame.get(), game) && currentGameStatusProperty.get() != newStatus) {
           currentGameStatusProperty.setValue(newStatus);
         }
@@ -328,6 +319,14 @@ public class GameService implements InitializingBean {
             GameService.this.startBattleRoom();
           }
         }
+
+        if (preferencesService.getPreferences().getAutoRehostEnabled() &&
+            newStatus == GameStatus.BATTLEROOM &&
+            game.getGameType() != GameType.MATCHMAKER &&
+            getCurrentPlayer() != null && getCurrentPlayer().getUsername().equals(game.getHost())) {
+          log.info("[generateGameStatusListener.changed] posting RehostRequestEvent");
+          eventBus.post(new RehostRequestEvent(game));
+        }
       }
     };
   }
@@ -337,6 +336,8 @@ public class GameService implements InitializingBean {
   }
 
   public CompletableFuture<Void> hostGame(NewGameInfo newGameInfo) {
+    log.info("[hostGame] title={}", newGameInfo.getTitle());
+
     if (isRunning()) {
       log.debug("Game is running, ignoring host request");
       notificationService.addImmediateWarnNotification("game.gameRunning");
@@ -440,7 +441,7 @@ public class GameService implements InitializingBean {
             }
             this.process = processForReplay;
             setGameRunning(true);
-            spawnTerminationListener(this.process, true);
+            spawnGameTerminationListener(this.process);
           } catch (IOException e) {
             notifyCantPlayReplay(replayId, e);
           }
@@ -535,7 +536,7 @@ public class GameService implements InitializingBean {
           }
           this.process = processCreated;
           setGameRunning(true);
-          spawnTerminationListener(this.process, true);
+          spawnGameTerminationListener(this.process);
         }))
         .exceptionally(throwable -> {
           notifyCantPlayReplay(gameId, throwable);
@@ -656,9 +657,7 @@ public class GameService implements InitializingBean {
    */
   @Nullable
   public Game getCurrentGame() {
-    synchronized (currentGame) {
-      return currentGame.get();
-    }
+    return currentGame.get();
   }
 
   public SimpleObjectProperty<Game> getCurrentGameProperty() {
@@ -679,15 +678,11 @@ public class GameService implements InitializingBean {
   }
 
   public boolean isGameRunning() {
-    synchronized (gameRunning) {
-      return gameRunning.get();
-    }
+    return gameRunning.get();
   }
 
   private void setGameRunning(boolean running) {
-    synchronized (gameRunning) {
-      gameRunning.set(running);
-    }
+    gameRunning.set(running);
   }
 
   public void startBattleRoom() {
@@ -733,13 +728,13 @@ public class GameService implements InitializingBean {
         .thenAccept(adapterPort -> {
           List<String> args = fixMalformedArgs(gameLaunchMessage.getArgs());
 
-          Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(modTechnical));
-          spawnTerminationListener(launchServerProcess, false);
+          Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(modTechnical, uid));
+          spawnGenericTerminationListener(launchServerProcess);
 
           process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, gameLaunchMessage.getUid(), args,
               adapterPort, getCurrentPlayer(), ircUrl, autoLaunch));
           setGameRunning(true);
-          spawnTerminationListener(process, true);
+          spawnGameTerminationListener(process);
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be started", throwable);
@@ -774,65 +769,81 @@ public class GameService implements InitializingBean {
     return fixedArgs;
   }
 
+  void waitForTermination(Process process) {
+    String command = process.info().command().orElse("<unknown>");
+    String commandFileName = Paths.get(command).getFileName().toString();
+    int exitCode;
+
+    try {
+      exitCode = process.waitFor();
+    } catch (InterruptedException e) {
+      log.warn("[waitForTermination] interrupted waiting for termination of process '{}'. Destroying ...", command);
+      process.destroy();
+      return;
+    }
+
+    log.info("[waitForTermination] '{}' terminated with exit code {}", commandFileName, exitCode);
+    if (exitCode != 0) {
+      String logPath = preferencesService.getFafLogDirectory().toString();
+      String message = String.format("'%s' exited with code %d. See '%s' for further information", command, exitCode, logPath);
+      notificationService.addImmediateErrorNotification(new RuntimeException(message),"game.crash", commandFileName, logPath);
+    }
+  }
+
   @VisibleForTesting
-  void spawnTerminationListener(Process process, Boolean forOnlineGame) {
+  void spawnGameTerminationListener(Process process) {
+    if (process == null) {
+      return;
+    }
+
+    rehostRequested = Optional.ofNullable(null);
     executorService.execute(() -> {
-      try {
-        rehostRequested = false;
-        String command = process.info().command().orElse("<unknown>");
-        String commandFileName = Paths.get(command).getFileName().toString();
-        int exitCode = process.waitFor();
-        log.info("'{}' terminated with exit code {}", commandFileName, exitCode);
-        if (exitCode != 0) {
-          String logPath = preferencesService.getFafLogDirectory().toString();
-          String message = String.format("'%s' exited with code %d. See '%s' for further information", command, exitCode, logPath);
-          notificationService.addImmediateErrorNotification(new RuntimeException(message),"game.crash", commandFileName, logPath);
-        }
-
-        synchronized (gameRunning) {
+      waitForTermination(process);
+      JavaFxUtil.runLater(() -> {
+        try {
           gameRunning.set(false);
-          if (forOnlineGame) {
-            fafService.notifyGameEnded();
-            replayServer.stop();
-            iceAdapter.stop();
-          }
-
-          if (rehostRequested) {
-            rehost();
+          replayServer.stop();
+          iceAdapter.stop();
+          fafService.notifyGameEnded();
+          if (rehostRequested.isPresent()) {
+            rehost(rehostRequested.get());
           }
         }
-      }
-      catch (Exception e) {
-        log.warn("Total Annihilation process was interrupted");
-        killGame();
-      }
+        catch (TaskRejectedException e) {
+        }
+      });
     });
   }
 
-  private void rehost() {
-    synchronized (currentGame) {
-      Game game = currentGame.get();
-
-      modService.getFeaturedMod(game.getFeaturedMod())
-          .thenAccept(featuredModBean -> hostGame(new NewGameInfo(
-              game.getTitle(),
-              game.getPassword(),
-              featuredModBean,
-              game.getMapName(),
-              new HashSet<>(game.getSimMods().values()),
-              GameVisibility.PUBLIC,
-              game.getMinRating(), game.getMaxRating(), game.getEnforceRating())));
+  @VisibleForTesting
+  void spawnGenericTerminationListener(Process process) {
+    if (process == null) {
+      return;
     }
+    executorService.execute(() -> waitForTermination(process));
+  }
+
+  private void rehost(Game prototype) {
+    modService.getFeaturedMod(prototype.getFeaturedMod())
+        .thenAccept(featuredModBean -> hostGame(new NewGameInfo(
+            prototype.getTitle(),
+            prototype.getPassword(),
+            featuredModBean,
+            prototype.getMapName(),
+            new HashSet<>(prototype.getSimMods().values()),
+            GameVisibility.PUBLIC,
+            prototype.getMinRating(), prototype.getMaxRating(), prototype.getEnforceRating())));
   }
 
   @Subscribe
   public void onRehostRequest(RehostRequestEvent event) {
-    this.rehostRequested = true;
-    synchronized (gameRunning) {
-      if (!gameRunning.get()) {
-        // If the game already has terminated, the rehost is issued here. Otherwise it will be issued after termination
-        rehost();
-      }
+    if (!gameRunning.get()) {
+      log.info("[onRehostRequest] rehost immediately");
+      rehost(event.getGame());
+    }
+    else {
+      log.info("[onRehostRequest] rehost deferred");
+      rehostRequested = Optional.of(event.getGame());
     }
   }
 
@@ -886,15 +897,16 @@ public class GameService implements InitializingBean {
   }
 
   private void conditionallyDoOrDeferAutojoin(Game game) {
+    log.info("[conditionallyDoOrDeferAutojoin]", game);
     Optional<Player> currentPlayerOptional = playerService.getCurrentPlayer();
     if (currentPlayerOptional.isPresent() && preferencesService.getPreferences().getAutoJoinEnabled() && isAutoJoinable(game)) {
       Player currentPlayer = currentPlayerOptional.get();
       if (currentPlayer.getStatus() == PlayerStatus.IDLE && getCurrentGame() == null) {
-        log.info("auto-joining {}", game);
+        log.info("[conditionallyDoOrDeferAutojoin] auto-joining {}", game);
         this.joinGame(game, null);
       }
       else if (currentPlayer.getStatus() != PlayerStatus.IDLE) {
-        log.info("will auto-join {} when player becomes IDLE", game);
+        log.info("[conditionallyDoOrDeferAutojoin] will auto-join {} when player becomes IDLE", game);
         ChangeListener<PlayerStatus> listener = new ChangeListener<>() {
           @Override
           public void changed(ObservableValue<? extends PlayerStatus> observable, PlayerStatus oldValue, PlayerStatus newValue) {
@@ -904,7 +916,7 @@ public class GameService implements InitializingBean {
         };
         currentPlayer.statusProperty().addListener(listener);
       } else /* getCurrentGame() != null */ {
-        log.info("will auto-join {} when current game terminates", game);
+        log.info("[conditionallyDoOrDeferAutojoin] will auto-join {} when current game terminates", game);
         ChangeListener<Game> listener = new ChangeListener<>() {
           @Override
           public void changed(ObservableValue<? extends Game> observable, Game oldValue, Game newValue) {
@@ -915,6 +927,7 @@ public class GameService implements InitializingBean {
         currentGame.addListener(listener);
       }
     }
+    log.info("[conditionallyDoOrDeferAutojoin] done", game);
   }
 
   private void onGameInfo(GameInfoMessage gameInfoMessage) {
@@ -949,7 +962,9 @@ public class GameService implements InitializingBean {
         synchronized (currentGame) {
           log.info("[onGameInfo] currentGame(game) because currentPlayerInGame && game.isOpen()");
           currentGame.set(game);
+          log.info("[onGameInfo] done");
         }
+        log.info("[onGameInfo] done and synced");
       } else if (isGameCurrentGame && !currentPlayerInGame) {
         synchronized (currentGame) {
           log.info("[onGameInfo] currentGame(null) because !currentPlayerInGame");
@@ -957,7 +972,9 @@ public class GameService implements InitializingBean {
         }
       }
 
+      log.info("[onGameInfo] isGameCurrentGame ...");
       if (!isGameCurrentGame) {
+        log.info("[onGameInfo] conditionallyDoOrDeferAutojoin() ...");
         conditionallyDoOrDeferAutojoin(game);
       }
     }
