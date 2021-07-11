@@ -314,6 +314,10 @@ public class FafService {
     fafApiAccessor.uploadMod(modFile, byteListener);
   }
 
+  public void uploadGameLogs(Path gameLogsFile, String context, int id, ByteCountListener byteListener) {
+    fafApiAccessor.uploadGameLogs(gameLogsFile, context, id, byteListener);
+  }
+
   @Async
   public CompletableFuture<List<PlayerAchievement>> getPlayerAchievements(int playerId) {
     return CompletableFuture.completedFuture(fafApiAccessor.getPlayerAchievements(playerId));

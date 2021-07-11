@@ -35,9 +35,13 @@ import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.remote.domain.LoginMessage;
 import com.faforever.client.replay.ReplayServer;
+import com.faforever.client.task.ResourceLocks;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.faforever.client.util.RatingUtil;
 import com.faforever.client.util.TimeUtil;
+import com.faforever.client.util.ZipUtil;
+import com.faforever.commons.io.ByteCountListener;
+import com.faforever.commons.io.Zipper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -67,8 +71,10 @@ import org.springframework.core.task.TaskRejectedException;
 import org.springframework.stereotype.Service;
 
 import javax.inject.Inject;
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -88,6 +94,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.faforever.commons.io.Bytes.formatSize;
 import static com.github.nocatch.NoCatch.noCatch;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
@@ -106,7 +113,7 @@ public class GameService implements InitializingBean {
   @VisibleForTesting
   static final String DEFAULT_RATING_TYPE = "global";
 
-  public static final String GAME_CHANNEL_REGEX = "^#.+\\[.+\\]$";
+  public static final String CUSTOM_GAME_CHANNEL_REGEX = "^#.+\\[.+\\]$";
 
   @VisibleForTesting
   final BooleanProperty gameRunning;
@@ -223,10 +230,10 @@ public class GameService implements InitializingBean {
         String newGameChannel = getInGameIrcChannel(newValue);
         Set<String> userChannels = chatService.getUserChannels(currentPlayer.getUsername());
         userChannels.stream()
-            .filter(channel -> channel.matches(GAME_CHANNEL_REGEX) && !channel.equals(newGameChannel))
+            .filter(channel -> channel.matches(CUSTOM_GAME_CHANNEL_REGEX) && !channel.equals(newGameChannel))
             .forEach(channel -> chatService.leaveChannel(channel));
         userChannels.stream()
-            .filter(channel -> channel.matches(GAME_CHANNEL_REGEX) && channel.equals(newGameChannel))
+            .filter(channel -> channel.matches(CUSTOM_GAME_CHANNEL_REGEX) && channel.equals(newGameChannel))
             .findAny()
             .ifPresentOrElse((String) -> {
             }, () -> eventBus.post(new JoinChannelEvent(newGameChannel)));
@@ -249,7 +256,11 @@ public class GameService implements InitializingBean {
 
     eventBus.register(this);
 
-    fafService.addOnMessageListener(GameInfoMessage.class, message -> JavaFxUtil.runLater(() -> onGameInfo(message)));
+    fafService.addOnMessageListener(GameInfoMessage.class, message -> {
+      log.info("[GameInfoMessage listener] enter");
+      JavaFxUtil.runLater(() -> onGameInfo(message));
+      log.info("[GameInfoMessage listener] exit");
+    });
     fafService.addOnMessageListener(LoginMessage.class, message -> onLoggedIn());
 
     JavaFxUtil.addListener(
@@ -444,7 +455,7 @@ public class GameService implements InitializingBean {
             }
             this.process = processForReplay;
             setGameRunning(true);
-            spawnGameTerminationListener(this.process);
+            spawnGameTerminationListener(this.process, replayId);
           } catch (IOException e) {
             notifyCantPlayReplay(replayId, e);
           }
@@ -539,7 +550,7 @@ public class GameService implements InitializingBean {
           }
           this.process = processCreated;
           setGameRunning(true);
-          spawnGameTerminationListener(this.process);
+          spawnGameTerminationListener(this.process, gameId);
         }))
         .exceptionally(throwable -> {
           notifyCantPlayReplay(gameId, throwable);
@@ -737,7 +748,7 @@ public class GameService implements InitializingBean {
           process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, gameLaunchMessage.getUid(), args,
               adapterPort, getCurrentPlayer(), ircUrl, autoLaunch));
           setGameRunning(true);
-          spawnGameTerminationListener(process);
+          spawnGameTerminationListener(process, gameLaunchMessage.getUid());
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be started", throwable);
@@ -772,7 +783,7 @@ public class GameService implements InitializingBean {
     return fixedArgs;
   }
 
-  void waitForTermination(Process process) {
+  Integer waitForTermination(Process process) {
     String command = process.info().command().orElse("<unknown>");
     String commandFileName = Paths.get(command).getFileName().toString();
     int exitCode;
@@ -782,26 +793,51 @@ public class GameService implements InitializingBean {
     } catch (InterruptedException e) {
       log.warn("[waitForTermination] interrupted waiting for termination of process '{}'. Destroying ...", command);
       process.destroy();
-      return;
+      return null;
     }
 
     log.info("[waitForTermination] '{}' terminated with exit code {}", commandFileName, exitCode);
-    if (exitCode != 0) {
-      String logPath = preferencesService.getFafLogDirectory().toString();
-      String message = String.format("'%s' exited with code %d. See '%s' for further information", command, exitCode, logPath);
-      notificationService.addImmediateErrorNotification(new RuntimeException(message),"game.crash", commandFileName, logPath);
+    return exitCode;
+  }
+
+  void submitLogs(int gameId) {
+    log.info("[submitLogs] submitting logs to TAF for game ID={}", gameId);
+    Path logGpgnet4ta = preferencesService.getMostRecentLogFile("game").orElse(Path.of(""));
+    Path logLauncher = preferencesService.getMostRecentLogFile("talauncher").orElse(Path.of(""));
+    Path logClient = preferencesService.getFafLogDirectory().resolve("client.log");
+    Path logIceAdapter = preferencesService.getIceAdapterLogDirectory().resolve("ice-adapter.log");
+    Path targetZipFile = preferencesService.getFafLogDirectory().resolve(String.format("game_logs_%d.zip", gameId));
+    try {
+      File files[] = {logIceAdapter.toFile(), logClient.toFile(),logGpgnet4ta.toFile(), logLauncher.toFile()};
+      ZipUtil.zipFile(files, targetZipFile.toFile());
+      ResourceLocks.acquireUploadLock();
+      fafService.uploadGameLogs(targetZipFile, "game", gameId, (written, total) -> {});
+    } catch (Exception e) {
+      log.error("[submitLogs] unable to submit logs:", e.getMessage());
+    } finally {
+      ResourceLocks.freeUploadLock();
+      try { Files.delete(targetZipFile); } catch(Exception e) {}
     }
   }
 
   @VisibleForTesting
-  void spawnGameTerminationListener(Process process) {
+  void spawnGameTerminationListener(Process process, int gameId) {
     if (process == null) {
       return;
     }
 
     rehostRequested = Optional.ofNullable(null);
     executorService.execute(() -> {
-      waitForTermination(process);
+      String command = process.info().command().orElse("<unknown>");
+      String commandFileName = Paths.get(command).getFileName().toString();
+      Integer exitCode = waitForTermination(process);
+
+      submitLogs(gameId);
+      if (exitCode != null && exitCode != 0) {
+        String message = String.format("'%s' exited with code %d", command, exitCode);
+        notificationService.addImmediateErrorNotification(new RuntimeException(message),"game.crash", commandFileName, gameId);
+      }
+
       JavaFxUtil.runLater(() -> {
         try {
           gameRunning.set(false);
@@ -823,7 +859,15 @@ public class GameService implements InitializingBean {
     if (process == null) {
       return;
     }
-    executorService.execute(() -> waitForTermination(process));
+    executorService.execute(() -> {
+      String command = process.info().command().orElse("<unknown>");
+      String commandFileName = Paths.get(command).getFileName().toString();
+      Integer exitCode = waitForTermination(process);
+      if (exitCode != null && exitCode != 0) {
+        String message = String.format("'%s' exited with code %d", command, exitCode);
+        notificationService.addImmediateErrorNotification(new RuntimeException(message),"process.crash", commandFileName);
+      }
+    });
   }
 
   private void rehost(Game prototype) {
@@ -949,12 +993,13 @@ public class GameService implements InitializingBean {
         }
         log.info("[onGameInfo] done and synced");
       } else if (isGameCurrentGame && !currentPlayerInGame) {
+        log.info("[onGameInfo] synchronized (currentGame)");
         synchronized (currentGame) {
           log.info("[onGameInfo] currentGame(null) because !currentPlayerInGame");
           currentGame.set(null);
         }
       }
-
+      log.info("[onGameInfo] if (preferencesService.getPreferences()");
       if (preferencesService.getPreferences().getAutoJoinEnabled() &&
           game.getStatus() == GameStatus.BATTLEROOM &&
           game.getGameType() != GameType.MATCHMAKER &&
@@ -964,6 +1009,7 @@ public class GameService implements InitializingBean {
         log.info("[generateGameStatusListener.changed] posting AutoJoinRequestEvent");
         eventBus.post(new AutoJoinRequestEvent(game));
       }
+      log.info("[onGameInfo] DONE");
     }
 
     JavaFxUtil.addListener(game.statusProperty(), (observable, oldValue, newValue) -> {

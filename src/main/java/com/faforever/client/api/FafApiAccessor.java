@@ -81,6 +81,8 @@ public interface FafApiAccessor {
 
   void uploadMap(Path file, boolean isRanked, List<java.util.Map<String,String>> mapDetails, ByteCountListener listener) throws IOException;
 
+  void uploadGameLogs(Path file, String context, int id, ByteCountListener listener);
+
   List<CoopMission> getCoopMissions();
 
   List<CoopResult> getCoopLeaderboard(String missionId, int numberOfPlayers);

@@ -354,6 +354,10 @@ public class PreferencesService implements InitializingBean {
     return getFafDataDirectory().resolve("themes");
   }
 
+  public Path getLogFile(String baseFileName, int sequenceNumber) {
+    return getFafLogDirectory().resolve(String.format("%s_%d.log", baseFileName, sequenceNumber));
+  }
+
   public Path getNewLogFile(String baseFileName, int sequenceNumber) {
     final Pattern logPattern = Pattern.compile(baseFileName + "(_\\d*)?.log");
     try (Stream<Path> listOfLogFiles = Files.list(getFafLogDirectory())) {
@@ -367,18 +371,18 @@ public class PreferencesService implements InitializingBean {
     } catch (NoCatchException e) {
       logger.error("Could not delete log file");
     }
-    return getFafLogDirectory().resolve(String.format("%s_%d.log", baseFileName, sequenceNumber));
+    return getLogFile(baseFileName, sequenceNumber);
   }
 
-  public Optional<Path> getMostRecentGameLogFile() {
-    final Pattern GAME_LOG_PATTERN = Pattern.compile("game(_\\d*)?.log");
+  public Optional<Path> getMostRecentLogFile(String baseFileName) {
+    final Pattern LOG_PATTERN = Pattern.compile(baseFileName + "(_\\d*)?.log");
     try (Stream<Path> listOfLogFiles = Files.list(getFafLogDirectory())) {
       return listOfLogFiles
-          .filter(p -> GAME_LOG_PATTERN.matcher(p.getFileName().toString()).matches()).max(Comparator.comparingLong(p -> p.toFile().lastModified()));
+          .filter(p -> LOG_PATTERN.matcher(p.getFileName().toString()).matches()).max(Comparator.comparingLong(p -> p.toFile().lastModified()));
     } catch (IOException e) {
       logger.error("Could not list log directory.", e);
     } catch (NoCatchException e) {
-      logger.error("Could not delete game log file");
+      logger.error("Could not delete log file");
     }
     return Optional.empty();
   }

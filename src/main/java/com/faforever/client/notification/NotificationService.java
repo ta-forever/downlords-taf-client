@@ -19,6 +19,7 @@ import java.util.TreeSet;
 
 import static com.faforever.client.notification.Severity.ERROR;
 import static com.faforever.client.notification.Severity.WARN;
+import static com.faforever.client.notification.Severity.INFO;
 import static java.util.Collections.singletonList;
 import static javafx.collections.FXCollections.observableSet;
 import static javafx.collections.FXCollections.synchronizedObservableSet;
@@ -128,5 +129,9 @@ public class NotificationService {
 
   public void addImmediateWarnNotification(String messageKey, Object... args) {
     addNotification(new ImmediateNotification(i18n.get("errorTitle"), i18n.get(messageKey, args), WARN, List.of(new DismissAction(i18n))));
+  }
+
+  public void addImmediateInfoNotification(String titleKey, String messageKey, Object... args) {
+    addNotification(new ImmediateNotification(i18n.get(titleKey), i18n.get(messageKey, args), INFO, List.of(new DismissAction(i18n))));
   }
 }
