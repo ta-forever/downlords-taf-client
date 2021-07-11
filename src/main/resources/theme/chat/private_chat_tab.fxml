@@ -11,7 +11,7 @@
      fx:controller="com.faforever.client.chat.PrivateChatTabController" styleClass="private-channel-tab">
     <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0">
         <children>
-            <SplitPane dividerPositions="0.8" maxWidth="1.7976931348623157E308" VBox.vgrow="ALWAYS">
+            <SplitPane fx:id="splitPane" dividerPositions="0.8" maxWidth="1.7976931348623157E308" VBox.vgrow="ALWAYS">
                 <items>
                     <AnchorPane>
                         <WebView fx:id="messagesWebView" minHeight="100.0" minWidth="100.0" prefHeight="-1.0"

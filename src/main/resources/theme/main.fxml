@@ -25,6 +25,8 @@
                               <items>
                                   <MenuItem onAction="#onRevealLogFolder" text="%menu.revealLogFolder" />
                                   <SeparatorMenuItem mnemonicParsing="false" />
+                                  <MenuItem onAction="#onSubmitLogs" text="%menu.submitLogs" />
+                                  <SeparatorMenuItem mnemonicParsing="false" />
                                   <MenuItem onAction="#onRevealGamePaths" text="%menu.revealModFolder" />
                                   <SeparatorMenuItem mnemonicParsing="false"/>
                                   <MenuItem disable="true" text="%menu.feedback"/>

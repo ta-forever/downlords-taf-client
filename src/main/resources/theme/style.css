@@ -791,7 +791,7 @@
 
 .chat-tab-pane {
     -fx-tab-max-height: 0 ;
-      -fx-border-width: 0 0 0 2;
+      -fx-border-width: 2 2 2 2;
       -fx-border-color: #424242;
 }
 

@@ -114,8 +114,9 @@ public class GamesTableController implements Controller<Node> {
 
     passwordProtectionColumn.setCellValueFactory(param -> param.getValue().passwordProtectedProperty());
     passwordProtectionColumn.setCellFactory(param -> passwordIndicatorColumn());
+    passwordProtectionColumn.setVisible(preferencesService.getPreferences().isShowPasswordProtectedGames());
+    mapPreviewColumn.setCellFactory(param -> new MapPreviewTableCell(uiService));
 
-passwordProtectionColumn.setVisible(preferencesService.getPreferences().isShowPasswordProtectedGames());    mapPreviewColumn.setCellFactory(param -> new MapPreviewTableCell(uiService));
     mapPreviewColumn.setCellValueFactory(param -> Bindings.createObjectBinding(
         () -> mapService
             .loadPreview(param.getValue().getFeaturedMod(), param.getValue().getMapName(), PreviewType.MINI, 10),
@@ -152,8 +153,20 @@ passwordProtectionColumn.setVisible(preferencesService.getPreferences().isShowPa
       coopMissionName.setCellValueFactory(param -> new SimpleObjectProperty<>(coopMissionNameProvider.apply(param.getValue().getMapName())));
     }
 
-    gamesTable.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue)
-        -> onSelectedListener.accept(newValue));
+    gamesTable.setOnMousePressed(e -> onSelectedListener.accept(gamesTable.getSelectionModel().selectedItemProperty().get()));
+
+    gamesTable.setOnMouseReleased(e -> {
+      Game currentGame = gameService.getCurrentGame();
+      Game autoJoinGame = gameService.getAutoJoinRequestedGameProperty().get();
+      if (currentGame != null) {
+        onSelectedListener.accept(currentGame);
+        gamesTable.getSelectionModel().select(currentGame);
+      }
+      else if (autoJoinGame != null) {
+        onSelectedListener.accept(autoJoinGame);
+        gamesTable.getSelectionModel().select(autoJoinGame);
+      }
+    });
 
     //bindings do not work as that interferes with some bidirectional bindings in the TableView itself
     if (listenToFilterPreferences && coopMissionNameProvider == null) {
@@ -202,7 +215,7 @@ passwordProtectionColumn.setVisible(preferencesService.getPreferences().isShowPa
   private void selectCurrentGame() {
     TableView.TableViewSelectionModel<Game> selectionModel = gamesTable.getSelectionModel();
     Game currentGame = gameService.getCurrentGame();
-    if (currentGame != null && !gamesTable.getItems().isEmpty()) {
+    if (currentGame != null && gamesTable.getItems().contains(currentGame)) {
       selectionModel.select(currentGame);
     }
     else {

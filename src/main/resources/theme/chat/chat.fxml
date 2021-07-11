@@ -12,19 +12,17 @@
 <HBox xmlns:fx="http://javafx.com/fxml/1" fx:id="chatRoot" xmlns="http://javafx.com/javafx/8.0.40"
       fx:controller="com.faforever.client.chat.ChatController"
       maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
+    <userData>
+        <fx:reference source="controller" />
+    </userData>
     <children>
         <AnchorPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS">
             <children>
-                <VBox fx:id="chatContainer" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
+                <HBox fx:id="chatContainer" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
                       AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
                     <children>
                         <TabPane fx:id="tabPane" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS" tabClosingPolicy="ALL_TABS" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
-                            <Tab closable="false" disable="true" onSelectionChanged="#clearTabButtonSpacer">
-                                <graphic>
-                                    <Label fx:id="tabButtonSpacer" style="-fx-background: black" prefWidth="250"/>
-                                </graphic>
-                            </Tab>
-                            <Tab text="+" closable="false" onSelectionChanged="#clearTabButtonSpacer">
+                            <Tab text="+" closable="false" onSelectionChanged="#clearUserListNode">
                                 <VBox fx:id="noOpenTabsContainer" alignment="CENTER" fillWidth="false">
                                     <children>
                                         <Label styleClass="h2" text="%chat.joinAChannel">
@@ -40,7 +38,7 @@
                             </Tab>
                         </TabPane>
                     </children>
-                </VBox>
+                </HBox>
 
                 <VBox fx:id="connectingProgressPane" alignment="CENTER" AnchorPane.bottomAnchor="0.0"
                       AnchorPane.leftAnchor="0.0"

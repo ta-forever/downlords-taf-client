@@ -40,6 +40,8 @@ public interface ChatService {
 
   void removeUsersListener(String channelName, MapChangeListener<String, ChatChannelUser> listener);
 
+  void removeChatUsersByNameListener(MapChangeListener<String, ChatChannelUser> listener);
+
   void leaveChannel(String channelName);
 
   CompletableFuture<String> sendActionInBackground(String target, String action);

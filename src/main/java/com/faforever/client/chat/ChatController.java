@@ -23,7 +23,7 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
-import javafx.scene.layout.StackPane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -56,6 +56,16 @@ public class ChatController extends AbstractViewController<Node> {
   public TextField channelNameTextField;
   public Label tabButtonSpacer;
   public Node userListNode; // stolen from ChannelTabControllers in tabPane
+  public VBox userListContainer;
+
+  public static ChatController getController(Node node) {
+    Object controller;
+    do {
+      controller = node.getUserData();
+      node = node.getParent();
+    } while (controller == null && node != null);
+    return (ChatController) controller;
+  }
 
   public ChatController(ChatService chatService, UiService uiService, UserService userService, NotificationService notificationService, EventBus eventBus) {
     this.chatService = chatService;
@@ -116,22 +126,33 @@ public class ChatController extends AbstractViewController<Node> {
     }
   }
 
-  private void stealUserListNode(ChannelTabController tab, String channelName) {
+  public void setUserListContainer(VBox node) {
+    this.userListContainer = node;
+  }
+
+  private void stealUserListNode(AbstractChatTabController tab) {
+    if (userListContainer == null) {
+      return;
+    }
+
     Optional<Boolean> isVisible = Optional.empty();
     if (userListNode != null) {
-      chatContainer.getChildren().removeAll(userListNode);
+      userListContainer.getChildren().removeAll(userListNode);
       isVisible = Optional.of(userListNode.isVisible());
     }
-    userListNode = tab.detachAndGetUserListNode();
-    chatContainer.getChildren().add(0, userListNode);
-    if (isVisible.isPresent()) {
-      tab.setChatListEnabled(isVisible.get());
+    userListNode = tab.detachSidePanelNode();
+    if (userListNode != null) {
+      userListContainer.getChildren().add(0, userListNode);
+      VBox.setVgrow(userListNode, Priority.ALWAYS);
+      if (isVisible.isPresent()) {
+        tab.setSidePaneEnabled(isVisible.get());
+      }
     }
   }
 
   public void clearUserListNode(Event event) {
-    if (this.userListNode != null) {
-      chatContainer.getChildren().removeAll(this.userListNode);
+    if (this.userListNode != null && userListContainer != null) {
+      userListContainer.getChildren().removeAll(this.userListNode);
     }
   }
 
@@ -142,12 +163,6 @@ public class ChatController extends AbstractViewController<Node> {
       tab = uiService.loadFxml("theme/chat/channel_tab.fxml");
       tab.setChatChannel(chatService.getOrCreateChannel(channelName));
       addTab(channelName, tab);
-
-      tab.setOnSelectedListener((obs, oldValue, newValue) -> {
-        if (oldValue == false && newValue == true) {
-          stealUserListNode(tab, channelName);
-        }});
-      stealUserListNode(tab, channelName);
     }
     else {
       tab = (ChannelTabController) nameToChatTabController.get(channelName);
@@ -172,6 +187,12 @@ public class ChatController extends AbstractViewController<Node> {
 
     tabPane.getSelectionModel().select(tab);
     nameToChatTabController.get(tab.getId()).onDisplay();
+
+    tabController.setOnSelectedListener((obs, oldValue, newValue) -> {
+      if (oldValue == false && newValue == true) {
+        stealUserListNode(tabController);
+      }});
+    stealUserListNode(tabController);
   }
 
   @Override
@@ -201,7 +222,7 @@ public class ChatController extends AbstractViewController<Node> {
         change.getRemoved().forEach(tab -> nameToChatTabController.remove(tab.getId()));
       }
     });
-  }
+ }
 
   @Subscribe
   public void onLoggedOutEvent(LoggedOutEvent event) {

@@ -14,6 +14,8 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.TextFlow?>
 <?import javafx.scene.web.WebView?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.text.Font?>
 <Tab fx:id="channelTabRoot" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.faforever.client.chat.ChannelTabController">
     <userData>
         <fx:reference source="controller" />
@@ -30,6 +32,7 @@
             <VBox fx:id="channelTabScrollPaneVBox" maxHeight="1.7976931348623157E308"
                   styleClass="chat-channel-users-pane" SplitPane.resizableWithParent="false" minWidth="300.0">
                 <children>
+                    <Label fx:id="userListTitleLabel" styleClass="h2" maxWidth="1.7976931348623157E308" minWidth="0.0" wrapText="true" alignment="CENTER"/>
                     <HBox alignment="CENTER" spacing="10.0">
                         <children>
                             <TextField fx:id="userSearchTextField" maxWidth="1.7976931348623157E308" minWidth="10.0"
@@ -70,7 +73,7 @@
                               </children>
                           </HBox>
                           <ToggleButton fx:id="toggleSidePaneButton" selected="true" mnemonicParsing="false"
-                                        styleClass="pane-toggler, left" AnchorPane.leftAnchor="0.0"
+                                        styleClass="pane-toggler, right" AnchorPane.rightAnchor="0.0"
                                         AnchorPane.topAnchor="40.0">
                               <graphic>
                                   <Region styleClass="icon,toggle-icon"/>

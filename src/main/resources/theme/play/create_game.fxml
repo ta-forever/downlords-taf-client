@@ -18,7 +18,6 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.control.ComboBox?>
-<?import javafx.scene.image.ImageView?>
 <GridPane xmlns:fx="http://javafx.com/fxml/1" fx:id="createGameRoot" hgap="10.0" styleClass="create-game-root" vgap="10.0" xmlns="http://javafx.com/javafx/8.0.141" fx:controller="com.faforever.client.game.CreateGameController">
     <columnConstraints>
         <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="256.0"/>

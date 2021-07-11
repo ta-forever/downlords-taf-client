@@ -4,7 +4,9 @@ import com.faforever.client.audio.AudioService;
 import com.faforever.client.chat.event.UnreadPartyMessageEvent;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.WebViewConfigurer;
+import com.faforever.client.game.PlayerStatus;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
@@ -27,6 +29,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Set;
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
@@ -38,7 +41,6 @@ public class MatchmakingChatController extends AbstractChatTabController {
   public TextFlow topicText;
 
   private ChatChannel channel;
-  private MapChangeListener<String, ChatChannelUser> usersChangeListener;
 
   // TODO cut dependencies
   public MatchmakingChatController(UserService userService,
@@ -83,22 +85,6 @@ public class MatchmakingChatController extends AbstractChatTabController {
     matchmakingChatTabRoot.setId(partyName);
     matchmakingChatTabRoot.setText(partyName);
     setTopic(i18n.get("teammatchmaking.chat.topic"));
-
-    usersChangeListener = change -> {
-      if (change.wasAdded()) {
-        onPlayerConnected(change.getValueAdded().getUsername());
-      } else if (change.wasRemoved()) {
-        onPlayerDisconnected(change.getValueRemoved().getUsername());
-      }
-    };
-    chatService.addUsersListener(partyName, usersChangeListener);
-  }
-
-  public void closeChannel() {
-    if (channel != null) {
-      chatService.leaveChannel(channel.getName());
-      chatService.removeUsersListener(channel.getName(), usersChangeListener);
-    }
   }
 
   @Override
@@ -113,20 +99,30 @@ public class MatchmakingChatController extends AbstractChatTabController {
 
   @Override
   public void onChatMessage(ChatMessage chatMessage) {
-    super.onChatMessage(chatMessage);
+    PlayerStatus localPlayerStatus = PlayerStatus.IDLE;
+    if (playerService.getCurrentPlayer().isPresent()) {
+      localPlayerStatus = playerService.getCurrentPlayer().get().getStatus();
+    }
 
     if (!hasFocus()) {
+      if (Set.of(PlayerStatus.IDLE, PlayerStatus.HOSTING, PlayerStatus.JOINING).contains(localPlayerStatus)) {
+        audioService.playPrivateMessageSound();
+      }
       eventBus.post(new UnreadPartyMessageEvent(chatMessage));
     }
+
+    super.onChatMessage(chatMessage);
   }
 
   @VisibleForTesting
-  void onPlayerDisconnected(String userName) {
-    JavaFxUtil.runLater(() -> onChatMessage(new ChatMessage(userName, Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerDisconnect", userName), true)));
+  void onPlayerDisconnected(ChatChannelUser user) {
+    super.onPlayerDisconnected(user);
+    onChatMessage(new ChatMessage(user.getUsername(), Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerDisconnect", user.getUsername()), true));
   }
 
   @VisibleForTesting
-  void onPlayerConnected(String userName) {
-    JavaFxUtil.runLater(() -> onChatMessage(new ChatMessage(userName, Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerConnect", userName), true)));
+  void onPlayerConnected(ChatChannelUser user) {
+    super.onPlayerConnected(user);
+    onChatMessage(new ChatMessage(user.getUsername(), Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerConnect", user.getUsername()), true));
   }
 }

@@ -1,9 +1,11 @@
 package com.faforever.client.chat;
 
 import com.faforever.client.audio.AudioService;
+import com.faforever.client.chat.event.UnreadPartyMessageEvent;
 import com.faforever.client.chat.event.UnreadPrivateMessageEvent;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.WebViewConfigurer;
+import com.faforever.client.game.PlayerStatus;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.Player;
@@ -17,7 +19,9 @@ import com.faforever.client.user.UserService;
 import com.faforever.client.util.TimeService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
+import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.web.WebView;
@@ -28,6 +32,7 @@ import org.springframework.stereotype.Component;
 import javax.inject.Inject;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.Set;
 
 import static com.faforever.client.player.SocialStatus.FOE;
 
@@ -40,6 +45,7 @@ public class PrivateChatTabController extends AbstractChatTabController {
   public TextInputControl messageTextField;
   public PrivateUserInfoController privateUserInfoController;
   public ScrollPane gameDetailScrollPane;
+  public SplitPane splitPane;
 
   private boolean userOffline;
 
@@ -89,14 +95,6 @@ public class PrivateChatTabController extends AbstractChatTabController {
     super.initialize();
     JavaFxUtil.fixScrollSpeed(gameDetailScrollPane);
     userOffline = false;
-    chatService.addChatUsersByNameListener(change -> {
-      if (change.wasRemoved()) {
-        onPlayerDisconnected(change.getKey());
-      }
-      if (change.wasAdded()) {
-        onPlayerConnected(change.getKey());
-      }
-    });
   }
 
   @Override
@@ -118,32 +116,52 @@ public class PrivateChatTabController extends AbstractChatTabController {
       return;
     }
 
-    super.onChatMessage(chatMessage);
+    PlayerStatus localPlayerStatus = PlayerStatus.IDLE;
+    if (playerOptional.isPresent()) {
+      localPlayerStatus = playerOptional.get().getStatus();
+    }
 
     if (!hasFocus()) {
-      audioService.playPrivateMessageSound();
-      showNotificationIfNecessary(chatMessage);
-      setUnread(true);
-      incrementUnreadMessagesCount(1);
+      if (Set.of(PlayerStatus.IDLE, PlayerStatus.HOSTING, PlayerStatus.JOINING).contains(localPlayerStatus)) {
+        audioService.playPrivateMessageSound();
+        showNotificationIfNecessary(chatMessage);
+      }
       eventBus.post(new UnreadPrivateMessageEvent(chatMessage));
     }
+
+    super.onChatMessage(chatMessage);
   }
 
   @VisibleForTesting
-  void onPlayerDisconnected(String userName) {
-    if (!userName.equals(getReceiver())) {
+  void onPlayerDisconnected(ChatChannelUser user) {
+    super.onPlayerDisconnected(user);
+    if (!user.getUsername().equals(getReceiver())) {
       return;
     }
     userOffline = true;
-    JavaFxUtil.runLater(() -> onChatMessage(new ChatMessage(userName, Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.privateMessage.playerLeft", userName), true)));
+    onChatMessage(new ChatMessage(user.getUsername(), Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.privateMessage.playerLeft", user.getUsername()), true));
   }
 
   @VisibleForTesting
-  void onPlayerConnected(String userName) {
-    if (!userOffline || !userName.equals(getReceiver())) {
+  void onPlayerConnected(ChatChannelUser user) {
+    super.onPlayerConnected(user);
+    if (!userOffline || !user.getUsername().equals(getReceiver())) {
       return;
     }
     userOffline = false;
-    JavaFxUtil.runLater(() -> onChatMessage(new ChatMessage(userName, Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.privateMessage.playerReconnect", userName), true)));
+    onChatMessage(new ChatMessage(user.getUsername(), Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.privateMessage.playerReconnect", user.getUsername()), true));
   }
+
+  @Override
+  public Node detachSidePanelNode() {
+    splitPane.getItems().remove(gameDetailScrollPane);
+    return gameDetailScrollPane;
+  }
+
+  @Override
+  public void setSidePaneEnabled(boolean enabled) {
+    gameDetailScrollPane.setVisible(enabled);
+    gameDetailScrollPane.setManaged(enabled);
+  }
+
 }

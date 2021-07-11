@@ -10,6 +10,7 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.game.Faction;
 import com.faforever.client.game.PlayerStatus;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
@@ -21,9 +22,6 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
-import javafx.beans.WeakListener;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ObservableList;
 import javafx.css.PseudoClass;
 import javafx.scene.Node;
@@ -43,7 +41,6 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.http.util.TextUtils;
 import org.jetbrains.annotations.VisibleForTesting;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
@@ -56,7 +53,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static com.faforever.client.chat.ChatService.PARTY_CHANNEL_SUFFIX;
@@ -179,7 +175,7 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
 
     JavaFxUtil.addListener(teamMatchmakingService.getParty().ownerProperty(), (observable, oldValue, newValue) -> {
       if (matchmakingChatController != null) {
-        matchmakingChatController.closeChannel();
+        matchmakingChatController.close();
       }
       createChannelTab("#" + newValue.getUsername() + PARTY_CHANNEL_SUFFIX);
     });
@@ -335,6 +331,13 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
       chatTabPane.getTabs().clear();
       chatTabPane.getTabs().add(matchmakingChatController.getRoot());
     });
+  }
+
+  @Override
+  protected void onDisplay(NavigateEvent navigateEvent) {
+    if (matchmakingChatController != null) {
+      matchmakingChatController.display(navigateEvent);
+    }
   }
 
   @Subscribe

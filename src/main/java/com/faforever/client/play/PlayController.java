@@ -1,5 +1,6 @@
 package com.faforever.client.play;
 
+import com.faforever.client.chat.ChatController;
 import com.faforever.client.chat.ChatMessage;
 import com.faforever.client.chat.MatchmakingChatController;
 import com.faforever.client.chat.event.ChatMessageEvent;
@@ -20,6 +21,7 @@ import javafx.scene.control.TabPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
@@ -43,10 +45,12 @@ public class PlayController extends AbstractViewController<Node> {
   public Pane customGamesContainer;
   public HBox mainChatContainer;
   public HBox gameChatContainer;
+  public VBox userListContainer;
   public ScrollPane gameDetailContainer;
   public Node mainChatUserListContainer;
 
   private CustomGamesController customGamesController;
+  private ChatController mainChatController;
   private MatchmakingChatController gameChatController;
   private GameDetailController gameDetailController;
 
@@ -68,23 +72,28 @@ public class PlayController extends AbstractViewController<Node> {
     JavaFxUtil.bindManagedToVisible(gameDetailContainer);
     gameDetailContainer.setVisible(false);
 
-    gameService.getCurrentGameProperty().addListener((obs, oldValue, newValue) -> setCurrentGame(newValue));
+    gameService.getCurrentGameProperty().addListener((obs, oldValue, newValue) -> {
+      setCurrentGame(newValue);
+      if (newValue != null) {
+        setFocusedGame(newValue);
+      }
+    });
     setCurrentGame(gameService.getCurrentGame());
+    setFocusedGame(gameService.getCurrentGame());
 
     customGamesController = CustomGamesController.getController(customGames);
-    customGamesController.setOnSelectedListener(game -> {
-      //if (gameService.getCurrentGame() == null) {
-        gameDetailContainer.setVisible(game != null);
-        gameDetailController.setGame(game);
-      //}
-    });
-
+    customGamesController.setOnSelectedListener(game -> setFocusedGame(game));
     customGamesController.setCreateGameDialogRoot(playRoot);
+
+    mainChatController = ChatController.getController(mainChat);
+    mainChatController.setUserListContainer(userListContainer);
   }
 
   @Override
   protected void onDisplay(NavigateEvent navigateEvent) {
-      customGamesController.display(navigateEvent);
+    customGamesController.display(navigateEvent);
+    mainChatController.display(navigateEvent);
+    gameChatController.display(navigateEvent);
   }
 
   @Override
@@ -107,6 +116,9 @@ public class PlayController extends AbstractViewController<Node> {
   private void setCurrentGame(Game game) {
     setGameChatBoxLayout(game);
     setGameChatBoxChannel(game);
+  }
+
+  private void setFocusedGame(Game game) {
     gameDetailContainer.setVisible(game != null);
     gameDetailController.setGame(game);
   }
@@ -117,7 +129,7 @@ public class PlayController extends AbstractViewController<Node> {
       gameChatController.setTopic(String.format("%s's Game: %s", game.getHost(), game.getTitle()));
     }
     else {
-      gameChatController.closeChannel();
+      gameChatController.close();
     }
   }
 
@@ -126,7 +138,7 @@ public class PlayController extends AbstractViewController<Node> {
 
     if (mainViewContainerWidth > 0.0 && game != null) {
       if (!gameChatContainer.isVisible()) {
-        chatContainer.setDividerPositions(0.6);
+        chatContainer.setDividerPositions(0.5);
         gameChatContainer.setVisible(true);
       }
       mainChatContainer.setMaxWidth(-1);

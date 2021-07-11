@@ -5,7 +5,6 @@ import com.faforever.client.fa.relay.event.AutoJoinRequestEvent;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
-import com.faforever.client.main.event.JoinChannelEvent;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.ModService;
@@ -108,6 +107,7 @@ public class GameTileController implements Controller<Node> {
     gameTypeLabel.managedProperty().bind(gameTypeLabel.visibleProperty());
     lockIconLabel.managedProperty().bind(lockIconLabel.visibleProperty());
     autoJoinButton.managedProperty().bind(autoJoinButton.visibleProperty());
+    joinButton.managedProperty().bind(autoJoinButton.visibleProperty().not()); // just make a bit more room for the autoJoin button's text
     autoJoinButton.setUserData(Boolean.FALSE);  // getStyle.contains doesn't work.  so we'll use this user data to track whether "activated" style has been applied
 
     thisGameStatusInvalidationListener = observable -> onGameStatusChanged();
@@ -158,6 +158,7 @@ public class GameTileController implements Controller<Node> {
 
   private void updateButtonsVisibility(Game currentGame, Game autoJoinPrototype, Player currentPlayer) {
     boolean isCurrentGame = game != null && currentGame != null && Objects.equals(game, currentGame);
+    boolean isOwnGame = game != null && currentPlayer != null && !currentPlayer.getUsername().equals(game.getHost());
     boolean isGameProcessRunning = gameService.isGameRunning();
     boolean isPlayerIdle = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.IDLE;
     boolean isPlayerHosting = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.HOSTING;
@@ -166,7 +167,7 @@ public class GameTileController implements Controller<Node> {
     boolean isBattleRoomOpen = game != null && game.getStatus() == GameStatus.BATTLEROOM;
 
     joinButton.setVisible(!isGameProcessRunning && isPlayerIdle && (isStagingRoomOpen || isBattleRoomOpen));
-    autoJoinButton.setVisible(!isGameProcessRunning && isPlayerIdle && !isStagingRoomOpen && !isBattleRoomOpen);
+    autoJoinButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && !isStagingRoomOpen && !isBattleRoomOpen);
     leaveButton.setVisible(isGameProcessRunning && isCurrentGame);
     startButton.setVisible(isGameProcessRunning && isCurrentGame && (isPlayerHosting && isStagingRoomOpen || isPlayerJoining && isBattleRoomOpen));
 
@@ -241,11 +242,26 @@ public class GameTileController implements Controller<Node> {
     return Joiner.on(i18n.get("textSeparator")).join(modNames);
   }
 
-  public void onClick(MouseEvent mouseEvent) {
+  public void onMousePressed(MouseEvent mouseEvent) {
     Objects.requireNonNull(onSelectedListener, "onSelectedListener has not been set");
     Objects.requireNonNull(game, "gameInfoBean has not been set");
     gameCardRoot.requestFocus();
-    onSelectedListener.accept(game);
+    onSelectedListener.accept(this.game);
+  }
+
+  public void onMouseReleased(MouseEvent mouseEvent) {
+    Objects.requireNonNull(onSelectedListener, "onSelectedListener has not been set");
+    Objects.requireNonNull(game, "gameInfoBean has not been set");
+    gameCardRoot.requestFocus();
+
+    Game currentGame = gameService.getCurrentGame();
+    Game autoJoinGame = gameService.getAutoJoinRequestedGameProperty().get();
+    if (currentGame != null) {
+      onSelectedListener.accept(currentGame);
+    }
+    else if (autoJoinGame != null) {
+      onSelectedListener.accept(autoJoinGame);
+    }
   }
 
   public void onJoinButtonClicked(ActionEvent event) {
@@ -272,5 +288,4 @@ public class GameTileController implements Controller<Node> {
   public void onStartButtonClicked(ActionEvent event) {
     gameService.startBattleRoom();
   }
-
 }

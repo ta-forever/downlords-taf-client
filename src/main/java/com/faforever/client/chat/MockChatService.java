@@ -127,6 +127,10 @@ public class MockChatService implements ChatService, InitializingBean {
   }
 
   @Override
+  public void removeChatUsersByNameListener(MapChangeListener<String, ChatChannelUser> listener) {
+  }
+
+  @Override
   public void leaveChannel(String channelName) {
 
   }

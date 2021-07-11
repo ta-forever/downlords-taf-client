@@ -154,6 +154,7 @@ public class GameDetailController implements Controller<Pane> {
     mapImageView.managedProperty().bind(mapImageView.visibleProperty());
     gameTypeLabel.managedProperty().bind(gameTypeLabel.visibleProperty());
     autoJoinButton.managedProperty().bind(autoJoinButton.visibleProperty());
+    joinButton.managedProperty().bind(autoJoinButton.visibleProperty().not()); // just make a bit more room for the autoJoin button's text
     autoJoinButton.setUserData(Boolean.FALSE);  // getStyle.contains doesn't work.  so we'll use this user data to track whether "activated" style has been applied
 
     gameTitleLabel.visibleProperty().bind(game.isNotNull());
@@ -203,6 +204,7 @@ public class GameDetailController implements Controller<Pane> {
   private void updateButtonsVisibility(Game currentGame, Game autoJoinPrototype, Player currentPlayer) {
     Game thisGame = this.game.get();
     boolean isCurrentGame = thisGame != null && currentGame != null && Objects.equals(thisGame, currentGame);
+    boolean isOwnGame = thisGame != null && currentPlayer != null && currentPlayer.getUsername().equals(thisGame.getHost());
     boolean isGameProcessRunning = gameService.isGameRunning();
     boolean isPlayerIdle = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.IDLE;
     boolean isPlayerHosting = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.HOSTING;
@@ -211,7 +213,7 @@ public class GameDetailController implements Controller<Pane> {
     boolean isBattleRoomOpen = thisGame != null && thisGame.getStatus() == GameStatus.BATTLEROOM;
 
     joinButton.setVisible(!isGameProcessRunning && isPlayerIdle && (isStagingRoomOpen || isBattleRoomOpen));
-    autoJoinButton.setVisible(!isGameProcessRunning && isPlayerIdle && !isStagingRoomOpen && !isBattleRoomOpen);
+    autoJoinButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && !isStagingRoomOpen && !isBattleRoomOpen);
     leaveButton.setVisible(isGameProcessRunning && isCurrentGame);
     startButton.setVisible(isGameProcessRunning && isCurrentGame && (isPlayerHosting && isStagingRoomOpen || isPlayerJoining && isBattleRoomOpen));
     watchButton.setVisible(false);
@@ -234,17 +236,10 @@ public class GameDetailController implements Controller<Pane> {
       return;
     }
 
-    Game currentGame = gameService.getCurrentGame();
-    Game thisGame = this.game.get();
-    boolean isCurrentGame = thisGame != null && currentGame != null && Objects.equals(thisGame, currentGame);
-    if (this.game.get()!=null && ((Boolean)autoJoinButton.getUserData() || isCurrentGame)) {
-      // don't allow focus to move away from current game or auto-joined game
-      return;
-    }
-
     Optional.ofNullable(this.game.get()).ifPresent(oldGame -> {
       Optional.ofNullable(weakThisGameTeamsListener).ifPresent(listener -> oldGame.getTeams().removeListener(listener));
       Optional.ofNullable(weakThisGameStatusListener).ifPresent(listener -> oldGame.statusProperty().removeListener(listener));
+      Optional.ofNullable(featuredModInvalidationListener).ifPresent(listener -> oldGame.featuredModProperty().removeListener(listener));
     });
 
     this.game.set(game);
@@ -271,7 +266,7 @@ public class GameDetailController implements Controller<Pane> {
           String fullName = featuredMod != null ? featuredMod.getDisplayName() : null;
           gameTypeLabel.setText(StringUtils.defaultString(fullName));
         }));
-    game.featuredModProperty().addListener(new WeakInvalidationListener(featuredModInvalidationListener));
+    game.featuredModProperty().addListener(featuredModInvalidationListener);
     featuredModInvalidationListener.invalidated(game.featuredModProperty());
 
     JavaFxUtil.addListener(game.getTeams(), weakThisGameTeamsListener);

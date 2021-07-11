@@ -512,6 +512,13 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   }
 
   @Override
+  public void removeChatUsersByNameListener(MapChangeListener<String, ChatChannelUser> listener) {
+    synchronized (chatChannelUsersByChannelAndName) {
+      JavaFxUtil.removeListener(chatChannelUsersByChannelAndName, listener);
+    }
+  }
+
+  @Override
   public void addChannelsListener(MapChangeListener<String, ChatChannel> listener) {
     JavaFxUtil.addListener(channels, listener);
   }
