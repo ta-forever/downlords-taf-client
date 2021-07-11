@@ -1,6 +1,7 @@
 package com.faforever.client.game;
 
 import com.faforever.client.chat.ChatService;
+import com.faforever.client.fa.relay.event.AutoJoinRequestEvent;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
@@ -78,7 +79,7 @@ public class GameTileController implements Controller<Node> {
   public Label gameTimeSinceStartLabel;
 
   public Button joinButton;
-  public Button chatButton;
+  public Button autoJoinButton;
   public Button leaveButton;
   public Button startButton;
 
@@ -87,6 +88,7 @@ public class GameTileController implements Controller<Node> {
 
   private ChangeListener<GameStatus> currentGameStatusListener;
   private ChangeListener<Boolean> gameRunningListener;
+  private ChangeListener<Game> autoJoinRequestedGameListener;
 
   public void setOnSelectedListener(Consumer<Game> onSelectedListener) {
     this.onSelectedListener = onSelectedListener;
@@ -105,14 +107,19 @@ public class GameTileController implements Controller<Node> {
     modsLabel.visibleProperty().bind(modsLabel.textProperty().isNotEmpty());
     gameTypeLabel.managedProperty().bind(gameTypeLabel.visibleProperty());
     lockIconLabel.managedProperty().bind(lockIconLabel.visibleProperty());
+    autoJoinButton.managedProperty().bind(autoJoinButton.visibleProperty());
+    autoJoinButton.setUserData(Boolean.FALSE);  // getStyle.contains doesn't work.  so we'll use this user data to track whether "activated" style has been applied
 
     thisGameStatusInvalidationListener = observable -> onGameStatusChanged();
     weakThisGameStatusListener = new WeakInvalidationListener(thisGameStatusInvalidationListener);
 
-    currentGameStatusListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
-    gameRunningListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
+    currentGameStatusListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
+    gameRunningListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
+    autoJoinRequestedGameListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
+
     JavaFxUtil.addListener(gameService.getCurrentGameStatusProperty(), new WeakChangeListener<>(currentGameStatusListener));
     JavaFxUtil.addListener(gameService.gameRunningProperty(), new WeakChangeListener<>(gameRunningListener));
+    JavaFxUtil.addListener(gameService.getAutoJoinRequestedGameProperty(), new WeakChangeListener<>(autoJoinRequestedGameListener));
 
     gameTimeSinceStartLabel.setVisible(false);
     gameTimeSinceStartUpdater = new Timeline(1,new KeyFrame(javafx.util.Duration.seconds(0), (ActionEvent event) -> {
@@ -141,15 +148,15 @@ public class GameTileController implements Controller<Node> {
   @Subscribe
   public void onPlayerInfo(CurrentPlayerInfo player) {
     if (player.getCurrentPlayer() != null) {
-      updateButtonsVisibility(gameService.getCurrentGame(), player.getCurrentPlayer());
+      updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), player.getCurrentPlayer());
     }
   }
 
   private void onGameStatusChanged() {
-    updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
+    updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
   }
 
-  private void updateButtonsVisibility(Game currentGame, Player currentPlayer) {
+  private void updateButtonsVisibility(Game currentGame, Game autoJoinPrototype, Player currentPlayer) {
     boolean isCurrentGame = game != null && currentGame != null && Objects.equals(game, currentGame);
     boolean isGameProcessRunning = gameService.isGameRunning();
     boolean isPlayerIdle = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.IDLE;
@@ -159,9 +166,21 @@ public class GameTileController implements Controller<Node> {
     boolean isBattleRoomOpen = game != null && game.getStatus() == GameStatus.BATTLEROOM;
 
     joinButton.setVisible(!isGameProcessRunning && isPlayerIdle && (isStagingRoomOpen || isBattleRoomOpen));
-    chatButton.setVisible(game != null);
+    autoJoinButton.setVisible(!isGameProcessRunning && isPlayerIdle && !isStagingRoomOpen && !isBattleRoomOpen);
     leaveButton.setVisible(isGameProcessRunning && isCurrentGame);
     startButton.setVisible(isGameProcessRunning && isCurrentGame && (isPlayerHosting && isStagingRoomOpen || isPlayerJoining && isBattleRoomOpen));
+
+    final String activatedStyleClass = "autojoin-game-button-active";
+    if (autoJoinPrototype != null && this.game != null && autoJoinPrototype.getId() == this.game.getId()) {
+      if ((Boolean)autoJoinButton.getUserData() == false) {
+        autoJoinButton.setUserData(Boolean.TRUE);
+        autoJoinButton.getStyleClass().add(activatedStyleClass);
+      }
+    }
+    else {
+      autoJoinButton.setUserData(Boolean.FALSE);
+      autoJoinButton.getStyleClass().remove(activatedStyleClass);
+    }
   }
 
   public Node getRoot() {
@@ -204,7 +223,7 @@ public class GameTileController implements Controller<Node> {
     ));
 
     lockIconLabel.visibleProperty().bind(game.passwordProtectedProperty());
-    updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
+    updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
 
     JavaFxUtil.addListener(game.statusProperty(), weakThisGameStatusListener);
     thisGameStatusInvalidationListener.invalidated(game.statusProperty());
@@ -225,7 +244,6 @@ public class GameTileController implements Controller<Node> {
   public void onClick(MouseEvent mouseEvent) {
     Objects.requireNonNull(onSelectedListener, "onSelectedListener has not been set");
     Objects.requireNonNull(game, "gameInfoBean has not been set");
-
     gameCardRoot.requestFocus();
     onSelectedListener.accept(game);
   }
@@ -234,23 +252,24 @@ public class GameTileController implements Controller<Node> {
     joinGameHelper.join(game);
   }
 
-  public void onChatButtonClicked(ActionEvent event)
-  {
-    if (game != null) {
-      String gameChannel = gameService.getInGameIrcChannel(game);
-      eventBus.post(new JoinChannelEvent(gameChannel));
+  public void onAutoJoinButtonClicked(ActionEvent event) {
+    if (this.game != null) {
+      Game autoJoinPrototype = gameService.getAutoJoinRequestedGameProperty().get();
+      if (autoJoinPrototype == null || autoJoinPrototype.getId() != this.game.getId()) {
+        eventBus.post(new AutoJoinRequestEvent(game));
+      } else {
+        eventBus.post(new AutoJoinRequestEvent(null));
+      }
     }
   }
 
   public void onLeaveButtonClicked(ActionEvent event) {
-    log.info("[onLeaveButtonClicked] killGame()");
     gameService.killGame();
     String gameChannel = gameService.getInGameIrcChannel(game);
     this.chatService.leaveChannel(gameChannel);
   }
 
   public void onStartButtonClicked(ActionEvent event) {
-    log.info("[onStartButtonClicked] startBattleRoom()");
     gameService.startBattleRoom();
   }
 

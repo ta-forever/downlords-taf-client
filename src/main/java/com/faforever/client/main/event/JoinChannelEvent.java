@@ -9,7 +9,7 @@ public class JoinChannelEvent extends NavigateEvent {
   private final String channel;
 
   public JoinChannelEvent(String channel) {
-    super(NavigationItem.CHAT);
+    super(NavigationItem.PLAY);
     this.channel = channel;
   }
 }

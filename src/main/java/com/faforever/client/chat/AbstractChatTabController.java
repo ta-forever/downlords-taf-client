@@ -624,7 +624,7 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
           chatMessage.getMessage(),
           IdenticonUtil.createIdenticon(identIconSource),
           event -> {
-            eventBus.post(new NavigateEvent(NavigationItem.CHAT));
+            eventBus.post(new NavigateEvent(NavigationItem.PLAY));
             stage.toFront();
             getRoot().getTabPane().getSelectionModel().select(getRoot());
           })

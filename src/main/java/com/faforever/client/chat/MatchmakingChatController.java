@@ -66,20 +66,23 @@ public class MatchmakingChatController extends AbstractChatTabController {
     return matchmakingChatTabRoot;
   }
 
+  public void setTopic(String topic) {
+    topicText.getChildren().clear();
+    Arrays.stream(topic.split("\\s"))
+        .forEach(word -> {
+          Label label = new Label(word + " ");
+          label.setStyle("-fx-font-weight: bold; -fx-font-size: 1.1em;");
+          topicText.getChildren().add(label);
+        });
+  }
+
   public void setChannel(String partyName) {
     channel = chatService.getOrCreateChannel(partyName);
     chatService.joinChannel(partyName);
     setReceiver(partyName);
     matchmakingChatTabRoot.setId(partyName);
     matchmakingChatTabRoot.setText(partyName);
-    String topic = i18n.get("teammatchmaking.chat.topic");
-    topicText.getChildren().clear();
-    Arrays.stream(topic.split("\\s"))
-        .forEach(word -> {
-          Label label = new Label(word + " ");
-          label.setStyle("-fx-font-weight: bold; -fx-font-size: 1.1em;");
-            topicText.getChildren().add(label);
-        });
+    setTopic(i18n.get("teammatchmaking.chat.topic"));
 
     usersChangeListener = change -> {
       if (change.wasAdded()) {
@@ -92,8 +95,10 @@ public class MatchmakingChatController extends AbstractChatTabController {
   }
 
   public void closeChannel() {
-    chatService.leaveChannel(channel.getName());
-    chatService.removeUsersListener(channel.getName(), usersChangeListener);
+    if (channel != null) {
+      chatService.leaveChannel(channel.getName());
+      chatService.removeUsersListener(channel.getName(), usersChangeListener);
+    }
   }
 
   @Override

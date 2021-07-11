@@ -5,10 +5,6 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.theme.UiService;
 import com.google.common.annotations.VisibleForTesting;
-import javafx.application.Platform;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ListChangeListener;
@@ -31,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -46,7 +43,7 @@ public class GamesTilesContainerController implements Controller<Node> {
   public FlowPane tiledFlowPane;
   public ScrollPane tiledScrollPane;
   private final ChangeListener<? super TilesSortingOrder> sortingListener;
-  private final ObjectProperty<Game> selectedGame;
+  private Consumer<Game> onSelectedListener;
   private Comparator<Node> appliedComparator;
   @VisibleForTesting
   Map<Integer, GameTileController> uidToGameCard;
@@ -57,7 +54,6 @@ public class GamesTilesContainerController implements Controller<Node> {
     this.uiService = uiService;
     this.preferencesService = preferencesService;
     this.gameService = gameService;
-    selectedGame = new SimpleObjectProperty<>();
 
     sortingListener = (observable, oldValue, newValue) -> {
       if (newValue == null) {
@@ -78,8 +74,8 @@ public class GamesTilesContainerController implements Controller<Node> {
         }
     };
 
-    gameService.getCurrentGameStatusProperty().addListener((obs,newValue,oldValue) -> selectCurrentGame());
-    gameService.getCurrentGameProperty().addListener((obs,newValue,oldValue) -> selectCurrentGame());
+    gameService.getCurrentGameStatusProperty().addListener((obs,newValue,oldValue) -> JavaFxUtil.runLater(() -> selectCurrentGame()));
+    gameService.getCurrentGameProperty().addListener((obs,newValue,oldValue) -> JavaFxUtil.runLater(() -> selectCurrentGame()));
   }
 
   private void sortNodes() {
@@ -113,8 +109,8 @@ public class GamesTilesContainerController implements Controller<Node> {
     selectCurrentGame();
   }
 
-  ReadOnlyObjectProperty<Game> selectedGameProperty() {
-    return this.selectedGame;
+  public void setOnSelectedListener(Consumer<Game> onSelectedListener) {
+    this.onSelectedListener = onSelectedListener;
   }
 
   @VisibleForTesting
@@ -132,25 +128,23 @@ public class GamesTilesContainerController implements Controller<Node> {
   }
 
   private void initializeChoiceBox(ComboBox<TilesSortingOrder> sortingTypeChoiceBox) {
-    sortingTypeChoiceBox.setVisible(true);
+    sortingTypeChoiceBox.setVisible(false);
     sortingTypeChoiceBox.getSelectionModel().selectedItemProperty().addListener(new WeakChangeListener<>(sortingListener));
     sortingTypeChoiceBox.getSelectionModel().select(preferencesService.getPreferences().getGameTileSortingOrder());
   }
 
   private void selectFirstGame() {
     ObservableList<Node> cards = tiledFlowPane.getChildren();
-    if (!cards.isEmpty()) {
-      selectedGame.set((Game) cards.get(0).getUserData());
+    if (!cards.isEmpty() && onSelectedListener != null) {
+      onSelectedListener.accept((Game) cards.get(0).getUserData());
     }
   }
 
   private void selectCurrentGame() {
     ObservableList<Node> cards = tiledFlowPane.getChildren();
     Game currentGame = gameService.getCurrentGame();
-    if (currentGame != null && !cards.isEmpty()) {
-      Platform.runLater(() -> {
-        selectedGame.set(currentGame);
-      });
+    if (currentGame != null && !cards.isEmpty() && onSelectedListener != null) {
+      onSelectedListener.accept(currentGame);
     }
     else {
       selectFirstGame();
@@ -160,7 +154,7 @@ public class GamesTilesContainerController implements Controller<Node> {
   private void addGameCard(Game game) {
     GameTileController gameTileController = uiService.loadFxml("theme/play/game_card.fxml");
     gameTileController.setGame(game);
-    gameTileController.setOnSelectedListener(selection -> selectedGame.set(selection));
+    gameTileController.setOnSelectedListener(selection -> onSelectedListener.accept(selection));
 
     Node root = gameTileController.getRoot();
     root.setUserData(game);

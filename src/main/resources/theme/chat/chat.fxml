@@ -7,7 +7,6 @@
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.HBox?>
-<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.ProgressIndicator?>
 <?import javafx.scene.control.Tab?>
 <HBox xmlns:fx="http://javafx.com/fxml/1" fx:id="chatRoot" xmlns="http://javafx.com/javafx/8.0.40"
@@ -20,7 +19,12 @@
                       AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
                     <children>
                         <TabPane fx:id="tabPane" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS" tabClosingPolicy="ALL_TABS" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
-                            <Tab text="+" closable="false">
+                            <Tab closable="false" disable="true" onSelectionChanged="#clearTabButtonSpacer">
+                                <graphic>
+                                    <Label fx:id="tabButtonSpacer" style="-fx-background: black" prefWidth="250"/>
+                                </graphic>
+                            </Tab>
+                            <Tab text="+" closable="false" onSelectionChanged="#clearTabButtonSpacer">
                                 <VBox fx:id="noOpenTabsContainer" alignment="CENTER" fillWidth="false">
                                     <children>
                                         <Label styleClass="h2" text="%chat.joinAChannel">
@@ -53,16 +57,5 @@
 
             </children>
         </AnchorPane>
-
-        <ScrollPane fx:id="gameDetailWrapper" fitToWidth="true" minWidth="200.0" prefWidth="300.0" styleClass="game-detail-framed">
-            <content>
-                <VBox>
-                    <children>
-                        <Label text="%chat.currentGame" styleClass="h2"/>
-                        <fx:include fx:id="gameDetail" source="../play/game_detail.fxml"/>
-                    </children>
-                </VBox>
-            </content>
-        </ScrollPane>
     </children>
 </HBox>

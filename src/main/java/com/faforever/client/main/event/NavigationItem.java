@@ -9,8 +9,8 @@ import java.util.HashMap;
 @Getter
 public enum NavigationItem {
   NEWS("theme/news.fxml", "main.news"),
-  CHAT("theme/chat/chat.fxml", "main.chat"),
   PLAY("theme/play/play.fxml", "main.play"),
+  MATCHMAKER("theme/play/team_matchmaking.fxml", "main.matchmaker"),
   REPLAY("theme/vault/replay.fxml", "main.replay"),
   MAP("theme/vault/map.fxml", "main.maps"),
   MOD("theme/vault/mod.fxml", "main.mods"),

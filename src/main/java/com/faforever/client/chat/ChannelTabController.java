@@ -2,7 +2,6 @@ package com.faforever.client.chat;
 
 import com.faforever.client.audio.AudioService;
 import com.faforever.client.chat.event.ChatUserCategoryChangeEvent;
-import com.faforever.client.chat.event.UnreadPrivateMessageEvent;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.fx.WebViewConfigurer;
@@ -25,6 +24,10 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
+import javafx.beans.binding.DoubleBinding;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.WeakChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
@@ -32,6 +35,7 @@ import javafx.collections.transformation.FilteredList;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.geometry.Bounds;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
@@ -132,6 +136,15 @@ public class ChannelTabController extends AbstractChatTabController {
   private Popup filterUserPopup;
   private UserFilterController userFilterController;
   private MapChangeListener<String, ChatChannelUser> usersChangeListener;
+
+  public static ChannelTabController getController(Node node) {
+    Object controller;
+    do {
+      controller = node.getUserData();
+      node = node.getParent();
+    } while (controller == null && node != null);
+    return (ChannelTabController) controller;
+  }
 
   // TODO cut dependencies
   public ChannelTabController(UserService userService, ChatService chatService,
@@ -270,11 +283,22 @@ public class ChannelTabController extends AbstractChatTabController {
     initializeSideToggle();
   }
 
+  public DoubleBinding getDividerContentWidthBinding(int index) {
+    return splitPane.getDividers().get(index).positionProperty()
+        .multiply(splitPane.widthProperty());
+  }
+
+  ChangeListener<Boolean> onSelectedListener;
+  public void setOnSelectedListener(ChangeListener<Boolean> listener) {
+    onSelectedListener = listener;
+    getRoot().selectedProperty().addListener(new WeakChangeListener<>(listener));
+  }
+
   private void initializeSideToggle() {
     toggleSidePaneButton.setSelected(preferencesService.getPreferences().getChat().isPlayerListShown());
     JavaFxUtil.bind(channelTabScrollPaneVBox.visibleProperty(), toggleSidePaneButton.selectedProperty());
     JavaFxUtil.bind(channelTabScrollPaneVBox.managedProperty(), channelTabScrollPaneVBox.visibleProperty());
-    JavaFxUtil.addListener(toggleSidePaneButton.selectedProperty(), (observable, oldValue, newValue) -> splitPane.setDividerPositions(newValue ? 0.8 : 1));
+    JavaFxUtil.addListener(toggleSidePaneButton.selectedProperty(), (observable, oldValue, newValue) -> splitPane.setDividerPositions(newValue ? 0.15 : 0.0));
     JavaFxUtil.addListener(toggleSidePaneButton.selectedProperty(), (observable, oldValue, newValue) -> {
       preferencesService.getPreferences().getChat().setPlayerListShown(newValue);
       preferencesService.storeInBackground();

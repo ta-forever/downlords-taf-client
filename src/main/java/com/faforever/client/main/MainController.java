@@ -117,8 +117,8 @@ public class MainController implements Controller<Node> {
   public Pane mainHeaderPane;
   public Pane contentPane;
   public ToggleButton newsButton;
-  public ToggleButton chatButton;
   public ToggleButton playButton;
+  public ToggleButton matchmakerButton;
   public ToggleButton replayButton;
   public ToggleButton tutorialsButton;
   public ToggleButton mapButton;
@@ -184,8 +184,8 @@ public class MainController implements Controller<Node> {
 
   public void initialize() {
     newsButton.setUserData(NavigationItem.NEWS);
-    chatButton.setUserData(NavigationItem.CHAT);
     playButton.setUserData(NavigationItem.PLAY);
+    matchmakerButton.setUserData(NavigationItem.MATCHMAKER);
     replayButton.setUserData(NavigationItem.REPLAY);
     mapButton.setUserData(NavigationItem.MAP);
     modButton.setUserData(NavigationItem.MOD);
@@ -216,7 +216,8 @@ public class MainController implements Controller<Node> {
     notificationService.addServerNotificationListener(notification -> JavaFxUtil.runLater(() -> displayServerNotification(notification)));
     notificationService.addTransientNotificationListener(notification -> JavaFxUtil.runLater(() -> transientNotificationsController.addNotification(notification)));
     // Always load chat immediately so messages or joined channels don't need to be cached until we display them.
-    getView(NavigationItem.CHAT);
+    // Axle1975: which is all good and well if username is known at this point ... ChatController.initialize now adds tabs for pre-existing channels (messages still get lost until player opens chat tho)
+    // getView(NavigationItem.PLAY);
 
     notificationButton.managedProperty().bind(notificationButton.visibleProperty());
 
@@ -271,12 +272,12 @@ public class MainController implements Controller<Node> {
 
   @Subscribe
   public void onUnreadPartyMessage(UnreadPartyMessageEvent event) {
-    JavaFxUtil.runLater(() -> playButton.pseudoClassStateChanged(HIGHLIGHTED, !currentItem.equals(NavigationItem.PLAY)));
+    JavaFxUtil.runLater(() -> matchmakerButton.pseudoClassStateChanged(HIGHLIGHTED, !currentItem.equals(NavigationItem.MATCHMAKER)));
   }
 
   @Subscribe
   public void onUnreadPrivateMessage(UnreadPrivateMessageEvent event) {
-    JavaFxUtil.runLater(() -> chatButton.pseudoClassStateChanged(HIGHLIGHTED, !currentItem.equals(NavigationItem.CHAT)));
+    JavaFxUtil.runLater(() -> playButton.pseudoClassStateChanged(HIGHLIGHTED, !currentItem.equals(NavigationItem.PLAY)));
   }
 
   private void displayView(AbstractViewController<?> controller, NavigateEvent navigateEvent) {
@@ -564,13 +565,13 @@ public class MainController implements Controller<Node> {
     this.platformService.reveal(logPath);
   }
 
-  public void onChat(ActionEvent actionEvent) {
-    chatButton.pseudoClassStateChanged(HIGHLIGHTED, false);
+  public void onPlay(ActionEvent actionEvent) {
+    playButton.pseudoClassStateChanged(HIGHLIGHTED, false);
     onNavigateButtonClicked(actionEvent);
   }
 
-  public void onPlay(ActionEvent actionEvent) {
-    playButton.pseudoClassStateChanged(HIGHLIGHTED, false);
+  public void onMatchmaker(ActionEvent actionEvent) {
+    matchmakerButton.pseudoClassStateChanged(HIGHLIGHTED, false);
     onNavigateButtonClicked(actionEvent);
   }
 

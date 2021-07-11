@@ -3,9 +3,6 @@ package com.faforever.client.chat;
 import com.faforever.client.chat.event.ChatMessageEvent;
 import com.faforever.client.fx.AbstractViewController;
 import com.faforever.client.fx.JavaFxUtil;
-import com.faforever.client.game.Game;
-import com.faforever.client.game.GameDetailController;
-import com.faforever.client.game.GameService;
 import com.faforever.client.main.event.JoinChannelEvent;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.main.event.NavigationItem;
@@ -17,17 +14,16 @@ import com.faforever.client.user.event.LoggedOutEvent;
 import com.faforever.client.util.ProgrammingError;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
-import javafx.application.Platform;
-import javafx.beans.InvalidationListener;
-import javafx.beans.WeakInvalidationListener;
 import javafx.collections.ListChangeListener;
+import javafx.event.Event;
 import javafx.scene.Node;
-import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -39,6 +35,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.faforever.client.chat.ChatService.PARTY_CHANNEL_SUFFIX;
+import static com.faforever.client.chat.ChatService.GAME_CHANNEL_REGEX;
 
 @Slf4j
 @Component
@@ -51,33 +48,23 @@ public class ChatController extends AbstractViewController<Node> {
   private final UserService userService;
   private final NotificationService notificationService;
   private final EventBus eventBus;
-  private final GameService gameService;
   public Node chatRoot;
-  public VBox chatContainer;
+  public HBox chatContainer;
   public TabPane tabPane;
   public Pane connectingProgressPane;
   public VBox noOpenTabsContainer;
   public TextField channelNameTextField;
-  public GameDetailController gameDetailController;
-  public ScrollPane gameDetailWrapper;
+  public Label tabButtonSpacer;
+  public Node userListNode; // stolen from ChannelTabControllers in tabPane
 
-  @SuppressWarnings("FieldCanBeLocal")
-  private InvalidationListener gameInvalidationListener;
-
-  public ChatController(ChatService chatService, UiService uiService, UserService userService, GameService gameService, NotificationService notificationService, EventBus eventBus) {
+  public ChatController(ChatService chatService, UiService uiService, UserService userService, NotificationService notificationService, EventBus eventBus) {
     this.chatService = chatService;
     this.uiService = uiService;
     this.userService = userService;
     this.notificationService = notificationService;
-    this.gameService = gameService;
     this.eventBus = eventBus;
 
     nameToChatTabController = new HashMap<>();
-  }
-
-  private void onPlayerGameChanged(Game newGame) {
-    gameDetailController.setGame(newGame);
-    gameDetailWrapper.setVisible(newGame != null);
   }
 
   private void onChannelLeft(ChatChannel chatChannel) {
@@ -129,14 +116,43 @@ public class ChatController extends AbstractViewController<Node> {
     }
   }
 
+  private void stealUserListNode(ChannelTabController tab, String channelName) {
+    Optional<Boolean> isVisible = Optional.empty();
+    if (userListNode != null) {
+      chatContainer.getChildren().removeAll(userListNode);
+      isVisible = Optional.of(userListNode.isVisible());
+    }
+    userListNode = tab.detachAndGetUserListNode();
+    chatContainer.getChildren().add(0, userListNode);
+    if (isVisible.isPresent()) {
+      tab.setChatListEnabled(isVisible.get());
+    }
+  }
+
+  public void clearUserListNode(Event event) {
+    if (this.userListNode != null) {
+      chatContainer.getChildren().removeAll(this.userListNode);
+    }
+  }
+
   private AbstractChatTabController getOrCreateChannelTab(String channelName) {
     JavaFxUtil.assertApplicationThread();
+    ChannelTabController tab;
     if (!nameToChatTabController.containsKey(channelName)) {
-      ChannelTabController tab = uiService.loadFxml("theme/chat/channel_tab.fxml");
+      tab = uiService.loadFxml("theme/chat/channel_tab.fxml");
       tab.setChatChannel(chatService.getOrCreateChannel(channelName));
       addTab(channelName, tab);
+
+      tab.setOnSelectedListener((obs, oldValue, newValue) -> {
+        if (oldValue == false && newValue == true) {
+          stealUserListNode(tab, channelName);
+        }});
+      stealUserListNode(tab, channelName);
     }
-    return nameToChatTabController.get(channelName);
+    else {
+      tab = (ChannelTabController) nameToChatTabController.get(channelName);
+    }
+    return tab;
   }
 
   private void addTab(String playerOrChannelName, AbstractChatTabController tabController) {
@@ -149,6 +165,11 @@ public class ChatController extends AbstractViewController<Node> {
     } else {
       tabPane.getTabs().add(tabPane.getTabs().size() - 1, tab);
     }
+
+    if (!(tabController instanceof ChannelTabController)) {
+      tabController.getRoot().setOnSelectionChanged(event -> clearUserListNode(event));
+    }
+
     tabPane.getSelectionModel().select(tab);
     nameToChatTabController.get(tab.getId()).onDisplay();
   }
@@ -166,6 +187,11 @@ public class ChatController extends AbstractViewController<Node> {
         onChannelJoined(change.getValueAdded());
       }
     });
+    if (userService.getUsername() != null) {
+      chatService.getUserChannels(userService.getUsername()).stream()
+          .filter(channelName -> !isMatchmakerPartyMessage(channelName))
+          .forEach(channelName -> getOrCreateChannelTab(channelName));
+    }
 
     JavaFxUtil.addListener(chatService.connectionStateProperty(), (observable, oldValue, newValue) -> onConnectionStateChange(newValue));
     onConnectionStateChange(chatService.connectionStateProperty().get());
@@ -175,14 +201,6 @@ public class ChatController extends AbstractViewController<Node> {
         change.getRemoved().forEach(tab -> nameToChatTabController.remove(tab.getId()));
       }
     });
-
-    JavaFxUtil.bindManagedToVisible(
-        gameDetailWrapper
-    );
-
-    gameInvalidationListener = observable -> Platform.runLater(() -> onPlayerGameChanged(gameService.getCurrentGame()));
-    JavaFxUtil.addListener(gameService.getCurrentGameProperty(), new WeakInvalidationListener(gameInvalidationListener));
-    onPlayerGameChanged(gameService.getCurrentGame());
   }
 
   @Subscribe
@@ -226,7 +244,7 @@ public class ChatController extends AbstractViewController<Node> {
   }
 
   private boolean isMatchmakerPartyMessage(String channelName) {
-    return channelName.endsWith(PARTY_CHANNEL_SUFFIX);
+    return channelName.endsWith(PARTY_CHANNEL_SUFFIX) || GAME_CHANNEL_REGEX.matcher(channelName).matches();
   }
 
   private AbstractChatTabController addAndGetPrivateMessageTab(String username) {
@@ -256,7 +274,7 @@ public class ChatController extends AbstractViewController<Node> {
     }
     AbstractChatTabController controller = addAndGetPrivateMessageTab(username);
     Tab tab = controller.getRoot();
-    eventBus.post(new NavigateEvent(NavigationItem.CHAT));
+    eventBus.post(new NavigateEvent(NavigationItem.PLAY));
     tabPane.getSelectionModel().select(tab);
     nameToChatTabController.get(tab.getId()).onDisplay();
   }
@@ -329,4 +347,5 @@ public class ChatController extends AbstractViewController<Node> {
       Optional.ofNullable(nameToChatTabController.get(tab.getId())).ifPresent(AbstractChatTabController::onHide);
     }
   }
+
 }

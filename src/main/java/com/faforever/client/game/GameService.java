@@ -6,12 +6,12 @@ import com.faforever.client.discord.DiscordRichPresenceService;
 import com.faforever.client.fa.CloseGameEvent;
 import com.faforever.client.fa.MapTool;
 import com.faforever.client.fa.TotalAnnihilationService;
+import com.faforever.client.fa.relay.event.AutoJoinRequestEvent;
 import com.faforever.client.fa.relay.event.RehostRequestEvent;
 import com.faforever.client.fa.relay.ice.IceAdapter;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.i18n.I18n;
-import com.faforever.client.main.event.HostGameEvent;
 import com.faforever.client.main.event.JoinChannelEvent;
 import com.faforever.client.main.event.ShowReplayEvent;
 import com.faforever.client.map.MapService;
@@ -25,7 +25,6 @@ import com.faforever.client.notification.PersistentNotification;
 import com.faforever.client.notification.Severity;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
-import com.faforever.client.player.SocialStatus;
 import com.faforever.client.preferences.NotificationsPrefs;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
@@ -45,12 +44,14 @@ import com.google.common.eventbus.Subscribe;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import lombok.RequiredArgsConstructor;
@@ -323,7 +324,7 @@ public class GameService implements InitializingBean {
         if (preferencesService.getPreferences().getAutoRehostEnabled() &&
             newStatus == GameStatus.BATTLEROOM &&
             game.getGameType() != GameType.MATCHMAKER &&
-            getCurrentPlayer() != null && getCurrentPlayer().getUsername().equals(game.getHost())) {
+            currentPlayer != null && currentPlayer.getUsername().equals(game.getHost())) {
           log.info("[generateGameStatusListener.changed] posting RehostRequestEvent");
           eventBus.post(new RehostRequestEvent(game));
         }
@@ -358,6 +359,7 @@ public class GameService implements InitializingBean {
     String inGameIrcUrl = getInGameIrcUrl(inGameChannel);
     boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchOnHostEnabled();
 
+    autoJoinRequestedGameProperty.set(null);
     return updateGameIfNecessary(newGameInfo.getFeaturedMod(), null, Map.of(), newGameInfo.getSimMods())
         .thenCompose(aVoid -> fafService.requestHostGame(newGameInfo))
         .thenAccept(gameLaunchMessage -> startGame(gameLaunchMessage, inGameIrcUrl, autoLaunch, playerService.getCurrentPlayer().get().getUsername()));
@@ -390,6 +392,7 @@ public class GameService implements InitializingBean {
     String inGameIrcUrl = getInGameIrcUrl(inGameIrcChannel);
     Map<String, Integer> featuredModVersions = game.getFeaturedModVersions();
     Set<String> simModUIds = game.getSimMods().keySet();
+    autoJoinRequestedGameProperty.set(null);
     return
         modService.getFeaturedMod(game.getFeaturedMod())
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, null, featuredModVersions, simModUIds))
@@ -610,7 +613,7 @@ public class GameService implements InitializingBean {
 
     log.info("Matchmaking search has been started");
     inMatchmakerQueue.set(true);
-
+    autoJoinRequestedGameProperty.set(null);
     return
         modService.getFeaturedMod(modTechnical)
         .thenAccept(featuredModBean -> updateGameIfNecessary(featuredModBean, null, emptyMap(), emptySet()))
@@ -853,81 +856,61 @@ public class GameService implements InitializingBean {
     }
   }
 
-  private boolean isAutoJoinable(Game game) {
-    if (game.getStatus() != GameStatus.STAGING && game.getStatus() != GameStatus.BATTLEROOM) {
-      return false;
+  private ObjectProperty<Game> autoJoinRequestedGameProperty = new SimpleObjectProperty<>();
+  public ObjectProperty<Game> getAutoJoinRequestedGameProperty() { return autoJoinRequestedGameProperty; };
+  ListChangeListener<Game> gameListChangeListener;
+  ChangeListener<PlayerStatus> playerStatusChangeListener;
+  ChangeListener<Game> currentGameListener;
+  @Subscribe
+  public void onAutoJoinRequest(AutoJoinRequestEvent event) {
+    autoJoinRequestedGameProperty.set(event.getPrototype());
+    if (event.getPrototype() == null) {
+      log.info("[onAutoJoinRequest] cleared current auto-join request");
+      return;
     }
 
-    // can't join until this information is available
-    if (game.getMapArchiveName() == null || game.getMapCrc() == null) {
-      return false;
+    log.info("[onAutoJoinRequest] will autojoin {}'s next game", event.getPrototype().getHost());
+    if (gameListChangeListener == null) {
+      gameListChangeListener = c -> checkAutoJoin(autoJoinRequestedGameProperty.get());
+      games.addListener(gameListChangeListener);
+    }
+    if (playerStatusChangeListener == null) {
+      playerStatusChangeListener = (observable, oldValue, newValue) -> checkAutoJoin(autoJoinRequestedGameProperty.get());
+      playerService.getCurrentPlayer().get().statusProperty().addListener(playerStatusChangeListener);
+    }
+    if (currentGameListener == null) {
+      currentGameListener = (observable, oldValue, newValue) -> checkAutoJoin(autoJoinRequestedGameProperty.get());
+      currentGame.addListener(currentGameListener);
     }
 
-    if (game.isPasswordProtected()) {
-      return false;
-    }
-
-    if (game.getGameType() == GameType.MATCHMAKER) {
-      return false;
-    }
-
-    Player hostPlayer = playerService.getPlayerForUsername(game.getHost()).get();
-    if (hostPlayer.getSocialStatus() == SocialStatus.SELF || hostPlayer.getSocialStatus() == SocialStatus.FOE) {
-      return false;
-    }
-
-    if (hostPlayer.getStatus() != PlayerStatus.HOSTING && hostPlayer.getStatus() != PlayerStatus.HOSTED) {
-      return false;
-    }
-
-    Optional<Player> currentPlayerOptional = playerService.getCurrentPlayer();
-    if (currentPlayerOptional.isEmpty()) {
-      return false;
-    }
-
-    // auto-join is only for if we're already in the chat channel
-    String newGameIrcChannel = getInGameIrcChannel(game);
-    Player currentPlayer = currentPlayerOptional.get();
-    Set<String> currentPlayerChannels = chatService.getUserChannels(currentPlayer.getUsername());
-    if (!currentPlayerChannels.stream().anyMatch(channel -> channel.equals(newGameIrcChannel))) {
-      return false;
-    }
-
-    return true;
+    checkAutoJoin(autoJoinRequestedGameProperty.get());
   }
 
-  private void conditionallyDoOrDeferAutojoin(Game game) {
-    log.info("[conditionallyDoOrDeferAutojoin]", game);
-    Optional<Player> currentPlayerOptional = playerService.getCurrentPlayer();
-    if (currentPlayerOptional.isPresent() && preferencesService.getPreferences().getAutoJoinEnabled() && isAutoJoinable(game)) {
-      Player currentPlayer = currentPlayerOptional.get();
-      if (currentPlayer.getStatus() == PlayerStatus.IDLE && getCurrentGame() == null) {
-        log.info("[conditionallyDoOrDeferAutojoin] auto-joining {}", game);
-        this.joinGame(game, null);
-      }
-      else if (currentPlayer.getStatus() != PlayerStatus.IDLE) {
-        log.info("[conditionallyDoOrDeferAutojoin] will auto-join {} when player becomes IDLE", game);
-        ChangeListener<PlayerStatus> listener = new ChangeListener<>() {
-          @Override
-          public void changed(ObservableValue<? extends PlayerStatus> observable, PlayerStatus oldValue, PlayerStatus newValue) {
-            currentPlayer.statusProperty().removeListener(this);
-            conditionallyDoOrDeferAutojoin(game);
-          }
-        };
-        currentPlayer.statusProperty().addListener(listener);
-      } else /* getCurrentGame() != null */ {
-        log.info("[conditionallyDoOrDeferAutojoin] will auto-join {} when current game terminates", game);
-        ChangeListener<Game> listener = new ChangeListener<>() {
-          @Override
-          public void changed(ObservableValue<? extends Game> observable, Game oldValue, Game newValue) {
-            currentGame.removeListener(this);
-            conditionallyDoOrDeferAutojoin(game);
-          }
-        };
-        currentGame.addListener(listener);
-      }
+  public void checkAutoJoin(Game prototype) {
+    if (prototype == null) {
+      return;
     }
-    log.info("[conditionallyDoOrDeferAutojoin] done", game);
+    Optional<Game> gameOptional = findMatchingAutoJoinable(prototype);
+    Optional<Player> currentPlayerOptional = playerService.getCurrentPlayer();
+    if (gameOptional.isPresent() && currentPlayerOptional.isPresent() &&
+        currentPlayerOptional.get().getStatus() == PlayerStatus.IDLE &&
+        getCurrentGame() == null) {
+      log.info("[checkAutoJoin] auto-joining {}!", gameOptional.get());
+      this.joinGame(gameOptional.get(), prototype.getPassword());
+    }
+    else {
+      log.info("[checkAutoJoin] not yet.  game:{}, playerStatus:{}, currentGame:{}", gameOptional.isPresent(), currentPlayerOptional.get().getStatus(), getCurrentGame());
+    }
+  }
+
+  private Optional<Game> findMatchingAutoJoinable(Game prototype) {
+    return this.games.stream()
+        .filter(g -> g.getGameType() != GameType.MATCHMAKER)
+        .filter(g -> g.getId() != prototype.getId())
+        .filter(g -> g.getHost() != null && g.getMapArchiveName() != null && g.getMapCrc() != null)
+        .filter(g -> g.getHost().equals(prototype.getHost()))
+        .filter(g -> Set.of(GameStatus.STAGING, GameStatus.BATTLEROOM).contains(g.getStatus()))
+        .findFirst();
   }
 
   private void onGameInfo(GameInfoMessage gameInfoMessage) {
@@ -972,10 +955,14 @@ public class GameService implements InitializingBean {
         }
       }
 
-      log.info("[onGameInfo] isGameCurrentGame ...");
-      if (!isGameCurrentGame) {
-        log.info("[onGameInfo] conditionallyDoOrDeferAutojoin() ...");
-        conditionallyDoOrDeferAutojoin(game);
+      if (preferencesService.getPreferences().getAutoJoinEnabled() &&
+          game.getStatus() == GameStatus.BATTLEROOM &&
+          game.getGameType() != GameType.MATCHMAKER &&
+          !currentPlayerOptional.get().getUsername().equals(game.getHost()) &&
+          currentPlayerInGame
+      ) {
+        log.info("[generateGameStatusListener.changed] posting AutoJoinRequestEvent");
+        eventBus.post(new AutoJoinRequestEvent(game));
       }
     }
 

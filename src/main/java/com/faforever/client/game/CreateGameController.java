@@ -113,7 +113,6 @@ public class CreateGameController implements Controller<Pane> {
   public CheckBox enforceRankingCheckBox;
   public ListView<FeaturedMod> featuredModListView;
   public ListView<MapBean> mapListView;
-  public StackPane gamesRoot;
   public Pane createGameRoot;
   public Button createGameButton;
   public Button updateGameButton;
@@ -616,10 +615,6 @@ public class CreateGameController implements Controller<Pane> {
 
   public Pane getRoot() {
     return createGameRoot;
-  }
-
-  public void setGamesRoot(StackPane root) {
-    gamesRoot = root;
   }
 
   /**

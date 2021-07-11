@@ -15,7 +15,6 @@ import com.faforever.client.remote.domain.RatingRange;
 import com.faforever.client.theme.UiService;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
@@ -45,6 +44,7 @@ import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -53,7 +53,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class GamesTableController implements Controller<Node> {
 
-  private final ObjectProperty<Game> selectedGame = new SimpleObjectProperty<>();
   private final MapService mapService;
   private final JoinGameHelper joinGameHelper;
   private final GameService gameService;
@@ -75,13 +74,14 @@ public class GamesTableController implements Controller<Node> {
   private final ChangeListener<Boolean> showPasswordProtectedGamesChangedListener = (observable, oldValue, newValue) -> passwordProtectionColumn.setVisible(newValue);
   private GameTooltipController gameTooltipController;
   private Tooltip tooltip;
-
-  public ObjectProperty<Game> selectedGameProperty() {
-    return selectedGame;
-  }
+  private Consumer<Game> onSelectedListener;
 
   public Node getRoot() {
     return gamesTable;
+  }
+
+  public void setOnSelectedListener(Consumer<Game> onSelectedListener) {
+    this.onSelectedListener = onSelectedListener;
   }
 
   public void initializeGameTable(ObservableList<Game> games) {
@@ -109,7 +109,7 @@ public class GamesTableController implements Controller<Node> {
     applyLastSorting(gamesTable);
     gamesTable.setOnSort(this::onColumnSorted);
 
-    JavaFxUtil.addListener(sortedList, (Observable observable) -> selectCurrentGame());
+    JavaFxUtil.addListener(sortedList, (Observable observable) -> JavaFxUtil.runLater(() -> selectCurrentGame()));
     selectCurrentGame();
 
     passwordProtectionColumn.setCellValueFactory(param -> param.getValue().passwordProtectedProperty());
@@ -153,7 +153,7 @@ passwordProtectionColumn.setVisible(preferencesService.getPreferences().isShowPa
     }
 
     gamesTable.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue)
-        -> JavaFxUtil.runLater(() -> selectedGame.set(newValue)));
+        -> onSelectedListener.accept(newValue));
 
     //bindings do not work as that interferes with some bidirectional bindings in the TableView itself
     if (listenToFilterPreferences && coopMissionNameProvider == null) {
@@ -203,7 +203,7 @@ passwordProtectionColumn.setVisible(preferencesService.getPreferences().isShowPa
     TableView.TableViewSelectionModel<Game> selectionModel = gamesTable.getSelectionModel();
     Game currentGame = gameService.getCurrentGame();
     if (currentGame != null && !gamesTable.getItems().isEmpty()) {
-      JavaFxUtil.runLater(() -> selectionModel.select(currentGame));
+      selectionModel.select(currentGame);
     }
     else {
       selectFirstGame();
