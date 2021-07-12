@@ -2,7 +2,6 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.chart.CategoryAxis?>
-<?import javafx.scene.chart.LineChart?>
 <?import javafx.scene.chart.NumberAxis?>
 <?import javafx.scene.chart.PieChart?>
 <?import javafx.scene.chart.StackedBarChart?>
@@ -23,6 +22,7 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
+<?import com.faforever.client.fx.ScatterXChart?>
 <VBox fx:id="userInfoRoot" prefHeight="700.0" prefWidth="900.0" styleClass="user-info-window" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.faforever.client.chat.UserInfoWindowController">
    <children>
       <HBox alignment="CENTER_LEFT" spacing="20.0" styleClass="user-info-header-area">
@@ -91,12 +91,13 @@
                                             <Insets top="10.0"/>
                                         </padding>
                                         <children>
-                                  <ComboBox fx:id="timePeriodComboBox" onAction="#plotPlayerRatingGraph"/>
-                                  <ComboBox fx:id="ratingTypeComboBox" onAction="#onRatingTypeChange"/>
+                                            <ComboBox fx:id="ratingMetricComboBox" onAction="#plotPlayerRatingGraph"/>
+                                            <ComboBox fx:id="timePeriodComboBox" onAction="#plotPlayerRatingGraph"/>
+                                            <ComboBox fx:id="ratingTypeComboBox" onAction="#onRatingTypeChange"/>
                                         </children>
                                     </HBox>
-                                    <LineChart fx:id="ratingHistoryChart" createSymbols="false" legendVisible="false"
-                                               prefHeight="300.0" VBox.vgrow="ALWAYS">
+                                    <ScatterXChart fx:id="ratingHistoryChart" legendVisible="false"
+                                                   prefHeight="300.0" VBox.vgrow="ALWAYS">
                                         <xAxis>
                                             <NumberAxis forceZeroInRange="false" autoRanging="false" side="BOTTOM"
                                                         fx:id="xAxis"/>
@@ -104,7 +105,7 @@
                                         <yAxis>
                                             <NumberAxis fx:id="yAxis" forceZeroInRange="false" side="LEFT"/>
                                         </yAxis>
-                                    </LineChart>
+                                    </ScatterXChart>
                                     <VBox fx:id="loadingHistoryPane" alignment="CENTER"
                                           maxHeight="1.7976931348623157E308"
                                           maxWidth="1.7976931348623157E308" mouseTransparent="true" spacing="10.0">
