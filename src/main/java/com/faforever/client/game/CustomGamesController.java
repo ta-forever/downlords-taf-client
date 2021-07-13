@@ -8,6 +8,7 @@ import com.faforever.client.main.event.HostGameEvent;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.mod.ModService;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.dialog.Dialog;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
@@ -49,7 +50,8 @@ import java.util.function.Predicate;
 public class CustomGamesController extends AbstractViewController<Node> {
 
   private static final Predicate<Game> CUSTOM_GAMES_PREDICATE = gameInfoBean ->
-      (gameInfoBean.isOpen() || gameInfoBean.isInProgress()) && gameInfoBean.getMapArchiveName() != null;
+      (gameInfoBean.isOpen() && gameInfoBean.getGameType() != GameType.MATCHMAKER || gameInfoBean.isInProgress()) &&
+          gameInfoBean.getMapArchiveName() != null;
 
   private final UiService uiService;
   private final GameService gameService;
