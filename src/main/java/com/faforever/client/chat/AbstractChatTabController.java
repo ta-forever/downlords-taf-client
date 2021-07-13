@@ -255,7 +255,7 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
   }
 
   public void setReceiver(String receiver) {
-    this.close();
+    this.removeUsersChangeListener();
     this.receiver = receiver;
     usersChangeListener = change -> JavaFxUtil.runLater(() -> {
       if (change.wasAdded() && !change.getValueAdded().getUsername().equals(CHANSERV_USER)) {
@@ -269,6 +269,18 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
       chatService.addUsersListener(receiver, usersChangeListener);
     } else {
       chatService.addChatUsersByNameListener(usersChangeListener);
+    }
+  }
+
+  private void removeUsersChangeListener() {
+    if (receiver == null || usersChangeListener == null) {
+      return;
+    }
+    if (receiver.startsWith("#")) {
+      chatService.removeUsersListener(receiver, usersChangeListener);
+    }
+    else {
+      chatService.removeChatUsersByNameListener(usersChangeListener);
     }
   }
 
