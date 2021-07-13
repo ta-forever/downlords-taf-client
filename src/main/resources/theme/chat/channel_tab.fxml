@@ -15,7 +15,6 @@
 <?import javafx.scene.text.TextFlow?>
 <?import javafx.scene.web.WebView?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.text.Font?>
 <Tab fx:id="channelTabRoot" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.faforever.client.chat.ChannelTabController">
     <userData>
         <fx:reference source="controller" />
