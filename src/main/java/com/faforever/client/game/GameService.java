@@ -94,7 +94,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.faforever.commons.io.Bytes.formatSize;
 import static com.github.nocatch.NoCatch.noCatch;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
@@ -454,8 +453,8 @@ public class GameService implements InitializingBean {
               return;
             }
             this.process = processForReplay;
-            setGameRunning(true);
             spawnGameTerminationListener(this.process, replayId);
+            setGameRunning(true);
           } catch (IOException e) {
             notifyCantPlayReplay(replayId, e);
           }
@@ -549,8 +548,8 @@ public class GameService implements InitializingBean {
             return;
           }
           this.process = processCreated;
-          setGameRunning(true);
           spawnGameTerminationListener(this.process, gameId);
+          setGameRunning(true);
         }))
         .exceptionally(throwable -> {
           notifyCantPlayReplay(gameId, throwable);
@@ -747,8 +746,8 @@ public class GameService implements InitializingBean {
 
           process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, gameLaunchMessage.getUid(), args,
               adapterPort, getCurrentPlayer(), ircUrl, autoLaunch));
-          setGameRunning(true);
           spawnGameTerminationListener(process, gameLaunchMessage.getUid());
+          setGameRunning(true);
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be started", throwable);

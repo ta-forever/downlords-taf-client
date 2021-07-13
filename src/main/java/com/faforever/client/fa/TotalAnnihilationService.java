@@ -168,7 +168,7 @@ public class TotalAnnihilationService {
 
     @Override
     public void run() {
-      if (launchServerProcess.isAlive()) {
+      if (launchServerProcess != null && launchServerProcess.isAlive()) {
         try (Socket socket = new Socket("127.0.0.1", launchServerPort)) {
           socket.setSoTimeout(300);
           socket.getOutputStream().write("/keepalive".getBytes());
@@ -224,10 +224,6 @@ public class TotalAnnihilationService {
     this.launchServerPort = getFreeTcpPort();
     this.launchServerHasUac = preferencesService.getPreferences().getRequireUacEnabled();
 
-    logger.info("[startLaunchServer] starting on port {}", this.launchServerPort);
-    List<String> startLaunchServerCommand = getLaunchServerCommand(this.launchServerPort, this.launchServerHasUac, gameGUID);
-    this.launchServerProcess = launch(getNativeGpgnet4taDir(), startLaunchServerCommand);
-
     if (launchServerKeepAliveTimer != null) {
       launchServerKeepAliveTimer.cancel();
     }
@@ -235,6 +231,9 @@ public class TotalAnnihilationService {
     launchServerKeepAliveTimerTask = new KeepAliveTimerTask();
     launchServerKeepAliveTimer.scheduleAtFixedRate(launchServerKeepAliveTimerTask, 0, 1000);
 
+    logger.info("[startLaunchServer] starting on port {}", this.launchServerPort);
+    List<String> startLaunchServerCommand = getLaunchServerCommand(this.launchServerPort, this.launchServerHasUac, gameGUID);
+    this.launchServerProcess = launch(getNativeGpgnet4taDir(), startLaunchServerCommand);
     return this.launchServerProcess;
   }
 
