@@ -117,12 +117,12 @@ public class MatchmakingChatController extends AbstractChatTabController {
   @VisibleForTesting
   void onPlayerDisconnected(ChatChannelUser user) {
     super.onPlayerDisconnected(user);
-    onChatMessage(new ChatMessage(user.getUsername(), Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerDisconnect", user.getUsername()), true));
+    onChatMessage(new ChatMessage(getReceiver(), Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerDisconnect", user.getUsername()), true));
   }
 
   @VisibleForTesting
   void onPlayerConnected(ChatChannelUser user) {
     super.onPlayerConnected(user);
-    onChatMessage(new ChatMessage(user.getUsername(), Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerConnect", user.getUsername()), true));
+    onChatMessage(new ChatMessage(getReceiver(), Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerConnect", user.getUsername()), true));
   }
 }

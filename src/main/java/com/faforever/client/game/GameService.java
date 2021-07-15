@@ -40,8 +40,6 @@ import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.faforever.client.util.RatingUtil;
 import com.faforever.client.util.TimeUtil;
 import com.faforever.client.util.ZipUtil;
-import com.faforever.commons.io.ByteCountListener;
-import com.faforever.commons.io.Zipper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;

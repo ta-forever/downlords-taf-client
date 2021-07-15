@@ -179,10 +179,12 @@ public class UserInfoWindowController implements Controller<Node> {
     timePeriodComboBox.setValue(TimePeriod.ALL_TIME);
 
     leaderboardService.getLeaderboards().thenApply(leaderboards -> {
-      ratingTypeComboBox.getItems().clear();
-      ratingTypeComboBox.getItems().addAll(leaderboards);
-      ratingTypeComboBox.setConverter(leaderboardStringConverter());
-      ratingTypeComboBox.getSelectionModel().selectFirst();
+      JavaFxUtil.runLater(() -> {
+        ratingTypeComboBox.getItems().clear();
+        ratingTypeComboBox.getItems().addAll(leaderboards);
+        ratingTypeComboBox.setConverter(leaderboardStringConverter());
+        ratingTypeComboBox.getSelectionModel().selectFirst();
+      });
       return null;
     });
 
