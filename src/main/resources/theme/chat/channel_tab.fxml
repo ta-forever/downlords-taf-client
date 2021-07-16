@@ -14,16 +14,43 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.TextFlow?>
 <?import javafx.scene.web.WebView?>
+<?import javafx.scene.control.Label?>
 <Tab fx:id="channelTabRoot" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.faforever.client.chat.ChannelTabController">
+    <userData>
+        <fx:reference source="controller" />
+    </userData>
   <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" onKeyReleased="#onKeyReleased">
     <children>
         <VBox fx:id="topicPane" maxWidth="1.7976931348623157E308" VBox.vgrow="NEVER">
             <children>
-                <TextFlow fx:id="topicText" maxWidth="1.7976931348623157E308" />
+                <TextFlow fx:id="topicText" maxWidth="1.7976931348623157E308"/>
                 <Separator maxWidth="1.7976931348623157E308" />
             </children>
         </VBox>
-        <SplitPane fx:id="splitPane" dividerPositions="0.8" maxWidth="1.7976931348623157E308" VBox.vgrow="ALWAYS">
+        <SplitPane fx:id="splitPane" dividerPositions="0.15" maxWidth="1.7976931348623157E308" VBox.vgrow="ALWAYS">
+            <VBox fx:id="channelTabScrollPaneVBox" maxHeight="1.7976931348623157E308"
+                  styleClass="chat-channel-users-pane" SplitPane.resizableWithParent="false" minWidth="300.0">
+                <children>
+                    <Label fx:id="userListTitleLabel" styleClass="h2" maxWidth="1.7976931348623157E308" minWidth="0.0" wrapText="true" alignment="CENTER"/>
+                    <HBox alignment="CENTER" spacing="10.0">
+                        <children>
+                            <TextField fx:id="userSearchTextField" maxWidth="1.7976931348623157E308" minWidth="10.0"
+                                       prefColumnCount="5" HBox.hgrow="ALWAYS"/>
+                            <ToggleButton fx:id="advancedUserFilter" mnemonicParsing="false"
+                                          onAction="#onAdvancedUserFilter" HBox.hgrow="NEVER">
+                                <graphic>
+                                    <Region styleClass="icon,filter-icon"/>
+                                </graphic>
+                            </ToggleButton>
+                        </children>
+                        <VBox.margin>
+                            <Insets left="10.0" right="10.0"/>
+                        </VBox.margin>
+                    </HBox>
+                    <VBox fx:id="chatUserListViewBox" maxHeight="1.7976931348623157E308" VBox.vgrow="ALWAYS"/>
+                </children>
+            </VBox>
+
             <VBox>
                <children>
                   <AnchorPane VBox.vgrow="ALWAYS">
@@ -58,30 +85,6 @@
                    </TextField>
                </children>
             </VBox>
-
-            <VBox fx:id="channelTabScrollPaneVBox" maxHeight="1.7976931348623157E308"
-                  styleClass="chat-channel-users-pane" SplitPane.resizableWithParent="false" minWidth="300.0">
-                <children>
-                    <HBox alignment="CENTER" spacing="10.0">
-                        <children>
-                            <TextField fx:id="userSearchTextField" maxWidth="1.7976931348623157E308" minWidth="10.0"
-                                       prefColumnCount="5" HBox.hgrow="ALWAYS"/>
-                            <ToggleButton fx:id="advancedUserFilter" mnemonicParsing="false"
-                                          onAction="#onAdvancedUserFilter" HBox.hgrow="NEVER">
-                                <graphic>
-                                    <Region styleClass="icon,filter-icon"/>
-                                </graphic>
-                            </ToggleButton>
-                        </children>
-                        <VBox.margin>
-                            <Insets left="10.0" right="10.0"/>
-                        </VBox.margin>
-                    </HBox>
-                    <VBox fx:id="chatUserListViewBox" maxHeight="1.7976931348623157E308"
-                          maxWidth="1.7976931348623157E308"
-                          VBox.vgrow="ALWAYS"/>
-                </children>
-          </VBox>
         </SplitPane>
     </children>
   </VBox>

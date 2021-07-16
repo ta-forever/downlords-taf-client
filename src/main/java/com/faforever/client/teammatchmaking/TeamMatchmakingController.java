@@ -10,6 +10,7 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.game.Faction;
 import com.faforever.client.game.PlayerStatus;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
@@ -28,6 +29,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TabPane;
+import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.ColumnConstraints;
@@ -90,7 +92,7 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
   public ImageView avatarImageView;
   public ImageView countryImageView;
   public Label clanLabel;
-  public Label usernameLabel;
+  public TextField usernameTextField;
   public Label gameCountLabel;
   public Label leagueLabel;
   public VBox queueBox;
@@ -112,14 +114,39 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
   @VisibleForTesting
   protected MatchmakingChatController matchmakingChatController;
 
+  private void initPlayer(Player newPlayer) {
+    player = newPlayer;
+    initializeUppercaseText();
+    initializeBindings();
+    ObservableList<Faction> factions = preferencesService.getPreferences().getMatchmaker().getFactions();
+    selectFactions(factions);
+    teamMatchmakingService.sendFactionSelection(factions);
+    teamMatchmakingService.sendPlayerAlias(player.getAlias());
+    teamMatchmakingService.getParty().getMembers().addListener((Observable o) -> renderPartyMembers());
+    player.statusProperty().addListener((observable, oldValue, newValue) -> JavaFxUtil.runLater(() -> {
+      if (newValue != PlayerStatus.IDLE) {
+        teamMatchmakingService.getPlayersInGame().add(player);
+      } else {
+        teamMatchmakingService.getPlayersInGame().remove(player);
+      }
+    }));
+    player.aliasProperty().addListener((observable, oldValue, newValue) -> new java.util.Timer().schedule(
+        new java.util.TimerTask() {
+          @Override
+          public void run() {
+            if (newValue.equals(player.getAlias())) {
+              teamMatchmakingService.sendPlayerAlias(player.getAlias());
+            }
+          }
+        }, 3000));
+    fafService.requestMatchmakerInfo();
+  }
+
   @Override
   public void initialize() {
     eventBus.register(this);
     JavaFxUtil.fixScrollSpeed(scrollPane);
     initializeDynamicChatPosition();
-    player = playerService.getCurrentPlayer().get();
-    initializeUppercaseText();
-    initializeBindings();
 
     factionsToButtons = new HashMap<>();
     factionsToButtons.put(Faction.AEON, aeonButton);
@@ -127,11 +154,11 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
     factionsToButtons.put(Faction.CYBRAN, cybranButton);
     factionsToButtons.put(Faction.SERAPHIM, seraphimButton);
 
-    ObservableList<Faction> factions = preferencesService.getPreferences().getMatchmaker().getFactions();
-    selectFactions(factions);
-    teamMatchmakingService.sendFactionSelection(factions);
+    playerService.currentPlayerProperty().addListener((obs,oldPlayer,newPlayer) -> initPlayer(newPlayer));
+    if (playerService.getCurrentPlayer().isPresent()) {
+      initPlayer(playerService.getCurrentPlayer().get());
+    }
 
-    teamMatchmakingService.getParty().getMembers().addListener((Observable o) -> renderPartyMembers());
     if (teamMatchmakingService.isQueuesReadyForUpdate()) {
       renderQueues(); // The teamMatchmakingService may already have all queues collected
     }                 // so we won't get any updates on the following change listener
@@ -141,14 +168,6 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
       }
     });
 
-    player.statusProperty().addListener((observable, oldValue, newValue) -> JavaFxUtil.runLater(() -> {
-      if (newValue != PlayerStatus.IDLE) {
-        teamMatchmakingService.getPlayersInGame().add(player);
-      } else {
-        teamMatchmakingService.getPlayersInGame().remove(player);
-      }
-    }));
-
     teamMatchmakingService.getParty().getMembers().addListener((InvalidationListener) c -> {
       refreshingLabel.setVisible(false);
       selectFactionsBasedOnParty();
@@ -156,7 +175,7 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
 
     JavaFxUtil.addListener(teamMatchmakingService.getParty().ownerProperty(), (observable, oldValue, newValue) -> {
       if (matchmakingChatController != null) {
-        matchmakingChatController.closeChannel();
+        matchmakingChatController.close();
       }
       createChannelTab("#" + newValue.getUsername() + PARTY_CHANNEL_SUFFIX);
     });
@@ -164,8 +183,6 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
       createChannelTab("#" + teamMatchmakingService.getParty().getOwner().getUsername() + PARTY_CHANNEL_SUFFIX);
     }
     catch (NullPointerException e) { }
-
-    fafService.requestMatchmakerInfo();
   }
 
   private void initializeDynamicChatPosition() {
@@ -201,16 +218,21 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
     gameCountLabel.textProperty().bind(createStringBinding(() ->
         i18n.get("teammatchmaking.gameCount", player.getNumberOfGames()).toUpperCase(), player.numberOfGamesProperty()));
     queueHeadingLabel.textProperty().bind(createStringBinding(() -> {
-      if (teamMatchmakingService.isCurrentlyInQueue())
-        return i18n.get("teammatchmaking.queueTitle.inQueue").toUpperCase();
-      else if (!teamMatchmakingService.getParty().getOwner().equals(player))
-        return i18n.get("teammatchmaking.queueTitle.inParty").toUpperCase();
-      else if (teamMatchmakingService.getPlayersInGame().contains(player))
-        return i18n.get("teammatchmaking.queueTitle.inGame").toUpperCase();
-      else if (!teamMatchmakingService.getPlayersInGame().isEmpty())
-        return i18n.get("teammatchmaking.queueTitle.memberInGame").toUpperCase();
-      else
+      try {
+        if (teamMatchmakingService.isCurrentlyInQueue())
+          return i18n.get("teammatchmaking.queueTitle.inQueue").toUpperCase();
+        else if (!teamMatchmakingService.getParty().getOwner().equals(player))
+          return i18n.get("teammatchmaking.queueTitle.inParty").toUpperCase();
+        else if (teamMatchmakingService.getPlayersInGame().contains(player))
+          return i18n.get("teammatchmaking.queueTitle.inGame").toUpperCase();
+        else if (!teamMatchmakingService.getPlayersInGame().isEmpty())
+          return i18n.get("teammatchmaking.queueTitle.memberInGame").toUpperCase();
+        else
+          return i18n.get("teammatchmaking.queueTitle").toUpperCase();
+      }
+      catch (NullPointerException e) {
         return i18n.get("teammatchmaking.queueTitle").toUpperCase();
+      }
     },  teamMatchmakingService.currentlyInQueueProperty(),
         teamMatchmakingService.getParty().ownerProperty(),
         teamMatchmakingService.getPlayersInGame()));
@@ -227,7 +249,7 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
     clanLabel.visibleProperty().bind(player.clanProperty().isNotEmpty().and(player.clanProperty().isNotNull()));
     clanLabel.textProperty().bind(createStringBinding(() ->
         Strings.isNullOrEmpty(player.getClan()) ? "" : String.format("[%s]", player.getClan()), player.clanProperty()));
-    usernameLabel.textProperty().bind(player.usernameProperty());
+    usernameTextField.textProperty().bindBidirectional(player.aliasProperty());
     crownLabel.visibleProperty().bind(createBooleanBinding(() ->
             teamMatchmakingService.getParty().getMembers().size() > 1 && teamMatchmakingService.getParty().getOwner().equals(player),
         teamMatchmakingService.getParty().ownerProperty(), teamMatchmakingService.getParty().getMembers()));
@@ -309,6 +331,13 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
       chatTabPane.getTabs().clear();
       chatTabPane.getTabs().add(matchmakingChatController.getRoot());
     });
+  }
+
+  @Override
+  protected void onDisplay(NavigateEvent navigateEvent) {
+    if (matchmakingChatController != null) {
+      matchmakingChatController.display(navigateEvent);
+    }
   }
 
   @Subscribe

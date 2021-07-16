@@ -120,7 +120,7 @@ public class MatchmakingChatControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void onPlayerConnectedTest() {
-    instance.onPlayerConnected("mock");
+    instance.onPlayerConnected(new ChatChannelUser("mock", false));
     WaitForAsyncUtils.waitForFxEvents();
 
     verify(instance).onChatMessage(any(ChatMessage.class));
@@ -128,7 +128,7 @@ public class MatchmakingChatControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void onPlayerDisconnected() {
-    instance.onPlayerDisconnected("mock");
+    instance.onPlayerDisconnected(new ChatChannelUser("mock", false));
     WaitForAsyncUtils.waitForFxEvents();
 
     verify(instance).onChatMessage(any(ChatMessage.class));

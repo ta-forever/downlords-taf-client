@@ -28,6 +28,8 @@ import com.faforever.client.notification.TransientNotificationsController;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.WindowPrefs;
 import com.faforever.client.preferences.ui.SettingsController;
+import com.faforever.client.remote.FafService;
+import com.faforever.client.task.ResourceLocks;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.StageHolder;
 import com.faforever.client.ui.alert.Alert;
@@ -36,6 +38,7 @@ import com.faforever.client.ui.tray.event.UpdateApplicationBadgeEvent;
 import com.faforever.client.user.event.LoggedInEvent;
 import com.faforever.client.user.event.LoggedOutEvent;
 import com.faforever.client.user.event.LoginSuccessEvent;
+import com.faforever.client.util.ZipUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -79,6 +82,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
+import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
@@ -90,6 +94,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static com.faforever.client.game.GameService.CUSTOM_GAME_CHANNEL_REGEX;
 import static com.github.nocatch.NoCatch.noCatch;
 import static javafx.scene.layout.Background.EMPTY;
 
@@ -113,12 +118,13 @@ public class MainController implements Controller<Node> {
   private final ApplicationEventPublisher applicationEventPublisher;
   private final String mainWindowTitle;
   private final boolean alwaysReloadTabs;
+  private final FafService fafService;
 
   public Pane mainHeaderPane;
   public Pane contentPane;
   public ToggleButton newsButton;
-  public ToggleButton chatButton;
   public ToggleButton playButton;
+  public ToggleButton matchmakerButton;
   public ToggleButton replayButton;
   public ToggleButton tutorialsButton;
   public ToggleButton mapButton;
@@ -141,13 +147,18 @@ public class MainController implements Controller<Node> {
   Popup persistentNotificationsPopup;
   private NavigationItem currentItem;
   private FxStage fxStage;
+  private DiscordSelectionMenuController discordSelectionMenuController;
+
 
   @Inject
   public MainController(PreferencesService preferencesService, I18n i18n,
                         NotificationService notificationService,
                         UiService uiService, EventBus eventBus,
                         GamePathHandler gamePathHandler, PlatformService platformService,
-                        ClientProperties clientProperties, ApplicationEventPublisher applicationEventPublisher, Environment environment) {
+                        ClientProperties clientProperties,
+                        ApplicationEventPublisher applicationEventPublisher,
+                        Environment environment,
+                        FafService fafService) {
     this.preferencesService = preferencesService;
     this.i18n = i18n;
     this.notificationService = notificationService;
@@ -158,6 +169,8 @@ public class MainController implements Controller<Node> {
     this.applicationEventPublisher = applicationEventPublisher;
     this.viewCache = CacheBuilder.newBuilder().build();
     this.mainWindowTitle = clientProperties.getMainWindowTitle();
+    this.discordSelectionMenuController = uiService.loadFxml("theme/discord_selection_menu.fxml");
+    this.fafService = fafService;
     alwaysReloadTabs = Arrays.asList(environment.getActiveProfiles()).contains(FafClientApplication.PROFILE_RELOAD);
   }
 
@@ -181,8 +194,8 @@ public class MainController implements Controller<Node> {
 
   public void initialize() {
     newsButton.setUserData(NavigationItem.NEWS);
-    chatButton.setUserData(NavigationItem.CHAT);
     playButton.setUserData(NavigationItem.PLAY);
+    matchmakerButton.setUserData(NavigationItem.MATCHMAKER);
     replayButton.setUserData(NavigationItem.REPLAY);
     mapButton.setUserData(NavigationItem.MAP);
     modButton.setUserData(NavigationItem.MOD);
@@ -213,7 +226,8 @@ public class MainController implements Controller<Node> {
     notificationService.addServerNotificationListener(notification -> JavaFxUtil.runLater(() -> displayServerNotification(notification)));
     notificationService.addTransientNotificationListener(notification -> JavaFxUtil.runLater(() -> transientNotificationsController.addNotification(notification)));
     // Always load chat immediately so messages or joined channels don't need to be cached until we display them.
-    getView(NavigationItem.CHAT);
+    // Axle1975: which is all good and well if username is known at this point ... ChatController.initialize now adds tabs for pre-existing channels (messages still get lost until player opens chat tho)
+    // getView(NavigationItem.PLAY);
 
     notificationButton.managedProperty().bind(notificationButton.visibleProperty());
 
@@ -268,12 +282,19 @@ public class MainController implements Controller<Node> {
 
   @Subscribe
   public void onUnreadPartyMessage(UnreadPartyMessageEvent event) {
-    JavaFxUtil.runLater(() -> playButton.pseudoClassStateChanged(HIGHLIGHTED, !currentItem.equals(NavigationItem.PLAY)));
+    JavaFxUtil.runLater(() -> {
+      if (event.getMessage().getSource().matches(CUSTOM_GAME_CHANNEL_REGEX)) {
+        playButton.pseudoClassStateChanged(HIGHLIGHTED, !currentItem.equals(NavigationItem.PLAY));
+      }
+      else {
+        matchmakerButton.pseudoClassStateChanged(HIGHLIGHTED, !currentItem.equals(NavigationItem.MATCHMAKER));
+      }
+    });
   }
 
   @Subscribe
   public void onUnreadPrivateMessage(UnreadPrivateMessageEvent event) {
-    JavaFxUtil.runLater(() -> chatButton.pseudoClassStateChanged(HIGHLIGHTED, !currentItem.equals(NavigationItem.CHAT)));
+    JavaFxUtil.runLater(() -> playButton.pseudoClassStateChanged(HIGHLIGHTED, !currentItem.equals(NavigationItem.PLAY)));
   }
 
   private void displayView(AbstractViewController<?> controller, NavigateEvent navigateEvent) {
@@ -353,6 +374,7 @@ public class MainController implements Controller<Node> {
       setWindowPosition(stage, mainWindowPrefs);
     }
     registerWindowListeners();
+    notificationService.flushPendingImmediateNotifications();
   }
 
   private void setWindowPosition(Stage stage, WindowPrefs mainWindowPrefs) {
@@ -560,13 +582,13 @@ public class MainController implements Controller<Node> {
     this.platformService.reveal(logPath);
   }
 
-  public void onChat(ActionEvent actionEvent) {
-    chatButton.pseudoClassStateChanged(HIGHLIGHTED, false);
+  public void onPlay(ActionEvent actionEvent) {
+    playButton.pseudoClassStateChanged(HIGHLIGHTED, false);
     onNavigateButtonClicked(actionEvent);
   }
 
-  public void onPlay(ActionEvent actionEvent) {
-    playButton.pseudoClassStateChanged(HIGHLIGHTED, false);
+  public void onMatchmaker(ActionEvent actionEvent) {
+    matchmakerButton.pseudoClassStateChanged(HIGHLIGHTED, false);
     onNavigateButtonClicked(actionEvent);
   }
 
@@ -604,6 +626,32 @@ public class MainController implements Controller<Node> {
 
   public void setFxStage(FxStage fxWindow) {
     this.fxStage = fxWindow;
+  }
+
+  public void onDiscordButtonClicked(MouseEvent event) {
+    discordSelectionMenuController.getContextMenu().show(this.getRoot().getScene().getWindow(), event.getScreenX(), event.getScreenY());
+  }
+
+  public void onSubmitLogs(ActionEvent actionEvent) {
+    log.info("[onSubmitLogs] submitting logs to TAF on user request");
+    Path logGpgnet4ta = preferencesService.getMostRecentLogFile("game").orElse(Path.of(""));
+    Path logLauncher = preferencesService.getMostRecentLogFile("talauncher").orElse(Path.of(""));
+    Path logClient = preferencesService.getFafLogDirectory().resolve("client.log");
+    Path logIceAdapter = preferencesService.getIceAdapterLogDirectory().resolve("ice-adapter.log");
+    Path targetZipFile = preferencesService.getFafLogDirectory().resolve("logs.zip");
+    try {
+      File files[] = {logIceAdapter.toFile(), logClient.toFile(),logGpgnet4ta.toFile(), logLauncher.toFile()};
+      ZipUtil.zipFile(files, targetZipFile.toFile());
+      ResourceLocks.acquireUploadLock();
+      fafService.uploadGameLogs(targetZipFile, "adhoc", 0, (written, total) -> {});
+      notificationService.addImmediateInfoNotification("menu.submitLogs", "menu.submitLogs.done");
+    } catch (Exception e) {
+      log.error("[submitLogs] unable to submit logs:", e.getMessage());
+      notificationService.addImmediateErrorNotification(new RuntimeException(e.getMessage()),"menu.submitLogs.failed");
+    } finally {
+      ResourceLocks.freeUploadLock();
+      try { Files.delete(targetZipFile); } catch(Exception e) {}
+    }
   }
 
   public class ToastDisplayer implements InvalidationListener {

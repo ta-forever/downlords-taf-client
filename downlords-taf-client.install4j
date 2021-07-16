@@ -18,7 +18,14 @@
       <mountPoint id="885" root="506" location="TAForever" />
     </mountPoints>
     <entries>
-      <dirEntry mountPoint="23" file="./build/resources/native" fileMode="755" overrideFileMode="true" entryMode="subdir" subDirectory="natives" />
+      <dirEntry mountPoint="23" file="./build/resources/native" fileMode="755" overrideFileMode="true" entryMode="subdir" subDirectory="natives">
+        <exclude>
+          <entry location="gpgnet4ta-ubuntu-focal-x64.tar.gz" />
+          <entry location="gpgnet4ta-win-x86.zip" />
+          <entry location="taftoolbox-ubuntu-focal-x64.tar.gz" />
+          <entry location="taftoolbox-win-x86.zip" />
+        </exclude>
+      </dirEntry>
       <dirEntry mountPoint="23" file="./build/install/downlords-faf-client" entryMode="subdir" subDirectory="lib">
         <exclude>
           <entry location="faf-ice-adapter.jar" />

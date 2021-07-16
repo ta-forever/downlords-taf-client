@@ -7,20 +7,22 @@
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.HBox?>
-<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.ProgressIndicator?>
 <?import javafx.scene.control.Tab?>
 <HBox xmlns:fx="http://javafx.com/fxml/1" fx:id="chatRoot" xmlns="http://javafx.com/javafx/8.0.40"
       fx:controller="com.faforever.client.chat.ChatController"
       maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
+    <userData>
+        <fx:reference source="controller" />
+    </userData>
     <children>
         <AnchorPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS">
             <children>
-                <VBox fx:id="chatContainer" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
+                <HBox fx:id="chatContainer" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
                       AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
                     <children>
                         <TabPane fx:id="tabPane" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS" tabClosingPolicy="ALL_TABS" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
-                            <Tab text="+" closable="false">
+                            <Tab text="+" closable="false" onSelectionChanged="#clearUserListNode">
                                 <VBox fx:id="noOpenTabsContainer" alignment="CENTER" fillWidth="false">
                                     <children>
                                         <Label styleClass="h2" text="%chat.joinAChannel">
@@ -36,7 +38,7 @@
                             </Tab>
                         </TabPane>
                     </children>
-                </VBox>
+                </HBox>
 
                 <VBox fx:id="connectingProgressPane" alignment="CENTER" AnchorPane.bottomAnchor="0.0"
                       AnchorPane.leftAnchor="0.0"
@@ -53,16 +55,5 @@
 
             </children>
         </AnchorPane>
-
-        <ScrollPane fx:id="gameDetailWrapper" fitToWidth="true" minWidth="200.0" prefWidth="300.0" styleClass="game-detail-framed">
-            <content>
-                <VBox>
-                    <children>
-                        <Label text="%chat.currentGame" styleClass="h2"/>
-                        <fx:include fx:id="gameDetail" source="../play/game_detail.fxml"/>
-                    </children>
-                </VBox>
-            </content>
-        </ScrollPane>
     </children>
 </HBox>

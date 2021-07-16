@@ -1,119 +1,103 @@
 package com.faforever.client.play;
 
-import com.faforever.client.chat.event.UnreadPartyMessageEvent;
-import com.faforever.client.coop.CoopController;
+import com.faforever.client.chat.ChatController;
+import com.faforever.client.chat.ChatMessage;
+import com.faforever.client.chat.MatchmakingChatController;
+import com.faforever.client.chat.event.ChatMessageEvent;
 import com.faforever.client.fx.AbstractViewController;
+import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.game.CustomGamesController;
+import com.faforever.client.game.Game;
+import com.faforever.client.game.GameDetailController;
+import com.faforever.client.game.GameService;
 import com.faforever.client.main.event.NavigateEvent;
-import com.faforever.client.main.event.OpenCoopEvent;
-import com.faforever.client.main.event.OpenCustomGamesEvent;
-import com.faforever.client.main.event.OpenTeamMatchmakingEvent;
-import com.faforever.client.preferences.PreferencesService;
-import com.faforever.client.teammatchmaking.TeamMatchmakingController;
+import com.faforever.client.theme.UiService;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
-import javafx.css.PseudoClass;
-import javafx.scene.AccessibleAttribute;
 import javafx.scene.Node;
-import javafx.scene.control.Tab;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.TabPane;
-import javafx.scene.control.skin.TabPaneSkin;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+@Slf4j
 public class PlayController extends AbstractViewController<Node> {
-  private static final PseudoClass UNREAD_PSEUDO_STATE = PseudoClass.getPseudoClass("unread");
 
+  private final GameService gameService;
+  private final UiService uiService;
   private final EventBus eventBus;
-  private final PreferencesService preferencesService;
-  public Node playRoot;
-  public Tab teamMatchmakingTab;
-  public Tab customGamesTab;
-  public Tab coopTab;
-  public TabPane playRootTabPane;
-  public TeamMatchmakingController teamMatchmakingController;
-  public CustomGamesController customGamesController;
-  public CoopController coopController;
-  private boolean isHandlingEvent;
-  private AbstractViewController<?> lastTabController;
-  private Tab lastTab;
 
-  public PlayController(EventBus eventBus, PreferencesService preferencesService) {
+  public StackPane playRoot;
+  public Node customGames;
+  public Node mainChat;
+  public TabPane gameChat;
+  public SplitPane chatContainer;
+  public SplitPane mainViewContainer;
+  public Pane customGamesContainer;
+  public HBox mainChatContainer;
+  public HBox gameChatContainer;
+  public VBox userListContainer;
+  public ScrollPane gameDetailContainer;
+  public Node mainChatUserListContainer;
+
+  private CustomGamesController customGamesController;
+  private ChatController mainChatController;
+  private MatchmakingChatController gameChatController;
+  private GameDetailController gameDetailController;
+
+  public PlayController(GameService gameService, UiService uiService, EventBus eventBus) {
+    this.gameService = gameService;
+    this.uiService = uiService;
     this.eventBus = eventBus;
-    this.preferencesService = preferencesService;
+
+    eventBus.register(this);
   }
 
   @Override
   public void initialize() {
-    eventBus.register(this);
+    gameChatController = uiService.loadFxml("theme/play/teammatchmaking/matchmaking_chat.fxml");
+    gameChat.getTabs().add(gameChatController.getRoot());
 
-    String preferencesLastPlayTab = preferencesService.getPreferences().getLastPlayTab();
-    if (preferencesLastPlayTab == null) {
-      lastTab = customGamesTab;
-      lastTabController = customGamesController;
-    }
-    else if (preferencesLastPlayTab.equals(customGamesTab.getText())) {
-      lastTab = customGamesTab;
-      lastTabController = customGamesController;
-    }
-    else if (preferencesLastPlayTab.equals(teamMatchmakingTab.getText())) {
-      lastTab = teamMatchmakingTab;
-      lastTabController = teamMatchmakingController;
-    } else {
-      lastTab = customGamesTab;
-      lastTabController = customGamesController;
-    }
+    gameDetailController = uiService.loadFxml("theme/play/game_detail.fxml");
+    gameDetailContainer.setContent(gameDetailController.getRoot());
+    JavaFxUtil.bindManagedToVisible(gameDetailContainer);
+    gameDetailContainer.setVisible(false);
 
-    playRootTabPane.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-      if (isHandlingEvent) {
-        return;
-      }
-
-      if (newValue == teamMatchmakingTab) {
-        setMatchmakingTabUnread(false);
-        eventBus.post(new OpenTeamMatchmakingEvent());
-      } else if (newValue == customGamesTab) {
-        eventBus.post(new OpenCustomGamesEvent());
-      } else if (newValue == coopTab) {
-        eventBus.post(new OpenCoopEvent());
+    gameService.getCurrentGameProperty().addListener((obs, oldValue, newValue) -> {
+      setCurrentGame(newValue);
+      if (newValue != null) {
+        setFocusedGame(newValue);
       }
     });
+    setCurrentGame(gameService.getCurrentGame());
+    setFocusedGame(gameService.getCurrentGame());
+
+    customGamesController = CustomGamesController.getController(customGames);
+    customGamesController.setOnSelectedListener(game -> setFocusedGame(game));
+    customGamesController.setCreateGameDialogRoot(playRoot);
+
+    mainChatController = ChatController.getController(mainChat);
+    mainChatController.setUserListContainer(userListContainer);
   }
 
   @Override
   protected void onDisplay(NavigateEvent navigateEvent) {
-    isHandlingEvent = true;
-
-    try {
-      if (navigateEvent instanceof OpenTeamMatchmakingEvent) {
-        lastTab = teamMatchmakingTab;
-        lastTabController = teamMatchmakingController;
-      } else if (navigateEvent instanceof OpenCustomGamesEvent) {
-        lastTab = customGamesTab;
-        lastTabController = customGamesController;
-      } else if (navigateEvent instanceof OpenCoopEvent) {
-        lastTab = coopTab;
-        lastTabController = coopController;
-      }
-      playRootTabPane.getSelectionModel().select(lastTab);
-      lastTabController.display(navigateEvent);
-
-      preferencesService.getPreferences().setLastPlayTab(lastTab.getText());
-      preferencesService.storeInBackground();
-
-    } finally {
-      isHandlingEvent = false;
-    }
+    customGamesController.display(navigateEvent);
+    mainChatController.display(navigateEvent);
+    gameChatController.display(navigateEvent);
   }
 
   @Override
   public void onHide() {
-    teamMatchmakingController.onHide();
-    customGamesController.onHide();
-    coopController.onHide();
   }
 
   @Override
@@ -121,17 +105,51 @@ public class PlayController extends AbstractViewController<Node> {
     return playRoot;
   }
 
-  protected void setMatchmakingTabUnread(boolean unread) {
-    TabPaneSkin skin = (TabPaneSkin) playRootTabPane.getSkin();
-    if (skin == null) {
-      return;
+  @Subscribe
+  public void onChatMessage(ChatMessageEvent event) {
+    ChatMessage message = event.getMessage();
+    if (message.getSource().equals(gameChatController.getReceiver())) {
+      JavaFxUtil.runLater(() -> gameChatController.onChatMessage(message));
     }
-    Node tab = (Node) skin.queryAccessibleAttribute(AccessibleAttribute.ITEM_AT_INDEX, 0);
-    tab.pseudoClassStateChanged(UNREAD_PSEUDO_STATE, unread);
   }
 
-  @Subscribe
-  public void onUnreadPartyMessage(UnreadPartyMessageEvent event) {
-    setMatchmakingTabUnread(true);
+  private void setCurrentGame(Game game) {
+    setGameChatBoxLayout(game);
+    setGameChatBoxChannel(game);
+  }
+
+  private void setFocusedGame(Game game) {
+    gameDetailContainer.setVisible(game != null);
+    gameDetailController.setGame(game);
+  }
+
+  private void setGameChatBoxChannel(Game game) {
+    if (game != null) {
+      gameChatController.setChannel(gameService.getInGameIrcChannel(game));
+      gameChatController.setTopic(String.format("%s's Game: %s", game.getHost(), game.getTitle()));
+    }
+    else {
+      gameChatController.close();
+    }
+  }
+
+  private void setGameChatBoxLayout(Game game) {
+    double mainViewContainerWidth = mainViewContainer.getWidth();
+
+    if (mainViewContainerWidth > 0.0 && game != null) {
+      if (!gameChatContainer.isVisible()) {
+        chatContainer.setDividerPositions(0.5);
+        gameChatContainer.setVisible(true);
+      }
+      mainChatContainer.setMaxWidth(-1);
+      gameChatContainer.setMaxWidth(-1);
+      gameChat.setMaxWidth(-1);
+    }
+    else {
+      mainChatContainer.setMaxWidth(-1);
+      gameChatContainer.setMaxWidth(0.0);
+      gameChat.setMaxWidth(0.0);
+      gameChatContainer.setVisible(false);
+    }
   }
 }

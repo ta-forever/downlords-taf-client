@@ -348,7 +348,6 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   }
 
   private void joinAutoChannels() {
-    log.debug("Joining auto channel: {}", autoChannels);
     if (autoChannels == null) {
       return;
     }
@@ -388,7 +387,6 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     if (getOrCreateChannel(channelName).removeUser(username) == null) {
       return;
     }
-    log.debug("User '{}' left channel: {}", username, channelName);
     if (userService.getUsername().equalsIgnoreCase(username)) {
       synchronized (channels) {
         channels.remove(channelName);
@@ -510,6 +508,13 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   public void addChatUsersByNameListener(MapChangeListener<String, ChatChannelUser> listener) {
     synchronized (chatChannelUsersByChannelAndName) {
       JavaFxUtil.addListener(chatChannelUsersByChannelAndName, listener);
+    }
+  }
+
+  @Override
+  public void removeChatUsersByNameListener(MapChangeListener<String, ChatChannelUser> listener) {
+    synchronized (chatChannelUsersByChannelAndName) {
+      JavaFxUtil.removeListener(chatChannelUsersByChannelAndName, listener);
     }
   }
 

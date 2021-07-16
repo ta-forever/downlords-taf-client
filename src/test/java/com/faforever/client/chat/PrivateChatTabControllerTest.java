@@ -145,8 +145,8 @@ public class PrivateChatTabControllerTest extends AbstractPlainJavaFxTest {
   public void onPlayerConnectedTest() {
     assertFalse(instance.isUserOffline());
 
-    instance.onPlayerDisconnected(playerName);
-    instance.onPlayerConnected(playerName);
+    instance.onPlayerDisconnected(new ChatChannelUser(playerName,false));
+    instance.onPlayerConnected(new ChatChannelUser(playerName,false));
 
     assertFalse(instance.isUserOffline());
   }
@@ -155,7 +155,7 @@ public class PrivateChatTabControllerTest extends AbstractPlainJavaFxTest {
   public void onPlayerDisconnected() {
     assertFalse(instance.isUserOffline());
 
-    instance.onPlayerDisconnected(playerName);
+    instance.onPlayerDisconnected(new ChatChannelUser(playerName,false));
 
     assertTrue(instance.isUserOffline());
   }

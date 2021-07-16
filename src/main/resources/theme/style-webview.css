@@ -173,6 +173,10 @@ img.country-flag {
   font-style: italic;
 }
 
+.chat-section.text.unread {
+  font-style: bold;
+}
+
 .username.friend {
   color: #16B7EB;
 }

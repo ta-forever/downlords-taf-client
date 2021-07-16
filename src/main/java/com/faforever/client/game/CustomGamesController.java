@@ -8,11 +8,14 @@ import com.faforever.client.main.event.HostGameEvent;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.mod.ModService;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.dialog.Dialog;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ObservableList;
@@ -38,6 +41,7 @@ import org.springframework.stereotype.Component;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 @Component
@@ -46,7 +50,8 @@ import java.util.function.Predicate;
 public class CustomGamesController extends AbstractViewController<Node> {
 
   private static final Predicate<Game> CUSTOM_GAMES_PREDICATE = gameInfoBean ->
-      (gameInfoBean.isOpen() || gameInfoBean.isInProgress()) && gameInfoBean.getMapArchiveName() != null;
+      (gameInfoBean.isOpen() && gameInfoBean.getGameType() != GameType.MATCHMAKER || gameInfoBean.isInProgress()) &&
+          gameInfoBean.getMapArchiveName() != null;
 
   private final UiService uiService;
   private final GameService gameService;
@@ -55,20 +60,17 @@ public class CustomGamesController extends AbstractViewController<Node> {
   private final EventBus eventBus;
   private final I18n i18n;
 
-  @SuppressWarnings("WeakerAccess")
-  public GameDetailController gameDetailController;
   private GamesTableController gamesTableController;
 
   public GridPane gamesGridPane;
   public ToggleButton tableButton;
   public ToggleButton tilesButton;
-  public ToggleButton toggleGameDetailPaneButton;
   public ToggleGroup viewToggleGroup;
   public Button createGameButton;
   public Pane gameViewContainer;
   public StackPane gamesRoot;
-  public ScrollPane gameDetailPane;
   public ComboBox<TilesSortingOrder> chooseSortingTypeChoiceBox;
+  public StackPane createGameDialogRoot;
 
   @VisibleForTesting
   FilteredList<Game> filteredItems;
@@ -80,6 +82,16 @@ public class CustomGamesController extends AbstractViewController<Node> {
 
   private Dialog createGameDialog;
   private CreateGameController createGameController;
+  private Consumer<Game> onSelectedListener;
+
+  public static CustomGamesController getController(Node node) {
+    Object controller;
+    do {
+      controller = node.getUserData();
+      node = node.getParent();
+    } while (controller == null && node != null);
+    return (CustomGamesController) controller;
+  }
 
   public CustomGamesController(UiService uiService, GameService gameService, PreferencesService preferencesService, ModService modService,
                                EventBus eventBus, I18n i18n) {
@@ -91,7 +103,12 @@ public class CustomGamesController extends AbstractViewController<Node> {
     this.i18n = i18n;
   }
 
+  public void setCreateGameDialogRoot(StackPane root) {
+    this.createGameDialogRoot = root;
+  }
+
   public void initialize() {
+    this.createGameDialogRoot = this.gamesRoot;
     JavaFxUtil.bind(createGameButton.disableProperty(), gameService.gameRunningProperty());
 
     getRoot().sceneProperty().addListener((observable, oldValue, newValue) -> {
@@ -101,6 +118,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
     });
 
     chooseSortingTypeChoiceBox.setVisible(false);
+    chooseSortingTypeChoiceBox.managedProperty().bind(chooseSortingTypeChoiceBox.visibleProperty());
     chooseSortingTypeChoiceBox.getItems().addAll(TilesSortingOrder.values());
     chooseSortingTypeChoiceBox.setConverter(new StringConverter<>() {
       @Override
@@ -144,16 +162,17 @@ public class CustomGamesController extends AbstractViewController<Node> {
       preferencesService.storeInBackground();
     });
 
-    JavaFxUtil.bind(gameDetailPane.visibleProperty(), toggleGameDetailPaneButton.selectedProperty());
-    JavaFxUtil.bind(gameDetailPane.managedProperty(), gameDetailPane.visibleProperty());
-
-    toggleGameDetailPaneButton.selectedProperty().addListener(observable -> {
-      preferencesService.getPreferences().setShowGameDetailsSidePane(toggleGameDetailPaneButton.isSelected());
-      preferencesService.storeInBackground();
-    });
-    toggleGameDetailPaneButton.setSelected(true);//preferencesService.getPreferences().isShowGameDetailsSidePane());
-
     eventBus.register(this);
+  }
+
+  public void setOnSelectedListener(Consumer<Game> onSelectedListener) {
+    this.onSelectedListener = onSelectedListener;
+    if (this.gamesTilesContainerController != null) {
+      this.gamesTilesContainerController.setOnSelectedListener(onSelectedListener);
+    }
+    if (this.gamesTableController != null) {
+      this.gamesTableController.setOnSelectedListener(onSelectedListener);
+    }
   }
 
   @Override
@@ -184,18 +203,15 @@ public class CustomGamesController extends AbstractViewController<Node> {
   }
 
   private void onCreateGame(@Nullable String mapFolderName, @Nullable Game contextGame) {
-    if (!preferencesService.isGameExeValid(KnownFeaturedMod.DEFAULT.getTechnicalName()))
-    {
+    if (!preferencesService.isGameExeValid(KnownFeaturedMod.DEFAULT.getTechnicalName())) {
       CompletableFuture<Path> gameDirectoryFuture = new CompletableFuture<>();
       eventBus.post(new GameDirectoryChooseEvent(KnownFeaturedMod.DEFAULT.getTechnicalName(), gameDirectoryFuture));
       gameDirectoryFuture.thenAccept(path -> Optional.ofNullable(path).ifPresent(path1 -> onCreateGame(mapFolderName, contextGame)));
-
       return;
     }
 
     if (createGameController == null) {
       createGameController = uiService.loadFxml("theme/play/create_game.fxml");
-      createGameController.setGamesRoot(gamesRoot);
     }
     createGameController.setContextGame(contextGame);
 
@@ -214,7 +230,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
         title = i18n.get("games.browseMaps");
         break;
     }
-    createGameDialog = uiService.showInDialog(gamesRoot, root, title);
+    createGameDialog = uiService.showInDialog(createGameDialogRoot, root, title);
     createGameController.setOnCloseButtonClickedListener(() -> {
       createGameDialog.close();
     });
@@ -229,9 +245,8 @@ public class CustomGamesController extends AbstractViewController<Node> {
   public void onTableButtonClicked() {
     if (gamesTableController == null) {
       gamesTableController = uiService.loadFxml("theme/play/games_table.fxml");
-      gamesTableController.selectedGameProperty().addListener((observable, oldValue, newValue) -> setSelectedGame(newValue));
+      gamesTableController.setOnSelectedListener(this.onSelectedListener);
       gamesTableController.initializeGameTable(filteredItems);
-
       Node root = gamesTableController.getRoot();
       populateContainer(root);
     }
@@ -254,18 +269,12 @@ public class CustomGamesController extends AbstractViewController<Node> {
       gamesTilesContainerController = uiService.loadFxml("theme/play/games_tiles_container.fxml");
       Node root = gamesTilesContainerController.getRoot();
       populateContainer(root);
-      gamesTilesContainerController.selectedGameProperty().addListener((observable, oldValue, newValue) -> setSelectedGame(newValue));
+      gamesTilesContainerController.setOnSelectedListener(this.onSelectedListener);
       gamesTilesContainerController.createTiledFlowPane(filteredItems, chooseSortingTypeChoiceBox);
     }
     else {
       gameViewContainer.getChildren().setAll(gamesTilesContainerController.getRoot());
     }
-  }
-
-  @VisibleForTesting
-  void setSelectedGame(Game game) {
-    gameDetailController.getRoot().setVisible(true);
-    gameDetailController.setGame(game);
   }
 
   @VisibleForTesting

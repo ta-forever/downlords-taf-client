@@ -20,6 +20,7 @@ import javafx.event.ActionEvent;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.ContextMenuEvent;
 import javafx.scene.layout.HBox;
@@ -55,6 +56,7 @@ public class PartyMemberItemController implements Controller<Node> {
   public Button kickPlayerButton;
   public Label clanLabel;
   public Label usernameLabel;
+  public Label aliasLabel;
   public Label leagueLabel;
   public Label gameCountLabel;
   public Label uefLabel;
@@ -118,6 +120,7 @@ public class PartyMemberItemController implements Controller<Node> {
     clanLabel.visibleProperty().bind(player.clanProperty().isNotEmpty().and(player.clanProperty().isNotNull()));
     clanLabel.textProperty().bind(createStringBinding(() -> Strings.isNullOrEmpty(player.getClan()) ? "" : String.format("[%s]", player.getClan()), player.clanProperty()));
     usernameLabel.textProperty().bind(player.usernameProperty());
+    aliasLabel.textProperty().bind(player.aliasProperty());
     leagueLabel.textProperty().bind(createStringBinding(
         () -> i18n.get("leaderboard.divisionName", RatingUtil.getLeaderboardRating(player, "")).toUpperCase(),
         player.leaderboardRatingMapProperty())); // TODO: replace this with divisionproperty once it is available

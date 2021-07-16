@@ -318,6 +318,13 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   }
 
   @Override
+  public void uploadGameLogs(Path file, String context, int id, ByteCountListener listener) {
+    MultiValueMap<String, Object> multipartContent = createFileMultipart(file, listener);
+    multipartContent.add("metadata", java.util.Map.of("context", context, "id", id));
+    post("/game/logs_upload", multipartContent, false);
+  }
+
+  @Override
   public void changePassword(String username, String currentPasswordHash, String newPasswordHash) {
     java.util.Map<String, String> body = java.util.Map.of(
         "currentPassword", currentPasswordHash,

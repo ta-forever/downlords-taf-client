@@ -1,10 +1,10 @@
 package com.faforever.client.game;
 
 import com.faforever.client.chat.ChatService;
+import com.faforever.client.fa.relay.event.AutoJoinRequestEvent;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
-import com.faforever.client.main.event.JoinChannelEvent;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.ModService;
@@ -73,7 +73,7 @@ public class GameDetailController implements Controller<Pane> {
   public ImageView mapImageView;
   public Label gameTitleLabel;
   public Button joinButton;
-  public Button chatButton;
+  public Button autoJoinButton;
   public Button leaveButton;
   public Button startButton;
   public WatchButtonController watchButtonController;
@@ -93,6 +93,7 @@ public class GameDetailController implements Controller<Pane> {
   private InvalidationListener featuredModInvalidationListener;
   private ChangeListener<GameStatus> currentGameStatusListener;
   private ChangeListener<Boolean> gameRunningListener;
+  private ChangeListener<Game> autoJoinRequestedGameListener;
 
   /* sever ties to external objects so that this instance can be garbage collected */
   public void sever() {
@@ -123,10 +124,12 @@ public class GameDetailController implements Controller<Pane> {
     weakThisGameTeamsListener = new WeakInvalidationListener(thisGameTeamsInvalidationListener);
     weakThisGameStatusListener = new WeakInvalidationListener(thisGameStatusInvalidationListener);
 
-    currentGameStatusListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
-    gameRunningListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
+    currentGameStatusListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
+    gameRunningListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
+    autoJoinRequestedGameListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
     gameService.getCurrentGameStatusProperty().addListener(new WeakChangeListener<>(currentGameStatusListener));
     gameService.gameRunningProperty().addListener(new WeakChangeListener<>(gameRunningListener));
+    gameService.getAutoJoinRequestedGameProperty().addListener(new WeakChangeListener<>(autoJoinRequestedGameListener));
     eventBus.register(this);
   }
 
@@ -150,6 +153,9 @@ public class GameDetailController implements Controller<Pane> {
     numberOfPlayersLabel.managedProperty().bind(numberOfPlayersLabel.visibleProperty());
     mapImageView.managedProperty().bind(mapImageView.visibleProperty());
     gameTypeLabel.managedProperty().bind(gameTypeLabel.visibleProperty());
+    autoJoinButton.managedProperty().bind(autoJoinButton.visibleProperty());
+    joinButton.managedProperty().bind(autoJoinButton.visibleProperty().not()); // just make a bit more room for the autoJoin button's text
+    autoJoinButton.setUserData(Boolean.FALSE);  // getStyle.contains doesn't work.  so we'll use this user data to track whether "activated" style has been applied
 
     gameTitleLabel.visibleProperty().bind(game.isNotNull());
     hostLabel.visibleProperty().bind(game.isNotNull());
@@ -159,7 +165,7 @@ public class GameDetailController implements Controller<Pane> {
     gameTypeLabel.visibleProperty().bind(game.isNotNull());
 
     if (playerService.getCurrentPlayer().isPresent()) {
-      updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
+      updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
     }
 
     gameTimeSinceStartLabel.setVisible(false);
@@ -187,17 +193,18 @@ public class GameDetailController implements Controller<Pane> {
   @Subscribe
   public void onPlayerInfo(CurrentPlayerInfo player) {
     if (player.getCurrentPlayer() != null) {
-      updateButtonsVisibility(gameService.getCurrentGame(), player.getCurrentPlayer());
+      updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), player.getCurrentPlayer());
     }
   }
 
   private void onGameStatusChanged() {
-    updateButtonsVisibility(gameService.getCurrentGame(), playerService.getCurrentPlayer().get());
+    updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
   }
 
-  private void updateButtonsVisibility(Game currentGame, Player currentPlayer) {
+  private void updateButtonsVisibility(Game currentGame, Game autoJoinPrototype, Player currentPlayer) {
     Game thisGame = this.game.get();
     boolean isCurrentGame = thisGame != null && currentGame != null && Objects.equals(thisGame, currentGame);
+    boolean isOwnGame = thisGame != null && currentPlayer != null && currentPlayer.getUsername().equals(thisGame.getHost());
     boolean isGameProcessRunning = gameService.isGameRunning();
     boolean isPlayerIdle = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.IDLE;
     boolean isPlayerHosting = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.HOSTING;
@@ -206,10 +213,22 @@ public class GameDetailController implements Controller<Pane> {
     boolean isBattleRoomOpen = thisGame != null && thisGame.getStatus() == GameStatus.BATTLEROOM;
 
     joinButton.setVisible(!isGameProcessRunning && isPlayerIdle && (isStagingRoomOpen || isBattleRoomOpen));
-    chatButton.setVisible(thisGame != null);
+    autoJoinButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && !isStagingRoomOpen && !isBattleRoomOpen);
     leaveButton.setVisible(isGameProcessRunning && isCurrentGame);
     startButton.setVisible(isGameProcessRunning && isCurrentGame && (isPlayerHosting && isStagingRoomOpen || isPlayerJoining && isBattleRoomOpen));
     watchButton.setVisible(false);
+
+    final String activatedStyleClass = "autojoin-game-button-active";
+    if (autoJoinPrototype != null && this.game.get() != null && autoJoinPrototype.getId() == this.game.get().getId()) {
+      if ((Boolean)autoJoinButton.getUserData() == false) {
+        autoJoinButton.setUserData(Boolean.TRUE);
+        autoJoinButton.getStyleClass().add(activatedStyleClass);
+      }
+    }
+    else {
+      autoJoinButton.setUserData(Boolean.FALSE);
+      autoJoinButton.getStyleClass().remove(activatedStyleClass);
+    }
   }
 
   public void setGame(Game game) {
@@ -220,6 +239,7 @@ public class GameDetailController implements Controller<Pane> {
     Optional.ofNullable(this.game.get()).ifPresent(oldGame -> {
       Optional.ofNullable(weakThisGameTeamsListener).ifPresent(listener -> oldGame.getTeams().removeListener(listener));
       Optional.ofNullable(weakThisGameStatusListener).ifPresent(listener -> oldGame.statusProperty().removeListener(listener));
+      Optional.ofNullable(featuredModInvalidationListener).ifPresent(listener -> oldGame.featuredModProperty().removeListener(listener));
     });
 
     this.game.set(game);
@@ -246,7 +266,7 @@ public class GameDetailController implements Controller<Pane> {
           String fullName = featuredMod != null ? featuredMod.getDisplayName() : null;
           gameTypeLabel.setText(StringUtils.defaultString(fullName));
         }));
-    game.featuredModProperty().addListener(new WeakInvalidationListener(featuredModInvalidationListener));
+    game.featuredModProperty().addListener(featuredModInvalidationListener);
     featuredModInvalidationListener.invalidated(game.featuredModProperty());
 
     JavaFxUtil.addListener(game.getTeams(), weakThisGameTeamsListener);
@@ -282,11 +302,14 @@ public class GameDetailController implements Controller<Pane> {
     joinGameHelper.join(game.get());
   }
 
-  public void onChatButtonClicked(ActionEvent event)
-  {
-    if (game.get() != null) {
-      String gameChannel = gameService.getInGameIrcChannel(game.get());
-      eventBus.post(new JoinChannelEvent(gameChannel));
+  public void onAutoJoinButtonClicked(ActionEvent event) {
+    if (this.game.get() != null) {
+      Game autoJoinPrototype = gameService.getAutoJoinRequestedGameProperty().get();
+      if (autoJoinPrototype == null || autoJoinPrototype.getId() != this.game.get().getId()) {
+        eventBus.post(new AutoJoinRequestEvent(game.get()));
+      } else {
+        eventBus.post(new AutoJoinRequestEvent(null));
+      }
     }
   }
 

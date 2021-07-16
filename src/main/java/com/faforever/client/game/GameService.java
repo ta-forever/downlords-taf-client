@@ -6,12 +6,12 @@ import com.faforever.client.discord.DiscordRichPresenceService;
 import com.faforever.client.fa.CloseGameEvent;
 import com.faforever.client.fa.MapTool;
 import com.faforever.client.fa.TotalAnnihilationService;
+import com.faforever.client.fa.relay.event.AutoJoinRequestEvent;
 import com.faforever.client.fa.relay.event.RehostRequestEvent;
 import com.faforever.client.fa.relay.ice.IceAdapter;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.i18n.I18n;
-import com.faforever.client.main.event.HostGameEvent;
 import com.faforever.client.main.event.JoinChannelEvent;
 import com.faforever.client.main.event.ShowReplayEvent;
 import com.faforever.client.map.MapService;
@@ -25,7 +25,6 @@ import com.faforever.client.notification.PersistentNotification;
 import com.faforever.client.notification.Severity;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
-import com.faforever.client.player.SocialStatus;
 import com.faforever.client.preferences.NotificationsPrefs;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
@@ -36,21 +35,25 @@ import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.remote.domain.LoginMessage;
 import com.faforever.client.replay.ReplayServer;
+import com.faforever.client.task.ResourceLocks;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.faforever.client.util.RatingUtil;
 import com.faforever.client.util.TimeUtil;
+import com.faforever.client.util.ZipUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import lombok.RequiredArgsConstructor;
@@ -62,15 +65,16 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.stereotype.Service;
 
 import javax.inject.Inject;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -106,13 +110,14 @@ public class GameService implements InitializingBean {
   @VisibleForTesting
   static final String DEFAULT_RATING_TYPE = "global";
 
+  public static final String CUSTOM_GAME_CHANNEL_REGEX = "^#.+\\[.+\\]$";
+
   @VisibleForTesting
   final BooleanProperty gameRunning;
 
   /** TODO: Explain why access needs to be synchronized. */
   @VisibleForTesting
   final SimpleObjectProperty<Game> currentGame;
-  final SimpleObjectProperty<Game> nextGame;  // for auto-join, in case new joinable game is created while player is still in an old game
   final SimpleObjectProperty<GameStatus> currentGameStatusProperty;
 
   /**
@@ -146,7 +151,7 @@ public class GameService implements InitializingBean {
   @VisibleForTesting
   String matchedQueueRatingType;
   private Process process;
-  private boolean rehostRequested;
+  private Optional<Game> rehostRequested;
 
   @Inject
   public GameService(ClientProperties clientProperties,
@@ -192,7 +197,6 @@ public class GameService implements InitializingBean {
     gameRunning = new SimpleBooleanProperty();
     currentGame = new SimpleObjectProperty<>();
     currentGameStatusProperty = new SimpleObjectProperty<>();
-    nextGame = new SimpleObjectProperty<>();
 
     games = FXCollections.observableList(new ArrayList<>(),
         item -> new Observable[]{item.statusProperty(), item.getTeams()}
@@ -202,18 +206,34 @@ public class GameService implements InitializingBean {
   @Override
   public void afterPropertiesSet() {
     currentGame.addListener((observable, oldValue, newValue) -> {
+      JavaFxUtil.assertApplicationThread();
+      Player currentPlayer = playerService.getCurrentPlayer().get();
+
       if (newValue == null) {
         discordRichPresenceService.clearGameInfo();
         currentGameStatusProperty.setValue(GameStatus.UNKNOWN);
 
-        Player currentPlayer = playerService.getCurrentPlayer().get();
         if (currentPlayer != null && currentPlayer.getStatus() != PlayerStatus.PLAYING) {
           // this is here to cope with host leaves before player starts TA
           // In that case gpgnet4ta is still waiting for TA to start, so it won't shutdown unless explicitly told to
           log.info("[currentGameListener] killGame() because new currentGame==null && currentPlayer.status() != PLAYING");
           killGame();
         }
+
         return;
+      }
+
+      if (newValue.getGameType() != GameType.MATCHMAKER) {
+        String newGameChannel = getInGameIrcChannel(newValue);
+        Set<String> userChannels = chatService.getUserChannels(currentPlayer.getUsername());
+        userChannels.stream()
+            .filter(channel -> channel.matches(CUSTOM_GAME_CHANNEL_REGEX) && !channel.equals(newGameChannel))
+            .forEach(channel -> chatService.leaveChannel(channel));
+        userChannels.stream()
+            .filter(channel -> channel.matches(CUSTOM_GAME_CHANNEL_REGEX) && channel.equals(newGameChannel))
+            .findAny()
+            .ifPresentOrElse((String) -> {
+            }, () -> eventBus.post(new JoinChannelEvent(newGameChannel)));
       }
 
       InvalidationListener listener = generateNumberOfPlayersChangeListener(newValue);
@@ -233,7 +253,11 @@ public class GameService implements InitializingBean {
 
     eventBus.register(this);
 
-    fafService.addOnMessageListener(GameInfoMessage.class, message -> JavaFxUtil.runLater(() -> onGameInfo(message)));
+    fafService.addOnMessageListener(GameInfoMessage.class, message -> {
+      log.info("[GameInfoMessage listener] enter");
+      JavaFxUtil.runLater(() -> onGameInfo(message));
+      log.info("[GameInfoMessage listener] exit");
+    });
     fafService.addOnMessageListener(LoginMessage.class, message -> onLoggedIn());
 
     JavaFxUtil.addListener(
@@ -272,7 +296,6 @@ public class GameService implements InitializingBean {
     return new ChangeListener<>() {
       @Override
       public void changed(ObservableValue<? extends GameStatus> observable, GameStatus oldStatus, GameStatus newStatus) {
-
         if (observable.getValue() == GameStatus.ENDED) {
           observable.removeListener(this);
         }
@@ -295,28 +318,6 @@ public class GameService implements InitializingBean {
           GameService.this.notifyRecentlyPlayedGameEnded(game);
         }
 
-        // auto-join the next game if one has been flagged
-        if (nextGame.get() != null && nextGame.get().isOpen() &&
-            preferencesService.getPreferences().getAutoJoinEnabled() &&
-            (oldStatus.isInProgress() || oldStatus == GameStatus.BATTLEROOM) &&
-            newStatus == GameStatus.ENDED &&
-            (getCurrentGame() == null || getCurrentGame().getId() == game.getId()) &&
-            game.getGameType() != GameType.MATCHMAKER
-            ) {
-          joinGame(nextGame.get(), null);
-          nextGame.set(null);
-        }
-
-        // chat room is only advertised on the game board if host creates another game ... here we prompt host to do that
-        if ((oldStatus.isInProgress() || oldStatus == GameStatus.BATTLEROOM) &&
-            newStatus == GameStatus.ENDED &&
-            getCurrentPlayer() != null && getCurrentPlayer().getUsername().equals(game.getHost()) &&
-            (getCurrentGame() == null || getCurrentGame().getId() == game.getId()) &&
-            game.getGameType() != GameType.MATCHMAKER &&
-            preferencesService.getPreferences().getAutoRehostEnabled()) {
-          eventBus.post(new HostGameEvent(game.getMapName()));
-        }
-
         if (Objects.equals(currentGame.get(), game) && currentGameStatusProperty.get() != newStatus) {
           currentGameStatusProperty.setValue(newStatus);
         }
@@ -327,6 +328,14 @@ public class GameService implements InitializingBean {
             GameService.this.startBattleRoom();
           }
         }
+
+        if (preferencesService.getPreferences().getAutoRehostEnabled() &&
+            newStatus == GameStatus.BATTLEROOM &&
+            game.getGameType() != GameType.MATCHMAKER &&
+            currentPlayer != null && currentPlayer.getUsername().equals(game.getHost())) {
+          log.info("[generateGameStatusListener.changed] posting RehostRequestEvent");
+          eventBus.post(new RehostRequestEvent(game));
+        }
       }
     };
   }
@@ -336,6 +345,8 @@ public class GameService implements InitializingBean {
   }
 
   public CompletableFuture<Void> hostGame(NewGameInfo newGameInfo) {
+    log.info("[hostGame] title={}", newGameInfo.getTitle());
+
     if (isRunning()) {
       log.debug("Game is running, ignoring host request");
       notificationService.addImmediateWarnNotification("game.gameRunning");
@@ -356,10 +367,10 @@ public class GameService implements InitializingBean {
     String inGameIrcUrl = getInGameIrcUrl(inGameChannel);
     boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchOnHostEnabled();
 
+    autoJoinRequestedGameProperty.set(null);
     return updateGameIfNecessary(newGameInfo.getFeaturedMod(), null, Map.of(), newGameInfo.getSimMods())
         .thenCompose(aVoid -> fafService.requestHostGame(newGameInfo))
-        .thenAccept(gameLaunchMessage -> startGame(gameLaunchMessage, inGameIrcUrl, autoLaunch))
-        .thenRun(() -> JavaFxUtil.runLater(() -> eventBus.post(new JoinChannelEvent(inGameChannel))));
+        .thenAccept(gameLaunchMessage -> startGame(gameLaunchMessage, inGameIrcUrl, autoLaunch, playerService.getCurrentPlayer().get().getUsername()));
   }
 
   private void addAlreadyInQueueNotification() {
@@ -389,6 +400,7 @@ public class GameService implements InitializingBean {
     String inGameIrcUrl = getInGameIrcUrl(inGameIrcChannel);
     Map<String, Integer> featuredModVersions = game.getFeaturedModVersions();
     Set<String> simModUIds = game.getSimMods().keySet();
+    autoJoinRequestedGameProperty.set(null);
     return
         modService.getFeaturedMod(game.getFeaturedMod())
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, null, featuredModVersions, simModUIds))
@@ -401,13 +413,11 @@ public class GameService implements InitializingBean {
                 game.setPassword(password);
                 log.info("[joinGame] currentGame.set(game)");
                 currentGame.set(game);
-                nextGame.set(null);
               }
             });
 
             boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchOnJoinEnabled() && game.getStatus() == GameStatus.BATTLEROOM;
-            startGame(gameLaunchMessage, inGameIrcUrl, autoLaunch);
-            JavaFxUtil.runLater(() -> eventBus.post(new JoinChannelEvent(inGameIrcChannel)));
+            startGame(gameLaunchMessage, inGameIrcUrl, autoLaunch, playerService.getCurrentPlayer().get().getUsername());
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be joined", throwable);
@@ -441,8 +451,8 @@ public class GameService implements InitializingBean {
               return;
             }
             this.process = processForReplay;
+            spawnGameTerminationListener(this.process, replayId);
             setGameRunning(true);
-            spawnTerminationListener(this.process);
           } catch (IOException e) {
             notifyCantPlayReplay(replayId, e);
           }
@@ -536,8 +546,8 @@ public class GameService implements InitializingBean {
             return;
           }
           this.process = processCreated;
+          spawnGameTerminationListener(this.process, gameId);
           setGameRunning(true);
-          spawnTerminationListener(this.process);
         }))
         .exceptionally(throwable -> {
           notifyCantPlayReplay(gameId, throwable);
@@ -611,7 +621,7 @@ public class GameService implements InitializingBean {
 
     log.info("Matchmaking search has been started");
     inMatchmakerQueue.set(true);
-
+    autoJoinRequestedGameProperty.set(null);
     return
         modService.getFeaturedMod(modTechnical)
         .thenAccept(featuredModBean -> updateGameIfNecessary(featuredModBean, null, emptyMap(), emptySet()))
@@ -623,7 +633,7 @@ public class GameService implements InitializingBean {
               gameLaunchMessage.getArgs().add("/team " + gameLaunchMessage.getTeam());
               gameLaunchMessage.getArgs().add("/players " + gameLaunchMessage.getExpectedPlayers());
               gameLaunchMessage.getArgs().add("/startspot " + gameLaunchMessage.getMapPosition());
-              startGame(gameLaunchMessage, null, true);
+              startGame(gameLaunchMessage, null, true, playerService.getCurrentPlayer().get().getAlias());
             }))
         .exceptionally(throwable -> {
           if (throwable.getCause() instanceof CancellationException) {
@@ -658,9 +668,7 @@ public class GameService implements InitializingBean {
    */
   @Nullable
   public Game getCurrentGame() {
-    synchronized (currentGame) {
-      return currentGame.get();
-    }
+    return currentGame.get();
   }
 
   public SimpleObjectProperty<Game> getCurrentGameProperty() {
@@ -681,15 +689,11 @@ public class GameService implements InitializingBean {
   }
 
   public boolean isGameRunning() {
-    synchronized (gameRunning) {
-      return gameRunning.get();
-    }
+    return gameRunning.get();
   }
 
   private void setGameRunning(boolean running) {
-    synchronized (gameRunning) {
-      gameRunning.set(running);
-    }
+    gameRunning.set(running);
   }
 
   public void startBattleRoom() {
@@ -700,15 +704,18 @@ public class GameService implements InitializingBean {
 
   public void setMapForStagingGame(String mapName) {
     if (isRunning() && currentGame.get() != null && currentGame.get().getStatus()==GameStatus.STAGING) {
-      List<String[]> mapsDetails = MapTool.listMap(preferencesService.getTotalAnnihilation(currentGame.get().getFeaturedMod()).getInstalledPath(), mapName);
-      if (mapsDetails.isEmpty()) {
-        log.info("[setMapForStagingGame] unable to get details for map {}", mapName);
+      try {
+        List<String[]> mapsDetails = MapTool.listMap(preferencesService.getTotalAnnihilation(currentGame.get().getFeaturedMod()).getInstalledPath(), mapName);
+        final String UNIT_SEPARATOR = Character.toString((char)0x1f);
+        String mapDetails = String.join(UNIT_SEPARATOR, mapsDetails.get(0));
+        String command = String.format("/map %s", mapDetails);
+        log.info("[setMapForStagingGame] Sending '{}' to game console", command);
+        this.totalAnnihilationService.sendToConsole(command);
       }
-      final String UNIT_SEPARATOR = Character.toString((char)0x1f);
-      String mapDetails = String.join(UNIT_SEPARATOR, mapsDetails.get(0));
-      String command = String.format("/map %s", mapDetails);
-      log.info("[setMapForStagingGame] Sending '{}' to game console", command);
-      this.totalAnnihilationService.sendToConsole(command);
+      catch (IOException e) {
+        log.info("[setMapForStagingGame] unable to get details for map {}", mapName);
+        notificationService.addImmediateErrorNotification(e, "maptool.error");
+      }
     }
     else {
       log.info("[setMapForStagingGame] attempt to set map while current game is not in STAGING state. ignoring");
@@ -719,7 +726,7 @@ public class GameService implements InitializingBean {
    * Actually starts the game, including relay and replay server. Call this method when everything else is prepared
    * (mod/map download, connectivity check etc.)
    */
-  private void startGame(GameLaunchMessage gameLaunchMessage, String ircUrl, boolean autoLaunch) {
+  private void startGame(GameLaunchMessage gameLaunchMessage, String ircUrl, boolean autoLaunch, String playerAlias) {
     if (isRunning()) {
       log.warn("Total Annihilation is already running, not starting game");
       return;
@@ -728,18 +735,23 @@ public class GameService implements InitializingBean {
     String modTechnical = gameLaunchMessage.getMod();
     int uid = gameLaunchMessage.getUid();
     replayServer.start(uid, () -> getByUid(uid))
-        .thenCompose(port ->  iceAdapter.start())
+        .thenCompose(port ->  iceAdapter.start(playerAlias))
         .thenAccept(adapterPort -> {
           List<String> args = fixMalformedArgs(gameLaunchMessage.getArgs());
+
+          Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(modTechnical, uid));
+          spawnGenericTerminationListener(launchServerProcess);
+
           process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, gameLaunchMessage.getUid(), args,
               adapterPort, getCurrentPlayer(), ircUrl, autoLaunch));
+          spawnGameTerminationListener(process, gameLaunchMessage.getUid());
           setGameRunning(true);
-          spawnTerminationListener(process);
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be started", throwable);
           notificationService.addImmediateErrorNotification(throwable, "game.start.couldNotStart");
           iceAdapter.stop();
+          fafService.notifyGameEnded();
           setGameRunning(false);
           return null;
         });
@@ -768,69 +780,114 @@ public class GameService implements InitializingBean {
     return fixedArgs;
   }
 
-  @VisibleForTesting
-  void spawnTerminationListener(Process process) {
-    spawnTerminationListener(process, true);
+  Integer waitForTermination(Process process) {
+    String command = process.info().command().orElse("<unknown>");
+    String commandFileName = Paths.get(command).getFileName().toString();
+    int exitCode;
+
+    try {
+      exitCode = process.waitFor();
+    } catch (InterruptedException e) {
+      log.warn("[waitForTermination] interrupted waiting for termination of process '{}'. Destroying ...", command);
+      process.destroy();
+      return null;
+    }
+
+    log.info("[waitForTermination] '{}' terminated with exit code {}", commandFileName, exitCode);
+    return exitCode;
+  }
+
+  void submitLogs(int gameId) {
+    log.info("[submitLogs] submitting logs to TAF for game ID={}", gameId);
+    Path logGpgnet4ta = preferencesService.getMostRecentLogFile("game").orElse(Path.of(""));
+    Path logLauncher = preferencesService.getMostRecentLogFile("talauncher").orElse(Path.of(""));
+    Path logClient = preferencesService.getFafLogDirectory().resolve("client.log");
+    Path logIceAdapter = preferencesService.getIceAdapterLogDirectory().resolve("ice-adapter.log");
+    Path targetZipFile = preferencesService.getFafLogDirectory().resolve(String.format("game_logs_%d.zip", gameId));
+    try {
+      File files[] = {logIceAdapter.toFile(), logClient.toFile(),logGpgnet4ta.toFile(), logLauncher.toFile()};
+      ZipUtil.zipFile(files, targetZipFile.toFile());
+      ResourceLocks.acquireUploadLock();
+      fafService.uploadGameLogs(targetZipFile, "game", gameId, (written, total) -> {});
+    } catch (Exception e) {
+      log.error("[submitLogs] unable to submit logs:", e.getMessage());
+    } finally {
+      ResourceLocks.freeUploadLock();
+      try { Files.delete(targetZipFile); } catch(Exception e) {}
+    }
   }
 
   @VisibleForTesting
-  void spawnTerminationListener(Process process, Boolean forOnlineGame) {
+  void spawnGameTerminationListener(Process process, int gameId) {
+    if (process == null) {
+      return;
+    }
+
+    rehostRequested = Optional.ofNullable(null);
     executorService.execute(() -> {
-      try {
-        rehostRequested = false;
-        int exitCode = process.waitFor();
-        log.info("gpgnet4ta terminated with exit code {}", exitCode);
-        if (exitCode != 0) {
-          Optional<Path> logFile = preferencesService.getMostRecentGameLogFile();
-          notificationService.addImmediateErrorNotification(new RuntimeException(String.format("gpgnet4ta crashed with exit code %d. " +
-                  "See %s for more information", exitCode, logFile.map(Path::getFileName).map(Path::toString).orElse(""))),
-              "game.crash", logFile.map(Path::toString).orElse(""));
-        }
+      String command = process.info().command().orElse("<unknown>");
+      String commandFileName = Paths.get(command).getFileName().toString();
+      Integer exitCode = waitForTermination(process);
 
-        synchronized (gameRunning) {
-          gameRunning.set(false);
-          if (forOnlineGame) {
-            fafService.notifyGameEnded();
-            replayServer.stop();
-            iceAdapter.stop();
-          }
-
-          if (rehostRequested) {
-            rehost();
-          }
-        }
+      submitLogs(gameId);
+      if (exitCode != null && exitCode != 0) {
+        String message = String.format("'%s' exited with code %d", command, exitCode);
+        notificationService.addImmediateErrorNotification(new RuntimeException(message),"game.crash", commandFileName, gameId);
       }
-      catch (Exception e) {
-        log.warn("Total Annihilation process was interrupted");
-        killGame();
+
+      JavaFxUtil.runLater(() -> {
+        try {
+          gameRunning.set(false);
+          replayServer.stop();
+          iceAdapter.stop();
+          fafService.notifyGameEnded();
+          if (rehostRequested.isPresent()) {
+            rehost(rehostRequested.get());
+          }
+        }
+        catch (TaskRejectedException e) {
+        }
+      });
+    });
+  }
+
+  @VisibleForTesting
+  void spawnGenericTerminationListener(Process process) {
+    if (process == null) {
+      return;
+    }
+    executorService.execute(() -> {
+      String command = process.info().command().orElse("<unknown>");
+      String commandFileName = Paths.get(command).getFileName().toString();
+      Integer exitCode = waitForTermination(process);
+      if (exitCode != null && exitCode != 0) {
+        String message = String.format("'%s' exited with code %d", command, exitCode);
+        notificationService.addImmediateErrorNotification(new RuntimeException(message),"process.crash", commandFileName);
       }
     });
   }
 
-  private void rehost() {
-    synchronized (currentGame) {
-      Game game = currentGame.get();
-
-      modService.getFeaturedMod(game.getFeaturedMod())
-          .thenAccept(featuredModBean -> hostGame(new NewGameInfo(
-              game.getTitle(),
-              game.getPassword(),
-              featuredModBean,
-              game.getMapName(),
-              new HashSet<>(game.getSimMods().values()),
-              GameVisibility.PUBLIC,
-              game.getMinRating(), game.getMaxRating(), game.getEnforceRating())));
-    }
+  private void rehost(Game prototype) {
+    modService.getFeaturedMod(prototype.getFeaturedMod())
+        .thenAccept(featuredModBean -> hostGame(new NewGameInfo(
+            prototype.getTitle(),
+            prototype.getPassword(),
+            featuredModBean,
+            prototype.getMapName(),
+            new HashSet<>(prototype.getSimMods().values()),
+            GameVisibility.PUBLIC,
+            prototype.getMinRating(), prototype.getMaxRating(), prototype.getEnforceRating())));
   }
 
   @Subscribe
   public void onRehostRequest(RehostRequestEvent event) {
-    this.rehostRequested = true;
-    synchronized (gameRunning) {
-      if (!gameRunning.get()) {
-        // If the game already has terminated, the rehost is issued here. Otherwise it will be issued after termination
-        rehost();
-      }
+    if (!gameRunning.get()) {
+      log.info("[onRehostRequest] rehost immediately");
+      rehost(event.getGame());
+    }
+    else {
+      log.info("[onRehostRequest] rehost deferred");
+      rehostRequested = Optional.of(event.getGame());
     }
   }
 
@@ -838,6 +895,63 @@ public class GameService implements InitializingBean {
     if (isGameRunning()) {
       fafService.restoreGameSession(currentGame.get().getId());
     }
+  }
+
+  private ObjectProperty<Game> autoJoinRequestedGameProperty = new SimpleObjectProperty<>();
+  public ObjectProperty<Game> getAutoJoinRequestedGameProperty() { return autoJoinRequestedGameProperty; };
+  ListChangeListener<Game> gameListChangeListener;
+  ChangeListener<PlayerStatus> playerStatusChangeListener;
+  ChangeListener<Game> currentGameListener;
+  @Subscribe
+  public void onAutoJoinRequest(AutoJoinRequestEvent event) {
+    autoJoinRequestedGameProperty.set(event.getPrototype());
+    if (event.getPrototype() == null) {
+      log.info("[onAutoJoinRequest] cleared current auto-join request");
+      return;
+    }
+
+    log.info("[onAutoJoinRequest] will autojoin {}'s next game", event.getPrototype().getHost());
+    if (gameListChangeListener == null) {
+      gameListChangeListener = c -> checkAutoJoin(autoJoinRequestedGameProperty.get());
+      games.addListener(gameListChangeListener);
+    }
+    if (playerStatusChangeListener == null) {
+      playerStatusChangeListener = (observable, oldValue, newValue) -> checkAutoJoin(autoJoinRequestedGameProperty.get());
+      playerService.getCurrentPlayer().get().statusProperty().addListener(playerStatusChangeListener);
+    }
+    if (currentGameListener == null) {
+      currentGameListener = (observable, oldValue, newValue) -> checkAutoJoin(autoJoinRequestedGameProperty.get());
+      currentGame.addListener(currentGameListener);
+    }
+
+    checkAutoJoin(autoJoinRequestedGameProperty.get());
+  }
+
+  public void checkAutoJoin(Game prototype) {
+    if (prototype == null) {
+      return;
+    }
+    Optional<Game> gameOptional = findMatchingAutoJoinable(prototype);
+    Optional<Player> currentPlayerOptional = playerService.getCurrentPlayer();
+    if (gameOptional.isPresent() && currentPlayerOptional.isPresent() &&
+        currentPlayerOptional.get().getStatus() == PlayerStatus.IDLE &&
+        getCurrentGame() == null) {
+      log.info("[checkAutoJoin] auto-joining {}!", gameOptional.get());
+      this.joinGame(gameOptional.get(), prototype.getPassword());
+    }
+    else {
+      log.info("[checkAutoJoin] not yet.  game:{}, playerStatus:{}, currentGame:{}", gameOptional.isPresent(), currentPlayerOptional.get().getStatus(), getCurrentGame());
+    }
+  }
+
+  private Optional<Game> findMatchingAutoJoinable(Game prototype) {
+    return this.games.stream()
+        .filter(g -> g.getGameType() != GameType.MATCHMAKER)
+        .filter(g -> g.getId() != prototype.getId())
+        .filter(g -> g.getHost() != null && g.getMapArchiveName() != null && g.getMapCrc() != null)
+        .filter(g -> g.getHost().equals(prototype.getHost()))
+        .filter(g -> Set.of(GameStatus.STAGING, GameStatus.BATTLEROOM).contains(g.getStatus()))
+        .findFirst();
   }
 
   private void onGameInfo(GameInfoMessage gameInfoMessage) {
@@ -866,23 +980,33 @@ public class GameService implements InitializingBean {
 
     if (currentPlayerOptional.isPresent()) {
       // TODO the following can be removed as soon as the server tells us which game a player is in.
-      PlayerStatus currentPlayerStatus = currentPlayerOptional.get().getStatus();
       boolean currentPlayerInGame = gameInfoMessage.getUid() == currentPlayerOptional.get().getCurrentGameUid();
-          //currentPlayerStatus != PlayerStatus.IDLE;
-          /*gameInfoMessage.getTeams().values().stream()
-          .anyMatch(team -> team.contains(currentPlayerOptional.get().getUsername())); */
 
       if (currentPlayerInGame && gameInfoMessage.getState().isOpen()) {
         synchronized (currentGame) {
           log.info("[onGameInfo] currentGame(game) because currentPlayerInGame && game.isOpen()");
           currentGame.set(game);
+          log.info("[onGameInfo] done");
         }
+        log.info("[onGameInfo] done and synced");
       } else if (isGameCurrentGame && !currentPlayerInGame) {
+        log.info("[onGameInfo] synchronized (currentGame)");
         synchronized (currentGame) {
           log.info("[onGameInfo] currentGame(null) because !currentPlayerInGame");
           currentGame.set(null);
         }
       }
+      log.info("[onGameInfo] if (preferencesService.getPreferences()");
+      if (preferencesService.getPreferences().getAutoJoinEnabled() &&
+          game.getStatus() == GameStatus.BATTLEROOM &&
+          game.getGameType() != GameType.MATCHMAKER &&
+          !currentPlayerOptional.get().getUsername().equals(game.getHost()) &&
+          currentPlayerInGame
+      ) {
+        log.info("[generateGameStatusListener.changed] posting AutoJoinRequestEvent");
+        eventBus.post(new AutoJoinRequestEvent(game));
+      }
+      log.info("[onGameInfo] DONE");
     }
 
     JavaFxUtil.addListener(game.statusProperty(), (observable, oldValue, newValue) -> {
@@ -893,52 +1017,6 @@ public class GameService implements InitializingBean {
         platformService.focusWindow(faWindowTitle);
       }
     });
-
-    if (currentPlayerOptional.isPresent()) {
-      Player currentPlayer = currentPlayerOptional.get();
-      Player hostPlayer = playerService.getPlayerForUsername(game.getHost()).get();
-      Set<String> playerChannels = chatService.getUserChannels(hostPlayer.getUsername());
-      Set<String> currentPlayerChannels = chatService.getUserChannels(currentPlayer.getUsername());
-
-      if (
-          // auto-join if enabled in preferences
-          preferencesService.getPreferences().getAutoJoinEnabled() &&
-
-          // don't try to join own games ... and don't join a foe's game as a way to prevent griefing
-          hostPlayer.getSocialStatus() != SocialStatus.SELF && hostPlayer.getSocialStatus() != SocialStatus.FOE &&
-
-          // game is ripe for joining
-          (hostPlayer.getStatus() == PlayerStatus.HOSTING || hostPlayer.getStatus() == PlayerStatus.HOSTED) &&
-          (game.getStatus() == GameStatus.STAGING || game.getStatus() == GameStatus.BATTLEROOM) &&
-
-          // we don't want to rejoin the game we just left (NB getCurrentGame is nulled out on leaving a game.  But isGameCurrentGame is initialised before that)
-          !isGameCurrentGame &&
-
-          // can't join until this information is available
-          game.getMapArchiveName() != null &&
-          game.getMapCrc() != null &&
-
-          // host can prevent auto joins by setting a password
-          !game.isPasswordProtected() &&
-
-          // only auto-join if host shares a common chat channel with us
-          currentPlayerChannels.stream().anyMatch(channel ->
-              channel.startsWith("#") && !chatService.isDefaultChannel(channel) && playerChannels.contains(channel))) {
-
-        if (currentPlayer.getStatus() == PlayerStatus.IDLE && getCurrentGame() == null) {
-          log.info("auto-joining game: {}", game);
-          this.joinGame(game, null);
-        }
-        else if (this.nextGame.get() == null) {
-          log.info("will auto-join game when current game terminates: {}", game);
-          this.nextGame.set(game);
-        }
-        else if (this.nextGame.get().getHost().equals(game.getHost())) {
-          log.info("ditching old auto-join game in preference for new one created by host of current game: {}", game);
-          this.nextGame.set(game);
-        }
-      }
-    }
   }
 
   private Game createOrUpdateGame(GameInfoMessage gameInfoMessage) {

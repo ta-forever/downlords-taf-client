@@ -10,68 +10,61 @@
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <StackPane fx:id="gamesRoot" alignment="TOP_CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.faforever.client.game.CustomGamesController">
+    <userData>
+        <fx:reference source="controller" />
+    </userData>
     <children>
       <HBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
          <children>
             <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS">
                <children>
-                              <HBox spacing="10.0">
-                                  <children>
-                                      <FlowPane hgap="10.0" maxWidth="1.7976931348623157E308" vgap="10.0" HBox.hgrow="SOMETIMES">
-                                          <children>
-                                              <Button fx:id="createGameButton" defaultButton="true" minWidth="-Infinity" mnemonicParsing="false" onAction="#onCreateGameButtonClicked" styleClass="create-game-button" text="%games.create" />
-                                              <CheckBox fx:id="showPasswordProtectedGamesCheckBox" mnemonicParsing="false" text="%games.showPasswordProtectedGames" />
-                                              <CheckBox fx:id="showModdedGamesCheckBox" mnemonicParsing="false" text="%games.showModdedGames" />
-                                              <ComboBox fx:id="chooseSortingTypeChoiceBox" />
-                                              <Pane />
-                                              <HBox alignment="BASELINE_LEFT" />
-                                          </children>
-                                      </FlowPane>
-                                      <ToggleButton fx:id="tableButton" minWidth="-Infinity" mnemonicParsing="false"
-                                                    onAction="#onTableButtonClicked" styleClass="game-list-type"
-                                                    text="%view.table">
-                                          <toggleGroup>
-                                              <ToggleGroup fx:id="viewToggleGroup"/>
-                                          </toggleGroup>
-                                          <graphic>
-                                              <Region styleClass="icon,table-icon"/>
-                                          </graphic>
-                                      </ToggleButton>
-                                      <ToggleButton fx:id="tilesButton" minWidth="-Infinity" mnemonicParsing="false"
-                                                    onAction="#onTilesButtonClicked" selected="true"
-                                                    styleClass="game-list-type" text="%view.tiles"
-                                                    toggleGroup="$viewToggleGroup">
-                                          <graphic>
-                                              <Region styleClass="icon,tiles-icon"/>
-                                          </graphic>
-                                      </ToggleButton>
-                                      <ToggleButton fx:id="toggleGameDetailPaneButton" visible="False" mnemonicParsing="false"
-                                                    styleClass="pane-toggler, right">
-                                          <graphic>
-                                              <Region styleClass="icon,toggle-icon"/>
-                                          </graphic>
-                                      </ToggleButton>
-                                  </children>
+                  <HBox spacing="10.0">
+                      <children>
+                          <FlowPane hgap="10.0" maxWidth="1.7976931348623157E308" vgap="10.0" HBox.hgrow="SOMETIMES">
+                              <children>
+                                  <Button fx:id="createGameButton" defaultButton="true" minWidth="-Infinity" mnemonicParsing="false" onAction="#onCreateGameButtonClicked" styleClass="create-game-button" text="%games.create" />
+                                  <CheckBox fx:id="showPasswordProtectedGamesCheckBox" mnemonicParsing="false" text="%games.showPasswordProtectedGames" />
+                                  <CheckBox fx:id="showModdedGamesCheckBox" mnemonicParsing="false" text="%games.showModdedGames" />
+                                  <ComboBox fx:id="chooseSortingTypeChoiceBox" visible="false"/>
+                                  <!--Pane />
+                                  <HBox alignment="BASELINE_LEFT" /-->
+                              </children>
+                          </FlowPane>
+                          <ToggleButton fx:id="tableButton" minWidth="-Infinity" mnemonicParsing="false"
+                                        onAction="#onTableButtonClicked" styleClass="game-list-type"
+                                        text="%view.table">
+                              <toggleGroup>
+                                  <ToggleGroup fx:id="viewToggleGroup"/>
+                              </toggleGroup>
+                              <graphic>
+                                  <Region styleClass="icon,table-icon"/>
+                              </graphic>
+                          </ToggleButton>
+                          <ToggleButton fx:id="tilesButton" minWidth="-Infinity" mnemonicParsing="false"
+                                        onAction="#onTilesButtonClicked" selected="true"
+                                        styleClass="game-list-type" text="%view.tiles"
+                                        toggleGroup="$viewToggleGroup">
+                              <graphic>
+                                  <Region styleClass="icon,tiles-icon"/>
+                              </graphic>
+                          </ToggleButton>
+                          <HBox HBox.hgrow="ALWAYS"/>
+                      </children>
                      <padding>
                         <Insets bottom="10.0" left="10.0" top="10.0" />
                      </padding>
-                              </HBox>
-                      <AnchorPane fx:id="gameViewContainer" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" VBox.vgrow="ALWAYS">
+                  </HBox>
+                  <AnchorPane fx:id="gameViewContainer" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" VBox.vgrow="ALWAYS">
                      <padding>
                         <Insets left="10.0" right="10.0" />
-                     </padding></AnchorPane>
+                     </padding>
+                  </AnchorPane>
                </children>
             </VBox>
-                <ScrollPane fx:id="gameDetailPane" fitToWidth="true" minWidth="200.0" prefWidth="300.0" styleClass="game-detail-pane">
-                    <content>
-                        <fx:include fx:id="gameDetail" source="game_detail.fxml" visible="false"/>
-                    </content>
-                </ScrollPane>
          </children>
       </HBox>
     </children>

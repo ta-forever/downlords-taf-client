@@ -11,7 +11,7 @@
      fx:controller="com.faforever.client.chat.PrivateChatTabController" styleClass="private-channel-tab">
     <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0">
         <children>
-            <SplitPane dividerPositions="0.8" maxWidth="1.7976931348623157E308" VBox.vgrow="ALWAYS">
+            <SplitPane fx:id="splitPane" dividerPositions="0.8" maxWidth="1.7976931348623157E308" VBox.vgrow="ALWAYS">
                 <items>
                     <AnchorPane>
                         <WebView fx:id="messagesWebView" minHeight="100.0" minWidth="100.0" prefHeight="-1.0"
@@ -19,7 +19,8 @@
                                  AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0"/>
                     </AnchorPane>
                     <ScrollPane fx:id="gameDetailScrollPane" fitToWidth="true" maxHeight="1.7976931348623157E308"
-                                maxWidth="1.7976931348623157E308" SplitPane.resizableWithParent="false">
+                                maxWidth="1.7976931348623157E308" SplitPane.resizableWithParent="false"
+                                styleClass="chat-channel-users-pane">
                         <content>
                             <fx:include fx:id="privateUserInfo" source="private_user_info.fxml"/>
                         </content>

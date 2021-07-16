@@ -12,6 +12,7 @@ import com.faforever.client.events.EventService;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.OffsetDateTimeCell;
+import com.faforever.client.fx.ScatterXChart;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.leaderboard.LeaderboardRating;
@@ -30,7 +31,6 @@ import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
-import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.PieChart;
 import javafx.scene.chart.StackedBarChart;
@@ -60,6 +60,7 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -125,8 +126,9 @@ public class UserInfoWindowController implements Controller<Node> {
   public Pane unlockedAchievementsContainer;
   public NumberAxis yAxis;
   public NumberAxis xAxis;
-  public LineChart<Long, Integer> ratingHistoryChart;
+  public ScatterXChart<Long, Integer> ratingHistoryChart;
   public VBox loadingHistoryPane;
+  public ComboBox<RatingMetric> ratingMetricComboBox;
   public ComboBox<TimePeriod> timePeriodComboBox;
   public ComboBox<Leaderboard> ratingTypeComboBox;
   public Label usernameLabel;
@@ -168,16 +170,21 @@ public class UserInfoWindowController implements Controller<Node> {
     changeDateColumn.setCellValueFactory(param -> param.getValue().changeDateProperty());
     changeDateColumn.setCellFactory(param -> new OffsetDateTimeCell<>(timeService));
 
-    timePeriodComboBox.setConverter(timePeriodStringConverter());
+    ratingMetricComboBox.setConverter(ratingMetricStringConverter());
+    ratingMetricComboBox.getItems().addAll(RatingMetric.values());
+    ratingMetricComboBox.setValue(RatingMetric.TRUESKILL);
 
+    timePeriodComboBox.setConverter(timePeriodStringConverter());
     timePeriodComboBox.getItems().addAll(TimePeriod.values());
     timePeriodComboBox.setValue(TimePeriod.ALL_TIME);
 
     leaderboardService.getLeaderboards().thenApply(leaderboards -> {
-      ratingTypeComboBox.getItems().clear();
-      ratingTypeComboBox.getItems().addAll(leaderboards);
-      ratingTypeComboBox.setConverter(leaderboardStringConverter());
-      ratingTypeComboBox.getSelectionModel().selectFirst();
+      JavaFxUtil.runLater(() -> {
+        ratingTypeComboBox.getItems().clear();
+        ratingTypeComboBox.getItems().addAll(leaderboards);
+        ratingTypeComboBox.setConverter(leaderboardStringConverter());
+        ratingTypeComboBox.getSelectionModel().selectFirst();
+      });
       return null;
     });
 
@@ -409,13 +416,49 @@ public class UserInfoWindowController implements Controller<Node> {
         });
   }
 
+  private List<XYChart.Data<Long, Integer>> getStreakCount(List<RatingHistoryDataPoint> dataPoints) {
+    List<XYChart.Data<Long, Integer>> values = new ArrayList<>();
+    Double meanPrevious = null;
+    int streak = 0;
+    for (RatingHistoryDataPoint dataPoint: dataPoints) {
+      Double mean = dataPoint.getMean();
+      if (meanPrevious != null) {
+        if (streak >= 0 && mean > meanPrevious) {
+          ++streak;
+        }
+        else if (streak >= 0 && mean < meanPrevious) {
+          streak = -1;
+        }
+        else if (streak <= 0 && mean > meanPrevious) {
+          streak = 1;
+        }
+        else if (streak <= 0 && mean < meanPrevious) {
+          --streak;
+        }
+      }
+      meanPrevious = mean;
+      values.add(new Data<>(dataPoint.getInstant().toEpochSecond(), streak));
+    }
+    return values;
+  }
+
   public void plotPlayerRatingGraph() {
     JavaFxUtil.assertApplicationThread();
     OffsetDateTime afterDate = OffsetDateTime.of(timePeriodComboBox.getValue().getDate(), ZoneOffset.UTC);
-    List<XYChart.Data<Long, Integer>> values = ratingData.stream().sorted(Comparator.comparing(RatingHistoryDataPoint::getInstant))
-        .filter(dataPoint -> dataPoint.getInstant().isAfter(afterDate))
-        .map(dataPoint -> new Data<>(dataPoint.getInstant().toEpochSecond(), RatingUtil.getRating(dataPoint)))
-        .collect(Collectors.toList());
+    List<XYChart.Data<Long, Integer>> values = List.of();
+
+    if (ratingMetricComboBox.getSelectionModel().getSelectedItem().equals(RatingMetric.TRUESKILL)) {
+      values = ratingData.stream().sorted(Comparator.comparing(RatingHistoryDataPoint::getInstant))
+          .filter(dataPoint -> dataPoint.getInstant().isAfter(afterDate))
+          .map(dataPoint -> new Data<>(dataPoint.getInstant().toEpochSecond(), RatingUtil.getRating(dataPoint)))
+          .collect(Collectors.toList());
+    }
+    else if (ratingMetricComboBox.getSelectionModel().getSelectedItem().equals(RatingMetric.STREAK)) {
+      values = getStreakCount(ratingData.stream().sorted(Comparator.comparing(RatingHistoryDataPoint::getInstant))
+          .filter(dataPoint -> dataPoint.getInstant().isAfter(afterDate))
+          .sorted((a,b) -> (int)(a.getInstant().toEpochSecond() - b.getInstant().toEpochSecond()))
+          .collect(Collectors.toList()));
+    }
 
     xAxis.setTickLabelFormatter(ratingLabelFormatter());
     if (values.size() > 0) {
@@ -427,6 +470,20 @@ public class UserInfoWindowController implements Controller<Node> {
     XYChart.Series<Long, Integer> series = new XYChart.Series<>(observableList(values));
     series.setName(i18n.get("userInfo.ratingOverTime"));
     ratingHistoryChart.setData(FXCollections.observableList(Collections.singletonList(series)));
+    ratingHistoryChart.clearMarkers();
+    Integer latestValue = values.get(values.size()-1).getYValue();
+    if (!values.isEmpty()) {
+      ratingHistoryChart.addHorizontalValueMarker(
+          new XYChart.Data<>(0L, latestValue), 4,
+          latestValue >= 0
+              ? "-fx-stroke: -good;"
+              : "-fx-stroke: -bad;");
+      ratingHistoryChart.addAnnotationValueMarker(
+          new XYChart.Data<>(values.get(0).getXValue(), latestValue), String.format("%d", latestValue),
+          latestValue >= 0
+              ? "-fx-stroke: -good;"
+              : "-fx-stroke: -bad;");
+    }
     loadingHistoryPane.setVisible(false);
     ratingHistoryChart.setVisible(true);
   }
@@ -456,6 +513,22 @@ public class UserInfoWindowController implements Controller<Node> {
 
       @Override
       public TimePeriod fromString(String string) {
+        return null;
+      }
+    };
+  }
+
+
+  @NotNull
+  private StringConverter<RatingMetric> ratingMetricStringConverter() {
+    return new StringConverter<>() {
+      @Override
+      public String toString(RatingMetric metric) {
+        return i18n.get(metric.getI18nKey());
+      }
+
+      @Override
+      public RatingMetric fromString(String string) {
         return null;
       }
     };

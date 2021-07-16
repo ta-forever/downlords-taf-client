@@ -28,6 +28,7 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
+import javafx.collections.MapChangeListener;
 import javafx.concurrent.Worker;
 import javafx.css.PseudoClass;
 import javafx.event.Event;
@@ -86,6 +87,7 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
   static final String CSS_CLASS_CHAT_ONLY = "chat_only";
   private static final String MESSAGE_CONTAINER_ID = "chat-container";
   private static final String MESSAGE_ITEM_CLASS = "chat-section";
+  private static final String LAST_READ_DELIMITER_ID = "last-read-message";
   private static final PseudoClass UNREAD_PSEUDO_STATE = PseudoClass.getPseudoClass("unread");
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private static final org.springframework.core.io.Resource CHAT_JS_RESOURCE = new ClassPathResource("/js/chat_container.js");
@@ -103,6 +105,7 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
   private static final String ACTION_PREFIX = "/me ";
   private static final String JOIN_PREFIX = "/join ";
   private static final String WHOIS_PREFIX = "/whois ";
+  private static final String CHANSERV_USER = "ChanServ";
   /**
    * Added if a message is what IRC calls an "action".
    */
@@ -133,6 +136,7 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
   private final ChangeListener<Number> zoomChangeListener;
   private final ChangeListener<Boolean> tabPaneFocusedListener;
   private final ChangeListener<Boolean> stageFocusedListener;
+  private MapChangeListener<String, ChatChannelUser> usersChangeListener;
   private int lastEntryId;
   private boolean isChatReady;
   /**
@@ -230,6 +234,9 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
 
     if (!unread) {
       synchronized (unreadMessagesCount) {
+        if (unreadMessagesCount.get() == 0) {
+          removeMessageId(LAST_READ_DELIMITER_ID);
+        }
         unreadMessagesCount.setValue(0);
       }
     }
@@ -248,7 +255,50 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
   }
 
   public void setReceiver(String receiver) {
+    this.removeUsersChangeListener();
     this.receiver = receiver;
+    usersChangeListener = change -> JavaFxUtil.runLater(() -> {
+      if (change.wasAdded() && !change.getValueAdded().getUsername().equals(CHANSERV_USER)) {
+        onPlayerConnected(change.getValueAdded());
+      } else if (change.wasRemoved() && !change.getValueRemoved().getUsername().equals(CHANSERV_USER)) {
+        onPlayerDisconnected(change.getValueRemoved());
+      }
+      onPlayerCount(change.getMap().size());
+    });
+    if (receiver.startsWith("#")) {
+      chatService.addUsersListener(receiver, usersChangeListener);
+    } else {
+      chatService.addChatUsersByNameListener(usersChangeListener);
+    }
+  }
+
+  private void removeUsersChangeListener() {
+    if (receiver == null || usersChangeListener == null) {
+      return;
+    }
+    if (receiver.startsWith("#")) {
+      chatService.removeUsersListener(receiver, usersChangeListener);
+    }
+    else {
+      chatService.removeChatUsersByNameListener(usersChangeListener);
+    }
+  }
+
+  public void close() {
+    if (receiver == null || usersChangeListener == null) {
+      return;
+    }
+    if (receiver.startsWith("#")) {
+      chatService.leaveChannel(receiver);
+      chatService.removeUsersListener(receiver, usersChangeListener);
+    }
+    else {
+      chatService.removeChatUsersByNameListener(usersChangeListener);
+    }
+  }
+
+  public void onClosed(Event event) {
+    close();
   }
 
   public void initialize() {
@@ -259,16 +309,18 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
     addFocusListeners();
     addImagePasteListener();
 
-    unreadMessagesCount.addListener((observable, oldValue, newValue) -> chatService.incrementUnreadMessagesCount(newValue.intValue() - oldValue.intValue()));
+    unreadMessagesCount.addListener((observable, oldValue, newValue) -> {
+      if (lastEntryId > 0 && oldValue.intValue()==0 && newValue.intValue()>0) {
+        removeMessageId(LAST_READ_DELIMITER_ID);
+        insertIntoContainer(String.format("<hr id='%s'>", LAST_READ_DELIMITER_ID), "chat-section-" + lastEntryId);
+      }
+      chatService.incrementUnreadMessagesCount(newValue.intValue() - oldValue.intValue());
+    });
     JavaFxUtil.addListener(StageHolder.getStage().focusedProperty(), new WeakChangeListener<>(resetUnreadMessagesListener));
     JavaFxUtil.addListener(getRoot().selectedProperty(), new WeakChangeListener<>(resetUnreadMessagesListener));
 
     getRoot().setOnClosed(this::onClosed);
     eventBus.register(this);
-  }
-
-  protected void onClosed(Event event) {
-    // Subclasses may override but need to call super
   }
 
   /**
@@ -418,11 +470,11 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
     messageTextField.setDisable(true);
 
     final String text = messageTextField.getText();
-    chatService.sendMessageInBackground(receiver, text).thenAccept(message -> {
+    chatService.sendMessageInBackground(receiver, text).thenAccept(message -> JavaFxUtil.runLater(() -> {
       messageTextField.clear();
       messageTextField.setDisable(false);
       messageTextField.requestFocus();
-    }).exceptionally(throwable -> {
+    })).exceptionally(throwable -> {
       throwable = ConcurrentUtil.unwrapIfCompletionException(throwable);
       logger.warn("Message could not be sent: {}", text, throwable);
       notificationService.addImmediateErrorNotification(throwable, "chat.sendFailed");
@@ -458,6 +510,11 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
         waitingMessages.add(chatMessage);
       } else {
         JavaFxUtil.runLater(() -> {
+          if (!hasFocus()) {
+            setUnread(true);
+            incrementUnreadMessagesCount(1);
+          }
+
           addMessage(chatMessage);
           removeTopmostMessages();
           scrollToBottomIfDesired();
@@ -480,6 +537,25 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
       engine.executeScript("document.getElementsByClassName('" + MESSAGE_ITEM_CLASS + "')[0].remove()");
       numberOfMessages--;
     }
+  }
+
+  private void removeMessageId(String id) {
+    String script = String.format("var x=document.getElementById('%s'); if (x!=null) x.remove();", id);
+    engine.executeScript(script);
+  }
+
+  protected void updateUserMessageColor(ChatChannelUser chatUser) {
+    String color;
+    if (chatUser.getColor().isPresent()) {
+      color = JavaFxUtil.toRgbCode(chatUser.getColor().get());
+    } else {
+      color = "";
+    }
+    JavaFxUtil.runLater(() -> getJsObject().call("updateUserMessageColor", chatUser.getUsername(), color));
+  }
+
+  private void setUserMessageColor(ChatChannelUser chatUser, String jsColorString) {
+    JavaFxUtil.runLater(() -> getJsObject().call("updateUserMessageColor", chatUser.getUsername(), jsColorString));
   }
 
   /**
@@ -624,7 +700,7 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
           chatMessage.getMessage(),
           IdenticonUtil.createIdenticon(identIconSource),
           event -> {
-            eventBus.post(new NavigateEvent(NavigationItem.CHAT));
+            eventBus.post(new NavigateEvent(NavigationItem.PLAY));
             stage.toFront();
             getRoot().getTabPane().getSelectionModel().select(getRoot());
           })
@@ -662,11 +738,18 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
     getMessagesWebView().requestLayout();
   }
 
+  public final void display(NavigateEvent navigateEvent) {
+    onDisplay();
+  }
+
   /**
    * Subclasses may override in order to perform actions when the view is being displayed.
    */
   protected void onDisplay() {
-    JavaFxUtil.runLater(() -> messageTextField().requestFocus());
+    JavaFxUtil.runLater(() -> {
+      setUnread(false);
+      messageTextField().requestFocus();
+    });
   }
 
   /**
@@ -674,5 +757,31 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
    */
   protected void onHide() {
 
+  }
+
+  void onPlayerDisconnected(ChatChannelUser user) {
+    setUserMessageColor(user, "#666");
+  }
+
+  void onPlayerConnected(ChatChannelUser user) {
+    updateUserMessageColor(user);
+  }
+
+  void onPlayerCount(int count) {
+  }
+
+  // Detach some Node (eg channel user list) from the concrete Controller's layout so it can be docked with another controllers layout.
+  // The concrete Controller still retains ownership and responsibility for Node's contents. It just gives up responsibility for layout.
+  public Node detachSidePanelNode() {
+    return null;
+  }
+
+  public void setSidePaneEnabled(boolean enabled) {
+  }
+
+  ChangeListener<Boolean> onSelectedListener;
+  public void setOnSelectedListener(ChangeListener<Boolean> listener) {
+    onSelectedListener = listener;
+    getRoot().selectedProperty().addListener(new WeakChangeListener<>(listener));
   }
 }

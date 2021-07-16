@@ -4,8 +4,9 @@ import com.faforever.client.audio.AudioService;
 import com.faforever.client.chat.event.UnreadPartyMessageEvent;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.WebViewConfigurer;
+import com.faforever.client.game.PlayerStatus;
 import com.faforever.client.i18n.I18n;
-import com.faforever.client.main.DiscordSelectionMenuController;
+import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
@@ -17,12 +18,9 @@ import com.faforever.client.util.TimeService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
 import javafx.collections.MapChangeListener;
-import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TextInputControl;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.StackPane;
 import javafx.scene.text.TextFlow;
 import javafx.scene.web.WebView;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -31,6 +29,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Set;
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
@@ -40,11 +39,8 @@ public class MatchmakingChatController extends AbstractChatTabController {
   public WebView messagesWebView;
   public TextInputControl messageTextField;
   public TextFlow topicText;
-  public StackPane discordStackPane;
 
   private ChatChannel channel;
-  private MapChangeListener<String, ChatChannelUser> usersChangeListener;
-  DiscordSelectionMenuController discordSelectionMenuController;
 
   // TODO cut dependencies
   public MatchmakingChatController(UserService userService,
@@ -65,13 +61,21 @@ public class MatchmakingChatController extends AbstractChatTabController {
     super(webViewConfigurer, userService, chatService, preferencesService, playerService, audioService,
         timeService, i18n, imageUploadService, notificationService, reportingService, uiService,
         eventBus, countryFlagService, chatUserService);
-
-    discordSelectionMenuController = uiService.loadFxml("theme/discord_selection_menu.fxml");
   }
 
   @Override
   public Tab getRoot() {
     return matchmakingChatTabRoot;
+  }
+
+  public void setTopic(String topic) {
+    topicText.getChildren().clear();
+    Arrays.stream(topic.split("\\s"))
+        .forEach(word -> {
+          Label label = new Label(word + " ");
+          label.setStyle("-fx-font-weight: bold; -fx-font-size: 1.1em;");
+          topicText.getChildren().add(label);
+        });
   }
 
   public void setChannel(String partyName) {
@@ -80,28 +84,7 @@ public class MatchmakingChatController extends AbstractChatTabController {
     setReceiver(partyName);
     matchmakingChatTabRoot.setId(partyName);
     matchmakingChatTabRoot.setText(partyName);
-    String topic = i18n.get("teammatchmaking.chat.topic");
-    topicText.getChildren().clear();
-    Arrays.stream(topic.split("\\s"))
-        .forEach(word -> {
-          Label label = new Label(word + " ");
-          label.setStyle("-fx-font-weight: bold; -fx-font-size: 1.1em;");
-            topicText.getChildren().add(label);
-        });
-
-    usersChangeListener = change -> {
-      if (change.wasAdded()) {
-        onPlayerConnected(change.getValueAdded().getUsername());
-      } else if (change.wasRemoved()) {
-        onPlayerDisconnected(change.getValueRemoved().getUsername());
-      }
-    };
-    chatService.addUsersListener(partyName, usersChangeListener);
-  }
-
-  public void closeChannel() {
-    chatService.leaveChannel(channel.getName());
-    chatService.removeUsersListener(channel.getName(), usersChangeListener);
+    setTopic(i18n.get("teammatchmaking.chat.topic"));
   }
 
   @Override
@@ -116,24 +99,30 @@ public class MatchmakingChatController extends AbstractChatTabController {
 
   @Override
   public void onChatMessage(ChatMessage chatMessage) {
-    super.onChatMessage(chatMessage);
+    PlayerStatus localPlayerStatus = PlayerStatus.IDLE;
+    if (playerService.getCurrentPlayer().isPresent()) {
+      localPlayerStatus = playerService.getCurrentPlayer().get().getStatus();
+    }
 
     if (!hasFocus()) {
+      if (Set.of(PlayerStatus.IDLE, PlayerStatus.HOSTING, PlayerStatus.JOINING).contains(localPlayerStatus)) {
+        audioService.playPrivateMessageSound();
+      }
       eventBus.post(new UnreadPartyMessageEvent(chatMessage));
     }
-  }
 
-  public void onDiscordButtonClicked(MouseEvent event) {
-    discordSelectionMenuController.getContextMenu().show(discordStackPane.getScene().getWindow(), event.getScreenX(), event.getScreenY());
-  }
-
-  @VisibleForTesting
-  void onPlayerDisconnected(String userName) {
-    JavaFxUtil.runLater(() -> onChatMessage(new ChatMessage(userName, Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerDisconnect", userName), true)));
+    super.onChatMessage(chatMessage);
   }
 
   @VisibleForTesting
-  void onPlayerConnected(String userName) {
-    JavaFxUtil.runLater(() -> onChatMessage(new ChatMessage(userName, Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerConnect", userName), true)));
+  void onPlayerDisconnected(ChatChannelUser user) {
+    super.onPlayerDisconnected(user);
+    onChatMessage(new ChatMessage(getReceiver(), Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerDisconnect", user.getUsername()), true));
+  }
+
+  @VisibleForTesting
+  void onPlayerConnected(ChatChannelUser user) {
+    super.onPlayerConnected(user);
+    onChatMessage(new ChatMessage(getReceiver(), Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerConnect", user.getUsername()), true));
   }
 }

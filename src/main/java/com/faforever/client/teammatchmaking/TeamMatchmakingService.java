@@ -182,7 +182,10 @@ public class TeamMatchmakingService {
                 Optional<PartyMember> ownPartyMember = party.getMembers().stream()
                     .filter(m -> m.getPlayer().getId() == playerService.getCurrentPlayer().map(Player::getId).orElse(-1))
                     .findFirst();
-                ownPartyMember.ifPresent(m -> sendFactionSelection(m.getFactions()));
+                ownPartyMember.ifPresent(m -> {
+                  sendFactionSelection(m.getFactions());
+                  sendPlayerAlias(m.getPlayer().getAlias());
+                });
               }
             }
         );
@@ -371,6 +374,7 @@ public class TeamMatchmakingService {
           ifPresent(partyMember -> {
             newPartyMember.setFactions(partyMember.getFactions());
             sendFactionSelection(partyMember.getFactions());
+            sendPlayerAlias(partyMember.getPlayer().getAlias());
           });
 
       party.setOwner(currentPlayer);
@@ -392,6 +396,10 @@ public class TeamMatchmakingService {
 
   public void sendFactionSelection(List<Faction> factions) {
     fafServerAccessor.setPartyFactions(factions);
+  }
+
+  public void sendPlayerAlias(String alias) {
+    fafServerAccessor.setPlayerAlias(alias);
   }
 
   private boolean ensureValidGamePath(String modTechnical) {
@@ -455,6 +463,7 @@ public class TeamMatchmakingService {
       log.warn("Could not find party member {}", member.getPlayer());
       return null;
     } else {
+      JavaFxUtil.runLater(() -> player.get().setAlias(member.getAlias()));
       return new PartyMember(player.get(), member.getFactions());
     }
   }

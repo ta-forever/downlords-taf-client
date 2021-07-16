@@ -19,6 +19,7 @@ import java.util.TreeSet;
 
 import static com.faforever.client.notification.Severity.ERROR;
 import static com.faforever.client.notification.Severity.WARN;
+import static com.faforever.client.notification.Severity.INFO;
 import static java.util.Collections.singletonList;
 import static javafx.collections.FXCollections.observableSet;
 import static javafx.collections.FXCollections.synchronizedObservableSet;
@@ -35,6 +36,8 @@ public class NotificationService {
   private final List<OnImmediateNotificationListener> onImmediateNotificationListeners = new ArrayList<>();
   private final List<OnImmediateNotificationListener> onServerNotificationListeners = new ArrayList<>();
   private final ReportingService reportingService;
+
+  private final List<ImmediateNotification> pendingImmediateNotifications = new ArrayList<>();
 
   // TODO fix circular reference
   @Inject
@@ -61,6 +64,9 @@ public class NotificationService {
    */
 
   public void addNotification(ImmediateNotification notification) {
+    if (onImmediateNotificationListeners.isEmpty()) {
+      pendingImmediateNotifications.add(notification);
+    }
     onImmediateNotificationListeners.forEach(listener -> listener.onImmediateNotification(notification));
   }
 
@@ -103,6 +109,11 @@ public class NotificationService {
     onImmediateNotificationListeners.add(listener);
   }
 
+  public void flushPendingImmediateNotifications() {
+    pendingImmediateNotifications.forEach(notification -> addNotification(notification));
+    pendingImmediateNotifications.clear();
+  }
+
   public void addServerNotificationListener(OnImmediateNotificationListener listener) {
     onServerNotificationListeners.add(listener);
   }
@@ -118,5 +129,9 @@ public class NotificationService {
 
   public void addImmediateWarnNotification(String messageKey, Object... args) {
     addNotification(new ImmediateNotification(i18n.get("errorTitle"), i18n.get(messageKey, args), WARN, List.of(new DismissAction(i18n))));
+  }
+
+  public void addImmediateInfoNotification(String titleKey, String messageKey, Object... args) {
+    addNotification(new ImmediateNotification(i18n.get(titleKey), i18n.get(messageKey, args), INFO, List.of(new DismissAction(i18n))));
   }
 }

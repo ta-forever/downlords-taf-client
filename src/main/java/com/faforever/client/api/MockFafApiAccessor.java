@@ -177,6 +177,11 @@ public class MockFafApiAccessor implements FafApiAccessor {
   }
 
   @Override
+  public void uploadGameLogs(Path file, String context, int id, ByteCountListener listener) {
+    // do nothing
+  }
+
+  @Override
   public List<CoopMission> getCoopMissions() {
     return List.of();
   }

@@ -136,7 +136,8 @@ public class IceAdapterImpl implements IceAdapter, InitializingBean, DisposableB
     GpgClientCommand command = gpgGameMessage.getCommand();
 
     if (command == GpgClientCommand.REHOST) {
-      eventBus.post(new RehostRequestEvent());
+      //eventBus.post(new RehostRequestEvent());
+      log.info("[onGpgGameMessage] REHOST not implemented");
       return;
     }
     if (command == GpgClientCommand.GAME_FULL) {
@@ -148,7 +149,7 @@ public class IceAdapterImpl implements IceAdapter, InitializingBean, DisposableB
   }
 
   @Override
-  public CompletableFuture<Integer> start() {
+  public CompletableFuture<Integer> start(String playerAlias) {
     iceAdapterClientFuture = new CompletableFuture<>();
     Thread thread = new Thread(() -> {
       String nativeDir = System.getProperty("nativeDir", "lib");
@@ -166,7 +167,9 @@ public class IceAdapterImpl implements IceAdapter, InitializingBean, DisposableB
           "-jar",
           getBinaryName(workDirectory),
           "--id", String.valueOf(currentPlayer.getId()),
-          "--login", currentPlayer.getUsername(),
+          "--login", playerAlias.equals(currentPlayer.getUsername())
+              ? playerAlias
+              : playerAlias + "/" + currentPlayer.getUsername(),
           "--rpc-port", String.valueOf(adapterPort),
           "--gpgnet-port", String.valueOf(gpgPort)
       );

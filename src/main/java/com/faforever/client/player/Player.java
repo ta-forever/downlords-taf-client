@@ -34,6 +34,7 @@ public class Player {
 
   private final IntegerProperty id;
   private final StringProperty username;
+  private final StringProperty alias;
   private final StringProperty clan;
   private final StringProperty country;
   private final StringProperty avatarUrl;
@@ -52,6 +53,7 @@ public class Player {
     this();
 
     username.set(player.getLogin());
+    alias.set(player.getLogin());
     clan.set(player.getClan());
     country.set(player.getCountry());
 
@@ -64,6 +66,7 @@ public class Player {
   private Player() {
     id = new SimpleIntegerProperty();
     username = new SimpleStringProperty();
+    alias = new SimpleStringProperty();
     clan = new SimpleStringProperty();
     country = new SimpleStringProperty();
     avatarUrl = new SimpleStringProperty();
@@ -82,6 +85,7 @@ public class Player {
   public Player(String username) {
     this();
     this.username.set(username);
+    this.alias.set(username);
   }
 
   public static Player fromDto(com.faforever.client.api.dto.Player dto) {
@@ -91,6 +95,7 @@ public class Player {
     Player player = new Player(dto.getLogin());
     player.setId(Integer.parseInt(dto.getId()));
     player.setUsername(dto.getLogin());
+    player.setAlias(dto.getLogin());
     if (dto.getNames() != null) {
       player.getNames().addAll(dto.getNames().stream().map(NameRecord::fromDto).collect(Collectors.toList()));
     }
@@ -160,6 +165,18 @@ public class Player {
 
   public StringProperty usernameProperty() {
     return username;
+  }
+
+  public String getAlias() {
+    return alias.get();
+  }
+
+  public void setAlias(String alias) {
+    this.alias.set(alias);
+  }
+
+  public StringProperty aliasProperty() {
+    return alias;
   }
 
   public String getClan() {
@@ -287,6 +304,7 @@ public class Player {
     setCountry(player.getCountry());
     setStatus(PlayerStatus.fromDto(player.getState()));
     setCurrentGameUid(player.getCurrentGameUid());
+    setAlias(player.getAlias()==null ? player.getLogin() : player.getAlias());
 
     if (player.getRatings() != null) {
       Map<String, LeaderboardRating> ratingMap = new HashMap<>();

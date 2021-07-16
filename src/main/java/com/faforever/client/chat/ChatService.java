@@ -7,10 +7,12 @@ import javafx.collections.MapChangeListener;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Pattern;
 
 public interface ChatService {
 
   String PARTY_CHANNEL_SUFFIX = "'sParty";
+  Pattern GAME_CHANNEL_REGEX = Pattern.compile("^.+\\[.+\\]$");
 
   void connect();
 
@@ -37,6 +39,8 @@ public interface ChatService {
   void addChannelsListener(MapChangeListener<String, ChatChannel> listener);
 
   void removeUsersListener(String channelName, MapChangeListener<String, ChatChannelUser> listener);
+
+  void removeChatUsersByNameListener(MapChangeListener<String, ChatChannelUser> listener);
 
   void leaveChannel(String channelName);
 

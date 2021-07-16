@@ -51,9 +51,9 @@ public class TotalAnnihilationService {
     return Paths.get(nativeDir).resolve("bin");
   }
 
-  private List<String> getRegisterDplayCommand(String gameMod, Path gamePath, Path gameExe, String gameArgs) {
+  private List<String> getRegisterDplayCommand(String gameMod, Path gamePath, Path gameExe, String gameArgs, int gameGUID) {
     Path exePath = getNativeGpgnet4taDir().resolve("talauncher.exe");
-    Path logFile = preferencesService.getFafLogDirectory().resolve("registerdplay.log");
+    Path logFile = preferencesService.getNewLogFile("registerdplay", gameGUID);
 
     List<String> command = new ArrayList<>();
     if (org.bridj.Platform.isLinux()) {
@@ -77,9 +77,9 @@ public class TotalAnnihilationService {
     return command;
   }
 
-  private List<String> getLaunchServerCommand(int port, boolean uac) {
+  private List<String> getLaunchServerCommand(int port, boolean uac, int gameGUID) {
     Path exePath = getNativeGpgnet4taDir().resolve("talauncher.exe");
-    Path logFile = preferencesService.getFafLogDirectory().resolve("launchserver.log");
+    Path logFile = preferencesService.getNewLogFile("talauncher", gameGUID);
 
     List<String> command = new ArrayList<>();
     if (org.bridj.Platform.isLinux()) {
@@ -168,21 +168,30 @@ public class TotalAnnihilationService {
 
     @Override
     public void run() {
-      try (Socket socket = new Socket("127.0.0.1", launchServerPort)) {
-        socket.getOutputStream().write("/keepalive".getBytes());
-        socket.getOutputStream().flush();
-        retries = 10;
-        connectedOnce = true;
-
-      } catch (IOException e) {
-        if (connectedOnce) {
-          retries--;
+      if (launchServerProcess != null && launchServerProcess.isAlive()) {
+        try (Socket socket = new Socket("127.0.0.1", launchServerPort)) {
+          socket.setSoTimeout(300);
+          socket.getOutputStream().write("/keepalive".getBytes());
+          socket.getOutputStream().flush();
+          retries = 10;
+          connectedOnce = true;
         }
+        catch (IOException e) {
+          logger.warn("timeout connecting to launch server on port {}", launchServerPort);
+          if (connectedOnce) {
+            retries--;
+          }
+        }
+      }
+      else {
+        logger.warn("launch server not alive ...");
+        retries--;
       }
 
       if (retries <= 0) {
-        logger.warn("cannot keepalive launch server on port {}", launchServerPort);
+        logger.warn("cannot keepalive launch server on port {} ... giving up", launchServerPort);
         launchServerKeepAliveTimer.cancel();
+        launchServerProcess.destroyForcibly();
         launchServerProcess = null;
         launchServerKeepAliveTimer = null;
         launchServerKeepAliveTimerTask = null;
@@ -204,20 +213,16 @@ public class TotalAnnihilationService {
   // The launch server listens on a tcp port for instructions to invoke TotalA.exe using DirectPlay API.
   // We use a launch server so that we don't have to keep asking over and over again for UAC if user has chosen to launch TA as admin.
   // Instead we start the launch server with UAC and we keep it alive for as long as Downlord's client is open.
-  public Process startLaunchServer(String modTechnical) throws IOException {
+  public Process startLaunchServer(String modTechnical, int gameGUID) throws IOException {
     if (launchServerProcess != null &&
         launchServerKeepAliveTimerTask != null && launchServerKeepAliveTimerTask.retries == 10 &&
         preferencesService.getPreferences().getRequireUacEnabled() == this.launchServerHasUac) {
       logger.info("[startLaunchServer] already started, is healthy and should have required UAC");
-      return launchServerProcess;
+      return null;
     }
 
     this.launchServerPort = getFreeTcpPort();
     this.launchServerHasUac = preferencesService.getPreferences().getRequireUacEnabled();
-
-    logger.info("[startLaunchServer] starting on port {}", this.launchServerPort);
-    List<String> command = getLaunchServerCommand(this.launchServerPort, this.launchServerHasUac);
-    this.launchServerProcess = launch(getNativeGpgnet4taDir(), command);
 
     if (launchServerKeepAliveTimer != null) {
       launchServerKeepAliveTimer.cancel();
@@ -226,27 +231,29 @@ public class TotalAnnihilationService {
     launchServerKeepAliveTimerTask = new KeepAliveTimerTask();
     launchServerKeepAliveTimer.scheduleAtFixedRate(launchServerKeepAliveTimerTask, 0, 1000);
 
+    logger.info("[startLaunchServer] starting on port {}", this.launchServerPort);
+    List<String> startLaunchServerCommand = getLaunchServerCommand(this.launchServerPort, this.launchServerHasUac, gameGUID);
+    this.launchServerProcess = launch(getNativeGpgnet4taDir(), startLaunchServerCommand);
     return this.launchServerProcess;
   }
 
   public Process startGameOffline(String modTechnical, List<String> args) throws IOException {
-    startLaunchServer(modTechnical);
+    startLaunchServer(modTechnical, 0);
 
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
     Path totalA = prefs.getInstalledExePath().getFileName();
-    List<String> command = getTotalACommand(totalA);
-    command.addAll(Arrays.asList(prefs.getCommandLineOptions().split(" ")));
-    return launch(prefs.getInstalledPath(), command);
+    List<String> startGameOfflineCommand = getTotalACommand(totalA);
+    startGameOfflineCommand.addAll(Arrays.asList(prefs.getCommandLineOptions().split(" ")));
+    return launch(prefs.getInstalledPath(), startGameOfflineCommand);
   }
 
   public Process startGame(String modTechnical, int uid, @Nullable List<String> additionalArgs, int gpgPort,
                            Player currentPlayer, String ircUrl, boolean autoLaunch) throws IOException {
-    linuxFree47624();
-    startLaunchServer(modTechnical);
+    this.linuxFree47624();
     this.consolePort = getFreeTcpPort();
 
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
-    List<String> registerDplayCommand = getRegisterDplayCommand(prefs.getBaseGameName(), prefs.getInstalledPath(), prefs.getInstalledExePath().getFileName(), prefs.getCommandLineOptions());
+    List<String> registerDplayCommand = getRegisterDplayCommand(prefs.getBaseGameName(), prefs.getInstalledPath(), prefs.getInstalledExePath().getFileName(), prefs.getCommandLineOptions(), uid);
     try {
       this.launch(getNativeGpgnet4taDir(), registerDplayCommand).waitFor();
     } catch (InterruptedException e) {
@@ -260,7 +267,7 @@ public class TotalAnnihilationService {
     List<String> gpgnet4taCommand = getGpgNet4TaCommand(
         loopbackAddress, this.consolePort,
         prefs.getBaseGameName(), prefs.getInstalledPath(), autoLaunch, false, 10, proactiveResend,
-        gpgNetUrl, ircUrl, preferencesService.getNewGameLogFile(uid), this.launchServerPort);
+        gpgNetUrl, ircUrl, preferencesService.getNewLogFile("game", uid), this.launchServerPort);
 
     return launch(getNativeGpgnet4taDir(), gpgnet4taCommand);
   }
@@ -296,7 +303,7 @@ public class TotalAnnihilationService {
     processBuilder.directory(launchWorkingDirectory.toFile());
     processBuilder.command(launchCommand);
 
-    logger.info("Starting TA service: {}", String.join(" ", processBuilder.command()));
+    logger.info("{}", processBuilder.command());
     Process process = processBuilder.start();
 
     return process;

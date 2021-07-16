@@ -53,25 +53,25 @@ public class MapTool {
     return new Gson().toJson(toListOfDict(mapDetails));
   }
 
-  static public List<String[]> listMapsInstalled(Path gamePath, Path previewCacheDirectory, boolean doCrc) {
+  static public List<String[]> listMapsInstalled(Path gamePath, Path previewCacheDirectory, boolean doCrc) throws IOException {
     // and build feature cache in the previewCacheDirectory if not null
     return run(gamePath, null, null, doCrc, null, null, 0, previewCacheDirectory);
   }
 
-  static public List<String[]> listMap(Path gamePath, String mapName) {
+  static public List<String[]> listMap(Path gamePath, String mapName) throws IOException {
     return run(gamePath, null, mapName+"$", true, null, null, 0, null);
   }
 
-  static public List<String[]> listMapsInArchive(Path hpiFile, Path previewCacheDirectory, boolean doCrc) {
+  static public List<String[]> listMapsInArchive(Path hpiFile, Path previewCacheDirectory, boolean doCrc) throws IOException {
     // and generate minimap images in previewCacheDirectory if not null
     return run(hpiFile.getParent(), hpiFile.getFileName().toString(), null, doCrc, previewCacheDirectory, PreviewType.MINI, 0, null);
   }
 
-  public static void generatePreview(Path gamePath, String mapName, Path previewCacheDirectory, PreviewType previewType, int maxPositions) {
+  public static void generatePreview(Path gamePath, String mapName, Path previewCacheDirectory, PreviewType previewType, int maxPositions) throws IOException {
     run(gamePath, null, mapName + "$", false, previewCacheDirectory, previewType, maxPositions, previewCacheDirectory);
   }
 
-  static private List<String[]> run(Path gamePath, String hpiSpecs, String mapName, boolean doCrc, Path previewCacheDirectory, PreviewType previewType, int maxPositions, Path featuresCacheDirectory) {
+  static private List<String[]> run(Path gamePath, String hpiSpecs, String mapName, boolean doCrc, Path previewCacheDirectory, PreviewType previewType, int maxPositions, Path featuresCacheDirectory) throws IOException {
     String nativeDir = System.getProperty("nativeDir", "lib");
     Path exe = Paths.get(nativeDir).resolve("bin").resolve(
         org.bridj.Platform.isLinux() ? "maptool" : "maptool.exe"
@@ -121,40 +121,41 @@ public class MapTool {
     boolean logEnable = false;
     String maptoolDataReceived = new String();
 
-    try {
-      final String UNIT_SEPARATOR = Character.toString((char)0x1f);
-      Process process = processBuilder.start();
+    final String UNIT_SEPARATOR = Character.toString((char)0x1f);
+    Process process = processBuilder.start();
 
-      BufferedReader input = new BufferedReader(new InputStreamReader(process.getInputStream()));
+    BufferedReader input = new BufferedReader(new InputStreamReader(process.getInputStream()));
 
-      String line;
-      while ((line = input.readLine()) != null) {
-        maptoolDataReceived += line + "\n";
-        String parts[] = line.split(UNIT_SEPARATOR);
-        if (parts.length < 9) {
-          logEnable = true;
-        }
-        mapList.add(parts);
+    String line;
+    while ((line = input.readLine()) != null) {
+      maptoolDataReceived += line + "\n";
+      String parts[] = line.split(UNIT_SEPARATOR);
+      if (parts.length < 9) {
+        logEnable = true;
       }
-      if (logEnable) {
-        logger.warn("Received too few fields from mapTool:\n{}\n{}", processBuilder.command(), maptoolDataReceived);
-        while ((line = input.readLine()) != null) {
-          logger.warn("but theres more:{}", line);
-        }
-      }
-      input.close();
-
-      BufferedReader err = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-      while ((line = err.readLine()) != null) {
-        logger.error(line);
-      }
-      err.close();
-
-      process.waitFor();
+      mapList.add(parts);
     }
-    catch (IOException | InterruptedException e )
-    {
-      logger.error("unable to process maps: {}", e.getMessage());
+    if (logEnable) {
+      logger.warn("Received too few fields from mapTool:\n{}\n{}", processBuilder.command(), maptoolDataReceived);
+      while ((line = input.readLine()) != null) {
+        logger.warn("but theres more:{}", line);
+      }
+    }
+    input.close();
+
+    BufferedReader err = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+    while ((line = err.readLine()) != null) {
+      logger.error(line);
+    }
+    err.close();
+
+    try {
+      int exitCode = process.waitFor();
+      if (exitCode != 0) {
+        throw new IOException(String.format("Map tool exited with error code %d", exitCode));
+      }
+    } catch (InterruptedException e) {
+      logger.error("maptool process interrupted: {}", e.getMessage());
     }
 
     return mapList;

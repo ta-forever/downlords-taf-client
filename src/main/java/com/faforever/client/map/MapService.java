@@ -108,6 +108,7 @@ public class MapService implements InitializingBean, DisposableBean {
 
   private final String mapDownloadUrlFormat;
   private final String mapPreviewUrlFormat;
+  private Boolean notifiedBadMapTool = false;
 
   private class Installation {
     final String modTechnicalName;
@@ -346,18 +347,23 @@ public class MapService implements InitializingBean, DisposableBean {
         Path gamePath = exePath.getParent();
 
         List<MapBean> mapList = new ArrayList<>();
-        for (String[] details: MapTool.listMapsInstalled(gamePath, preferencesService.getCacheDirectory().resolve("maps"), false)) {
-          MapBean mapBean = readMap(details[0], details);
-          mapBean.setLazyCrc((aVoid) -> {
-            List<String[]> detailsWithCrc = MapTool.listMap(gamePath, mapBean.getMapName());
-            if (!detailsWithCrc.isEmpty()) {
-              return detailsWithCrc.get(0)[MAP_DETAIL_COLUMN_CRC];
-            }
-            else {
-              return "00000000";
-            }
-          });
-          mapList.add(mapBean);
+        try {
+          for (String[] details : MapTool.listMapsInstalled(gamePath, preferencesService.getCacheDirectory().resolve("maps"), false)) {
+            MapBean mapBean = readMap(details[0], details);
+            mapBean.setLazyCrc((aVoid) -> {
+              try {
+                List<String[]> detailsWithCrc = MapTool.listMap(gamePath, mapBean.getMapName());
+                return detailsWithCrc.get(0)[MAP_DETAIL_COLUMN_CRC];
+              } catch (IOException e) {
+                notifyBadMapTool(e);
+                return "00000000";
+              }
+            });
+            mapList.add(mapBean);
+          }
+        }
+        catch (IOException e) {
+          notifyBadMapTool(e);
         }
         installation.maps.clear();
         installation.maps.addAll(mapList);
@@ -479,14 +485,19 @@ public class MapService implements InitializingBean, DisposableBean {
 
   public void removeConflictingArchives(String modTechnical, java.util.Map<String,MapBean> preExistingMaps, Path newArchive) {
     Path installationPath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath();
-    List<String[]> archiveMaps = MapTool.listMapsInArchive(newArchive, null, false);
-    archiveMaps.stream()
-        .map(mapDetails -> mapDetails[MapTool.MAP_DETAIL_COLUMN_NAME])
-        .filter(mapName -> preExistingMaps.containsKey(mapName))
-        .map(mapName -> preExistingMaps.get(mapName).getHpiArchiveName())
-        .distinct()
-        .filter(archive -> !archive.equals(newArchive.getFileName()))
-        .forEach(archive -> removeArchive(installationPath.resolve(archive)));
+    try {
+      List<String[]> archiveMaps = MapTool.listMapsInArchive(newArchive, null, false);
+      archiveMaps.stream()
+          .map(mapDetails -> mapDetails[MapTool.MAP_DETAIL_COLUMN_NAME])
+          .filter(mapName -> preExistingMaps.containsKey(mapName))
+          .map(mapName -> preExistingMaps.get(mapName).getHpiArchiveName())
+          .distinct()
+          .filter(archive -> !archive.equals(newArchive.getFileName()))
+          .forEach(archive -> removeArchive(installationPath.resolve(archive)));
+    }
+    catch (IOException e) {
+      notifyBadMapTool(e);
+    }
   }
 
   private void removeArchive(Path archivePath) {
@@ -661,7 +672,22 @@ public class MapService implements InitializingBean, DisposableBean {
       return;
     }
 
-    MapTool.generatePreview(gamePath, mapName, cachedFile.getParent().getParent(), previewType, maxPositions);
+    try {
+      MapTool.generatePreview(gamePath, mapName, cachedFile.getParent().getParent(), previewType, maxPositions);
+    }
+    catch (IOException e) {
+      notifyBadMapTool(e);
+    }
+  }
+
+  private void notifyBadMapTool(Throwable e) {
+    logger.error(e.getMessage());
+    synchronized (notifiedBadMapTool) {
+      if (!notifiedBadMapTool) {
+        notificationService.addImmediateErrorNotification(e, "maptool.error");
+        notifiedBadMapTool = true;
+      }
+    }
   }
 
   /**
@@ -682,16 +708,10 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   private Image loadPreview(String modTechnical, String mapName, URL url, PreviewType previewType, int maxPositions) {
-
-    String urlString = url.toString();
-    String cachedFilename = urlString.substring(urlString.lastIndexOf('/') + 1);
-    Path cacheSubFolder = Paths.get("maps").resolve(previewType.getFolderName(maxPositions));
-    Path cachedFile = preferencesService.getCacheDirectory().resolve(cacheSubFolder).resolve(cachedFilename);
-
+    Path cacheDir = preferencesService.getCacheDirectory().resolve("maps").resolve(previewType.getFolderName(maxPositions));
+    Path cachedFile = cacheDir.resolve(mapName+".png");
     generatePreview(modTechnical, mapName, cachedFile, previewType, maxPositions);
-
-    Image im = assetService.loadAndCacheImage(url, Paths.get("maps").resolve(previewType.getFolderName(maxPositions)),
-        () -> uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
+    Image im = assetService.loadAndCacheImage(url, cacheDir, () -> uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
     return im;
   }
 

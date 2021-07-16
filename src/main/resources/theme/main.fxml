@@ -25,6 +25,8 @@
                               <items>
                                   <MenuItem onAction="#onRevealLogFolder" text="%menu.revealLogFolder" />
                                   <SeparatorMenuItem mnemonicParsing="false" />
+                                  <MenuItem onAction="#onSubmitLogs" text="%menu.submitLogs" />
+                                  <SeparatorMenuItem mnemonicParsing="false" />
                                   <MenuItem onAction="#onRevealGamePaths" text="%menu.revealModFolder" />
                                   <SeparatorMenuItem mnemonicParsing="false"/>
                                   <MenuItem disable="true" text="%menu.feedback"/>
@@ -42,12 +44,12 @@
                               <ToggleGroup fx:id="mainNavigation"/>
                           </toggleGroup>
                       </ToggleButton>
-                      <ToggleButton fx:id="chatButton" minWidth="-Infinity" mnemonicParsing="false" onAction="#onChat"
-                                    styleClass="main-navigation-button" text="%main.chat"
+                      <ToggleButton fx:id="playButton" minWidth="-Infinity" mnemonicParsing="false" onAction="#onPlay"
+                                    styleClass="main-navigation-button" text="%main.play"
                                     toggleGroup="$mainNavigation"/>
-                      <ToggleButton fx:id="playButton" minWidth="-Infinity" mnemonicParsing="false"
-                                    onAction="#onPlay" styleClass="main-navigation-button"
-                                    text="%main.play" toggleGroup="$mainNavigation"/>
+                      <ToggleButton fx:id="matchmakerButton" minWidth="-Infinity" mnemonicParsing="false"
+                                    onAction="#onMatchmaker" styleClass="main-navigation-button"
+                                    text="%main.matchmaking" toggleGroup="$mainNavigation"/>
                       <ToggleButton fx:id="replayButton" disable="true" minWidth="-Infinity" mnemonicParsing="false"
                                     onAction="#onNavigateButtonClicked" styleClass="main-navigation-button"
                                     text="%main.replay" toggleGroup="$mainNavigation"/>
@@ -91,8 +93,16 @@
                                <Insets right="10.0"/>
                            </HBox.margin>
                        </StackPane>
-                      <fx:include source="user_button.fxml" />
-                  </children>
+                       <Button styleClass="discord-button" onMouseClicked="#onDiscordButtonClicked">
+                           <graphic>
+                               <Region styleClass="icon,discord-icon,discord-color"/>
+                           </graphic>
+                           <tooltip>
+                               <Tooltip text="%discord.join"/>
+                           </tooltip>
+                       </Button>
+                       <fx:include source="user_button.fxml" />
+                   </children>
                   <HBox.margin>
                      <Insets right="135.0" />
                   </HBox.margin>
