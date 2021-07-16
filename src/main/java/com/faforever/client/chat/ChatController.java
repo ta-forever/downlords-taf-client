@@ -128,6 +128,15 @@ public class ChatController extends AbstractViewController<Node> {
 
   public void setUserListContainer(VBox node) {
     this.userListContainer = node;
+    if (!tabPane.getSelectionModel().isEmpty()) {
+      Tab tab = tabPane.getSelectionModel().getSelectedItem();
+      if (tab != null) {
+        AbstractChatTabController controller = nameToChatTabController.get(tab.getId());
+        if (controller != null) {
+          stealUserListNode(controller);
+        }
+      }
+    }
   }
 
   private void stealUserListNode(AbstractChatTabController tab) {
