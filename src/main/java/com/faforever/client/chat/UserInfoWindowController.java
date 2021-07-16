@@ -470,11 +470,19 @@ public class UserInfoWindowController implements Controller<Node> {
     XYChart.Series<Long, Integer> series = new XYChart.Series<>(observableList(values));
     series.setName(i18n.get("userInfo.ratingOverTime"));
     ratingHistoryChart.setData(FXCollections.observableList(Collections.singletonList(series)));
-    ratingHistoryChart.clearHorizontalValueMarkers();
+    ratingHistoryChart.clearMarkers();
+    Integer latestValue = values.get(values.size()-1).getYValue();
     if (!values.isEmpty()) {
       ratingHistoryChart.addHorizontalValueMarker(
-          new XYChart.Data<>(new Long(0), values.get(values.size()-1).getYValue()),
-          4);
+          new XYChart.Data<>(0L, latestValue), 4,
+          latestValue >= 0
+              ? "-fx-stroke: -good;"
+              : "-fx-stroke: -bad;");
+      ratingHistoryChart.addAnnotationValueMarker(
+          new XYChart.Data<>(values.get(0).getXValue(), latestValue), String.format("%d", latestValue),
+          latestValue >= 0
+              ? "-fx-stroke: -good;"
+              : "-fx-stroke: -bad;");
     }
     loadingHistoryPane.setVisible(false);
     ratingHistoryChart.setVisible(true);
