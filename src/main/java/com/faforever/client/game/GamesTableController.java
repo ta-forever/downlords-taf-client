@@ -215,8 +215,12 @@ public class GamesTableController implements Controller<Node> {
   private void selectCurrentGame() {
     TableView.TableViewSelectionModel<Game> selectionModel = gamesTable.getSelectionModel();
     Game currentGame = gameService.getCurrentGame();
+    Game autoJoinGame = gameService.getAutoJoinRequestedGameProperty().get();
     if (currentGame != null && gamesTable.getItems().contains(currentGame)) {
       selectionModel.select(currentGame);
+    }
+    else if (autoJoinGame != null) {
+      onSelectedListener.accept(autoJoinGame);
     }
     else {
       selectFirstGame();

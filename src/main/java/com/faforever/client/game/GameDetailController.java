@@ -153,9 +153,15 @@ public class GameDetailController implements Controller<Pane> {
     numberOfPlayersLabel.managedProperty().bind(numberOfPlayersLabel.visibleProperty());
     mapImageView.managedProperty().bind(mapImageView.visibleProperty());
     gameTypeLabel.managedProperty().bind(gameTypeLabel.visibleProperty());
+
+    // make a bit more room for the autoJoin button's text
+    leaveButton.managedProperty().bind(autoJoinButton.visibleProperty().not());
+    startButton.managedProperty().bind(autoJoinButton.visibleProperty().not());
+    joinButton.managedProperty().bind(autoJoinButton.visibleProperty().not());
     autoJoinButton.managedProperty().bind(autoJoinButton.visibleProperty());
-    joinButton.managedProperty().bind(autoJoinButton.visibleProperty().not()); // just make a bit more room for the autoJoin button's text
-    autoJoinButton.setUserData(Boolean.FALSE);  // getStyle.contains doesn't work.  so we'll use this user data to track whether "activated" style has been applied
+
+    // getStyle.contains doesn't work.  so we'll use this user data to track whether "activated" style has been applied
+    autoJoinButton.setUserData(Boolean.FALSE);
 
     gameTitleLabel.visibleProperty().bind(game.isNotNull());
     hostLabel.visibleProperty().bind(game.isNotNull());

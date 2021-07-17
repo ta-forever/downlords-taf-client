@@ -78,6 +78,11 @@ public class PlayController extends AbstractViewController<Node> {
         setFocusedGame(newValue);
       }
     });
+    gameService.getAutoJoinRequestedGameProperty().addListener((obs, oldValue, newValue) -> {
+      if (newValue != null) {
+        setFocusedGame(newValue);
+      }
+    });
     setCurrentGame(gameService.getCurrentGame());
     setFocusedGame(gameService.getCurrentGame());
 

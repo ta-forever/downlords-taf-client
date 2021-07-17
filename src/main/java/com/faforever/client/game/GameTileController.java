@@ -106,9 +106,15 @@ public class GameTileController implements Controller<Node> {
     modsLabel.visibleProperty().bind(modsLabel.textProperty().isNotEmpty());
     gameTypeLabel.managedProperty().bind(gameTypeLabel.visibleProperty());
     lockIconLabel.managedProperty().bind(lockIconLabel.visibleProperty());
+
+    // make a bit more room for the autoJoin button's text
+    leaveButton.managedProperty().bind(autoJoinButton.visibleProperty().not());
+    startButton.managedProperty().bind(autoJoinButton.visibleProperty().not());
+    joinButton.managedProperty().bind(autoJoinButton.visibleProperty().not());
     autoJoinButton.managedProperty().bind(autoJoinButton.visibleProperty());
-    joinButton.managedProperty().bind(autoJoinButton.visibleProperty().not()); // just make a bit more room for the autoJoin button's text
-    autoJoinButton.setUserData(Boolean.FALSE);  // getStyle.contains doesn't work.  so we'll use this user data to track whether "activated" style has been applied
+
+    // getStyle.contains doesn't work.  so we'll use this user data to track whether "activated" style has been applied
+    autoJoinButton.setUserData(Boolean.FALSE);
 
     thisGameStatusInvalidationListener = observable -> onGameStatusChanged();
     weakThisGameStatusListener = new WeakInvalidationListener(thisGameStatusInvalidationListener);
@@ -158,7 +164,7 @@ public class GameTileController implements Controller<Node> {
 
   private void updateButtonsVisibility(Game currentGame, Game autoJoinPrototype, Player currentPlayer) {
     boolean isCurrentGame = game != null && currentGame != null && Objects.equals(game, currentGame);
-    boolean isOwnGame = game != null && currentPlayer != null && !currentPlayer.getUsername().equals(game.getHost());
+    boolean isOwnGame = game != null && currentPlayer != null && currentPlayer.getUsername().equals(game.getHost());
     boolean isGameProcessRunning = gameService.isGameRunning();
     boolean isPlayerIdle = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.IDLE;
     boolean isPlayerHosting = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.HOSTING;

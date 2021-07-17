@@ -143,8 +143,12 @@ public class GamesTilesContainerController implements Controller<Node> {
   private void selectCurrentGame() {
     ObservableList<Node> cards = tiledFlowPane.getChildren();
     Game currentGame = gameService.getCurrentGame();
+    Game autoJoinGame = gameService.getAutoJoinRequestedGameProperty().get();
     if (currentGame != null && !cards.isEmpty() && onSelectedListener != null) {
       onSelectedListener.accept(currentGame);
+    }
+    else if (autoJoinGame != null) {
+      onSelectedListener.accept(autoJoinGame);
     }
     else {
       selectFirstGame();
