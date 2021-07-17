@@ -82,7 +82,7 @@ public class WindowsTaskbarProgressUpdater implements InitializingBean {
         taskBarList.SetProgressState(taskBarPointer, ITaskbarList3.TbpFlag.TBPF_NOPROGRESS);
       } else if (progress == ProgressIndicator.INDETERMINATE_PROGRESS) {
         taskBarList.SetProgressState(taskBarPointer, ITaskbarList3.TbpFlag.TBPF_INDETERMINATE);
-      } else {
+      } else if (progress < 1.0) {
         taskBarList.SetProgressState(taskBarPointer, ITaskbarList3.TbpFlag.TBPF_NORMAL);
         taskBarList.SetProgressValue(taskBarPointer, (int) (progress * 100), 100);
       }
