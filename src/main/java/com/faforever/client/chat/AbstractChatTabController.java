@@ -510,11 +510,6 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
         waitingMessages.add(chatMessage);
       } else {
         JavaFxUtil.runLater(() -> {
-          if (!hasFocus()) {
-            setUnread(true);
-            incrementUnreadMessagesCount(1);
-          }
-
           addMessage(chatMessage);
           removeTopmostMessages();
           scrollToBottomIfDesired();
@@ -565,6 +560,11 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
   private void addMessage(ChatMessage chatMessage) {
     JavaFxUtil.assertApplicationThread();
     noCatch(() -> {
+      if (!hasFocus()) {
+        setUnread(true);
+        incrementUnreadMessagesCount(1);
+      }
+
       if (requiresNewChatSection(chatMessage)) {
         appendChatMessageSection(chatMessage);
       } else {

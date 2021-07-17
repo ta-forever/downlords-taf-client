@@ -69,6 +69,9 @@ public class TrayIconManager implements InitializingBean {
             .mapToObj(power -> generateTrayIcon((int) Math.pow(2, power)))
             .map(image -> addBadge(image, badgeCount))
             .collect(Collectors.toList());
+        if (!StageHolder.getStage().isFocused()) {
+          StageHolder.getStage().toFront(); // highlights TAF in the taskbar
+        }
       }
       StageHolder.getStage().getIcons().setAll(icons);
     });
