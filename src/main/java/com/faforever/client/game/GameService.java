@@ -948,12 +948,13 @@ public class GameService implements InitializingBean {
     Optional<Player> currentPlayerOptional = playerService.getCurrentPlayer();
     if (gameOptional.isPresent() && currentPlayerOptional.isPresent() &&
         currentPlayerOptional.get().getStatus() == PlayerStatus.IDLE &&
-        getCurrentGame() == null) {
+        !isGameRunning()) {
       log.info("[checkAutoJoin] auto-joining {}!", gameOptional.get());
       this.joinGame(gameOptional.get(), prototype.getPassword());
     }
     else {
-      log.info("[checkAutoJoin] not yet.  game:{}, playerStatus:{}, currentGame:{}", gameOptional.isPresent(), currentPlayerOptional.get().getStatus(), getCurrentGame());
+      log.info("[checkAutoJoin] not yet.  joinableGame:{}, playerStatus:{}, currentGame:{}, gameRunning():{}",
+          gameOptional.isPresent(), currentPlayerOptional.get().getStatus(), getCurrentGame(), isGameRunning());
     }
   }
 
