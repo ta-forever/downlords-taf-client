@@ -280,7 +280,7 @@ public class UiService implements InitializingBean, DisposableBean {
   private void reloadStylesheet() {
     String[] styleSheets = getStylesheets();
 
-    log.debug("Changes detected, reloading stylesheets: {}", styleSheets);
+    log.debug("Changes detected, reloading stylesheets: {}", styleSheets.toString());
     scenes.forEach(scene -> setSceneStyleSheet(scene, styleSheets));
     loadWebViewsStyleSheet(getWebViewStyleSheet());
   }
