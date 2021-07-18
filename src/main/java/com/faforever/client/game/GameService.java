@@ -46,9 +46,11 @@ import com.google.common.eventbus.Subscribe;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -112,14 +114,6 @@ public class GameService implements InitializingBean {
 
   public static final String CUSTOM_GAME_CHANNEL_REGEX = "^#.+\\[.+\\]$";
 
-  @VisibleForTesting
-  final BooleanProperty gameRunning;
-
-  /** TODO: Explain why access needs to be synchronized. */
-  @VisibleForTesting
-  final SimpleObjectProperty<Game> currentGame;
-  final SimpleObjectProperty<GameStatus> currentGameStatusProperty;
-
   /**
    * An observable copy of {@link #uidToGameInfoBean}. <strong>Do not modify its content directly</strong>.
    */
@@ -147,6 +141,15 @@ public class GameService implements InitializingBean {
   private final String ircHostAndPort;
   private final BooleanProperty inMatchmakerQueue;
   private final BooleanProperty inOthersParty;
+
+  @VisibleForTesting
+  final IntegerProperty runningGameUidProperty;   // as determined locally
+  final Set<Integer> endedGameUids;               // as advertised by server. used to detect games remotely cancelled before we complete launch
+
+  /** TODO: Explain why access needs to be synchronized. */
+  @VisibleForTesting
+  final SimpleObjectProperty<Game> currentGame;   // as indicated by server
+  final SimpleObjectProperty<GameStatus> currentGameStatusProperty;
 
   @VisibleForTesting
   String matchedQueueRatingType;
@@ -194,9 +197,10 @@ public class GameService implements InitializingBean {
     uidToGameInfoBean = FXCollections.observableMap(new ConcurrentHashMap<>());
     inMatchmakerQueue = new SimpleBooleanProperty();
     inOthersParty = new SimpleBooleanProperty();
-    gameRunning = new SimpleBooleanProperty();
+    runningGameUidProperty = new SimpleIntegerProperty();
     currentGame = new SimpleObjectProperty<>();
     currentGameStatusProperty = new SimpleObjectProperty<>();
+    endedGameUids = new HashSet<>();
 
     games = FXCollections.observableList(new ArrayList<>(),
         item -> new Observable[]{item.statusProperty(), item.getTeams()}
@@ -247,8 +251,8 @@ public class GameService implements InitializingBean {
 
     JavaFxUtil.attachListToMap(games, uidToGameInfoBean);
     JavaFxUtil.addListener(
-        gameRunning,
-        (observable, oldValue, newValue) -> reconnectTimerService.setGameRunning(newValue)
+        runningGameUidProperty,
+        (observable, oldValue, newValue) -> reconnectTimerService.setGameRunning(newValue != null)
     );
 
     eventBus.register(this);
@@ -340,14 +344,14 @@ public class GameService implements InitializingBean {
     };
   }
 
-  public ReadOnlyBooleanProperty gameRunningProperty() {
-    return gameRunning;
+  public ReadOnlyIntegerProperty runningGameUidProperty() {
+    return runningGameUidProperty;
   }
 
   public CompletableFuture<Void> hostGame(NewGameInfo newGameInfo) {
     log.info("[hostGame] title={}", newGameInfo.getTitle());
 
-    if (isRunning()) {
+    if (isGameRunning()) {
       log.debug("Game is running, ignoring host request");
       notificationService.addImmediateWarnNotification("game.gameRunning");
       return completedFuture(null);
@@ -378,7 +382,7 @@ public class GameService implements InitializingBean {
   }
 
   public CompletableFuture<Void> joinGame(Game game, String password) {
-    if (isRunning()) {
+    if (isGameRunning()) {
       log.debug("Game is running, ignoring join request");
       notificationService.addImmediateWarnNotification("game.gameRunning");
       return completedFuture(null);
@@ -407,15 +411,8 @@ public class GameService implements InitializingBean {
         .thenCompose(aVoid -> mapService.ensureMap(game.getFeaturedMod(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null))
         .thenCompose(aVoid -> fafService.requestJoinGame(game.getId(), password))
         .thenAccept(gameLaunchMessage -> {
-          JavaFxUtil.runLater(() -> { // some UI elements are bound to currentGame property
-              synchronized (currentGame) {
-                // Store password in case we rehost
-                game.setPassword(password);
-                log.info("[joinGame] currentGame.set(game)");
-                currentGame.set(game);
-              }
-            });
-
+            // Store password in case we rehost
+            game.setPassword(password);
             boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchOnJoinEnabled() && game.getStatus() == GameStatus.BATTLEROOM;
             startGame(gameLaunchMessage, inGameIrcUrl, autoLaunch, playerService.getCurrentPlayer().get().getUsername());
         })
@@ -446,13 +443,12 @@ public class GameService implements InitializingBean {
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, version, modVersions, simMods))
         .thenRun(() -> {
           try {
-            Process processForReplay = totalAnnihilationService.startReplay(featuredMod, path, replayId);
-            if (isRunning()) {
+            if (isGameRunning()) {
               return;
             }
-            this.process = processForReplay;
+            this.process = totalAnnihilationService.startReplay(featuredMod, path, replayId);
+            setRunningGameUid(replayId);
             spawnGameTerminationListener(this.process, replayId);
-            setGameRunning(true);
           } catch (IOException e) {
             notifyCantPlayReplay(replayId, e);
           }
@@ -464,7 +460,7 @@ public class GameService implements InitializingBean {
   }
 
   private boolean canStartReplay() {
-    if (isRunning()) {
+    if (isGameRunning()) {
       log.warn("Total Annihilation is already running, not starting replay");
       notificationService.addImmediateWarnNotification("replay.gameRunning");
       return false;
@@ -541,13 +537,9 @@ public class GameService implements InitializingBean {
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, null, modVersions, simModUids))
         .thenCompose(aVoid -> mapService.ensureMap(modTechnicalName, mapName, gameBean.getMapCrc(), gameBean.getMapArchiveName(), null, null))
         .thenRun(() -> noCatch(() -> {
-          Process processCreated = totalAnnihilationService.startReplay(modTechnicalName, replayUrl, gameId, getCurrentPlayer());
-          if (isRunning()) {
-            return;
-          }
-          this.process = processCreated;
+          this.process = totalAnnihilationService.startReplay(modTechnicalName, replayUrl, gameId, getCurrentPlayer());
+          setRunningGameUid(gameId);
           spawnGameTerminationListener(this.process, gameId);
-          setGameRunning(true);
         }))
         .exceptionally(throwable -> {
           notifyCantPlayReplay(gameId, throwable);
@@ -608,7 +600,7 @@ public class GameService implements InitializingBean {
   }
 
   public CompletableFuture<Void> startSearchMatchmaker(String modTechnical) {
-    if (isRunning()) {
+    if (isGameRunning()) {
       log.debug("Game is running, ignoring matchmaking search request");
       notificationService.addImmediateWarnNotification("game.gameRunning");
       return completedFuture(null);
@@ -679,7 +671,7 @@ public class GameService implements InitializingBean {
     return currentGameStatusProperty;
   }
 
-  private boolean isRunning() {
+  public boolean isGameRunning() {
     return process != null && process.isAlive();
   }
 
@@ -688,22 +680,28 @@ public class GameService implements InitializingBean {
     //return gameUpdater.update(featuredMod, version, featuredModVersions, simModUids);
   }
 
-  public boolean isGameRunning() {
-    return gameRunning.get();
+  public Integer getRunningGameUid() {
+    return runningGameUidProperty.getValue();
   }
 
-  private void setGameRunning(boolean running) {
-    gameRunning.set(running);
+  private void setRunningGameUid(Integer uidOrNull) {
+    try {
+      noCatch(() -> runningGameUidProperty.setValue(uidOrNull));
+    }
+    catch(Exception e)
+    {
+      log.warn("[setRunningGameUid] {}", e.getMessage());
+    }
   }
 
   public void startBattleRoom() {
-    if (isRunning()) {
+    if (isGameRunning()) {
       this.totalAnnihilationService.sendToConsole("/launch");
     }
   }
 
   public void setMapForStagingGame(String mapName) {
-    if (isRunning() && currentGame.get() != null && currentGame.get().getStatus()==GameStatus.STAGING) {
+    if (isGameRunning() && currentGame.get() != null && currentGame.get().getStatus()==GameStatus.STAGING) {
       try {
         List<String[]> mapsDetails = MapTool.listMap(preferencesService.getTotalAnnihilation(currentGame.get().getFeaturedMod()).getInstalledPath(), mapName);
         final String UNIT_SEPARATOR = Character.toString((char)0x1f);
@@ -727,11 +725,10 @@ public class GameService implements InitializingBean {
    * (mod/map download, connectivity check etc.)
    */
   private void startGame(GameLaunchMessage gameLaunchMessage, String ircUrl, boolean autoLaunch, String playerAlias) {
-    if (isRunning()) {
+    if (isGameRunning()) {
       log.warn("Total Annihilation is already running, not starting game");
       return;
     }
-
     String modTechnical = gameLaunchMessage.getMod();
     int uid = gameLaunchMessage.getUid();
     replayServer.start(uid, () -> getByUid(uid))
@@ -742,18 +739,34 @@ public class GameService implements InitializingBean {
           Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(modTechnical, uid));
           spawnGenericTerminationListener(launchServerProcess);
 
-          process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, gameLaunchMessage.getUid(), args,
+          process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, uid, args,
               adapterPort, getCurrentPlayer(), ircUrl, autoLaunch));
-          spawnGameTerminationListener(process, gameLaunchMessage.getUid());
-          setGameRunning(true);
+          setRunningGameUid(uid);
+          spawnGameTerminationListener(process, uid);
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be started", throwable);
           notificationService.addImmediateErrorNotification(throwable, "game.start.couldNotStart");
           iceAdapter.stop();
           fafService.notifyGameEnded();
-          setGameRunning(false);
+          this.killGame();
+          setRunningGameUid(null);
           return null;
+        })
+        .whenComplete((aVoid, throwable) -> {
+          boolean isEnded;
+          synchronized (endedGameUids) {
+            isEnded = endedGameUids.contains(uid);
+            endedGameUids.clear();
+          }
+          if (isEnded) {
+            log.warn("Game cancelled while launching");
+            notificationService.addImmediateInfoNotification("game.start.cancelledRemotely.title", "game.start.cancelledRemotely");
+            iceAdapter.stop();
+            fafService.notifyGameEnded();
+            this.killGame();
+            setRunningGameUid(null);
+          }
         });
   }
 
@@ -837,7 +850,7 @@ public class GameService implements InitializingBean {
 
       JavaFxUtil.runLater(() -> {
         try {
-          gameRunning.set(false);
+          setRunningGameUid(null);
           replayServer.stop();
           iceAdapter.stop();
           fafService.notifyGameEnded();
@@ -881,7 +894,7 @@ public class GameService implements InitializingBean {
 
   @Subscribe
   public void onRehostRequest(RehostRequestEvent event) {
-    if (!gameRunning.get()) {
+    if (!isGameRunning()) {
       log.info("[onRehostRequest] rehost immediately");
       rehost(event.getGame());
     }
@@ -965,7 +978,9 @@ public class GameService implements InitializingBean {
     Optional<Player> currentPlayerOptional = playerService.getCurrentPlayer();
 
     Game game = createOrUpdateGame(gameInfoMessage);
-    final boolean isGameCurrentGame = Objects.equals(currentGame.get(), game);  // some control paths null out currentGame but we still need to remember this
+    // some control paths null out currentGame but we still need to remember this
+    final boolean isGameCurrentGame = Objects.equals(currentGame.get(), game) ||
+        Objects.equals(getRunningGameUid(), game.getId());
 
     if (GameStatus.ENDED == game.getStatus()) {
       removeGame(gameInfoMessage);
@@ -1099,6 +1114,9 @@ public class GameService implements InitializingBean {
     Game game;
     synchronized (uidToGameInfoBean) {
       game = uidToGameInfoBean.remove(gameInfoMessage.getUid());
+    }
+    synchronized (endedGameUids) {
+      endedGameUids.add(gameInfoMessage.getUid());
     }
     eventBus.post(new GameRemovedEvent(game));
   }

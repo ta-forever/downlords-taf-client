@@ -14,8 +14,8 @@ import com.faforever.client.ui.dialog.Dialog;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ObservableList;
@@ -24,7 +24,6 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.AnchorPane;
@@ -107,9 +106,10 @@ public class CustomGamesController extends AbstractViewController<Node> {
     this.createGameDialogRoot = root;
   }
 
+  static private final IntegerProperty nullIntegerProperty = new SimpleIntegerProperty();
   public void initialize() {
     this.createGameDialogRoot = this.gamesRoot;
-    JavaFxUtil.bind(createGameButton.disableProperty(), gameService.gameRunningProperty());
+    JavaFxUtil.bind(createGameButton.disableProperty(), gameService.runningGameUidProperty().isNotEqualTo(nullIntegerProperty));
 
     getRoot().sceneProperty().addListener((observable, oldValue, newValue) -> {
       if (newValue == null) {

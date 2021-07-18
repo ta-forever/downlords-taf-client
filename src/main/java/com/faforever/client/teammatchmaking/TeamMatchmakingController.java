@@ -350,29 +350,27 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
 
   private void renderQueues() {
     JavaFxUtil.runLater(() -> {
-      List<MatchmakingQueue> queues = Collections.synchronizedList(teamMatchmakingService.getMatchmakingQueues());
-      synchronized (queues) {
-        queueBox.getChildren().clear();
-        queues.sort(Comparator.comparing(MatchmakingQueue::getQueueId));
+      List<MatchmakingQueue> queues = new ArrayList<>(teamMatchmakingService.getMatchmakingQueues());
+      queueBox.getChildren().clear();
+      queues.sort(Comparator.comparing(MatchmakingQueue::getQueueId));
 
-        // work out how to arrange the buttons (MxN grid)
-        int N = queues.size(), M = 1;
-        if (queues.size() >= 6) {
-          N = (int) ceil(sqrt(queues.size()));
-          M = (int) ceil((float) queues.size() / (float) N);
-        }
+      // work out how to arrange the buttons (MxN grid)
+      int N = queues.size(), M = 1;
+      if (queues.size() >= 6) {
+        N = (int) ceil(sqrt(queues.size()));
+        M = (int) ceil((float) queues.size() / (float) N);
+      }
 
-        // embed N buttons into M HBoxes embeded in 1 VBox
-        Iterator<MatchmakingQueue> qit = queues.iterator();
-        for (int m=0; m<M && qit.hasNext(); ++m) {
-          HBox hbox = new HBox();
-          hbox.setSpacing(12.0);
-          queueBox.getChildren().add(hbox);
-          for (int n=0; n<N && qit.hasNext(); ++n) {
-            MatchmakingQueueItemController controller = uiService.loadFxml("theme/play/teammatchmaking/matchmaking_queue_card.fxml");
-            controller.setQueue(qit.next());
-            hbox.getChildren().add(controller.getRoot());
-          }
+      // embed N buttons into M HBoxes embeded in 1 VBox
+      Iterator<MatchmakingQueue> qit = queues.iterator();
+      for (int m=0; m<M && qit.hasNext(); ++m) {
+        HBox hbox = new HBox();
+        hbox.setSpacing(12.0);
+        queueBox.getChildren().add(hbox);
+        for (int n=0; n<N && qit.hasNext(); ++n) {
+          MatchmakingQueueItemController controller = uiService.loadFxml("theme/play/teammatchmaking/matchmaking_queue_card.fxml");
+          controller.setQueue(qit.next());
+          hbox.getChildren().add(controller.getRoot());
         }
       }
     });

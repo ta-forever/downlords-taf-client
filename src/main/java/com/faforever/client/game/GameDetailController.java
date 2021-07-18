@@ -92,7 +92,7 @@ public class GameDetailController implements Controller<Pane> {
   @SuppressWarnings("FieldCanBeLocal")
   private InvalidationListener featuredModInvalidationListener;
   private ChangeListener<GameStatus> currentGameStatusListener;
-  private ChangeListener<Boolean> gameRunningListener;
+  private ChangeListener<Number> gameRunningListener;
   private ChangeListener<Game> autoJoinRequestedGameListener;
 
   /* sever ties to external objects so that this instance can be garbage collected */
@@ -128,7 +128,7 @@ public class GameDetailController implements Controller<Pane> {
     gameRunningListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
     autoJoinRequestedGameListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
     gameService.getCurrentGameStatusProperty().addListener(new WeakChangeListener<>(currentGameStatusListener));
-    gameService.gameRunningProperty().addListener(new WeakChangeListener<>(gameRunningListener));
+    gameService.runningGameUidProperty().addListener(new WeakChangeListener<>(gameRunningListener));
     gameService.getAutoJoinRequestedGameProperty().addListener(new WeakChangeListener<>(autoJoinRequestedGameListener));
     eventBus.register(this);
   }

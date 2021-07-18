@@ -367,7 +367,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
 
     CountDownLatch gameStartedLatch = new CountDownLatch(1);
     CountDownLatch gameTerminatedLatch = new CountDownLatch(1);
-    instance.gameRunningProperty().addListener((observable, oldValue, newValue) -> {
+    instance.runningGameUidProperty().addListener((observable, oldValue, newValue) -> {
       if (newValue) {
         gameStartedLatch.countDown();
       } else {
@@ -390,11 +390,11 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testWaitForProcessTerminationInBackground() throws Exception {
-    instance.gameRunning.set(true);
+    instance.runningGameUidProperty.set(true);
 
     CompletableFuture<Void> disconnectedFuture = new CompletableFuture<>();
 
-    instance.gameRunningProperty().addListener((observable, oldValue, newValue) -> {
+    instance.runningGameUidProperty().addListener((observable, oldValue, newValue) -> {
       if (!newValue) {
         disconnectedFuture.complete(null);
       }
@@ -574,7 +574,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
     when(mapService.downloadAndInstallArchive(KnownFeaturedMod.DEFAULT.getTechnicalName(),newGameInfo.getMap())).thenReturn(completedFuture(null));
 
     CountDownLatch gameRunningLatch = new CountDownLatch(1);
-    instance.gameRunningProperty().addListener((observable, oldValue, newValue) -> {
+    instance.runningGameUidProperty().addListener((observable, oldValue, newValue) -> {
       if (newValue) {
         gameRunningLatch.countDown();
       }
@@ -632,7 +632,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testRehostIfGameIsRunning() throws Exception {
-    instance.gameRunning.set(true);
+    instance.runningGameUidProperty.set(true);
 
     Game game = GameBuilder.create().defaultValues().get();
     instance.currentGame.set(game);

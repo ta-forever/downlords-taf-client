@@ -86,7 +86,7 @@ public class GameTileController implements Controller<Node> {
   private WeakInvalidationListener weakThisGameStatusListener;
 
   private ChangeListener<GameStatus> currentGameStatusListener;
-  private ChangeListener<Boolean> gameRunningListener;
+  private ChangeListener<Number> gameRunningListener;
   private ChangeListener<Game> autoJoinRequestedGameListener;
 
   public void setOnSelectedListener(Consumer<Game> onSelectedListener) {
@@ -124,7 +124,7 @@ public class GameTileController implements Controller<Node> {
     autoJoinRequestedGameListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
 
     JavaFxUtil.addListener(gameService.getCurrentGameStatusProperty(), new WeakChangeListener<>(currentGameStatusListener));
-    JavaFxUtil.addListener(gameService.gameRunningProperty(), new WeakChangeListener<>(gameRunningListener));
+    JavaFxUtil.addListener(gameService.runningGameUidProperty(), new WeakChangeListener<>(gameRunningListener));
     JavaFxUtil.addListener(gameService.getAutoJoinRequestedGameProperty(), new WeakChangeListener<>(autoJoinRequestedGameListener));
 
     gameTimeSinceStartLabel.setVisible(false);

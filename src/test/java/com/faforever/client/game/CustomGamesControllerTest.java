@@ -67,7 +67,7 @@ public class CustomGamesControllerTest extends AbstractPlainJavaFxTest {
         .get();
 
     when(gameService.getGames()).thenReturn(games);
-    when(gameService.gameRunningProperty()).thenReturn(new SimpleBooleanProperty());
+    when(gameService.runningGameUidProperty()).thenReturn(new SimpleBooleanProperty());
     when(preferencesService.getPreferences()).thenReturn(preferences);
     when(uiService.loadFxml("theme/play/games_table.fxml")).thenReturn(gamesTableController);
     when(uiService.loadFxml("theme/play/games_tiles_container.fxml")).thenReturn(gamesTilesContainerController);

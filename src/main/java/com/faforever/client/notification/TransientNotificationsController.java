@@ -2,7 +2,6 @@ package com.faforever.client.notification;
 
 import com.faforever.client.fx.Controller;
 import com.faforever.client.game.GameService;
-import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.ToastPosition;
 import com.faforever.client.theme.UiService;
