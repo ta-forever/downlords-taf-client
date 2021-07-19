@@ -1,7 +1,9 @@
 package com.faforever.client.ui.tray;
 
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.game.GameService;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.ui.StageHolder;
 import com.faforever.client.ui.tray.event.UpdateApplicationBadgeEvent;
 import com.google.common.eventbus.EventBus;
@@ -25,6 +27,7 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -37,6 +40,7 @@ public class TrayIconManager implements InitializingBean {
 
   private final I18n i18n;
   private final EventBus eventBus;
+  private final GameService gameService;
   private int badgeCount;
 
   @Override
@@ -69,7 +73,8 @@ public class TrayIconManager implements InitializingBean {
             .mapToObj(power -> generateTrayIcon((int) Math.pow(2, power)))
             .map(image -> addBadge(image, badgeCount))
             .collect(Collectors.toList());
-        if (!StageHolder.getStage().isFocused()) {
+        if ((gameService.getCurrentGame() == null || gameService.getCurrentGameStatus() == GameStatus.STAGING) &&
+            !StageHolder.getStage().isFocused() ) {
           StageHolder.getStage().toFront(); // highlights TAF in the taskbar
         }
       }

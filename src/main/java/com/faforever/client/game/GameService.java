@@ -671,6 +671,10 @@ public class GameService implements InitializingBean {
     return currentGameStatusProperty;
   }
 
+  public GameStatus getCurrentGameStatus() {
+    return currentGameStatusProperty.get();
+  }
+
   public boolean isGameRunning() {
     return process != null && process.isAlive();
   }
