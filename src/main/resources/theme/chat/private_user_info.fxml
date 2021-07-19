@@ -26,7 +26,7 @@
     </rowConstraints>
     <children>
         <Label fx:id="usernameLabel" alignment="CENTER" contentDisplay="TOP" graphicTextGap="20.0"
-               maxWidth="1.7976931348623157E308" minWidth="-Infinity" styleClass="h1" text="username"
+               maxWidth="1.7976931348623157E308" minWidth="-Infinity" styleClass="h2" text="username"
                GridPane.columnSpan="2147483647">
             <graphic>
                 <ImageView fx:id="userImageView" fitHeight="64.0" fitWidth="64.0" pickOnBounds="true"

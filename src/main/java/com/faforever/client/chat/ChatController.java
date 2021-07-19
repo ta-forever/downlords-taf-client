@@ -190,10 +190,6 @@ public class ChatController extends AbstractViewController<Node> {
       tabPane.getTabs().add(tabPane.getTabs().size() - 1, tab);
     }
 
-    if (!(tabController instanceof ChannelTabController)) {
-      tabController.getRoot().setOnSelectionChanged(event -> clearUserListNode(event));
-    }
-
     tabPane.getSelectionModel().select(tab);
     nameToChatTabController.get(tab.getId()).onDisplay();
 

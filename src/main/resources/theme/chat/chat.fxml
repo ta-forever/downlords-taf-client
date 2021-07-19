@@ -22,7 +22,7 @@
                       AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
                     <children>
                         <TabPane fx:id="tabPane" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS" tabClosingPolicy="ALL_TABS" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
-                            <Tab text="+" closable="false" onSelectionChanged="#clearUserListNode">
+                            <Tab text="+" closable="false">
                                 <VBox fx:id="noOpenTabsContainer" alignment="CENTER" fillWidth="false">
                                     <children>
                                         <Label styleClass="h2" text="%chat.joinAChannel">

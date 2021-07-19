@@ -72,7 +72,7 @@
                               </children>
                           </HBox>
                           <ToggleButton fx:id="toggleSidePaneButton" selected="true" mnemonicParsing="false"
-                                        styleClass="pane-toggler, right" AnchorPane.rightAnchor="0.0"
+                                        styleClass="pane-toggler, left" AnchorPane.leftAnchor="0.0"
                                         AnchorPane.topAnchor="40.0">
                               <graphic>
                                   <Region styleClass="icon,toggle-icon"/>
