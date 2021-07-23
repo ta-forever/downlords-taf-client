@@ -96,6 +96,7 @@ public class MatchmakingQueueItemController implements Controller<VBox> {
     joinLeaveQueueButton.disableProperty().bind(createBooleanBinding(
         () -> teamMatchmakingService.getParty().getMembers().size() > queue.getTeamSize()
             || !teamMatchmakingService.getPlayersInGame().isEmpty()
+            || teamMatchmakingService.getParty().getOwner() == null
             || !teamMatchmakingService.getParty().getOwner().equals(playerService.getCurrentPlayer().orElse(null)),
         teamMatchmakingService.getParty().getMembers(), queue.teamSizeProperty(),
         teamMatchmakingService.getPlayersInGame()

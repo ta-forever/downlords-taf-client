@@ -133,6 +133,8 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
   private final List<ChatMessage> waitingMessages;
   private final IntegerProperty unreadMessagesCount;
   private final ChangeListener<Boolean> resetUnreadMessagesListener;
+  private final ChangeListener<Number> unreadMessagesCountListener;
+
   private final ChangeListener<Number> zoomChangeListener;
   private final ChangeListener<Boolean> tabPaneFocusedListener;
   private final ChangeListener<Boolean> stageFocusedListener;
@@ -176,11 +178,15 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
 
     waitingMessages = new ArrayList<>();
     unreadMessagesCount = new SimpleIntegerProperty();
-    resetUnreadMessagesListener = (observable, oldValue, newValue) -> {
-      if (hasFocus()) {
-        setUnread(false);
+    resetUnreadMessagesListener = (observable, oldValue, newValue) -> setUnread(false);
+    unreadMessagesCountListener = (observable, oldValue, newValue) -> {
+      if (lastEntryId > 0 && oldValue.intValue()==0 && newValue.intValue()>0) {
+        removeMessageId(LAST_READ_DELIMITER_ID);
+        insertIntoContainer(String.format("<hr id='%s'>", LAST_READ_DELIMITER_ID), "chat-section-" + lastEntryId);
       }
+      chatService.incrementUnreadMessagesCount(newValue.intValue() - oldValue.intValue());
     };
+
     zoomChangeListener = (observable, oldValue, newValue) -> {
       preferencesService.getPreferences().getChat().setZoom(newValue.doubleValue());
       preferencesService.storeInBackground();
@@ -285,9 +291,13 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
   }
 
   public void close() {
-    if (receiver == null || usersChangeListener == null) {
+    if (receiver == null || usersChangeListener == null || unreadMessagesCountListener==null) {
       return;
     }
+
+    eventBus.unregister(this);
+    unreadMessagesCount.removeListener(unreadMessagesCountListener);
+
     if (receiver.startsWith("#")) {
       chatService.leaveChannel(receiver);
       chatService.removeUsersListener(receiver, usersChangeListener);
@@ -308,14 +318,8 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
 
     addFocusListeners();
     addImagePasteListener();
+    unreadMessagesCount.addListener(unreadMessagesCountListener);
 
-    unreadMessagesCount.addListener((observable, oldValue, newValue) -> {
-      if (lastEntryId > 0 && oldValue.intValue()==0 && newValue.intValue()>0) {
-        removeMessageId(LAST_READ_DELIMITER_ID);
-        insertIntoContainer(String.format("<hr id='%s'>", LAST_READ_DELIMITER_ID), "chat-section-" + lastEntryId);
-      }
-      chatService.incrementUnreadMessagesCount(newValue.intValue() - oldValue.intValue());
-    });
     JavaFxUtil.addListener(StageHolder.getStage().focusedProperty(), new WeakChangeListener<>(resetUnreadMessagesListener));
     JavaFxUtil.addListener(getRoot().selectedProperty(), new WeakChangeListener<>(resetUnreadMessagesListener));
 

@@ -33,6 +33,8 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.faforever.client.chat.ChatService.PARTY_CHANNEL_SUFFIX;
 import static com.faforever.client.chat.ChatService.GAME_CHANNEL_REGEX;
@@ -115,7 +117,14 @@ public class ChatController extends AbstractViewController<Node> {
   }
 
   private void onLoggedOut() {
-    JavaFxUtil.runLater(() -> tabPane.getTabs().clear());
+    JavaFxUtil.runLater(() -> {
+      Set<AbstractChatTabController> controllers = nameToChatTabController.values().stream().collect(Collectors.toSet());
+      controllers.stream().forEach(controller -> {
+        if (controller != null) {
+          tabPane.getTabs().remove(controller.getRoot());
+        }
+      });
+    });
   }
 
   private void removeTab(String playerOrChannelName) {
@@ -224,7 +233,13 @@ public class ChatController extends AbstractViewController<Node> {
 
     JavaFxUtil.addListener(tabPane.getTabs(), (ListChangeListener<Tab>) change -> {
       while (change.next()) {
-        change.getRemoved().forEach(tab -> nameToChatTabController.remove(tab.getId()));
+        change.getRemoved().forEach(tab -> {
+          AbstractChatTabController controller = nameToChatTabController.get(tab.getId());
+          if (controller != null) {
+            controller.close();
+            nameToChatTabController.remove(tab.getId());
+          }
+        });
       }
     });
  }
@@ -373,5 +388,4 @@ public class ChatController extends AbstractViewController<Node> {
       Optional.ofNullable(nameToChatTabController.get(tab.getId())).ifPresent(AbstractChatTabController::onHide);
     }
   }
-
 }

@@ -457,6 +457,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     client.getActorTracker().setQueryChannelInformation(false);
     client.connect();
 
+    incrementUnreadMessagesCount(-unreadMessagesCount().getValue());
   }
 
   @Override
@@ -582,6 +583,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Override
   public void incrementUnreadMessagesCount(int delta) {
+    unreadMessagesCount.set(unreadMessagesCount.get() + delta);
     eventBus.post(UpdateApplicationBadgeEvent.ofDelta(delta));
   }
 

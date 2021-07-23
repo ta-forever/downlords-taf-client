@@ -255,7 +255,9 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
         teamMatchmakingService.getParty().ownerProperty(), teamMatchmakingService.getParty().getMembers()));
 
     invitePlayerButton.disableProperty().bind(createBooleanBinding(
-        () -> teamMatchmakingService.getParty().getOwner().getId() != playerService.getCurrentPlayer().map(Player::getId).orElse(-1),
+        () ->
+            teamMatchmakingService.getParty().getOwner() == null ||
+            teamMatchmakingService.getParty().getOwner().getId() != playerService.getCurrentPlayer().map(Player::getId).orElse(-1),
         teamMatchmakingService.getParty().ownerProperty(),
         playerService.currentPlayerProperty()
     ));
