@@ -220,7 +220,6 @@ public class GameService implements InitializingBean {
         if (currentPlayer != null && currentPlayer.getStatus() != PlayerStatus.PLAYING) {
           // this is here to cope with host leaves before player starts TA
           // In that case gpgnet4ta is still waiting for TA to start, so it won't shutdown unless explicitly told to
-          log.info("[currentGameListener] killGame() because new currentGame==null && currentPlayer.status() != PLAYING");
           killGame();
         }
 
@@ -258,9 +257,7 @@ public class GameService implements InitializingBean {
     eventBus.register(this);
 
     fafService.addOnMessageListener(GameInfoMessage.class, message -> {
-      log.info("[GameInfoMessage listener] enter");
       JavaFxUtil.runLater(() -> onGameInfo(message));
-      log.info("[GameInfoMessage listener] exit");
     });
     fafService.addOnMessageListener(LoginMessage.class, message -> onLoggedIn());
 
@@ -337,7 +334,6 @@ public class GameService implements InitializingBean {
             newStatus == GameStatus.BATTLEROOM &&
             game.getGameType() != GameType.MATCHMAKER &&
             currentPlayer != null && currentPlayer.getUsername().equals(game.getHost())) {
-          log.info("[generateGameStatusListener.changed] posting RehostRequestEvent");
           eventBus.post(new RehostRequestEvent(game));
         }
       }
@@ -993,7 +989,6 @@ public class GameService implements InitializingBean {
         return;
       }
       synchronized (currentGame) {
-        log.info("[onGameInfo] currentGame.set(null) because GameStatus.ENDED");
         currentGame.set(null);
       }
     }
@@ -1004,29 +999,21 @@ public class GameService implements InitializingBean {
 
       if (currentPlayerInGame && gameInfoMessage.getState().isOpen()) {
         synchronized (currentGame) {
-          log.info("[onGameInfo] currentGame(game) because currentPlayerInGame && game.isOpen()");
           currentGame.set(game);
-          log.info("[onGameInfo] done");
         }
-        log.info("[onGameInfo] done and synced");
       } else if (isGameCurrentGame && !currentPlayerInGame) {
-        log.info("[onGameInfo] synchronized (currentGame)");
         synchronized (currentGame) {
-          log.info("[onGameInfo] currentGame(null) because !currentPlayerInGame");
           currentGame.set(null);
         }
       }
-      log.info("[onGameInfo] if (preferencesService.getPreferences()");
       if (preferencesService.getPreferences().getAutoJoinEnabled() &&
           game.getStatus() == GameStatus.BATTLEROOM &&
           game.getGameType() != GameType.MATCHMAKER &&
           !currentPlayerOptional.get().getUsername().equals(game.getHost()) &&
           currentPlayerInGame
       ) {
-        log.info("[generateGameStatusListener.changed] posting AutoJoinRequestEvent");
         eventBus.post(new AutoJoinRequestEvent(game));
       }
-      log.info("[onGameInfo] DONE");
     }
 
     JavaFxUtil.addListener(game.statusProperty(), (observable, oldValue, newValue) -> {
