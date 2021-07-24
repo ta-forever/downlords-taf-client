@@ -261,7 +261,13 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
   }
 
   public void setReceiver(String receiver) {
-    this.removeUsersChangeListener();
+    if (this.receiver != null) {
+      this.removeUsersChangeListener();
+      eventBus.unregister(this);
+      setUnread(false);
+      unreadMessagesCount.removeListener(unreadMessagesCountListener);
+    }
+
     this.receiver = receiver;
     usersChangeListener = change -> JavaFxUtil.runLater(() -> {
       if (change.wasAdded() && !change.getValueAdded().getUsername().equals(CHANSERV_USER)) {
@@ -276,6 +282,9 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
     } else {
       chatService.addChatUsersByNameListener(usersChangeListener);
     }
+
+    eventBus.register(this);
+    unreadMessagesCount.addListener(unreadMessagesCountListener);
   }
 
   private void removeUsersChangeListener() {
@@ -296,6 +305,7 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
     }
 
     eventBus.unregister(this);
+    setUnread(false);
     unreadMessagesCount.removeListener(unreadMessagesCountListener);
 
     if (receiver.startsWith("#")) {
@@ -305,6 +315,8 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
     else {
       chatService.removeChatUsersByNameListener(usersChangeListener);
     }
+
+    this.receiver = null;
   }
 
   public void onClosed(Event event) {
@@ -318,13 +330,11 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
 
     addFocusListeners();
     addImagePasteListener();
-    unreadMessagesCount.addListener(unreadMessagesCountListener);
 
     JavaFxUtil.addListener(StageHolder.getStage().focusedProperty(), new WeakChangeListener<>(resetUnreadMessagesListener));
     JavaFxUtil.addListener(getRoot().selectedProperty(), new WeakChangeListener<>(resetUnreadMessagesListener));
 
     getRoot().setOnClosed(this::onClosed);
-    eventBus.register(this);
   }
 
   /**

@@ -456,8 +456,6 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     client.getEventManager().registerEventListener(this);
     client.getActorTracker().setQueryChannelInformation(false);
     client.connect();
-
-    incrementUnreadMessagesCount(-unreadMessagesCount().getValue());
   }
 
   @Override
