@@ -127,6 +127,7 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.net.URL;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -138,6 +139,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import static com.faforever.client.chat.ChatUserService.MIN_AFK_TIMEOUT_SECONDS;
 import static com.faforever.client.util.ConcurrentUtil.executeInBackground;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -600,13 +602,27 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
     gameLaunchFuture = null;
   }
 
+  private Instant idleSince;
+  public void resetIdleSince() {
+    Instant now = Instant.now();
+    boolean wasIdleSeconds = idleSince != null && Duration.between(idleSince, now).toSeconds() > MIN_AFK_TIMEOUT_SECONDS-60;
+    idleSince = Instant.now();
+    if (wasIdleSeconds) {
+      writeToServer(new PingMessage(0));
+    }
+  }
+
   @Scheduled(fixedDelay = 60_000, initialDelay = 60_000)
   @Override
   public void ping() {
     if (fafServerSocket == null || !fafServerSocket.isConnected() || serverWriter == null) {
       return;
     }
-    writeToServer(PingMessage.INSTANCE);
+    long playerAfkSeconds = 0;
+    if (idleSince != null) {
+      playerAfkSeconds = Duration.between(idleSince, Instant.now()).toSeconds();
+    }
+    writeToServer(new PingMessage(playerAfkSeconds));
   }
 
   @Override

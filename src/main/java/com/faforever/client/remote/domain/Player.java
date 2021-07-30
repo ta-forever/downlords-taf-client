@@ -19,6 +19,7 @@ public class Player {
   private Map<String, LeaderboardRating> ratings;
   private PlayerStatus state;
   private Integer currentGameUid;
+  private Long afkSeconds;
 
   public Map<String, LeaderboardRating> getRatings() {
     return ratings;
@@ -95,6 +96,10 @@ public class Player {
   public PlayerStatus getState() { return state; }
 
   public void setState(PlayerStatus state) { this.state = state; }
+
+  public Long getAfkSeconds() { return afkSeconds; }
+
+  public void setAfkSeconds(Long afkSeconds) { this.afkSeconds = afkSeconds; }
 
   public Integer getCurrentGameUid() { return currentGameUid; }
 

@@ -40,6 +40,7 @@ import org.springframework.stereotype.Component;
 
 import java.lang.invoke.MethodHandles;
 import java.net.URL;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -348,6 +349,10 @@ public class MockFafServerAccessor implements FafServerAccessor {
   @Override
   public void setPlayerAlias(String alias) {
 
+  }
+
+  @Override
+  public void resetIdleSince() {
   }
 
 

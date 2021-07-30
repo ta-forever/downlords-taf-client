@@ -138,7 +138,7 @@ public class PlayerService implements InitializingBean {
     Player player = createAndGetPlayerForUsername(event.getUsername());
     player.setId(event.getUserId());
     currentPlayer.set(player);
-    player.setIdleSince(Instant.now());
+    player.setAfkSeconds(0);
   }
 
   @Subscribe
@@ -161,7 +161,7 @@ public class PlayerService implements InitializingBean {
   }
 
   private void resetIdleTime(Player playerForUsername) {
-    Optional.ofNullable(playerForUsername).ifPresent(player -> player.setIdleSince(Instant.now()));
+    Optional.ofNullable(playerForUsername).ifPresent(player -> player.setAfkSeconds(0));
   }
 
   private void updateGamePlayers(List<String> currentPlayers, Game game) {

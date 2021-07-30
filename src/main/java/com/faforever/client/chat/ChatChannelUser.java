@@ -43,6 +43,7 @@ public class ChatChannelUser {
   private final ObjectProperty<Image> countryFlag;
   private final StringProperty countryName;
   private final ObjectProperty<Image> mapImage;
+  private final ObjectProperty<Image> afkImage;
   private final ObjectProperty<Image> gameStatusImage;
   private final StringProperty statusTooltipText;
   private final BooleanProperty displayed;
@@ -52,6 +53,7 @@ public class ChatChannelUser {
   private ChangeListener<String> avatarChangeListener;
   private ChangeListener<String> countryInvalidationListener;
   private ChangeListener<Boolean> displayedChangeListener;
+  private ChangeListener<Number> afkSecondsChangeListener;
 
   ChatChannelUser(String username, boolean moderator) {
     this.username = new SimpleStringProperty(username);
@@ -67,6 +69,7 @@ public class ChatChannelUser {
     this.countryFlag = new SimpleObjectProperty<>();
     this.countryName = new SimpleStringProperty();
     this.mapImage = new SimpleObjectProperty<>();
+    this.afkImage = new SimpleObjectProperty<>();
     this.gameStatusImage = new SimpleObjectProperty<>();
     this.statusTooltipText = new SimpleStringProperty();
     this.displayed = new SimpleBooleanProperty(false);
@@ -248,6 +251,16 @@ public class ChatChannelUser {
     return mapImage;
   }
 
+  public Optional<Image> getAfkImage() { return Optional.ofNullable(afkImage.get()); }
+
+  public void setAfkImage(Image afkImage) {
+    this.afkImage.set(afkImage);
+  }
+
+  public ObjectProperty<Image> afkImageProperty() {
+    return afkImage;
+  }
+
   public Optional<Image> getGameStatusImage() {
     return Optional.ofNullable(gameStatusImage.get());
   }
@@ -292,6 +305,20 @@ public class ChatChannelUser {
       displayedChangeListener = listener;
       if (displayedChangeListener != null) {
         JavaFxUtil.addListener(displayed, displayedChangeListener);
+      }
+    }
+  }
+
+  public ChangeListener<Number> getAfkSecondsChangeListener() { return afkSecondsChangeListener; }
+
+  public void setAfkSecondsChangeListener(ChangeListener<Number> listener) {
+    if (player.get() != null) {
+      if (afkSecondsChangeListener != null) {
+        JavaFxUtil.removeListener(player.get().afkSecondsProperty(), afkSecondsChangeListener);
+      }
+      afkSecondsChangeListener = listener;
+      if (afkSecondsChangeListener != null) {
+        JavaFxUtil.addListener(player.get().afkSecondsProperty(), afkSecondsChangeListener);
       }
     }
   }

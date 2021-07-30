@@ -5,10 +5,16 @@ import com.faforever.client.chat.avatar.AvatarBean;
 import com.faforever.client.game.Game;
 import com.faforever.client.game.PlayerStatus;
 import com.faforever.client.leaderboard.LeaderboardRating;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.LongProperty;
 import javafx.beans.property.MapProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleMapProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -19,6 +25,7 @@ import javafx.collections.ObservableSet;
 import lombok.SneakyThrows;
 import org.jetbrains.annotations.NotNull;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,6 +52,7 @@ public class Player {
   private final ObjectProperty<PlayerStatus> status;
   private final ObservableSet<ChatChannelUser> chatChannelUsers;
   private final IntegerProperty numberOfGames;
+  private final LongProperty afkSeconds;
   private final ObjectProperty<Instant> idleSince;
   private final ObservableList<NameRecord> names;
   private final IntegerProperty currentGameUid;
@@ -77,9 +85,16 @@ public class Player {
     game = new SimpleObjectProperty<>();
     numberOfGames = new SimpleIntegerProperty();
     socialStatus = new SimpleObjectProperty<>(OTHER);
-    idleSince = new SimpleObjectProperty<>(Instant.now());
+    afkSeconds = new SimpleLongProperty(0);       // as indicated by server
+    idleSince = new SimpleObjectProperty<>(Instant.now());  // at time when afkSeconds was set to 0
     names = FXCollections.observableArrayList();
     currentGameUid = new SimpleIntegerProperty(-1);
+
+    afkSeconds.addListener((obs, oldValue, newValue) -> {
+      if (oldValue.longValue() != 0 && newValue.longValue() == 0) {
+        idleSince.set(Instant.now());
+      }
+    });
   }
 
   public Player(String username) {
@@ -279,15 +294,21 @@ public class Player {
     return game;
   }
 
+  public long getAfkSeconds() {
+    return afkSeconds.get();
+  }
+
+  public void setAfkSeconds(long seconds) { afkSeconds.set(seconds); }
+
+  public LongProperty afkSecondsProperty() {
+    return afkSeconds;
+  }
+
   public Instant getIdleSince() {
     return idleSince.get();
   }
 
-  public void setIdleSince(Instant idleSince) {
-    this.idleSince.set(idleSince);
-  }
-
-  public ObjectProperty<Instant> idleSinceProperty() {
+  public ReadOnlyObjectProperty<Instant> idleSinceProperty() {
     return idleSince;
   }
 
@@ -305,6 +326,10 @@ public class Player {
     setStatus(PlayerStatus.fromDto(player.getState()));
     setCurrentGameUid(player.getCurrentGameUid());
     setAlias(player.getAlias()==null ? player.getLogin() : player.getAlias());
+
+    if (player.getAfkSeconds() != null) {
+      this.afkSeconds.set(player.getAfkSeconds());
+    }
 
     if (player.getRatings() != null) {
       Map<String, LeaderboardRating> ratingMap = new HashMap<>();

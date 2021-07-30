@@ -16,6 +16,7 @@ import com.faforever.client.teammatchmaking.MatchmakingQueue;
 import javafx.beans.property.ReadOnlyObjectProperty;
 
 import java.net.URL;
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -93,5 +94,7 @@ public interface FafServerAccessor {
 
   void setPartyFactions(List<Faction> factions);
 
-  public void setPlayerAlias(String alias);
+  void setPlayerAlias(String alias);
+
+  void resetIdleSince();
 }

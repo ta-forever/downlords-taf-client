@@ -61,6 +61,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.image.Image;
+import javafx.scene.input.InputEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundImage;
@@ -251,6 +252,8 @@ public class MainController implements Controller<Node> {
     leftMenuPane.getChildrenUnmodifiable().stream()
         .filter(menuItem -> menuItem.getUserData() instanceof NavigationItem)
         .forEach(menuItem -> menuItem.managedProperty().bind(menuItem.disabledProperty().not()));
+
+    StageHolder.getStage().getScene().addEventFilter(InputEvent.ANY, event -> fafService.resetIdleSince());
   }
 
   private List<MenuItem> createMenuItemsFromNavigation() {

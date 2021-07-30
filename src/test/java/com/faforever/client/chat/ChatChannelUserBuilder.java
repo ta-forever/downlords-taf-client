@@ -89,6 +89,11 @@ public final class ChatChannelUserBuilder {
     return this;
   }
 
+  public ChatChannelUserBuilder afkImage(Image afkImage) {
+    chatChannelUser.setAfkImage(afkImage);
+    return this;
+  }
+
   public ChatChannelUserBuilder statusImage(Image statusImage) {
     chatChannelUser.setGameStatusImage(statusImage);
     return this;

@@ -34,6 +34,8 @@ import static java.util.Locale.US;
 @RequiredArgsConstructor
 public class ChatUserService implements InitializingBean {
 
+  static public final long MIN_AFK_TIMEOUT_SECONDS = 10*60;
+
   private final UiService uiService;
   private final MapService mapService;
   private final AvatarService avatarService;
@@ -108,6 +110,7 @@ public class ChatUserService implements InitializingBean {
       chatChannelUser.setStatusTooltipText(null);
       chatChannelUser.setGameStatusImage(null);
       chatChannelUser.setMapImage(null);
+      chatChannelUser.setAfkImage(null);
     }
   }
 
@@ -148,6 +151,7 @@ public class ChatUserService implements InitializingBean {
       case PLAYING -> uiService.getThemeImage(UiService.CHAT_LIST_STATUS_PLAYING);
       default -> null;
     };
+
     Image mapImage;
     if (status != PlayerStatus.IDLE && player.getGame() != null) {
       String modTechnical = player.getGame().getFeaturedMod();
@@ -156,10 +160,20 @@ public class ChatUserService implements InitializingBean {
     } else {
       mapImage = null;
     }
+
+    Image afkImage;
+    if ((status == PlayerStatus.IDLE || status == PlayerStatus.HOSTING || status == PlayerStatus.JOINING) &&
+        player.getAfkSeconds() >= MIN_AFK_TIMEOUT_SECONDS) {
+      afkImage = uiService.getThemeImage(UiService.CHAT_LIST_STATUS_AFK);
+    } else {
+      afkImage = null;
+    }
+
     JavaFxUtil.runLater(() -> {
       chatChannelUser.setStatusTooltipText(i18n.get(status.getI18nKey()));
       chatChannelUser.setGameStatusImage(playerStatusImage);
       chatChannelUser.setMapImage(mapImage);
+      chatChannelUser.setAfkImage(afkImage);
     });
   }
 
@@ -178,6 +192,7 @@ public class ChatUserService implements InitializingBean {
       chatChannelUser.setStatusTooltipText(null);
       chatChannelUser.setGameStatusImage(null);
       chatChannelUser.setMapImage(null);
+      chatChannelUser.setAfkImage(null);
       chatChannelUser.setCountryFlag(null);
       chatChannelUser.setCountryName(null);
       chatChannelUser.setClan(null);
@@ -224,11 +239,19 @@ public class ChatUserService implements InitializingBean {
           chatChannelUser.setStatusTooltipText(null);
           chatChannelUser.setGameStatusImage(null);
           chatChannelUser.setMapImage(null);
+          chatChannelUser.setAfkImage(null);
           chatChannelUser.setCountryFlag(null);
           chatChannelUser.setCountryName(null);
           chatChannelUser.setClan(null);
           chatChannelUser.setAvatar(null);
         }
+      }
+    });
+    chatChannelUser.setAfkSecondsChangeListener((observable, oldValue, newValue) -> {
+      boolean wasAfk = oldValue.longValue() >= MIN_AFK_TIMEOUT_SECONDS;
+      boolean isAfk = newValue.longValue() >= MIN_AFK_TIMEOUT_SECONDS;
+      if (wasAfk != isAfk) {
+        populateGameImages(chatChannelUser);
       }
     });
   }

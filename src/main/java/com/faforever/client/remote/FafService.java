@@ -143,6 +143,8 @@ public class FafService {
     fafServerAccessor.sendGpgMessage(new GameEndedMessage());
   }
 
+  public void resetIdleSince() { fafServerAccessor.resetIdleSince(); }
+
   @Async
   public CompletableFuture<List<Leaderboard>> getLeaderboards() {
     return CompletableFuture.completedFuture(fafApiAccessor.getLeaderboards().stream()
