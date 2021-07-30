@@ -4,8 +4,8 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.game.GameService;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.remote.domain.GameStatus;
+import com.faforever.client.task.TaskService;
 import com.faforever.client.ui.StageHolder;
-import com.faforever.client.ui.taskbar.event.TaskBarNotifyEvent;
 import com.faforever.client.ui.tray.event.UpdateApplicationBadgeEvent;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -21,6 +21,7 @@ import javafx.scene.text.FontSmoothingType;
 import javafx.scene.text.TextAlignment;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 import java.awt.Font;
@@ -41,6 +42,8 @@ public class TrayIconManager implements InitializingBean {
   private final I18n i18n;
   private final EventBus eventBus;
   private final GameService gameService;
+  private final ApplicationContext applicationContext;
+  private final TaskService taskService;
   private int badgeCount;
 
   @Override
@@ -73,9 +76,11 @@ public class TrayIconManager implements InitializingBean {
             .mapToObj(power -> generateTrayIcon((int) Math.pow(2, power)))
             .map(image -> addBadge(image, badgeCount))
             .collect(Collectors.toList());
+
         if ((gameService.getCurrentGame() == null || gameService.getCurrentGameStatus() == GameStatus.STAGING) &&
             !StageHolder.getStage().isFocused() ) {
-          eventBus.post(new TaskBarNotifyEvent());
+          TaskBarFlashTask task = applicationContext.getBean(TaskBarFlashTask.class);
+          taskService.submitTask(task).getFuture();
         }
       }
       StageHolder.getStage().getIcons().setAll(icons);
