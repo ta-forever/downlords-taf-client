@@ -3,6 +3,9 @@ package com.faforever.client.ui.taskbar;
 import com.faforever.client.FafClientApplication;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.task.TaskService;
+import com.faforever.client.ui.taskbar.event.TaskBarNotifyEvent;
+import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
 import javafx.beans.Observable;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
@@ -33,14 +36,17 @@ public class WindowsTaskbarProgressUpdater implements InitializingBean {
   private final TaskService taskService;
   private final Executor executorService;
   private final ChangeListener<Number> progressUpdateListener;
+  private final EventBus eventBus;
 
   private ITaskbarList3 taskBarList;
   private Pointer<Integer> taskBarPointer;
 
-  public WindowsTaskbarProgressUpdater(TaskService taskService, ExecutorService executorService) {
+  public WindowsTaskbarProgressUpdater(TaskService taskService, ExecutorService executorService, EventBus eventBus) {
     this.taskService = taskService;
     this.executorService = executorService;
+    this.eventBus = eventBus;
     progressUpdateListener = (observable1, oldValue, newValue) -> updateTaskbarProgress(newValue.doubleValue());
+    eventBus.register(this);
   }
 
   @Override
@@ -86,6 +92,20 @@ public class WindowsTaskbarProgressUpdater implements InitializingBean {
         taskBarList.SetProgressState(taskBarPointer, ITaskbarList3.TbpFlag.TBPF_NORMAL);
         taskBarList.SetProgressValue(taskBarPointer, (int) (progress * 100), 100);
       }
+    });
+  }
+
+  @Subscribe
+  public void onTaskBarNotify(TaskBarNotifyEvent message) {
+    blink();
+  }
+
+  private void blink() {
+    executorService.execute(() -> {
+      if (taskBarPointer == null || taskBarList == null) {
+        return;
+      }
+      taskBarList.ActivateTab(taskBarPointer);
     });
   }
 }

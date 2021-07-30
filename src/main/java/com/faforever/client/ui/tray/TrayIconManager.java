@@ -5,6 +5,7 @@ import com.faforever.client.game.GameService;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.ui.StageHolder;
+import com.faforever.client.ui.taskbar.event.TaskBarNotifyEvent;
 import com.faforever.client.ui.tray.event.UpdateApplicationBadgeEvent;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -74,7 +75,7 @@ public class TrayIconManager implements InitializingBean {
             .collect(Collectors.toList());
         if ((gameService.getCurrentGame() == null || gameService.getCurrentGameStatus() == GameStatus.STAGING) &&
             !StageHolder.getStage().isFocused() ) {
-          StageHolder.getStage().toFront(); // highlights TAF in the taskbar
+          eventBus.post(new TaskBarNotifyEvent());
         }
       }
       StageHolder.getStage().getIcons().setAll(icons);
