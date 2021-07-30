@@ -501,7 +501,9 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
       return;
     }
 
-    serverWriter.write(message);
+    if (serverWriter != null) {
+      serverWriter.write(message);
+    }
   }
 
   public void onServerMessage(String message) {
