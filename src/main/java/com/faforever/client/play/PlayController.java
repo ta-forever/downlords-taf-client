@@ -71,6 +71,7 @@ public class PlayController extends AbstractViewController<Node> {
     gameDetailContainer.setContent(gameDetailController.getRoot());
     JavaFxUtil.bindManagedToVisible(gameDetailContainer);
     gameDetailContainer.setVisible(false);
+    JavaFxUtil.bindManagedToVisible(gameChatContainer);
 
     gameService.getCurrentGameProperty().addListener((obs, oldValue, newValue) -> {
       setCurrentGame(newValue);
@@ -92,6 +93,10 @@ public class PlayController extends AbstractViewController<Node> {
 
     mainChatController = ChatController.getController(mainChat);
     mainChatController.setUserListContainer(userListContainer);
+
+    mainViewContainer.widthProperty().addListener((obs, oldValue, newValue) -> setChatContainerOrientation());
+    mainViewContainer.heightProperty().addListener((obs, oldValue, newValue) -> setChatContainerOrientation());
+    setChatContainerOrientation();
   }
 
   @Override
@@ -119,8 +124,9 @@ public class PlayController extends AbstractViewController<Node> {
   }
 
   private void setCurrentGame(Game game) {
-    setGameChatBoxLayout(game);
+    enableGameChatBox(game != null);
     setGameChatBoxChannel(game);
+    setChatContainerOrientation();
   }
 
   private void setFocusedGame(Game game) {
@@ -138,23 +144,37 @@ public class PlayController extends AbstractViewController<Node> {
     }
   }
 
-  private void setGameChatBoxLayout(Game game) {
+  private void setChatContainerOrientation() {
+    if (!gameChatContainer.isVisible()) {
+      return;
+    }
+
+    double width = mainViewContainer.getWidth();
+    double height = mainViewContainer.getHeight();
+
+    if (width < height && !mainViewContainer.getItems().contains(gameChatContainer)) {
+      chatContainer.getItems().remove(gameChatContainer);
+      mainViewContainer.getItems().add(gameChatContainer);
+      mainViewContainer.setDividerPositions(0.333, 0.667);
+    }
+    else if (width > height && !chatContainer.getItems().contains(gameChatContainer)) {
+      mainViewContainer.getItems().remove(gameChatContainer);
+      chatContainer.getItems().add(gameChatContainer);
+      mainViewContainer.setDividerPositions(0.5);
+      chatContainer.setDividerPositions(0.499); // 0.5 doesn't work ... ??
+    }
+  }
+
+  private void enableGameChatBox(boolean enable) {
     double mainViewContainerWidth = mainViewContainer.getWidth();
 
-    if (mainViewContainerWidth > 0.0 && game != null) {
-      if (!gameChatContainer.isVisible()) {
-        chatContainer.setDividerPositions(0.5);
-        gameChatContainer.setVisible(true);
-      }
-      mainChatContainer.setMaxWidth(-1);
-      gameChatContainer.setMaxWidth(-1);
-      gameChat.setMaxWidth(-1);
+    if (mainViewContainerWidth > 0.0 && enable) {
+      gameChatContainer.setVisible(true);
     }
     else {
-      mainChatContainer.setMaxWidth(-1);
-      gameChatContainer.setMaxWidth(0.0);
-      gameChat.setMaxWidth(0.0);
       gameChatContainer.setVisible(false);
+      chatContainer.getItems().remove(gameChatContainer);
+      mainViewContainer.getItems().remove(gameChatContainer);
     }
   }
 }

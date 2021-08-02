@@ -4,7 +4,6 @@
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.StackPane?>
-
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.layout.VBox?>
 <StackPane fx:id="playRoot" maxHeight="1.7976931348623157E308" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.faforever.client.play.PlayController">
@@ -12,7 +11,7 @@
         <VBox fx:id="userListContainer" maxWidth="250" HBox.hgrow="NEVER"/>
         <SplitPane fx:id="mainViewContainer" dividerPositions="0.5" orientation="vertical" HBox.hgrow="ALWAYS">
             <fx:include fx:id="customGames" source="custom_games.fxml"></fx:include>
-            <SplitPane fx:id="chatContainer" dividerPositions="0.5" orientation="horizontal">
+            <SplitPane fx:id="chatContainer" orientation="horizontal">
                 <HBox fx:id="mainChatContainer">
                     <fx:include fx:id="mainChat" source="../chat/chat.fxml" HBox.hgrow="ALWAYS"/>
                 </HBox>
