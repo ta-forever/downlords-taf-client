@@ -34,6 +34,7 @@ import com.faforever.client.remote.domain.GameLaunchMessage;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.remote.domain.LoginMessage;
+import com.faforever.client.replay.Replay;
 import com.faforever.client.replay.ReplayServer;
 import com.faforever.client.task.ResourceLocks;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
@@ -73,10 +74,10 @@ import org.springframework.stereotype.Service;
 import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -95,6 +96,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.github.nocatch.NoCatch.noCatch;
+import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
@@ -119,6 +121,7 @@ public class GameService implements InitializingBean {
    */
   private final ObservableMap<Integer, Game> uidToGameInfoBean;
 
+  private final ClientProperties clientProperties;
   private final FafService fafService;
   private final TotalAnnihilationService totalAnnihilationService;
   private final MapService mapService;
@@ -175,6 +178,7 @@ public class GameService implements InitializingBean {
                      ReconnectTimerService reconnectTimerService,
                      ChatService chatService) {
 
+    this.clientProperties = clientProperties;
     this.fafService = fafService;
     this.totalAnnihilationService = totalAnnihilationService;
     this.mapService = mapService;
@@ -271,6 +275,8 @@ public class GameService implements InitializingBean {
           }
         }
     );
+
+    //createFakeGame();
   }
 
   @NotNull
@@ -419,32 +425,56 @@ public class GameService implements InitializingBean {
         });
   }
 
+  public CompletableFuture<Void> runWithReplay(String replayFileOrUrl, Replay replay) {
+    return runWithReplay(
+        replayFileOrUrl, replay.getId(), replay.getFeaturedMod().getTechnicalName(),
+        replay.getMap().getMapName(), replay.getMap().getCrc(), replay.getMap().getHpiArchiveName());
+  }
+
+  public CompletableFuture<Void> runWithReplay(String replayFileOrUrl, Game game) {
+    return runWithReplay(
+        replayFileOrUrl, game.getId(), game.getFeaturedMod(),
+        game.getMapName(), game.getMapCrc(), game.getMapArchiveName());
+  }
+
   /**
-   * @param path a replay file that is readable by the preferences without any further conversion
+   * @param replayFileOrUrl Either a path to a locally available file, or a url eg taforever.com:15000/1234
    */
-  public CompletableFuture<Void> runWithReplay(Path path, @Nullable Integer replayId, String featuredMod, Integer version, Map<String, Integer> modVersions, Set<String> simMods, String mapName) {
+  public CompletableFuture<Void> runWithReplay(String replayFileOrUrl, Integer replayId, String modTechnical,
+                                               String mapName, String mapCrc, String mapArchive) {
     if (!canStartReplay()) {
       return completedFuture(null);
     }
 
-    if (!preferencesService.isGameExeValid(featuredMod)) {
-      CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(featuredMod);
-      gameDirectoryFuture.thenAccept(pathSet -> runWithReplay(path, replayId, featuredMod, version, modVersions, simMods, mapName));
+    if (!preferencesService.isGameExeValid(modTechnical)) {
+      CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(modTechnical);
+      gameDirectoryFuture.thenAccept(pathSet -> runWithReplay(
+          replayFileOrUrl, replayId, modTechnical, mapName, mapCrc, mapArchive));
       return completedFuture(null);
     }
 
     onMatchmakerSearchStopped();
 
-    return modService.getFeaturedMod(featuredMod)
-        .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, version, modVersions, simMods))
+    return modService.getFeaturedMod(modTechnical)
+        //.thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, version, modVersions, simMods))
+        .thenCompose(aVoid -> mapService.ensureMap(modTechnical, mapName, mapCrc, mapArchive, null, null))
         .thenRun(() -> {
           try {
             if (isGameRunning()) {
               return;
             }
-            this.process = totalAnnihilationService.startReplay(featuredMod, path, replayId);
+
+            Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(modTechnical, replayId));
+            spawnGenericTerminationListener(launchServerProcess);
+
+            this.process = totalAnnihilationService.startReplay(modTechnical, replayFileOrUrl, replayId, getCurrentPlayer().getUsername());
             setRunningGameUid(replayId);
-            spawnGameTerminationListener(this.process, replayId);
+
+            BooleanProperty dismissTrigger = openProcessRunningDialog(this.process,
+                i18n.get("replay.running.title", replayId, replayFileOrUrl),
+                new File(replayFileOrUrl).exists() ? i18n.get("replay.running.text.local") : i18n.get("replay.running.text.live"));
+            spawnGameTerminationListener(this.process, replayId, dismissTrigger);
+
           } catch (IOException e) {
             notifyCantPlayReplay(replayId, e);
           }
@@ -453,6 +483,17 @@ public class GameService implements InitializingBean {
           notifyCantPlayReplay(replayId, throwable);
           return null;
         });
+  }
+
+  private BooleanProperty openProcessRunningDialog(Process process, String title, String text) {
+    ImmediateNotification notification = new ImmediateNotification(
+        title, text, Severity.INFO,
+        asList(
+            new Action(i18n.get("replay.running.terminate"), ev -> process.destroy())
+        ));
+    notification.setOverlayClose(false);
+    notificationService.addNotification(notification);
+    return notification.getDismissTrigger();
   }
 
   private boolean canStartReplay() {
@@ -509,38 +550,6 @@ public class GameService implements InitializingBean {
       log.error("Could not play replay '" + replayId + "'", throwable);
       notificationService.addImmediateErrorNotification(throwable, "replayCouldNotBeStarted");
     }
-  }
-
-  public CompletableFuture<Void> runWithLiveReplay(URI replayUrl, Integer gameId, String gameType, String mapName) {
-    if (!canStartReplay()) {
-      return completedFuture(null);
-    }
-
-    String modTechnicalName = modService.getFeaturedMod(gameType).join().getTechnicalName();
-    if (!preferencesService.isGameExeValid(modTechnicalName)) {
-      CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(modTechnicalName);
-      return gameDirectoryFuture.thenCompose(path -> runWithLiveReplay(replayUrl, gameId, gameType, mapName));
-    }
-
-    onMatchmakerSearchStopped();
-
-    Game gameBean = getByUid(gameId);
-
-    Map<String, Integer> modVersions = gameBean.getFeaturedModVersions();
-    Set<String> simModUids = gameBean.getSimMods().keySet();
-
-    return modService.getFeaturedMod(gameType)
-        .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, null, modVersions, simModUids))
-        .thenCompose(aVoid -> mapService.ensureMap(modTechnicalName, mapName, gameBean.getMapCrc(), gameBean.getMapArchiveName(), null, null))
-        .thenRun(() -> noCatch(() -> {
-          this.process = totalAnnihilationService.startReplay(modTechnicalName, replayUrl, gameId, getCurrentPlayer());
-          setRunningGameUid(gameId);
-          spawnGameTerminationListener(this.process, gameId);
-        }))
-        .exceptionally(throwable -> {
-          notifyCantPlayReplay(gameId, throwable);
-          return null;
-        });
   }
 
   @NotNull
@@ -739,10 +748,13 @@ public class GameService implements InitializingBean {
           Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(modTechnical, uid));
           spawnGenericTerminationListener(launchServerProcess);
 
+          String demoCompilerUrl = String.format("%s:%s/%s",
+              clientProperties.getReplay().getRemoteHost(), clientProperties.getReplay().getCompilerPort(), uid);
+
           process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, uid, args,
-              adapterPort, getCurrentPlayer(), ircUrl, autoLaunch));
+              adapterPort, getCurrentPlayer(), demoCompilerUrl, ircUrl, autoLaunch));
           setRunningGameUid(uid);
-          spawnGameTerminationListener(process, uid);
+          spawnGameTerminationListener(process, uid,  null);
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be started", throwable);
@@ -812,13 +824,16 @@ public class GameService implements InitializingBean {
 
   void submitLogs(int gameId) {
     log.info("[submitLogs] submitting logs to TAF for game ID={}", gameId);
-    Path logGpgnet4ta = preferencesService.getMostRecentLogFile("game").orElse(Path.of(""));
-    Path logLauncher = preferencesService.getMostRecentLogFile("talauncher").orElse(Path.of(""));
     Path logClient = preferencesService.getFafLogDirectory().resolve("client.log");
     Path logIceAdapter = preferencesService.getIceAdapterLogDirectory().resolve("ice-adapter.log");
+    Path logLauncher = preferencesService.getMostRecentLogFile("talauncher").orElse(Path.of(""));
+    Path logGpgnet4ta = preferencesService.getMostRecentLogFile("game").orElse(Path.of(""));
+    Path logReplay = preferencesService.getMostRecentLogFile("replay").orElse(Path.of(""));
     Path targetZipFile = preferencesService.getFafLogDirectory().resolve(String.format("game_logs_%d.zip", gameId));
     try {
-      File files[] = {logIceAdapter.toFile(), logClient.toFile(),logGpgnet4ta.toFile(), logLauncher.toFile()};
+      File files[] = {
+          logClient.toFile(), logIceAdapter.toFile(), logLauncher.toFile(),
+          logGpgnet4ta.toFile(), logReplay.toFile()};
       ZipUtil.zipFile(files, targetZipFile.toFile());
       ResourceLocks.acquireUploadLock();
       fafService.uploadGameLogs(targetZipFile, "game", gameId, (written, total) -> {});
@@ -831,7 +846,7 @@ public class GameService implements InitializingBean {
   }
 
   @VisibleForTesting
-  void spawnGameTerminationListener(Process process, int gameId) {
+  void spawnGameTerminationListener(Process process, int gameId, @Nullable BooleanProperty triggerTerminationHandler) {
     if (process == null) {
       return;
     }
@@ -850,6 +865,9 @@ public class GameService implements InitializingBean {
 
       JavaFxUtil.runLater(() -> {
         try {
+          if (triggerTerminationHandler != null) {
+            triggerTerminationHandler.setValue(true);
+          }
           setRunningGameUid(null);
           replayServer.stop();
           iceAdapter.stop();
@@ -1024,6 +1042,28 @@ public class GameService implements InitializingBean {
         platformService.focusWindow(faWindowTitle);
       }
     });
+  }
+
+  private void createFakeGame() {
+    Game fakeGame = new Game();
+    fakeGame.setId(7531);
+    fakeGame.setHost("TheArmCommander");
+    fakeGame.setTitle("testing please don't join");
+    fakeGame.setMapName("SHERWOOD");
+    fakeGame.setMapCrc("ead82fc5");
+    fakeGame.setMapArchiveName("totala2.hpi");
+    fakeGame.setFeaturedMod(KnownFeaturedMod.DEFAULT.getTechnicalName());
+    fakeGame.setNumPlayers(2);
+    fakeGame.setMaxPlayers(10);
+    fakeGame.setAverageRating(1000.0);
+    fakeGame.setRatingType("global");
+    fakeGame.setStatus(GameStatus.LIVE);
+    fakeGame.setStartTime(Instant.now().minusSeconds(270));
+    fakeGame.setGameType(GameType.CUSTOM);
+    synchronized (uidToGameInfoBean) {
+      uidToGameInfoBean.put(fakeGame.getId(), fakeGame);
+      eventBus.post(new GameAddedEvent(fakeGame));
+    }
   }
 
   private Game createOrUpdateGame(GameInfoMessage gameInfoMessage) {

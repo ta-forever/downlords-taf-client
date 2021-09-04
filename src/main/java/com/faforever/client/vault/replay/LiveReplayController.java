@@ -10,10 +10,10 @@ import com.faforever.client.game.MapPreviewTableCell;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.util.TimeService;
-import com.google.common.base.Joiner;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -35,9 +35,6 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.Map.Entry;
-import java.util.stream.Collectors;
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
@@ -48,6 +45,7 @@ public class LiveReplayController extends AbstractViewController<Node> {
   private final I18n i18n;
   private final MapService mapService;
   private final TimeService timeService;
+  private final ModService modService;
   public TableView<Game> liveReplayControllerRoot;
   public TableColumn<Game, Image> mapPreviewColumn;
   public TableColumn<Game, Instant> startTimeColumn;
@@ -58,12 +56,13 @@ public class LiveReplayController extends AbstractViewController<Node> {
   public TableColumn<Game, Game> watchColumn;
 
   public LiveReplayController(GameService gameService, UiService uiService, I18n i18n,
-                              MapService mapService, TimeService timeService) {
+                              MapService mapService, TimeService timeService, ModService modService) {
     this.gameService = gameService;
     this.uiService = uiService;
     this.i18n = i18n;
     this.mapService = mapService;
     this.timeService = timeService;
+    this.modService = modService;
 
     selectedGame = new SimpleObjectProperty<>();
   }
@@ -121,15 +120,8 @@ public class LiveReplayController extends AbstractViewController<Node> {
 
   @NotNull
   private ObservableValue<String> modCell(CellDataFeatures<Game, String> param) {
-    ObservableMap<String, String> simMods = param.getValue().getSimMods();
-    int simModCount = simMods.size();
-    List<String> modNames = simMods.entrySet().stream()
-        .limit(2)
-        .map(Entry::getValue)
-        .collect(Collectors.toList());
-    if (simModCount > 2) {
-      return new SimpleStringProperty(i18n.get("game.mods.twoAndMore", modNames.get(0), simMods.size() - 1));
-    }
-    return new SimpleStringProperty(Joiner.on(i18n.get("textSeparator")).join(modNames));
+    String modTechnical = param.getValue().getFeaturedMod();
+    String displayName = modService.getFeaturedModDisplayName(modTechnical);
+    return new SimpleStringProperty(displayName);
   }
 }

@@ -28,9 +28,9 @@ public class FileOpeningHandlerTest {
 
   @Test
   public void run() {
-    ApplicationArguments args = new DefaultApplicationArguments(new String[]{"foo.fafreplay"});
+    ApplicationArguments args = new DefaultApplicationArguments(new String[]{"foo.tad"});
     instance.run(args);
 
-    verify(replayService).runReplayFile(Paths.get("foo.fafreplay"));
+    verify(replayService).runReplayFile(Paths.get("foo.tad"));
   }
 }

@@ -27,7 +27,7 @@ import java.nio.file.Path;
 public class ReplayDownloadTask extends CompletableTask<Path> {
 
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-  private static final String TEMP_FAF_REPLAY_FILE_NAME = "temp.fafreplay";
+  private static final String TEMP_FAF_REPLAY_FILE_NAME = "%d.tad";
 
   private final I18n i18n;
   private final ClientProperties clientProperties;
@@ -56,7 +56,7 @@ public class ReplayDownloadTask extends CompletableTask<Path> {
     urlConnection.setInstanceFollowRedirects(true);
     int bytesToRead = urlConnection.getContentLength();
 
-    Path tempSupComReplayFile = preferencesService.getCacheDirectory().resolve(TEMP_FAF_REPLAY_FILE_NAME);
+    Path tempSupComReplayFile = preferencesService.getCacheDirectory().resolve(String.format(TEMP_FAF_REPLAY_FILE_NAME, replayId));
 
     Files.createDirectories(tempSupComReplayFile.getParent());
 

@@ -146,7 +146,6 @@ public class GameDetailController implements Controller<Pane> {
     });
     watchButton = watchButtonController.getRoot();
 
-    watchButton.managedProperty().bind(watchButton.visibleProperty());
     gameTitleLabel.managedProperty().bind(gameTitleLabel.visibleProperty());
     hostLabel.managedProperty().bind(hostLabel.visibleProperty());
     mapLabel.managedProperty().bind(mapLabel.visibleProperty());
@@ -159,6 +158,7 @@ public class GameDetailController implements Controller<Pane> {
     startButton.managedProperty().bind(autoJoinButton.visibleProperty().not());
     joinButton.managedProperty().bind(autoJoinButton.visibleProperty().not());
     autoJoinButton.managedProperty().bind(autoJoinButton.visibleProperty());
+    watchButton.managedProperty().bind(autoJoinButton.visibleProperty());
 
     // getStyle.contains doesn't work.  so we'll use this user data to track whether "activated" style has been applied
     autoJoinButton.setUserData(Boolean.FALSE);
@@ -222,7 +222,7 @@ public class GameDetailController implements Controller<Pane> {
     autoJoinButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && !isStagingRoomOpen && !isBattleRoomOpen);
     leaveButton.setVisible(isGameProcessRunning && isCurrentGame);
     startButton.setVisible(isGameProcessRunning && isCurrentGame && (isPlayerHosting && isStagingRoomOpen || isPlayerJoining && isBattleRoomOpen));
-    watchButton.setVisible(false);
+    watchButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && !isStagingRoomOpen && !isBattleRoomOpen);
 
     final String activatedStyleClass = "autojoin-game-button-active";
     if (autoJoinPrototype != null && this.game.get() != null && autoJoinPrototype.getId() == this.game.get().getId()) {
@@ -249,6 +249,12 @@ public class GameDetailController implements Controller<Pane> {
     });
 
     this.game.set(game);
+    if (game.getStartTime() == null) {
+      game.startTimeProperty().addListener((obs, oldValue, newValue) -> this.watchButtonController.setGame(game));
+    }
+    else {
+      this.watchButtonController.setGame(game);
+    }
 
     gameTitleLabel.textProperty().bind(game.titleProperty());
     hostLabel.textProperty().bind(game.hostProperty());

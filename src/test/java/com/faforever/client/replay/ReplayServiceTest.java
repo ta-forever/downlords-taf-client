@@ -419,7 +419,7 @@ public class ReplayServiceTest {
 
     when(replayFileReader.readRawReplayData(replayFile)).thenReturn(REPLAY_FIRST_BYTES);
 
-    instance.runReplay(replay);
+    instance.runDownloadReplay(replay);
 
     verify(taskService).submitTask(replayDownloadTask);
     verify(gameService).runWithReplay(replayFile, null, "faf", 3599, emptyMap(), emptySet(), TEST_MAP_NAME);
@@ -436,7 +436,7 @@ public class ReplayServiceTest {
     when(applicationContext.getBean(ReplayDownloadTask.class)).thenReturn(replayDownloadTask);
     Replay replay = new Replay();
 
-    instance.runReplay(replay);
+    instance.runDownloadReplay(replay);
 
     verify(notificationService).addImmediateErrorNotification(any(Throwable.class), anyString(), anyInt());
     verifyNoMoreInteractions(gameService);
@@ -444,12 +444,12 @@ public class ReplayServiceTest {
 
   @Test
   public void testRunLiveReplay() throws Exception {
-    when(gameService.runWithLiveReplay(any(URI.class), anyInt(), anyString(), anyString()))
+    when(gameService.runWithReplay(anyString(), anyInt(), anyString(), anyString(), anyString(), anyString()))
         .thenReturn(CompletableFuture.completedFuture(null));
 
     instance.runLiveReplay(new URI("faflive://example.com/123/456.scfareplay?mod=faf&map=map%20name"));
 
-    verify(gameService).runWithLiveReplay(new URI("gpgnet://example.com/123/456.scfareplay"), 123, "faf", "map name");
+    verify(gameService).runWithReplay("gpgnet://example.com/123/456.tad", 123, "faf", "map name", "00000000", "Totala2.hpi");
   }
 
   @Test

@@ -41,7 +41,7 @@ public class ReplayFileWriterImpl implements ReplayFileWriter {
   public void writeReplayDataToFile(ByteArrayOutputStream replayData, LocalReplayInfo replayInfo) throws IOException {
     String fileName = String.format(clientProperties.getReplay().getReplayFileFormat(), replayInfo.getUid(), replayInfo.getRecorder());
     Path replayFile = preferencesService.getReplaysDirectory().resolve(fileName);
-    Path temporaryReplayFile = Files.createTempFile(preferencesService.getCacheDirectory(), fileName, "fafreplay");
+    Path temporaryReplayFile = Files.createTempFile(preferencesService.getCacheDirectory(), fileName, "tad");
 
     logger.info("Writing replay file to {} ({})", replayFile, Bytes.formatSize(replayData.size(), i18n.getUserSpecificLocale()));
 

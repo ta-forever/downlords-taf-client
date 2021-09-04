@@ -188,8 +188,8 @@ public class CoopController extends AbstractViewController<Node> {
   }
 
   private void onReplayButtonClicked(ReplayButtonController button) {
-    String replayId = button.getReplayId();
-    replayService.runReplay(Integer.valueOf(replayId));
+//    String replayId = button.getReplayId();
+//    replayService.runReplay(Integer.valueOf(replayId));
   }
 
   private ListCell<Integer> numberOfPlayersCell() {

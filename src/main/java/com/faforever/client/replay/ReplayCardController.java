@@ -147,6 +147,6 @@ public class ReplayCardController implements Controller<Node> {
   }
 
   public void onWatchButtonClicked() {
-    replayService.runReplay(replay);
+    replayService.runDownloadReplay(replay);
   }
 }

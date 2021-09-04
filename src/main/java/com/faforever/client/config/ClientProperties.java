@@ -91,10 +91,18 @@ public class ClientProperties {
   public static class Replay {
     private String remoteHost;
     private int remotePort = 15000;
-    private String replayFileFormat = "%d-%s.fafreplay";
-    private String replayFileGlob = "*.fafreplay";
+    private String replayFileFormat = "%d-%s.tad";
+    private String replayFileGlob = "*.tad";
     // TODO this should acutally be reported by the server
     private int watchDelaySeconds = 300;
+
+    public int getCompilerPort() {  // the demo compiler gathers game data from each player to compile a .tad file
+      return remotePort;
+    }
+
+    public int getReplayServerPort() {  // the replay server plays back the .tad file recorded by the demo compiler
+      return remotePort +1;
+    }
   }
 
   @Data

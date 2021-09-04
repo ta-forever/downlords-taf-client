@@ -12,6 +12,7 @@ import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.event.CurrentPlayerInfo;
 import com.faforever.client.remote.domain.GameStatus;
+import com.faforever.client.vault.replay.WatchButtonController;
 import com.google.common.base.Joiner;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -81,7 +82,9 @@ public class GameTileController implements Controller<Node> {
   public Button autoJoinButton;
   public Button leaveButton;
   public Button startButton;
+  public Node watchButton;
 
+  public WatchButtonController watchButtonController;
   private InvalidationListener thisGameStatusInvalidationListener;
   private WeakInvalidationListener weakThisGameStatusListener;
 
@@ -102,6 +105,8 @@ public class GameTileController implements Controller<Node> {
   }
 
   public void initialize() {
+    watchButton = watchButtonController.getRoot();
+
     modsLabel.managedProperty().bind(modsLabel.visibleProperty());
     modsLabel.visibleProperty().bind(modsLabel.textProperty().isNotEmpty());
     gameTypeLabel.managedProperty().bind(gameTypeLabel.visibleProperty());
@@ -112,6 +117,7 @@ public class GameTileController implements Controller<Node> {
     startButton.managedProperty().bind(autoJoinButton.visibleProperty().not());
     joinButton.managedProperty().bind(autoJoinButton.visibleProperty().not());
     autoJoinButton.managedProperty().bind(autoJoinButton.visibleProperty());
+    watchButton.managedProperty().bind(autoJoinButton.visibleProperty());
 
     // getStyle.contains doesn't work.  so we'll use this user data to track whether "activated" style has been applied
     autoJoinButton.setUserData(Boolean.FALSE);
@@ -176,6 +182,7 @@ public class GameTileController implements Controller<Node> {
     autoJoinButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && !isStagingRoomOpen && !isBattleRoomOpen);
     leaveButton.setVisible(isGameProcessRunning && isCurrentGame);
     startButton.setVisible(isGameProcessRunning && isCurrentGame && (isPlayerHosting && isStagingRoomOpen || isPlayerJoining && isBattleRoomOpen));
+    watchButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && !isStagingRoomOpen && !isBattleRoomOpen);
 
     final String activatedStyleClass = "autojoin-game-button-active";
     if (autoJoinPrototype != null && this.game != null && autoJoinPrototype.getId() == this.game.getId()) {
@@ -197,6 +204,12 @@ public class GameTileController implements Controller<Node> {
   public void setGame(Game game) {
     Assert.isNull(this.game, "Game has already been set");
     this.game = game;
+    if (game.getStartTime() == null) {
+      game.startTimeProperty().addListener((obs, oldValue, newValue) -> this.watchButtonController.setGame(game));
+    }
+    else {
+      this.watchButtonController.setGame(game);
+    }
 
     modService.getFeaturedMod(game.getFeaturedMod())
         .thenAccept(featuredModBean -> JavaFxUtil.runLater(() -> gameTypeLabel.setText(StringUtils.defaultString(featuredModBean.getDisplayName()))));

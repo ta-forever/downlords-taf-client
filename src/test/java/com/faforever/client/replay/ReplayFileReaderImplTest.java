@@ -28,7 +28,7 @@ public class ReplayFileReaderImplTest {
   @Test
   public void readReplayData() throws Exception {
     Path tempFile = temporaryFolder.getRoot().toPath().resolve("replay.tmp");
-    try (InputStream inputStream = new BufferedInputStream(getClass().getResourceAsStream("/replay/test.fafreplay"))) {
+    try (InputStream inputStream = new BufferedInputStream(getClass().getResourceAsStream("/replay/test.tad"))) {
       Files.copy(inputStream, tempFile);
     }
     assertThat(instance.readRawReplayData(tempFile).length, is(197007));

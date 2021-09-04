@@ -2,7 +2,12 @@
 
 
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Tooltip?>
 <Button xmlns:fx="http://javafx.com/fxml/1" fx:id="watchButton" disable="true" maxHeight="1.7976931348623157E308"
         maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false"
         xmlns="http://javafx.com/javafx/8.0.141"
-        fx:controller="com.faforever.client.vault.replay.WatchButtonController"/>
+        styleClass="watch-game-button"
+        fx:controller="com.faforever.client.vault.replay.WatchButtonController">
+    <tooltip><Tooltip text="%game.watch.tooltip"></Tooltip></tooltip>
+</Button>
+

@@ -46,7 +46,7 @@ public class WatchButtonController implements Controller<Node> {
     delayTimeline.setCycleCount(Timeline.INDEFINITE);
 
     watchButton.setDisable(true);
-    watchButton.setOnAction(event -> replayService.runLiveReplay(game.getId()));
+    watchButton.setOnAction(event -> replayService.runLiveReplay(game));
   }
 
   public void setGame(Game game) {

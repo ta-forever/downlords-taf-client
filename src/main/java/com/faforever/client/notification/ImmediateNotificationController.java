@@ -3,6 +3,7 @@ package com.faforever.client.notification;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.ui.dialog.DialogLayout;
+import javafx.beans.property.BooleanProperty;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
@@ -31,6 +32,7 @@ public class ImmediateNotificationController implements Controller<Node> {
   public Label helpText;
   public VBox immediateNotificationRoot;
   private Runnable closeListener;
+  private BooleanProperty dismissTrigger;
 
   public ImmediateNotificationController() {
     dialogLayout = new DialogLayout();
@@ -68,6 +70,13 @@ public class ImmediateNotificationController implements Controller<Node> {
     if (notification.getCustomUI() != null) {
       immediateNotificationRoot.getChildren().add(notification.getCustomUI());
     }
+
+    dismissTrigger = notification.getDismissTrigger();
+    dismissTrigger.addListener((obs, oldValue, newValue) -> {
+      if (newValue) {
+        dismiss();
+      }
+    });
     return this;
   }
 

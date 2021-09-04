@@ -16,7 +16,6 @@ import java.lang.invoke.MethodHandles;
 import java.net.Inet4Address;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -51,9 +50,9 @@ public class TotalAnnihilationService {
     return Paths.get(nativeDir).resolve("bin");
   }
 
-  private List<String> getRegisterDplayCommand(String gameMod, Path gamePath, Path gameExe, String gameArgs, int gameGUID) {
+  private List<String> getRegisterDplayCommand(String gameMod, Path gamePath, Path gameExe, String gameArgs, int gameId) {
     Path exePath = getNativeGpgnet4taDir().resolve("talauncher.exe");
-    Path logFile = preferencesService.getNewLogFile("registerdplay", gameGUID);
+    Path logFile = preferencesService.getNewLogFile("registerdplay", gameId);
 
     List<String> command = new ArrayList<>();
     if (org.bridj.Platform.isLinux()) {
@@ -100,9 +99,9 @@ public class TotalAnnihilationService {
   }
 
   private List<String> getGpgNet4TaCommand(
-      String bindAddress, int consolePort,
-      String gameMod, Path gamePath, boolean autoLaunch, boolean lockOptions, int players, boolean proactiveResend,
-      String gpgNetUrl, @Nullable String ircUrl, Path logFile, int launchServerPort
+      String bindAddress, int consolePort, String gameMod, Path gamePath, boolean autoLaunch, boolean lockOptions,
+      int players, boolean proactiveResend, String gpgNetUrl, String demoCompilerUrl, @Nullable String ircUrl,
+      Path logFile, int launchServerPort
   ) {
     Path exePath = getNativeGpgnet4taDir().resolve(org.bridj.Platform.isLinux() ? "gpgnet4ta" : "gpgnet4ta.exe");
 
@@ -116,7 +115,8 @@ public class TotalAnnihilationService {
         "--players", String.valueOf(players),
         "--gpgnet", gpgNetUrl,
         "--logfile", logFile.toString(),
-        "--launchserverport", String.valueOf(launchServerPort)
+        "--launchserverport", String.valueOf(launchServerPort),
+        "--democompilerurl", demoCompilerUrl
     ));
 
     if (autoLaunch) {
@@ -145,6 +145,27 @@ public class TotalAnnihilationService {
       command.add("wine");
     }
     command.add(totalA.toString());
+    return command;
+  }
+
+  private List<String> getReplayCommand(String modTechnical, String replayUrlOrPath, String playerName,
+                                        Path logFile, int launchServerPort) {
+    Path exePath = getNativeGpgnet4taDir().resolve("replayer.exe");
+
+    List<String> command = new ArrayList<>();
+    if (org.bridj.Platform.isLinux()) {
+      command.add("wine");
+    }
+
+    command.addAll(List.of(
+        exePath.toAbsolutePath().toString(),
+        "--gamemod", modTechnical,
+        "--demourl", replayUrlOrPath,
+        "--logfile", logFile.toString(),
+        "--playername", playerName,
+        "--launchserverport", String.valueOf(launchServerPort)
+    ));
+
     return command;
   }
 
@@ -248,7 +269,7 @@ public class TotalAnnihilationService {
   }
 
   public Process startGame(String modTechnical, int uid, @Nullable List<String> additionalArgs, int gpgPort,
-                           Player currentPlayer, String ircUrl, boolean autoLaunch) throws IOException {
+                           Player currentPlayer, String demoCompilerUrl, String ircUrl, boolean autoLaunch) throws IOException {
     this.linuxFree47624();
     this.consolePort = getFreeTcpPort();
 
@@ -265,21 +286,30 @@ public class TotalAnnihilationService {
     String gpgNetUrl = String.format("%s:%d", loopbackAddress, gpgPort);
 
     List<String> gpgnet4taCommand = getGpgNet4TaCommand(
-        loopbackAddress, this.consolePort,
-        prefs.getBaseGameName(), prefs.getInstalledPath(), autoLaunch, false, 10, proactiveResend,
-        gpgNetUrl, ircUrl, preferencesService.getNewLogFile("game", uid), this.launchServerPort);
+        loopbackAddress, this.consolePort, prefs.getBaseGameName(), prefs.getInstalledPath(), autoLaunch,
+        false, 10, proactiveResend, gpgNetUrl, demoCompilerUrl, ircUrl,
+        preferencesService.getNewLogFile("game", uid), this.launchServerPort);
 
     return launch(getNativeGpgnet4taDir(), gpgnet4taCommand);
   }
 
+  public Process startReplay(String modTechnical, String replayUrlOrPath, Integer replayId, String playerName) throws IOException {
+    this.linuxFree47624();
 
-  public Process startReplay(String modTechnical, Path path, @Nullable Integer replayId) throws IOException {
-    return startGameOffline(modTechnical, null);
-  }
+    TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
+    List<String> registerDplayCommand = getRegisterDplayCommand(
+        prefs.getBaseGameName(), prefs.getInstalledPath(), prefs.getInstalledExePath().getFileName(),
+        prefs.getCommandLineOptions(), replayId);
+    try {
+      this.launch(getNativeGpgnet4taDir(), registerDplayCommand).waitFor();
+    } catch (InterruptedException e) {
+      logger.warn("Interrupted exception waiting for dplay registration: {}", e.getMessage());
+    }
 
+    List<String> replayCommand = getReplayCommand(modTechnical, replayUrlOrPath, playerName,
+        preferencesService.getNewLogFile("replay", replayId), this.launchServerPort);
 
-  public Process startReplay(String modTechnical, URI replayUri, Integer replayId, Player currentPlayer) throws IOException {
-    return startGameOffline(modTechnical, null);
+    return launch(getNativeGpgnet4taDir(), replayCommand);
   }
 
   private void linuxFree47624() {

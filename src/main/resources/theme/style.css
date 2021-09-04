@@ -646,6 +646,10 @@
   -fx-background-color: -fx-accent;
 }
 
+.watch-game-button  {
+  -fx-background-color: -fx-background;
+}
+
 .autojoin-game-button-active {
   -fx-background-color: -fx-background;
   -fx-border-width: 2;

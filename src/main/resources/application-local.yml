@@ -6,8 +6,8 @@ faf-client:
     host: 192.168.1.109
 
   vault:
-    base-url: http://192.168.1.109
-    replay-download-url-format: https://replay.taforever.com/%s
+    base-url: https://content.taforever.com
+    replay-download-url-format: http://192.168.1.109/replays/0/0/0/1/%s.tad
 
   news:
     feed-url: https://direct.taforever.com/news/feed

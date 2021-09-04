@@ -420,7 +420,7 @@ public class ReplayDetailController implements Controller<Node> {
   }
 
   public void onWatchButtonClicked() {
-    replayService.runReplay(replay);
+    replayService.runDownloadReplay(replay);
   }
 
 

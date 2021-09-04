@@ -59,6 +59,8 @@ faf-client:
         url: https://discord.gg/V9fmjnbV6e
       - title: TA Universe
         url: https://discord.gg/Z4hJpVbmyW
+      - title: TA Mayhem
+        url: https://discord.gg/y83tKZyrAW
 
 spring:
   profiles:

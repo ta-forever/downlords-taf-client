@@ -41,7 +41,7 @@ public class FileOpeningHandler implements ApplicationRunner, InitializingBean {
   }
 
   private void runReplay(Path filePath) {
-    replayService.runReplayFile(filePath);
+    //replayService.runReplayFile(filePath);
   }
 
   @Override

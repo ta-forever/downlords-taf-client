@@ -697,7 +697,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
   @Test
   public void runWithLiveReplayIfNoGameSet() {
     when(preferencesService.isGameExeValid(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(false);
-    instance.runWithLiveReplay(null, null, null, null);
+    instance.runWithReplay(null, null, null, null, null, null);
     verify(eventBus).post(any(GameDirectoryChooseEvent.class));
   }
 
@@ -780,7 +780,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
   @Test
   public void runWithLiveReplayInMatchmakerQueue() {
     instance.getInMatchmakerQueueProperty().setValue(true);
-    instance.runWithLiveReplay(null, null, null, null);
+    instance.runWithReplay(null, null, null, null, null, null);
     WaitForAsyncUtils.waitForFxEvents();
     verify(notificationService).addImmediateWarnNotification("replay.inQueue");
   }
@@ -796,7 +796,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
   @Test
   public void runWithLiveReplayInParty() {
     instance.getInOthersPartyProperty().setValue(true);
-    instance.runWithLiveReplay(null, null, null, null);
+    instance.runWithReplay(null, null, null, null, null, null);
     WaitForAsyncUtils.waitForFxEvents();
     verify(notificationService).addImmediateWarnNotification("replay.inParty");
   }

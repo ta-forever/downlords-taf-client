@@ -41,6 +41,7 @@ public class LaunchCommandBuilder {
 
   private Integer launchServerPort;
   private boolean startLaunchServer;
+  private String tadCompilerUrl;
 
   public static LaunchCommandBuilder create() {
     return new LaunchCommandBuilder();
@@ -156,6 +157,11 @@ public class LaunchCommandBuilder {
     return this;
   }
 
+  public LaunchCommandBuilder tadCompilerUrl(String host, int port, int gameId) {
+    this.tadCompilerUrl = String.format("{}:{}/{}", host, port, gameId);
+    return this;
+  }
+
   public List<String> build() {
     checkNullIllegalState(gpgnet4taExecutable, "gpgnet4ta executable has not been set");
     Assert.state(!(replayUri != null && uid != null), "uid and replayUri cannot be set at the same time");
@@ -246,6 +252,11 @@ public class LaunchCommandBuilder {
     if (consolePort != null) {
       command.add("--consoleport");
       command.add(String.valueOf(consolePort));
+    }
+
+    if (tadCompilerUrl != null) {
+      command.add("--tadcompilerurl");
+      command.add(tadCompilerUrl);
     }
 
     if (additionalArgs != null) {

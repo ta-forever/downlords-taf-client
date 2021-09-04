@@ -313,7 +313,7 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
   public void onWatchGameSelected() {
     Player player = getPlayer();
     try {
-      replayService.runLiveReplay(player.getGame().getId());
+      replayService.runLiveReplay(player.getGame());
     } catch (Exception e) {
       log.error("Cannot display live replay", e.getCause());
       notificationService.addImmediateErrorNotification(e, "replays.live.loadFailure.message");

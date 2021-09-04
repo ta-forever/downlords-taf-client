@@ -492,7 +492,7 @@ public class MapService implements InitializingBean, DisposableBean {
           .filter(mapName -> preExistingMaps.containsKey(mapName))
           .map(mapName -> preExistingMaps.get(mapName).getHpiArchiveName())
           .distinct()
-          .filter(archive -> !archive.equals(newArchive.getFileName()))
+          .filter(archive -> !archive.equals(newArchive.getFileName().toString()))
           .forEach(archive -> removeArchive(installationPath.resolve(archive)));
     }
     catch (IOException e) {
@@ -517,7 +517,9 @@ public class MapService implements InitializingBean, DisposableBean {
             Severity.INFO, Collections.singletonList(new DismissAction(i18n))));
         return;
       }
-    } catch (IOException e) { }
+    } catch (IOException e) {
+      logger.warn("Deleting archive {} failed", archivePath);
+    }
 
     try {
       if (Files.exists(cachedArchivePath)) {

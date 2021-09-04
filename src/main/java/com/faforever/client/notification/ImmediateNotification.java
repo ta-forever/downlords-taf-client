@@ -1,5 +1,7 @@
 package com.faforever.client.notification;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.Parent;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -22,9 +24,20 @@ public class ImmediateNotification {
   private final Throwable throwable;
   private final List<Action> actions;
   private final Parent customUI;
+  private boolean overlayClose = true;  // set to false if clicking outside the notification should NOT dismiss the notification
+  private BooleanProperty dismissTrigger;
+
+  /// @brief Retrieve and retain this property if you need to later programmatically dismiss the notification.
+  /// Set the property value to true when you want to do that.
+  public BooleanProperty getDismissTrigger() {
+    if (dismissTrigger == null) {
+      dismissTrigger = new SimpleBooleanProperty(false);
+    }
+    return dismissTrigger;
+  }
 
   public ImmediateNotification(String title, String text, Severity severity) {
-    this(title, text, severity, null);
+    this(title, text, severity, null, null, null);
   }
 
   public ImmediateNotification(String title, String text, Severity severity, List<Action> actions) {
@@ -38,4 +51,5 @@ public class ImmediateNotification {
   public ImmediateNotification(String title, String text, Severity severity, List<Action> actions, Parent customUI) {
     this(title, text, severity, null, actions, customUI);
   }
+
 }
