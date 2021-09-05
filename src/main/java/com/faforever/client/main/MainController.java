@@ -285,14 +285,15 @@ public class MainController implements Controller<Node> {
 
   @Subscribe
   public void onUnreadPartyMessage(UnreadPartyMessageEvent event) {
-    JavaFxUtil.runLater(() -> {
-      if (event.getMessage().getSource().matches(CUSTOM_GAME_CHANNEL_REGEX)) {
-        playButton.pseudoClassStateChanged(HIGHLIGHTED, !currentItem.equals(NavigationItem.PLAY));
-      }
-      else {
-        matchmakerButton.pseudoClassStateChanged(HIGHLIGHTED, !currentItem.equals(NavigationItem.MATCHMAKER));
-      }
-    });
+    if (event.getMessage().getSource() != null) {
+      JavaFxUtil.runLater(() -> {
+        if (event.getMessage().getSource().matches(CUSTOM_GAME_CHANNEL_REGEX)) {
+          playButton.pseudoClassStateChanged(HIGHLIGHTED, !currentItem.equals(NavigationItem.PLAY));
+        } else {
+          matchmakerButton.pseudoClassStateChanged(HIGHLIGHTED, !currentItem.equals(NavigationItem.MATCHMAKER));
+        }
+      });
+    }
   }
 
   @Subscribe
