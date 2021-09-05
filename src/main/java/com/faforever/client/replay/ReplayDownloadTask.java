@@ -2,9 +2,11 @@ package com.faforever.client.replay;
 
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.io.DownloadService;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.task.CompletableTask;
 import com.faforever.commons.io.ByteCopier;
+import com.faforever.commons.io.Unzipper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -27,50 +29,51 @@ import java.nio.file.Path;
 public class ReplayDownloadTask extends CompletableTask<Path> {
 
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-  private static final String TEMP_FAF_REPLAY_FILE_NAME = "%d.tad";
 
   private final I18n i18n;
   private final ClientProperties clientProperties;
   private final PreferencesService preferencesService;
+  private final DownloadService downloadService;
 
   private int replayId;
 
   @Inject
-  public ReplayDownloadTask(I18n i18n, ClientProperties clientProperties, PreferencesService preferencesService) {
+  public ReplayDownloadTask(I18n i18n, ClientProperties clientProperties, PreferencesService preferencesService,
+                            DownloadService downloadService) {
     super(Priority.HIGH);
 
     this.i18n = i18n;
     this.clientProperties = clientProperties;
     this.preferencesService = preferencesService;
+    this.downloadService = downloadService;
   }
 
   @Override
   protected Path call() throws Exception {
     updateTitle(i18n.get("mapReplayTask.title", replayId));
 
-    String replayUrl = Replay.getReplayUrl(replayId, clientProperties.getVault().getReplayDownloadUrlFormat());
+    URL replayUrl = new URL(Replay.getReplayUrl(replayId, clientProperties.getVault().getReplayDownloadUrlFormat()));
+    Path tadPath = preferencesService.getCacheDirectory().resolve("replays").resolve(String.format("%d.tad", replayId));
 
     logger.info("Downloading replay {} from {}", replayId, replayUrl);
-
-    HttpURLConnection urlConnection = (HttpURLConnection) new URL(replayUrl).openConnection();
+    HttpURLConnection urlConnection = (HttpURLConnection) replayUrl.openConnection();
     urlConnection.setInstanceFollowRedirects(true);
-    int bytesToRead = urlConnection.getContentLength();
 
-    Path tempSupComReplayFile = preferencesService.getCacheDirectory().resolve(String.format(TEMP_FAF_REPLAY_FILE_NAME, replayId));
-
-    Files.createDirectories(tempSupComReplayFile.getParent());
-
-    try (InputStream inputStream = new BufferedInputStream(urlConnection.getInputStream());
-         OutputStream outputStream = new BufferedOutputStream(Files.newOutputStream(tempSupComReplayFile))) {
-
-      ByteCopier.from(inputStream)
-          .to(outputStream)
-          .totalBytes(bytesToRead)
-          .listener(this::updateProgress)
-          .copy();
-
-      return tempSupComReplayFile;
+    try (InputStream inputStream = urlConnection.getInputStream()) {
+      if (urlConnection.getContentType().equals("application/zip")) {
+        Unzipper.from(inputStream)
+            .zipBombByteCountThreshold(100_000_000)
+            .to(tadPath.getParent())
+            .totalBytes(urlConnection.getContentLength())
+            .listener(this::updateProgress) // @todo this only notifies progress on each file within the zip??c
+            .unzip();
+      }
+      else {
+        downloadService.downloadFile(replayUrl, tadPath, this::updateProgress);
+      }
     }
+
+    return tadPath;
   }
 
 

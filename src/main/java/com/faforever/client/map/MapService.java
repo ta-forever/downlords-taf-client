@@ -557,23 +557,29 @@ public class MapService implements InitializingBean, DisposableBean {
     return ensureMap(modTechnicalName, map.getMapName(), map.getCrc(), map.getHpiArchiveName(), progressProperty, titleProperty);
   }
 
-  public CompletableFuture<Void> ensureMap(String modTechnicalName, String mapName, String mapCrc, String downloadHpiArchiveName, @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
+  /// @note even if mapName etc are null, will still check for TA_features_2013.ccx
+  public CompletableFuture<Void> ensureMap(
+      String modTechnicalName,
+      @Nullable String mapName, @Nullable String mapCrc, @Nullable String downloadHpiArchiveName,
+      @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
+
     Path installationPath = preferencesService.getTotalAnnihilation(modTechnicalName).getInstalledPath();
     List<String> downloadList = new ArrayList<>();
     if (!Files.exists(installationPath.resolve(HPI_ARCHIVE_TA_FEATURES_2013))) {
       downloadList.add(HPI_ARCHIVE_TA_FEATURES_2013);
     }
 
-    MapBean installedMap = getInstallation(modTechnicalName).mapsByName.getOrDefault(mapName, null);
-    if (installedMap != null && installedMap.getMapName().equals(mapName) &&
-        (installedMap.getCrc().equals("00000000") || installedMap.getCrc().equals(mapCrc))) {
-      logger.info("{}/{}/{} already installed", installedMap.getHpiArchiveName(), installedMap.getMapName(), installedMap.getCrc());
-    }
-    else {
-      downloadList.add(downloadHpiArchiveName);
-      if (installedMap != null) {
-        // but crc is different
-        removeArchive(installationPath.resolve(installedMap.getHpiArchiveName()));
+    if (mapName != null && mapCrc != null && downloadHpiArchiveName != null) {
+      MapBean installedMap = getInstallation(modTechnicalName).mapsByName.getOrDefault(mapName, null);
+      if (installedMap != null && installedMap.getMapName().equals(mapName) &&
+          (installedMap.getCrc().equals("00000000") || installedMap.getCrc().equals(mapCrc))) {
+        logger.info("{}/{}/{} already installed", installedMap.getHpiArchiveName(), installedMap.getMapName(), installedMap.getCrc());
+      } else {
+        downloadList.add(downloadHpiArchiveName);
+        if (installedMap != null) {
+          // but crc is different
+          removeArchive(installationPath.resolve(installedMap.getHpiArchiveName()));
+        }
       }
     }
 
@@ -599,13 +605,15 @@ public class MapService implements InitializingBean, DisposableBean {
     // we already removed any pre-existing archive containing mapName, but the new archive might contain other maps that conflict with existing archives
     HashMap<String,MapBean> existingMaps = new HashMap<>();
     existingMaps.putAll(getInstallation(modTechnicalName).mapsByName);
-    future = future.thenRun(() -> {
-      removeConflictingArchives(
-        modTechnicalName,
-        existingMaps,
-        installationPath.resolve(downloadHpiArchiveName));
-      getInstallation(modTechnicalName).downloadingList.removeIf(archive -> Arrays.asList(downloadHpiArchiveName,HPI_ARCHIVE_TA_FEATURES_2013).contains(archive));
-    });
+    if (downloadHpiArchiveName != null) {
+      future = future.thenRun(() -> {
+        removeConflictingArchives(
+            modTechnicalName,
+            existingMaps,
+            installationPath.resolve(downloadHpiArchiveName));
+        getInstallation(modTechnicalName).downloadingList.removeIf(archive -> Arrays.asList(downloadHpiArchiveName, HPI_ARCHIVE_TA_FEATURES_2013).contains(archive));
+      });
+    }
     return future;
   }
 

@@ -426,9 +426,15 @@ public class GameService implements InitializingBean {
   }
 
   public CompletableFuture<Void> runWithReplay(String replayFileOrUrl, Replay replay) {
-    return runWithReplay(
-        replayFileOrUrl, replay.getId(), replay.getFeaturedMod().getTechnicalName(),
-        replay.getMap().getMapName(), replay.getMap().getCrc(), replay.getMap().getHpiArchiveName());
+    if (replay.getMap() != null) {
+      return runWithReplay(
+          replayFileOrUrl, replay.getId(), replay.getFeaturedMod().getTechnicalName(),
+          replay.getMap().getMapName(), replay.getMap().getCrc(), replay.getMap().getHpiArchiveName());
+    }
+    else {
+      return runWithReplay(replayFileOrUrl, replay.getId(), replay.getFeaturedMod().getTechnicalName(),
+          null, null, null);
+    }
   }
 
   public CompletableFuture<Void> runWithReplay(String replayFileOrUrl, Game game) {
@@ -440,8 +446,10 @@ public class GameService implements InitializingBean {
   /**
    * @param replayFileOrUrl Either a path to a locally available file, or a url eg taforever.com:15000/1234
    */
-  public CompletableFuture<Void> runWithReplay(String replayFileOrUrl, Integer replayId, String modTechnical,
-                                               String mapName, String mapCrc, String mapArchive) {
+  public CompletableFuture<Void> runWithReplay(
+      String replayFileOrUrl, Integer replayId, String modTechnical,
+      @Nullable String mapName, @Nullable String mapCrc, @Nullable String mapArchive) {
+
     if (!canStartReplay()) {
       return completedFuture(null);
     }
