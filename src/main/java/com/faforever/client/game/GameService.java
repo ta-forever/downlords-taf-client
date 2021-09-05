@@ -758,9 +758,10 @@ public class GameService implements InitializingBean {
 
           String demoCompilerUrl = String.format("%s:%s/%s",
               clientProperties.getReplay().getRemoteHost(), clientProperties.getReplay().getCompilerPort(), uid);
+          String playerPublicIp = fafService.getLocalIps().size() > 0 ? fafService.getLocalIps().get(0) : "127.0.0.1";
 
           process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, uid, args,
-              adapterPort, getCurrentPlayer(), demoCompilerUrl, ircUrl, autoLaunch));
+              adapterPort, getCurrentPlayer(), demoCompilerUrl, ircUrl, autoLaunch, playerPublicIp));
           setRunningGameUid(uid);
           spawnGameTerminationListener(process, uid,  null);
         })

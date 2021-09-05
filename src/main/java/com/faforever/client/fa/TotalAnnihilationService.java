@@ -101,7 +101,7 @@ public class TotalAnnihilationService {
   private List<String> getGpgNet4TaCommand(
       String bindAddress, int consolePort, String gameMod, Path gamePath, boolean autoLaunch, boolean lockOptions,
       int players, boolean proactiveResend, String gpgNetUrl, String demoCompilerUrl, @Nullable String ircUrl,
-      Path logFile, int launchServerPort
+      Path logFile, int launchServerPort, String publicIpAddr
   ) {
     Path exePath = getNativeGpgnet4taDir().resolve(org.bridj.Platform.isLinux() ? "gpgnet4ta" : "gpgnet4ta.exe");
 
@@ -116,7 +116,8 @@ public class TotalAnnihilationService {
         "--gpgnet", gpgNetUrl,
         "--logfile", logFile.toString(),
         "--launchserverport", String.valueOf(launchServerPort),
-        "--democompilerurl", demoCompilerUrl
+        "--democompilerurl", demoCompilerUrl,
+        "--publicaddr", publicIpAddr
     ));
 
     if (autoLaunch) {
@@ -269,7 +270,8 @@ public class TotalAnnihilationService {
   }
 
   public Process startGame(String modTechnical, int uid, @Nullable List<String> additionalArgs, int gpgPort,
-                           Player currentPlayer, String demoCompilerUrl, String ircUrl, boolean autoLaunch) throws IOException {
+                           Player currentPlayer, String demoCompilerUrl, String ircUrl, boolean autoLaunch,
+                           String playerPublicIp) throws IOException {
     this.linuxFree47624();
     this.consolePort = getFreeTcpPort();
 
@@ -288,7 +290,7 @@ public class TotalAnnihilationService {
     List<String> gpgnet4taCommand = getGpgNet4TaCommand(
         loopbackAddress, this.consolePort, prefs.getBaseGameName(), prefs.getInstalledPath(), autoLaunch,
         false, 10, proactiveResend, gpgNetUrl, demoCompilerUrl, ircUrl,
-        preferencesService.getNewLogFile("game", uid), this.launchServerPort);
+        preferencesService.getNewLogFile("game", uid), this.launchServerPort, playerPublicIp);
 
     return launch(getNativeGpgnet4taDir(), gpgnet4taCommand);
   }

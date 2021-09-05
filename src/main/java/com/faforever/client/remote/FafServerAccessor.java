@@ -97,4 +97,6 @@ public interface FafServerAccessor {
   void setPlayerAlias(String alias);
 
   void resetIdleSince();
+
+  List<String> getLocalIps();
 }

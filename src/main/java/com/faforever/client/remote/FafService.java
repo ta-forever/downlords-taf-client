@@ -610,4 +610,6 @@ public class FafService {
         .collect(Collectors.toList())
     );
   }
+
+  public List<String> getLocalIps() { return fafServerAccessor.getLocalIps(); }
 }

@@ -372,4 +372,9 @@ public class MockFafServerAccessor implements FafServerAccessor {
 
     return gameInfoMessage;
   }
+
+  @Override
+  public List<String> getLocalIps() {
+    return null;
+  }
 }

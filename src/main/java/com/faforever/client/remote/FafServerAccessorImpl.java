@@ -681,4 +681,7 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
 
   @Override
   public void setPlayerAlias(String alias) { writeToServer(new SetPlayerAliasMessage(alias)); }
+
+  @Override
+  public List<String> getLocalIps() { return localIps; }
 }
