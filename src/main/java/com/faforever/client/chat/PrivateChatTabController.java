@@ -133,10 +133,10 @@ public class PrivateChatTabController extends AbstractChatTabController {
 
   @VisibleForTesting
   void onPlayerDisconnected(ChatChannelUser user) {
-    super.onPlayerDisconnected(user);
     if (!user.getUsername().equals(getReceiver())) {
       return;
     }
+    super.onPlayerDisconnected(user);
     userOffline = true;
     onChatMessage(new ChatMessage(user.getUsername(), Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.privateMessage.playerLeft", user.getUsername()), true));
   }
