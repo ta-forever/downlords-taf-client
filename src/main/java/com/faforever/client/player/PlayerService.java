@@ -371,7 +371,7 @@ public class PlayerService implements InitializingBean {
 
   private void onPlayerInfo(com.faforever.client.remote.domain.Player dto) {
     // isOnline() reflects what the taf-python-server tells us.  unfortunately taf-python-server doesn't tell us when user disconnects
-    // usersOfflineById reflects what the RIC server tells us.  This is more reliable, but unfortunately doesn't tell us anything about user's ability to join games (ie connection to taf-python-server)
+    // usersOfflineById reflects what the IRC server tells us.  This is more reliable, but unfortunately doesn't tell us anything about user's ability to join games (ie connection to taf-python-server)
     boolean wasAlreadyOnline = isOnline(dto.getId()) && !usersOfflineById.containsKey(dto.getId());
     usersOfflineById.remove(dto.getId());
 

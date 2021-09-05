@@ -25,6 +25,7 @@ import com.faforever.client.notification.PersistentNotification;
 import com.faforever.client.notification.Severity;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
+import com.faforever.client.player.UserOfflineEvent;
 import com.faforever.client.preferences.NotificationsPrefs;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
@@ -982,6 +983,16 @@ public class GameService implements InitializingBean {
     else {
       log.info("[checkAutoJoin] not yet.  joinableGame:{}, playerStatus:{}, currentGame:{}, gameRunning():{}",
           gameOptional.isPresent(), currentPlayerOptional.get().getStatus(), getCurrentGame(), isGameRunning());
+    }
+  }
+
+  /// @note this mean offline wrt IRC, not necessarily wrt taf-python-server
+  @Subscribe
+  public void onUserOffline(UserOfflineEvent event) {
+    if (autoJoinRequestedGameProperty.get() != null &&
+        autoJoinRequestedGameProperty.get().getHost().equals(event.getUsername())) {
+      log.info("[onUserOffline] cancelling auto-join because player {} disconnected from IRC", event.getUsername());
+      autoJoinRequestedGameProperty.set(null);
     }
   }
 
