@@ -15,6 +15,9 @@ import com.faforever.client.util.RatingUtil;
 import com.google.common.eventbus.EventBus;
 import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.WeakChangeListener;
+import javafx.collections.ObservableMap;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
@@ -111,6 +114,8 @@ public class PrivateUserInfoController implements Controller<Node> {
     unlockedAchievementsLabelLabel.setVisible(visible);
   }
 
+  ChangeListener<Game> gameChangeListener;
+  ChangeListener<ObservableMap<String,LeaderboardRating>> ratingChangeListener;
   private void displayPlayerInfo(Player player) {
     chatUserService.associatePlayerToChatUser(chatUser, player);
     setPlayerInfoVisible(true);
@@ -118,12 +123,12 @@ public class PrivateUserInfoController implements Controller<Node> {
     userImageView.setImage(IdenticonUtil.createIdenticon(player.getId()));
     userImageView.setVisible(true);
 
-    InvalidationListener ratingInvalidationListener = (observable) -> loadReceiverRatingInformation(player);
-    JavaFxUtil.addListener(player.leaderboardRatingMapProperty(), new WeakInvalidationListener(ratingInvalidationListener));
+    ratingChangeListener = (obs,oldValue,newValue) -> loadReceiverRatingInformation(player);
+    player.leaderboardRatingMapProperty().addListener(new WeakChangeListener<>(ratingChangeListener));
     loadReceiverRatingInformation(player);
 
-    InvalidationListener gameInvalidationListener = observable -> onPlayerGameChanged(player.getGame());
-    JavaFxUtil.addListener(player.gameProperty(), new WeakInvalidationListener(gameInvalidationListener));
+    gameChangeListener = (obs, oldValue, newValue) -> onPlayerGameChanged(newValue);
+    player.gameProperty().addListener(new WeakChangeListener<>(gameChangeListener));
     onPlayerGameChanged(player.getGame());
 
     JavaFxUtil.bind(gamesPlayedLabel.textProperty(), player.numberOfGamesProperty().asString());
