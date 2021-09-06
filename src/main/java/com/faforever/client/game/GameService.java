@@ -882,9 +882,6 @@ public class GameService implements InitializingBean {
           replayServer.stop();
           iceAdapter.stop();
           fafService.notifyGameEnded();
-          if (rehostRequested.isPresent()) {
-            rehost(rehostRequested.get());
-          }
         }
         catch (TaskRejectedException e) {
         }
@@ -920,15 +917,36 @@ public class GameService implements InitializingBean {
             prototype.getMinRating(), prototype.getMaxRating(), prototype.getEnforceRating())));
   }
 
+
+  ChangeListener<PlayerStatus> rehostPlayerStatusChangeListener;
+  ChangeListener<Game> rehostCurrentGameListener;
   @Subscribe
   public void onRehostRequest(RehostRequestEvent event) {
-    if (!isGameRunning()) {
-      log.info("[onRehostRequest] rehost immediately");
-      rehost(event.getGame());
+    rehostRequested = Optional.of(event.getGame());
+    if (!checkRehost()) {
+      log.info("[onRehostRequest] rehost deferred");
+
+      if (rehostPlayerStatusChangeListener == null) {
+        rehostPlayerStatusChangeListener = (observable, oldValue, newValue) -> checkRehost();
+        playerService.getCurrentPlayer().get().statusProperty().addListener(rehostPlayerStatusChangeListener);
+      }
+      if (rehostCurrentGameListener == null) {
+        rehostCurrentGameListener = (observable, oldValue, newValue) -> checkRehost();
+        currentGame.addListener(rehostCurrentGameListener);
+      }
+    }
+  }
+
+  private boolean checkRehost() {
+    if (rehostRequested.isPresent() && !isGameRunning() && getCurrentPlayer().getStatus() == PlayerStatus.IDLE) {
+      log.info("[checkRehost] rehosting ...");
+      Game prototype = rehostRequested.get();
+      rehostRequested = Optional.ofNullable(null);
+      rehost(prototype);
+      return true;
     }
     else {
-      log.info("[onRehostRequest] rehost deferred");
-      rehostRequested = Optional.of(event.getGame());
+      return false;
     }
   }
 
@@ -940,9 +958,9 @@ public class GameService implements InitializingBean {
 
   private ObjectProperty<Game> autoJoinRequestedGameProperty = new SimpleObjectProperty<>();
   public ObjectProperty<Game> getAutoJoinRequestedGameProperty() { return autoJoinRequestedGameProperty; };
-  ListChangeListener<Game> gameListChangeListener;
-  ChangeListener<PlayerStatus> playerStatusChangeListener;
-  ChangeListener<Game> currentGameListener;
+  ListChangeListener<Game> autoJoinGameListChangeListener;
+  ChangeListener<PlayerStatus> autoJoinPlayerStatusChangeListener;
+  ChangeListener<Game> autoJoinCurrentGameListener;
   @Subscribe
   public void onAutoJoinRequest(AutoJoinRequestEvent event) {
     autoJoinRequestedGameProperty.set(event.getPrototype());
@@ -952,17 +970,17 @@ public class GameService implements InitializingBean {
     }
 
     log.info("[onAutoJoinRequest] will autojoin {}'s next game", event.getPrototype().getHost());
-    if (gameListChangeListener == null) {
-      gameListChangeListener = c -> checkAutoJoin(autoJoinRequestedGameProperty.get());
-      games.addListener(gameListChangeListener);
+    if (autoJoinGameListChangeListener == null) {
+      autoJoinGameListChangeListener = c -> checkAutoJoin(autoJoinRequestedGameProperty.get());
+      games.addListener(autoJoinGameListChangeListener);
     }
-    if (playerStatusChangeListener == null) {
-      playerStatusChangeListener = (observable, oldValue, newValue) -> checkAutoJoin(autoJoinRequestedGameProperty.get());
-      playerService.getCurrentPlayer().get().statusProperty().addListener(playerStatusChangeListener);
+    if (autoJoinPlayerStatusChangeListener == null) {
+      autoJoinPlayerStatusChangeListener = (observable, oldValue, newValue) -> checkAutoJoin(autoJoinRequestedGameProperty.get());
+      playerService.getCurrentPlayer().get().statusProperty().addListener(autoJoinPlayerStatusChangeListener);
     }
-    if (currentGameListener == null) {
-      currentGameListener = (observable, oldValue, newValue) -> checkAutoJoin(autoJoinRequestedGameProperty.get());
-      currentGame.addListener(currentGameListener);
+    if (autoJoinCurrentGameListener == null) {
+      autoJoinCurrentGameListener = (observable, oldValue, newValue) -> checkAutoJoin(autoJoinRequestedGameProperty.get());
+      currentGame.addListener(autoJoinCurrentGameListener);
     }
 
     checkAutoJoin(autoJoinRequestedGameProperty.get());
