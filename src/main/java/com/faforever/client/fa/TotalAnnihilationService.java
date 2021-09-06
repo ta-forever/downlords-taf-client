@@ -272,7 +272,7 @@ public class TotalAnnihilationService {
   public Process startGame(String modTechnical, int uid, @Nullable List<String> additionalArgs, int gpgPort,
                            Player currentPlayer, String demoCompilerUrl, String ircUrl, boolean autoLaunch,
                            String playerPublicIp) throws IOException {
-    this.linuxFree47624();
+    this.freePort47624();
     this.consolePort = getFreeTcpPort();
 
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
@@ -296,7 +296,7 @@ public class TotalAnnihilationService {
   }
 
   public Process startReplay(String modTechnical, String replayUrlOrPath, Integer replayId, String playerName) throws IOException {
-    this.linuxFree47624();
+    this.freePort47624();
 
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
     List<String> registerDplayCommand = getRegisterDplayCommand(
@@ -314,18 +314,43 @@ public class TotalAnnihilationService {
     return launch(getNativeGpgnet4taDir(), replayCommand);
   }
 
-  private void linuxFree47624() {
-    if (org.bridj.Platform.isLinux()) {
-      logger.warn("shutting down dplaysvr.exe so that gpgnet4ta.exe can grab port 47624");
-      ProcessBuilder processBuilder = new ProcessBuilder();
-      processBuilder.command(List.of("killall", "dplaysvr.exe"));
-      try {
-        processBuilder.start().waitFor();
-      } catch (InterruptedException e) {
-        logger.warn("InterruptedException shutting down dplaysvr.exe: {}", e.getMessage());
-      } catch (IOException e) {
-        logger.warn("IOException shutting down dplaysvr.exe: {}", e.getMessage());
+  private boolean isPortAvailable(String host, int port) {
+    boolean result = true;
+    try {
+      (new Socket(host, port)).close();
+      result = false;
+    }
+    catch(IOException e) {  }
+    return result;
+  }
+
+  private void freePort47624() {
+    if (!isPortAvailable("127.0.0.1", 47624)) {
+      logger.info("Port 47624 appears to be in use");
+    }
+    try {
+      if (org.bridj.Platform.isLinux()) {
+        for (String executable : List.of("dplaysvr.exe", "gpgnet4ta")) {
+          logger.info("Issuing killall {} to free up port 47624 ...", executable);
+          ProcessBuilder processBuilder = new ProcessBuilder();
+          processBuilder.command(List.of("killall", executable));
+          processBuilder.start().waitFor();
+        }
+      } else if (org.bridj.Platform.isWindows()) {
+        for (String executable : List.of("gpgnet4ta.exe")) {
+          logger.info("Issuing taskkill {} to free up port 47624 ...", executable);
+          ProcessBuilder processBuilder = new ProcessBuilder();
+          processBuilder.command(List.of("taskkill", "/F", "/IM", executable));
+          processBuilder.start().waitFor();
+        }
       }
+    } catch (InterruptedException e) {
+      logger.warn("InterruptedException shutting process: {}", e.getMessage());
+    } catch (IOException e) {
+      logger.warn("IOException shutting down process: {}", e.getMessage());
+    }
+    if (!isPortAvailable("127.0.0.1", 47624)) {
+      logger.warn("Port 47624 appears to be STILL in use!");
     }
   }
 
