@@ -96,14 +96,7 @@ public class GameDetailMapContextMenuController implements Controller<ContextMen
   }
 
   public void onCreateNew(ActionEvent actionEvent) {
-    if (game == null) {
-      return;
-    }
-    final String modTechnical = preferencesService.getPreferences().getLastGame().getLastGameType();
-    final String mapName = game.getMapName();
-    final String mapCrc = game.getMapCrc();
-    mapService.ensureMap(modTechnical, mapName, mapCrc, game.getMapArchiveName(), null, null)
-        .thenRun(() -> eventBus.post(new HostGameEvent(mapName).setContextGame(game)));
+    eventBus.post(new HostGameEvent(game.getMapName()).setContextGame(game));
   }
 
   public void onChangeMap(ActionEvent actionEvent) {
@@ -111,6 +104,6 @@ public class GameDetailMapContextMenuController implements Controller<ContextMen
   }
 
   public void onBrowseMap(ActionEvent actionEvent) {
-    onCreateNew(actionEvent); // createGameController is able to work out what to do
+    eventBus.post(new HostGameEvent(game.getMapName()).setContextGame(game)); // createGameController is able to work out what to do
   }
 }

@@ -141,6 +141,15 @@ public class CreateGameController implements Controller<Pane> {
 
   void setContextGame(Game game) {
     log.info("[setContextGame] {}", game);
+    if (game != null) {
+      if (preferencesService.isGameExeValid(game.getFeaturedMod())) {
+        this.featuredModListView.getItems().stream()
+            .filter(mod -> mod.getTechnicalName().equals(game.getFeaturedMod()))
+            .findAny()
+            .ifPresent(mod -> this.featuredModListView.getSelectionModel().select(mod));
+      }
+      mapService.ensureMap(this.featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null);
+    }
     this.contextGameProperty.set(game);
   }
 
