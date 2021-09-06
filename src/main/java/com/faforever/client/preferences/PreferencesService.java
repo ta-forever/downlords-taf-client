@@ -388,7 +388,7 @@ public class PreferencesService implements InitializingBean {
   }
 
   public boolean isGameExeValid(Path executablePath) {
-    return executablePath != null && !Files.isDirectory(executablePath) && Files.isExecutable(executablePath);
+    return isGameExeValidWithError(executablePath) == null;
   }
 
   @SneakyThrows
@@ -396,16 +396,23 @@ public class PreferencesService implements InitializingBean {
     return isGameExeValidWithError(preferences.getTotalAnnihilation(baseGameName).getInstalledExePath()) == null;
   }
 
+  /// @return null is executablePath is valid. Otherwise a i18n string for indicating the problem to the user
   public String isGameExeValidWithError(Path executablePath) {
-    boolean valid = executablePath != null && isGameExeValid(executablePath);
-    if (!valid) {
-      return "gamePath.select.noValidExe";
+    if (executablePath == null) {
+      return "gamePath.select.noneChosen";
     }
-    if (executablePath.equals(getFafBinDirectory())) {
-      return "gamePath.select.fafDataSelected";
+    else if (!Files.isRegularFile(executablePath)) {
+      return "gamePath.select.notRegularFile";
     }
-
-    return null;
+    else if (!Files.isExecutable(executablePath)) {
+      return "gamePath.select.notExecutableFile";
+    }
+    else if (!Files.isWritable(executablePath.getParent())) {
+      return "gamePath.select.directoryNotWritable";
+    }
+    else {
+      return null;
+    }
   }
 
   private String sha256OfFile(Path path) throws IOException, NoSuchAlgorithmException {
