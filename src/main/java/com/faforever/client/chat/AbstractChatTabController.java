@@ -105,6 +105,7 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
   private static final String ACTION_PREFIX = "/me ";
   private static final String JOIN_PREFIX = "/join ";
   private static final String WHOIS_PREFIX = "/whois ";
+  private static final String SECRET_REPLAY_VAULT_ACTIVATE = "/opensesame";
   private static final String CHANSERV_USER = "ChanServ";
   /**
    * Added if a message is what IRC calls an "action".
@@ -473,6 +474,9 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
       messageTextField.clear();
     } else if (text.startsWith(WHOIS_PREFIX)) {
       chatService.whois(text.replaceFirst(Pattern.quote(JOIN_PREFIX), ""));
+      messageTextField.clear();
+    } else if (text.startsWith(SECRET_REPLAY_VAULT_ACTIVATE)) {
+      eventBus.post(new NavigateEvent(NavigationItem.REPLAY));
       messageTextField.clear();
     } else {
       sendMessage();

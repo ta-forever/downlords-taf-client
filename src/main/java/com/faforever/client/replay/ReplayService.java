@@ -259,7 +259,7 @@ public class ReplayService {
         .exceptionally(throwable -> {
           notificationService.addNotification(new ImmediateNotification(
               i18n.get("errorTitle"),
-              i18n.get("liveReplayCouldNotBeStarted"),
+              i18n.get("replayCouldNotBeStarted"),
               Severity.ERROR, throwable,
               List.of(new CopyErrorAction(i18n, reportingService, throwable), new GetHelpAction(i18n, reportingService), new DismissAction(i18n))
           ));
