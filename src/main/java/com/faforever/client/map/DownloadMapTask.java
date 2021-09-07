@@ -96,7 +96,8 @@ public class DownloadMapTask extends CompletableTask<Void> {
     target = downloadDirectory.resolve(hpiArchiveName);
     if (content != null && content.equals("application/zip") ||  // @todo pass down expected file size or crc so we can cache zip files too
         !target.toFile().exists() ||
-        bytesToRead>0 && Files.size(target)!=bytesToRead || bytesToRead==0) {
+        bytesToRead>1000 && Files.size(target)!=bytesToRead ||
+        bytesToRead==0) {
       logger.info("Downloading archive {} {} bytes from {} to {}", hpiArchiveName, bytesToRead, mapUrl, downloadDirectory);
       try (InputStream inputStream = urlConnection.getInputStream()) {
         if (content.equals("application/zip")) {
@@ -118,6 +119,12 @@ public class DownloadMapTask extends CompletableTask<Void> {
             Severity.WARN, Collections.singletonList(new DismissAction(i18n))));
         return null;
       }
+    }
+
+    if (target.toFile().exists() && bytesToRead > 1000 && Files.size(target) != bytesToRead) {
+      logger.warn("Download is not expected size! expected {}, received {}. Aborting", bytesToRead, Files.size(target));
+      Files.delete(target);
+      return null;
     }
 
     if (!downloadDirectory.equals(installationPath)) {
