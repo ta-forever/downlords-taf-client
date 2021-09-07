@@ -148,7 +148,6 @@ public class GameService implements InitializingBean {
 
   @VisibleForTesting
   final IntegerProperty runningGameUidProperty;   // as determined locally
-  final Set<Integer> endedGameUids;               // as advertised by server. used to detect games remotely cancelled before we complete launch
 
   /** TODO: Explain why access needs to be synchronized. */
   @VisibleForTesting
@@ -205,7 +204,6 @@ public class GameService implements InitializingBean {
     runningGameUidProperty = new SimpleIntegerProperty();
     currentGame = new SimpleObjectProperty<>();
     currentGameStatusProperty = new SimpleObjectProperty<>();
-    endedGameUids = new HashSet<>();
 
     games = FXCollections.observableList(new ArrayList<>(),
         item -> new Observable[]{item.statusProperty(), item.getTeams()}
@@ -774,21 +772,6 @@ public class GameService implements InitializingBean {
           this.killGame();
           setRunningGameUid(null);
           return null;
-        })
-        .whenComplete((aVoid, throwable) -> {
-          boolean isEnded;
-          synchronized (endedGameUids) {
-            isEnded = endedGameUids.contains(uid);
-            endedGameUids.clear();
-          }
-          if (isEnded) {
-            log.warn("Game cancelled while launching");
-            notificationService.addImmediateInfoNotification("game.start.cancelledRemotely.title", "game.start.cancelledRemotely");
-            iceAdapter.stop();
-            fafService.notifyGameEnded();
-            this.killGame();
-            setRunningGameUid(null);
-          }
         });
   }
 
@@ -1185,14 +1168,22 @@ public class GameService implements InitializingBean {
     synchronized (uidToGameInfoBean) {
       game = uidToGameInfoBean.remove(gameInfoMessage.getUid());
     }
-    synchronized (endedGameUids) {
-      endedGameUids.add(gameInfoMessage.getUid());
+
+    if (gameInfoMessage.getUid().equals(getRunningGameUid())) {
+      // getRunningGameUid() is determined immediately upon starting gpgnet4ta
+      // while getCurrentGame() is only set after server confirms
+      killGame(); // gpgnet4ta will ignore this single kill request if game is actually in progress
+      if (getCurrentGame() == null) {
+        log.warn("Game cancelled while launching");
+        notificationService.addImmediateInfoNotification("game.start.cancelledRemotely.title", "game.start.cancelledRemotely");
+      }
     }
     eventBus.post(new GameRemovedEvent(game));
   }
 
   public void killGame() {
     if (process != null && process.isAlive()) {
+      // If game is in progress, gpgnet4ta will only respond to two consecutive /quits
       this.totalAnnihilationService.sendToConsole("/quit");
     }
   }
