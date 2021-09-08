@@ -205,7 +205,7 @@ public class Preferences {
   }
 
   public boolean getIrcIntegrationEnabled() {
-    return ircIntegrationEnabled.get();
+    return false; //return ircIntegrationEnabled.get();
   }
 
   public boolean getAutoLaunchOnHostEnabled() {

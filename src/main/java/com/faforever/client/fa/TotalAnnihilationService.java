@@ -270,7 +270,7 @@ public class TotalAnnihilationService {
   }
 
   public Process startGame(String modTechnical, int uid, @Nullable List<String> additionalArgs, int gpgPort,
-                           Player currentPlayer, String demoCompilerUrl, String ircUrl, boolean autoLaunch,
+                           Player currentPlayer, String demoCompilerUrl, @Nullable String ircUrl, boolean autoLaunch,
                            String playerPublicIp) throws IOException {
     this.freePort47624();
     this.consolePort = getFreeTcpPort();
