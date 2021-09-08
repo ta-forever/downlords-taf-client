@@ -11,6 +11,7 @@ import java.util.Map;
 public enum GameStatus {
 
   UNKNOWN("unknown"),
+  SPAWNING("spawning"),     // OS has spawned the executable but things are still initialising
   STAGING("staging"),       // chat room has been opened but game hasn't been launched
   BATTLEROOM("battleroom"), // players are in game battleroom. new players can still join
   LAUNCHING("launching"),   // game has been started. new players can no longer join. teams have not been finalised

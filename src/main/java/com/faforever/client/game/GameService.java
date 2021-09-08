@@ -152,6 +152,10 @@ public class GameService implements InitializingBean {
   /** TODO: Explain why access needs to be synchronized. */
   @VisibleForTesting
   final SimpleObjectProperty<Game> currentGame;   // as indicated by server
+
+  // Set to SPAWNING when game process is started by OS
+  // Then udpated in response to server GameInfo messages
+  // And then set to UNKNOWN when currentGame is set to null
   final SimpleObjectProperty<GameStatus> currentGameStatusProperty;
 
   @VisibleForTesting
@@ -740,7 +744,7 @@ public class GameService implements InitializingBean {
    * Actually starts the game, including relay and replay server. Call this method when everything else is prepared
    * (mod/map download, connectivity check etc.)
    */
-  private void startGame(GameLaunchMessage gameLaunchMessage, String ircUrl, boolean autoLaunch, String playerAlias) {
+  private void startGame(GameLaunchMessage gameLaunchMessage, @Nullable String ircUrl, boolean autoLaunch, String playerAlias) {
     if (isGameRunning()) {
       log.warn("Total Annihilation is already running, not starting game");
       return;
@@ -762,6 +766,7 @@ public class GameService implements InitializingBean {
           process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, uid, args,
               adapterPort, getCurrentPlayer(), demoCompilerUrl, ircUrl, autoLaunch, playerPublicIp));
           setRunningGameUid(uid);
+          currentGameStatusProperty.set(GameStatus.SPAWNING);
           spawnGameTerminationListener(process, uid,  null);
         })
         .exceptionally(throwable -> {
@@ -1171,10 +1176,10 @@ public class GameService implements InitializingBean {
 
     if (gameInfoMessage.getUid().equals(getRunningGameUid())) {
       // getRunningGameUid() is determined immediately upon starting gpgnet4ta
-      // while getCurrentGame() is only set after server confirms
-      killGame(); // gpgnet4ta will ignore this single kill request if game is actually in progress
-      if (getCurrentGame() == null) {
+      // getCurrentGameStatus()==SPAWNING indicates game has been started locally but server hasn't confirmed that fact
+      if (GameStatus.SPAWNING.equals(getCurrentGameStatus())) {
         log.warn("Game cancelled while launching");
+        killGame();
         notificationService.addImmediateInfoNotification("game.start.cancelledRemotely.title", "game.start.cancelledRemotely");
       }
     }
