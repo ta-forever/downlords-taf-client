@@ -58,6 +58,12 @@ public class ReplayDownloadTask extends CompletableTask<Path> {
     logger.info("Downloading replay {} from {}", replayId, replayUrl);
     HttpURLConnection urlConnection = (HttpURLConnection) replayUrl.openConnection();
     urlConnection.setInstanceFollowRedirects(true);
+    // I don't know man .... only required when source is a zip file
+    while (urlConnection.getHeaderFields().containsKey("Location")) {
+      replayUrl = new URL(urlConnection.getHeaderFields().get("Location").get(0));
+      urlConnection = (HttpURLConnection) replayUrl.openConnection();
+      urlConnection.setInstanceFollowRedirects(true);
+    }
 
     try (InputStream inputStream = urlConnection.getInputStream()) {
       if (urlConnection.getContentType().equals("application/zip")) {
