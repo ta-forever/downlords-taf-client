@@ -908,6 +908,7 @@ public class GameService implements InitializingBean {
 
   ChangeListener<PlayerStatus> rehostPlayerStatusChangeListener;
   ChangeListener<Game> rehostCurrentGameListener;
+  InvalidationListener rehostRunningGameListener;
   @Subscribe
   public void onRehostRequest(RehostRequestEvent event) {
     rehostRequested = Optional.of(event.getGame());
@@ -919,14 +920,23 @@ public class GameService implements InitializingBean {
         playerService.getCurrentPlayer().get().statusProperty().addListener(rehostPlayerStatusChangeListener);
       }
       if (rehostCurrentGameListener == null) {
+        // server's expectation of what game we should be in
         rehostCurrentGameListener = (observable, oldValue, newValue) -> checkRehost();
         currentGame.addListener(rehostCurrentGameListener);
+      }
+      if (rehostRunningGameListener == null) {
+        // local process
+        rehostRunningGameListener = (newValue) -> checkRehost();
+        runningGameUidProperty.addListener(rehostRunningGameListener);
       }
     }
   }
 
   private boolean checkRehost() {
-    if (rehostRequested.isPresent() && !isGameRunning() && getCurrentPlayer().getStatus() == PlayerStatus.IDLE) {
+    if (rehostRequested.isPresent() && getCurrentPlayer().getStatus() == PlayerStatus.IDLE &&
+        getRunningGameUid() == 0 &&       // local instance not running.  yeah its zero, not null :/
+        getCurrentGame() == null          // server doesn't think we should be in a game
+        ) {
       log.info("[checkRehost] rehosting ...");
       Game prototype = rehostRequested.get();
       rehostRequested = Optional.ofNullable(null);
@@ -934,6 +944,8 @@ public class GameService implements InitializingBean {
       return true;
     }
     else {
+      log.info("[checkRehost] not yet ... isRequested={}, getRunningGameUid={}, getCurrentGame={}, getCurrentPlayer={}",
+          rehostRequested.isPresent(), getRunningGameUid(), getCurrentGame(), getCurrentPlayer().getStatus());
       return false;
     }
   }
