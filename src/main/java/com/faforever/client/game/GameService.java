@@ -89,6 +89,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -893,6 +895,70 @@ public class GameService implements InitializingBean {
     });
   }
 
+
+  private void onLoggedIn() {
+    if (isGameRunning()) {
+      fafService.restoreGameSession(currentGame.get().getId());
+    }
+  }
+
+  public class RunAfterTimeout {
+    private final int timeoutMillis;
+    private final Timer timer;
+    private final Runnable runnable;
+    private TimerTask task;
+
+    public RunAfterTimeout(Runnable runnable, int timeoutMillis) {
+      this.runnable = runnable;
+      this.timeoutMillis = timeoutMillis;
+      this.timer = new Timer();
+    }
+
+    public void reset() {
+      if (this.task != null) {
+        this.task.cancel();
+      }
+      this.task = new TimerTask() {
+        @Override public void run() { runnable.run(); }
+      };
+      timer.schedule(this.task, timeoutMillis);
+    }
+  }
+
+  RunAfterTimeout rehostCheckTimer;
+  @Subscribe
+  public void onRehostRequest(RehostRequestEvent event) {
+    rehostRequested = Optional.of(event.getGame());
+
+    if (rehostCheckTimer == null) {
+      rehostCheckTimer = new RunAfterTimeout(() -> checkRehost(), 300);
+      InvalidationListener listener = (c) -> rehostCheckTimer.reset();
+      playerService.getCurrentPlayer().get().statusProperty().addListener(listener);
+      currentGame.addListener(listener);
+      runningGameUidProperty.addListener(listener);
+    }
+
+    log.info("[onRehostRequest] will rehost {}", event.getGame());
+    rehostCheckTimer.reset();
+  }
+
+  private void checkRehost() {
+    if (rehostRequested.isPresent() &&
+        getCurrentPlayer().getStatus() == PlayerStatus.IDLE &&
+        getRunningGameUid() == 0 &&       // local instance not running.  yeah its zero, not null :/
+        getCurrentGame() == null          // server doesn't think we should be in a game
+    ) {
+      log.info("[checkRehost] rehosting ...");
+      Game prototype = rehostRequested.get();
+      rehostRequested = Optional.ofNullable(null);
+      JavaFxUtil.runLater(() -> rehost(prototype));
+    }
+    else {
+      log.info("[checkRehost] not yet ... isRequested={}, getRunningGameUid={}, getCurrentGame={}, getCurrentPlayer={}",
+          rehostRequested.isPresent(), getRunningGameUid(), getCurrentGame(), getCurrentPlayer().getStatus());
+    }
+  }
+
   private void rehost(Game prototype) {
     modService.getFeaturedMod(prototype.getFeaturedMod())
         .thenAccept(featuredModBean -> hostGame(new NewGameInfo(
@@ -905,62 +971,9 @@ public class GameService implements InitializingBean {
             prototype.getMinRating(), prototype.getMaxRating(), prototype.getEnforceRating())));
   }
 
-
-  ChangeListener<PlayerStatus> rehostPlayerStatusChangeListener;
-  ChangeListener<Game> rehostCurrentGameListener;
-  InvalidationListener rehostRunningGameListener;
-  @Subscribe
-  public void onRehostRequest(RehostRequestEvent event) {
-    rehostRequested = Optional.of(event.getGame());
-    if (!checkRehost()) {
-      log.info("[onRehostRequest] rehost deferred");
-
-      if (rehostPlayerStatusChangeListener == null) {
-        rehostPlayerStatusChangeListener = (observable, oldValue, newValue) -> checkRehost();
-        playerService.getCurrentPlayer().get().statusProperty().addListener(rehostPlayerStatusChangeListener);
-      }
-      if (rehostCurrentGameListener == null) {
-        // server's expectation of what game we should be in
-        rehostCurrentGameListener = (observable, oldValue, newValue) -> checkRehost();
-        currentGame.addListener(rehostCurrentGameListener);
-      }
-      if (rehostRunningGameListener == null) {
-        // local process
-        rehostRunningGameListener = (newValue) -> checkRehost();
-        runningGameUidProperty.addListener(rehostRunningGameListener);
-      }
-    }
-  }
-
-  private boolean checkRehost() {
-    if (rehostRequested.isPresent() && getCurrentPlayer().getStatus() == PlayerStatus.IDLE &&
-        getRunningGameUid() == 0 &&       // local instance not running.  yeah its zero, not null :/
-        getCurrentGame() == null          // server doesn't think we should be in a game
-        ) {
-      log.info("[checkRehost] rehosting ...");
-      Game prototype = rehostRequested.get();
-      rehostRequested = Optional.ofNullable(null);
-      rehost(prototype);
-      return true;
-    }
-    else {
-      log.info("[checkRehost] not yet ... isRequested={}, getRunningGameUid={}, getCurrentGame={}, getCurrentPlayer={}",
-          rehostRequested.isPresent(), getRunningGameUid(), getCurrentGame(), getCurrentPlayer().getStatus());
-      return false;
-    }
-  }
-
-  private void onLoggedIn() {
-    if (isGameRunning()) {
-      fafService.restoreGameSession(currentGame.get().getId());
-    }
-  }
-
   private ObjectProperty<Game> autoJoinRequestedGameProperty = new SimpleObjectProperty<>();
   public ObjectProperty<Game> getAutoJoinRequestedGameProperty() { return autoJoinRequestedGameProperty; };
-  ListChangeListener<Game> autoJoinGameListChangeListener;
-  ChangeListener<PlayerStatus> autoJoinPlayerStatusChangeListener;
-  ChangeListener<Game> autoJoinCurrentGameListener;
+  RunAfterTimeout autoJoinTimer;
   @Subscribe
   public void onAutoJoinRequest(AutoJoinRequestEvent event) {
     autoJoinRequestedGameProperty.set(event.getPrototype());
@@ -970,20 +983,16 @@ public class GameService implements InitializingBean {
     }
 
     log.info("[onAutoJoinRequest] will autojoin {}'s next game", event.getPrototype().getHost());
-    if (autoJoinGameListChangeListener == null) {
-      autoJoinGameListChangeListener = c -> checkAutoJoin(autoJoinRequestedGameProperty.get());
-      games.addListener(autoJoinGameListChangeListener);
-    }
-    if (autoJoinPlayerStatusChangeListener == null) {
-      autoJoinPlayerStatusChangeListener = (observable, oldValue, newValue) -> checkAutoJoin(autoJoinRequestedGameProperty.get());
-      playerService.getCurrentPlayer().get().statusProperty().addListener(autoJoinPlayerStatusChangeListener);
-    }
-    if (autoJoinCurrentGameListener == null) {
-      autoJoinCurrentGameListener = (observable, oldValue, newValue) -> checkAutoJoin(autoJoinRequestedGameProperty.get());
-      currentGame.addListener(autoJoinCurrentGameListener);
+    if (autoJoinTimer == null) {
+      autoJoinTimer = new RunAfterTimeout(() -> checkAutoJoin(autoJoinRequestedGameProperty.get()), 300);
+      InvalidationListener listener = c -> autoJoinTimer.reset();
+      games.addListener(listener);
+      playerService.getCurrentPlayer().get().statusProperty().addListener(listener);
+      currentGame.addListener(listener);
+      runningGameUidProperty.addListener(listener);
     }
 
-    checkAutoJoin(autoJoinRequestedGameProperty.get());
+    autoJoinTimer.reset();
   }
 
   public void checkAutoJoin(Game prototype) {
@@ -992,19 +1001,21 @@ public class GameService implements InitializingBean {
     }
     Optional<Game> gameOptional = findMatchingAutoJoinable(prototype);
     Optional<Player> currentPlayerOptional = playerService.getCurrentPlayer();
+
     if (gameOptional.isPresent() && currentPlayerOptional.isPresent() &&
         currentPlayerOptional.get().getStatus() == PlayerStatus.IDLE &&
-        !isGameRunning()) {
+        getCurrentGame() == null &&
+        getRunningGameUid() == 0) {
       log.info("[checkAutoJoin] auto-joining {}!", gameOptional.get());
-      this.joinGame(gameOptional.get(), prototype.getPassword());
+      JavaFxUtil.runLater(() -> this.joinGame(gameOptional.get(), prototype.getPassword()));
     }
     else {
-      log.info("[checkAutoJoin] not yet.  joinableGame:{}, playerStatus:{}, currentGame:{}, gameRunning():{}",
-          gameOptional.isPresent(), currentPlayerOptional.get().getStatus(), getCurrentGame(), isGameRunning());
+      log.info("[checkAutoJoin] not yet joinableGame:{}, playerStatus:{}, getCurrentGame:{}, getRunningGameUid():{}",
+          gameOptional.isPresent(), currentPlayerOptional.get().getStatus(), getCurrentGame(), getRunningGameUid());
     }
   }
 
-  /// @note this mean offline wrt IRC, not necessarily wrt taf-python-server
+  /// @note this means offline wrt IRC, not necessarily wrt taf-python-server
   @Subscribe
   public void onUserOffline(UserOfflineEvent event) {
     if (autoJoinRequestedGameProperty.get() != null &&
@@ -1066,7 +1077,8 @@ public class GameService implements InitializingBean {
           game.getStatus() == GameStatus.BATTLEROOM &&
           game.getGameType() != GameType.MATCHMAKER &&
           !currentPlayerOptional.get().getUsername().equals(game.getHost()) &&
-          currentPlayerInGame
+          currentPlayerInGame &&
+          !game.equals(autoJoinRequestedGameProperty.get())
       ) {
         eventBus.post(new AutoJoinRequestEvent(game));
       }
