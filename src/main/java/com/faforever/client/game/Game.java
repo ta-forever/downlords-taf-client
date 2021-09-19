@@ -20,6 +20,7 @@ import javafx.collections.ObservableMap;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 public class Game {
   private final StringProperty host;
@@ -43,6 +44,7 @@ public class Game {
   private final ObjectProperty<Instant> startTime;
   private final BooleanProperty enforceRating;
   private final ObjectProperty<GameType> gameType;
+  private final IntegerProperty replayDelaySecondsProperty;
   /**
    * Maps a sim mod's UID to its name.
    */
@@ -78,6 +80,7 @@ public class Game {
     startTime = new SimpleObjectProperty<>();
     enforceRating = new SimpleBooleanProperty(false);
     gameType = new SimpleObjectProperty<>();
+    replayDelaySecondsProperty = new SimpleIntegerProperty(300);
   }
 
   public String getHost() {
@@ -243,6 +246,12 @@ public class Game {
   public boolean getEnforceRating() {
     return enforceRating.getValue();
   }
+
+  public void setReplayDelaySeconds(Integer delaySeconds) { this.replayDelaySecondsProperty.set(Optional.ofNullable(delaySeconds).orElse(300)); }
+
+  public Integer getReplayDelaySeconds() {  return replayDelaySecondsProperty.getValue(); }
+
+  public IntegerProperty replayDelaySecondsProperty() { return this.replayDelaySecondsProperty; }
 
   public GameStatus getStatus() {
     return status.get();

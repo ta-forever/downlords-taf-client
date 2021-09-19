@@ -72,6 +72,7 @@ public class GameTileController implements Controller<Node> {
   public Label avgRatingLabel;
   public Label hostLabel;
   public Label modsLabel;
+  public Label liveReplayDelayLabel;
   public ImageView mapImageView;
   private Consumer<Game> onSelectedListener;
   private Game game;
@@ -182,7 +183,7 @@ public class GameTileController implements Controller<Node> {
     autoJoinButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && !isStagingRoomOpen && !isBattleRoomOpen);
     leaveButton.setVisible(isGameProcessRunning && isCurrentGame);
     startButton.setVisible(isGameProcessRunning && isCurrentGame && (isPlayerHosting && isStagingRoomOpen || isPlayerJoining && isBattleRoomOpen));
-    watchButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && !isStagingRoomOpen && !isBattleRoomOpen);
+    watchButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && !isStagingRoomOpen && !isBattleRoomOpen && game.getReplayDelaySeconds() >= 0);
 
     final String activatedStyleClass = "autojoin-game-button-active";
     if (autoJoinPrototype != null && this.game != null && autoJoinPrototype.getId() == this.game.getId()) {
@@ -224,7 +225,15 @@ public class GameTileController implements Controller<Node> {
         game.numPlayersProperty(),
         game.maxPlayersProperty()
     ));
-
+    liveReplayDelayLabel.textProperty().bind(createStringBinding(() -> {
+      if (game.getReplayDelaySeconds() > 0) {
+        return game.getReplayDelaySeconds().toString() + " secs";
+      } else if (game.getReplayDelaySeconds() == 0) {
+        return i18n.get("liveReplay.zeroDelay");
+      } else {
+        return i18n.get("liveReplay.disabled");
+      }}, game.replayDelaySecondsProperty()
+    ));
     gameStatusLabel.textProperty().bind(game.statusProperty().asString());
     gameTimeSinceStartUpdater.play();
 

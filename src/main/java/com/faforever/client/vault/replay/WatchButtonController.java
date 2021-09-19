@@ -90,7 +90,7 @@ public class WatchButtonController implements Controller<Node> {
         "Game's start time is null, in which case it shouldn't even be listed: " + game);
     return java.time.Duration.between(
         Instant.now(),
-        game.getStartTime().plusSeconds(clientProperties.getReplay().getWatchDelaySeconds())
+        game.getStartTime().plusSeconds(game.getReplayDelaySeconds())
     );
   }
 

@@ -85,7 +85,7 @@ public class ImmediateNotificationController implements Controller<Node> {
     button.setOnAction(event -> {
       action.call(event);
       if (action.getType() == Action.Type.OK_DONE) {
-        dismiss();
+        dismissTrigger.setValue(true);
       }
     });
 

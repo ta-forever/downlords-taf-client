@@ -359,7 +359,8 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
         newGameInfo.getGameVisibility(),
         newGameInfo.getRatingMin(),
         newGameInfo.getRatingMax(),
-        newGameInfo.getEnforceRatingRange()
+        newGameInfo.getEnforceRatingRange(),
+        newGameInfo.getReplayDelaySeconds()
     );
 
     gameLaunchFuture = new CompletableFuture<>();

@@ -859,8 +859,10 @@ public class GameService implements InitializingBean {
 
       submitLogs(gameId);
       if (exitCode != null && exitCode != 0) {
-        String message = String.format("'%s' exited with code %d", command, exitCode);
-        notificationService.addImmediateErrorNotification(new RuntimeException(message),"game.crash", commandFileName, gameId);
+        if (triggerTerminationHandler == null || !triggerTerminationHandler.get()) {
+          String message = String.format("'%s' exited with code %d", command, exitCode);
+          notificationService.addImmediateErrorNotification(new RuntimeException(message), "game.crash", commandFileName, gameId);
+        }
       }
 
       JavaFxUtil.runLater(() -> {
@@ -967,8 +969,9 @@ public class GameService implements InitializingBean {
             featuredModBean,
             prototype.getMapName(),
             new HashSet<>(prototype.getSimMods().values()),
-            GameVisibility.PUBLIC,
-            prototype.getMinRating(), prototype.getMaxRating(), prototype.getEnforceRating())));
+            prototype.getVisibility(),
+            prototype.getMinRating(), prototype.getMaxRating(),
+            prototype.getEnforceRating(), prototype.getReplayDelaySeconds())));
   }
 
   private ObjectProperty<Game> autoJoinRequestedGameProperty = new SimpleObjectProperty<>();
@@ -1190,6 +1193,7 @@ public class GameService implements InitializingBean {
     game.setMinRating(gameInfoMessage.getRatingMin());
     game.setMaxRating(gameInfoMessage.getRatingMax());
     game.setEnforceRating(gameInfoMessage.getEnforceRatingRange());
+    game.setReplayDelaySeconds(gameInfoMessage.getReplayDelaySeconds());
   }
 
   private void removeGame(GameInfoMessage gameInfoMessage) {

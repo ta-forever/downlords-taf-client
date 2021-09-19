@@ -70,6 +70,7 @@ public class GameDetailController implements Controller<Pane> {
   public Label numberOfPlayersLabel;
   public Label gameStatusLabel;
   public Label hostLabel;
+  public Label liveReplayDelayLabel;
   public VBox teamListPane;
   public ImageView mapImageView;
   public Label gameTitleLabel;
@@ -224,7 +225,7 @@ public class GameDetailController implements Controller<Pane> {
     autoJoinButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && !isStagingRoomOpen && !isBattleRoomOpen);
     leaveButton.setVisible(isGameProcessRunning && isCurrentGame);
     startButton.setVisible(isGameProcessRunning && isCurrentGame && (isPlayerHosting && isStagingRoomOpen || isPlayerJoining && isBattleRoomOpen));
-    watchButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && isLive);
+    watchButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && isLive && thisGame.getReplayDelaySeconds() >= 0);
 
     final String activatedStyleClass = "autojoin-game-button-active";
     if (autoJoinPrototype != null && this.game.get() != null && autoJoinPrototype.getId() == this.game.get().getId()) {
@@ -268,6 +269,15 @@ public class GameDetailController implements Controller<Pane> {
         () -> i18n.get("game.detail.players.format", game.getNumPlayers(), game.getMaxPlayers()),
         game.numPlayersProperty(),
         game.maxPlayersProperty()
+    ));
+    liveReplayDelayLabel.textProperty().bind(createStringBinding(() -> {
+      if (game.getReplayDelaySeconds() > 0) {
+        return game.getReplayDelaySeconds().toString() + " secs";
+      } else if (game.getReplayDelaySeconds() == 0) {
+        return i18n.get("liveReplay.zeroDelay");
+      } else {
+        return i18n.get("liveReplay.disabled");
+      }}, game.replayDelaySecondsProperty()
     ));
     mapImageView.imageProperty().bind(createObjectBinding(
         () -> mapService.loadPreview(game.getFeaturedMod(), game.getMapName(), PreviewType.MINI, 10),

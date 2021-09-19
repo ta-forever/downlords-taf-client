@@ -1,6 +1,7 @@
 package com.faforever.client.preferences;
 
 import com.faforever.client.game.KnownFeaturedMod;
+import com.faforever.client.game.LiveReplayOption;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -17,6 +18,7 @@ public class LastGamePrefs {
   private final ObjectProperty<Integer> lastGameMaxRating;
   private final BooleanProperty lastGameEnforceRating;
   private final BooleanProperty lastGameOnlyFriends;
+  private final ObjectProperty<LiveReplayOption> liveReplayOption;
 
   public LastGamePrefs() {
     lastGameType = new SimpleStringProperty(KnownFeaturedMod.DEFAULT.getTechnicalName());
@@ -27,7 +29,7 @@ public class LastGamePrefs {
     lastGameMaxRating = new SimpleObjectProperty<>(null);
     lastGameOnlyFriends = new SimpleBooleanProperty();
     lastGameEnforceRating = new SimpleBooleanProperty(false);
-
+    liveReplayOption = new SimpleObjectProperty<>(LiveReplayOption.FIVE_MINUTES);
   }
 
   public String getLastGameType() {
@@ -124,5 +126,17 @@ public class LastGamePrefs {
 
   public BooleanProperty lastGameEnforceRatingProperty() {
     return lastGameEnforceRating;
+  }
+
+  public void setLastGameLiveReplayOption(LiveReplayOption liveReplayOption) {
+    this.liveReplayOption.set(liveReplayOption);
+  }
+
+  public LiveReplayOption getLastGameLiveReplayOption() {
+    return this.liveReplayOption.get();
+  }
+
+  public ObjectProperty<LiveReplayOption> lastGameLiveReplayOptionProperty() {
+    return this.liveReplayOption;
   }
 }

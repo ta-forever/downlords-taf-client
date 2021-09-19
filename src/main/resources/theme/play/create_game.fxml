@@ -18,6 +18,9 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.control.ComboBox?>
+<?import javafx.collections.FXCollections?>
+<?import java.lang.Integer?>
+<?import java.lang.String?>
 <GridPane xmlns:fx="http://javafx.com/fxml/1" fx:id="createGameRoot" hgap="10.0" styleClass="create-game-root" vgap="10.0" xmlns="http://javafx.com/javafx/8.0.141" fx:controller="com.faforever.client.game.CreateGameController">
     <columnConstraints>
         <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="256.0"/>
@@ -36,22 +39,41 @@
     <children>
     	<!-- Title, Password, Rating -->
         <TextField fx:id="titleTextField" promptText="%game.create.title" styleClass="game-title-input" GridPane.columnSpan="2147483647" />
-        <PasswordField fx:id="passwordTextField" promptText="%game.create.password" GridPane.rowIndex="1" />
-        <CheckBox fx:id="onlyForFriendsCheckBox" mnemonicParsing="false" text="%game.create.onlyFriends" GridPane.columnIndex="1" GridPane.rowIndex="1" />
 
-        <HBox alignment="CENTER" maxWidth="1.7976931348623157E308" spacing="10.0" GridPane.columnIndex="2" GridPane.columnSpan="2147483647" GridPane.rowIndex="1">
+        <VBox GridPane.columnIndex="0" GridPane.rowIndex="1" spacing="2.0">
+            <PasswordField fx:id="passwordTextField" promptText="%game.create.password" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+            <CheckBox fx:id="onlyForFriendsCheckBox" mnemonicParsing="false" text="%game.create.onlyFriends" />
+        </VBox>
+
+        <HBox GridPane.columnIndex="1" GridPane.rowIndex="1" alignment="TOP_CENTER" spacing="10.0">
             <children>
-                <Label alignment="CENTER_RIGHT" text="%game.create.rating" textAlignment="JUSTIFY" GridPane.columnIndex="2" GridPane.rowIndex="1" />
-                <TextField fx:id="minRankingTextField" minWidth="30.0" prefWidth="60.0" promptText="%games.create.minRating" HBox.hgrow="NEVER" />
-                <Label text="%games.create.minRating" />
-                <Label text="%games.create.maxRating" />
-                <TextField fx:id="maxRankingTextField" minWidth="30.0" prefWidth="60.0" promptText="%games.create.maxRating" HBox.hgrow="NEVER" />
-                <CheckBox fx:id="enforceRankingCheckBox" HBox.hgrow="NEVER" text="%games.create.enforceRating" />
+                <Label text="%game.create.liveReplay"/>
+                <ComboBox fx:id="liveReplayOptionComboBox"/>
             </children>
             <padding>
                 <Insets left="2.0" right="2.0" top="2.0" />
             </padding>
         </HBox>
+
+        <VBox  GridPane.columnIndex="2" GridPane.columnSpan="2147483647" GridPane.rowIndex="1" spacing="2.0">
+            <HBox alignment="CENTER_RIGHT" maxWidth="1.7976931348623157E308" spacing="10.0">
+                <children>
+                    <Label alignment="CENTER_RIGHT" text="%game.create.rating" />
+                    <TextField fx:id="minRankingTextField" minWidth="30.0" prefWidth="60.0" promptText="%games.create.minRating" HBox.hgrow="NEVER" />
+                    <Label text="%games.create.minRating" />
+                    <Label text="%games.create.maxRating" />
+                    <TextField fx:id="maxRankingTextField" minWidth="30.0" prefWidth="60.0" promptText="%games.create.maxRating" HBox.hgrow="NEVER" />
+                </children>
+                <padding>
+                    <Insets left="2.0" right="2.0" top="2.0" />
+                </padding>
+            </HBox>
+            <HBox alignment="CENTER_RIGHT" spacing="10.0">
+                <Label text="%games.create.enforceRating"/>
+                <CheckBox fx:id="enforceRankingCheckBox"/>
+            </HBox>
+        </VBox>
+
         <Separator maxWidth="1.7976931348623157E308" GridPane.columnSpan="2147483647" GridPane.rowIndex="2">
             <padding>
                 <Insets left="2.0" right="2.0" top="2.0"/>
@@ -81,10 +103,10 @@
 
         <!-- Map Preview -->
         <HBox alignment="CENTER" spacing="10.0" GridPane.rowIndex="3" GridPane.columnIndex="2">
-            <Label alignment="TOP_LEFT" maxHeight="1.7976931348623157E308"
+            <Label alignment="CENTER_RIGHT" maxHeight="1.7976931348623157E308"
                    maxWidth="1.7976931348623157E308" text="Preview" wrapText="true"/>
             <ComboBox fx:id="mapPreviewTypeComboBox" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" />
-            <Label alignment="TOP_LEFT" maxHeight="1.7976931348623157E308"
+            <Label alignment="CENTER_RIGHT" maxHeight="1.7976931348623157E308"
                    maxWidth="1.7976931348623157E308" text="Positions" wrapText="true"/>
             <ComboBox fx:id="mapPreviewMaxPositionsComboBox" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" />
         </HBox>

@@ -69,6 +69,11 @@
                 <Region styleClass="icon,host-icon" />
             </graphic>
         </Label>
+        <Label fx:id="liveReplayDelayLabel" maxHeight="1.7976931348623157E308" minWidth="0.0" styleClass="card-info" text="&lt;delay&gt;" GridPane.columnIndex="2" GridPane.rowIndex="4">
+            <graphic>
+                <Region styleClass="icon,live-tv-icon" />
+            </graphic>
+        </Label>
         <Label fx:id="modsLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" styleClass="card-mod-list" text="&lt;Mods&gt;" wrapText="true" GridPane.columnIndex="1" GridPane.columnSpan="2147483647" GridPane.rowIndex="5" GridPane.valignment="TOP">
             <graphic>
                 <Region styleClass="icon,mods-icon" />

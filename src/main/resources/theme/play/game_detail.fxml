@@ -27,6 +27,7 @@
         <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
         <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
         <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
+        <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
     </rowConstraints>
     <children>
         <ImageView fx:id="mapImageView" onMouseClicked="#onClickedMap" fitWidth="230.0" fitHeight="320.0" pickOnBounds="true" preserveRatio="true" styleClass="map-preview" GridPane.columnSpan="2147483647" GridPane.halignment="CENTER" />
@@ -53,14 +54,19 @@
                 <Region styleClass="icon,players-icon" />
             </graphic>
         </Label>
-        <HBox alignment="CENTER" GridPane.columnSpan="2147483647" GridPane.rowIndex="7">
+        <Label fx:id="liveReplayDelayLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Number of players&gt;" wrapText="true" GridPane.rowIndex="7">
+            <graphic>
+                <Region styleClass="icon,live-tv-icon" />
+            </graphic>
+        </Label>
+        <HBox alignment="CENTER" GridPane.columnSpan="2147483647" GridPane.rowIndex="8">
             <fx:include fx:id="watchButton" source="../vault/replay/watch_button.fxml"/>
             <Button fx:id="leaveButton" mnemonicParsing="false" onAction="#onLeaveButtonClicked" text="%game.leave" styleClass="leave-game-button"><tooltip><Tooltip text="%game.leave.tooltip"/></tooltip></Button>
             <Button fx:id="startButton" mnemonicParsing="false" onAction="#onStartButtonClicked" text="%game.start" styleClass="start-game-button"><tooltip><Tooltip text="%game.start.tooltip"/></tooltip></Button>
             <Button fx:id="joinButton" mnemonicParsing="false" onAction="#onJoinButtonClicked" text="%game.join" styleClass="join-game-button"><tooltip><Tooltip text="%game.join.tooltip"/></tooltip></Button>
             <Button fx:id="autoJoinButton" mnemonicParsing="false" onAction="#onAutoJoinButtonClicked" text="%game.autojoin" styleClass="autojoin-game-button-not-active"><tooltip><Tooltip text="%game.autojoin.tooltip"/></tooltip></Button>
         </HBox>
-        <VBox alignment="BOTTOM_CENTER" fx:id="teamListPane" maxWidth="1.7976931348623157E308" spacing="10.0" GridPane.columnSpan="2147483647" GridPane.rowIndex="8" />
+        <VBox alignment="BOTTOM_CENTER" fx:id="teamListPane" maxWidth="1.7976931348623157E308" spacing="10.0" GridPane.columnSpan="2147483647" GridPane.rowIndex="9" />
     </children>
     <padding>
         <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />

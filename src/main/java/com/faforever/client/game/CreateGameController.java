@@ -56,7 +56,6 @@ import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundImage;
 import javafx.scene.layout.BackgroundSize;
 import javafx.scene.layout.Pane;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 import lombok.RequiredArgsConstructor;
@@ -124,6 +123,7 @@ public class CreateGameController implements Controller<Pane> {
   public ComboBox<PreviewType> mapPreviewTypeComboBox;
   public ComboBox<Integer> mapPreviewMaxPositionsComboBox;
   public CheckBox onlyForFriendsCheckBox;
+  public ComboBox<LiveReplayOption> liveReplayOptionComboBox;
   @VisibleForTesting
   FilteredList<MapBean> filteredMapBeans;
   private Runnable onCloseButtonClickedListener;
@@ -162,11 +162,25 @@ public class CreateGameController implements Controller<Pane> {
     versionLabel.managedProperty().bind(versionLabel.visibleProperty());
     hpiArchiveLabel.managedProperty().bind(hpiArchiveLabel.visibleProperty());
 
-    mapPreviewTypeComboBox.getItems().setAll(PreviewType.values());
-    mapPreviewMaxPositionsComboBox.getItems().setAll(IntStream.rangeClosed(2,10).boxed().collect(Collectors.toList()));
-    mapPreviewTypeComboBox.getSelectionModel().select(0);
-    mapPreviewMaxPositionsComboBox.getSelectionModel().select(0);
+    liveReplayOptionComboBox.getItems().setAll(LiveReplayOption.values());
+    LiveReplayOption lastGameLiveReplayOption = preferencesService.getPreferences().getLastGame().getLastGameLiveReplayOption();
+    liveReplayOptionComboBox.getSelectionModel().select(
+        lastGameLiveReplayOption == LiveReplayOption.DISABLED
+          ? LiveReplayOption.FIVE_MINUTES
+          : lastGameLiveReplayOption);
+    liveReplayOptionComboBox.setConverter(new StringConverter<>() {
+      @Override
+      public String toString(LiveReplayOption replayOption) {
+        return replayOption == null ? "null" : i18n.get(replayOption.getI18nKey());
+      }
+      @Override
+      public LiveReplayOption fromString(String string) {
+        throw new UnsupportedOperationException("Not supported");
+      }
+    });
 
+    mapPreviewTypeComboBox.getItems().setAll(PreviewType.values());
+    mapPreviewTypeComboBox.getSelectionModel().select(0);
     mapPreviewTypeComboBox.setConverter(new StringConverter<>() {
       @Override
       public String toString(PreviewType previewType) {
@@ -177,6 +191,11 @@ public class CreateGameController implements Controller<Pane> {
         throw new UnsupportedOperationException("Not supported");
       }
     });
+    mapPreviewTypeComboBox.getSelectionModel().selectedItemProperty().addListener(
+        (observable, oldValue, newValue) -> setSelectedMap(mapListView.getSelectionModel().getSelectedItem(), newValue, mapPreviewMaxPositionsComboBox.getSelectionModel().getSelectedItem()));
+
+    mapPreviewMaxPositionsComboBox.getItems().setAll(IntStream.rangeClosed(2,10).boxed().collect(Collectors.toList()));
+    mapPreviewMaxPositionsComboBox.getSelectionModel().select(0);
     mapPreviewMaxPositionsComboBox.setConverter(new StringConverter<>() {
       @Override
       public String toString(Integer maxPositions) {
@@ -187,9 +206,6 @@ public class CreateGameController implements Controller<Pane> {
         throw new UnsupportedOperationException("Not supported");
       }
     });
-
-    mapPreviewTypeComboBox.getSelectionModel().selectedItemProperty().addListener(
-        (observable, oldValue, newValue) -> setSelectedMap(mapListView.getSelectionModel().getSelectedItem(), newValue, mapPreviewMaxPositionsComboBox.getSelectionModel().getSelectedItem()));
     mapPreviewMaxPositionsComboBox.getSelectionModel().selectedItemProperty().addListener(
         (observable, oldValue, newValue) -> setSelectedMap(mapListView.getSelectionModel().getSelectedItem(), mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(), newValue));
 
@@ -287,6 +303,7 @@ public class CreateGameController implements Controller<Pane> {
 
   private void init() {
     bindGameVisibility();
+    bindLiveReplayDelayOption();
     initMapSelection(KnownFeaturedMod.DEFAULT.getBaseGameName());
     initFeaturedModList();
     initRatingBoundaries();
@@ -320,6 +337,7 @@ public class CreateGameController implements Controller<Pane> {
     updateGameButton.visibleProperty().bind(createGameButton.visibleProperty().not());
     titleTextField.disableProperty().bind(updateGameButton.visibleProperty());
     onlyForFriendsCheckBox.disableProperty().bind(updateGameButton.visibleProperty());
+    liveReplayOptionComboBox.disableProperty().bind(updateGameButton.visibleProperty());
     featuredModListView.disableProperty().bind(updateGameButton.visibleProperty());
     setGamePathButton.disableProperty().bind(updateGameButton.visibleProperty());
     passwordTextField.disableProperty().bind(updateGameButton.visibleProperty());
@@ -355,8 +373,14 @@ public class CreateGameController implements Controller<Pane> {
             .getLastGame()
             .lastGameOnlyFriendsProperty()
     );
-
     onlyForFriendsCheckBox.selectedProperty().addListener(observable -> preferencesService.storeInBackground());
+  }
+
+  private void bindLiveReplayDelayOption() {
+    liveReplayOptionComboBox.getSelectionModel().selectedItemProperty().addListener((obs,oldValue,newValue) -> {
+      preferencesService.getPreferences().getLastGame().setLastGameLiveReplayOption(newValue);
+      preferencesService.storeInBackground();
+    });
   }
 
   protected void initMapSelection(String modTechnical) {
@@ -609,7 +633,8 @@ public class CreateGameController implements Controller<Pane> {
         onlyForFriendsCheckBox.isSelected() ? GameVisibility.PRIVATE : GameVisibility.PUBLIC,
         minRating,
         maxRating,
-        enforceRating);
+        enforceRating,
+        liveReplayOptionComboBox.getSelectionModel().getSelectedItem().getDelaySeconds());
 
     gameService.hostGame(newGameInfo).exceptionally(throwable -> {
       log.warn("Game could not be hosted", throwable);
