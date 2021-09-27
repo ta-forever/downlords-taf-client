@@ -5,8 +5,6 @@ import com.faforever.client.clan.Clan;
 import com.faforever.client.fx.MouseEvents;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.i18n.I18n;
-import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewSize;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerBuilder;
 import com.faforever.client.player.PlayerService;

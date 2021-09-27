@@ -1,20 +1,25 @@
 package com.faforever.client.map;
 
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.io.DownloadService;
+import com.faforever.client.notification.NotificationService;
 import com.faforever.client.preferences.PreferencesService;
-import org.junit.rules.TemporaryFolder;
-import org.springframework.util.FileSystemUtils;
 
+import java.nio.file.Path;
 import java.nio.file.Paths;
+
+import static com.faforever.client.util.LinkOrCopy.linkOrCopy;
 
 public class StubDownloadMapTask extends DownloadMapTask {
 
-  private final TemporaryFolder customMapsDirectory;
+  private final Path mapsCacheDirectory;
   public MapBean mapToDownload;
 
-  public StubDownloadMapTask(PreferencesService preferencesService, I18n i18n, TemporaryFolder customMapsDirectory) {
-    super(preferencesService, i18n);
-    this.customMapsDirectory = customMapsDirectory;
+  public StubDownloadMapTask(
+      PreferencesService preferencesService, NotificationService notificationService,
+      DownloadService downloadService, I18n i18n, Path mapsCacheDirectory) {
+    super(preferencesService, notificationService, downloadService, i18n);
+    this.mapsCacheDirectory = mapsCacheDirectory;
   }
 
   public void setMapToDownload(MapBean map) {
@@ -28,10 +33,10 @@ public class StubDownloadMapTask extends DownloadMapTask {
   }
 
   private void imitateMapDownload() throws Exception {
-    String folder = mapToDownload.getFolderName();
-      FileSystemUtils.copyRecursively(
-          Paths.get(getClass().getResource("/maps/" + folder).toURI()),
-          customMapsDirectory.newFolder(folder).toPath()
+    String hpiArchiveName = mapToDownload.getHpiArchiveName();
+    linkOrCopy(
+          Paths.get(getClass().getResource("/maps/" + hpiArchiveName).toURI()),
+          mapsCacheDirectory.resolve(hpiArchiveName)
       );
   }
 }

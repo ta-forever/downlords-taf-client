@@ -1,0 +1,3 @@
+bar▼mymaps_v2.hpi▼1a11b3db▼9 x 17. W:+6-18. Specially designed for 2v2. By Dioxide; Don't use. For TAF unit test only▼▼2, 4, 8▼1000-3000▼20▼112
+bon▼mymaps_v2.hpi▼36cf395f▼16 x 21. W:+15-21. Shallow water between lanes! By Dioxide▼▼2, 4, 6, 8, 10▼2500-3500▼15▼112
+foo▼mymaps_v2.hpi▼f24f8f30▼12 x 20. W:+12-18. Trees instead of cliffs. Edited by Dioxide▼▼2, 4, 6, 8, 10▼2000-3000▼10▼112

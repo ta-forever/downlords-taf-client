@@ -84,8 +84,6 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
   private FafService fafService;
   @Mock
   private ModManagerController modManagerController;
-  @Mock
-  private GenerateMapController generateMapController;
 
   private Preferences preferences;
   private CreateGameController instance;
@@ -443,15 +441,4 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
     assertThat(instance.titleTextField.getPseudoClassStates().contains(invalidClass), is(true));
   }
 
-  @Test
-  public void testOnGenerateMapClicked() {
-    instance.onGenerateMapButtonClicked();
-
-    verify(mapGeneratorService).queryMaxSupportedVersion();
-    verify(mapGeneratorService).setGeneratorVersion(any());
-    verify(mapGeneratorService).downloadGeneratorIfNecessary(any());
-    verify(mapGeneratorService).getGeneratorStyles();
-    verify(generateMapController).setStyles(any());
-    verify(generateMapController).setOnCloseButtonClickedListener(any());
-  }
 }

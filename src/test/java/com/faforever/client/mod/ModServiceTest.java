@@ -1,14 +1,12 @@
 package com.faforever.client.mod;
 
 import com.faforever.client.fx.PlatformService;
-import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.mod.ModVersion.ModType;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.preferences.Preferences;
 import com.faforever.client.preferences.PreferencesBuilder;
 import com.faforever.client.preferences.PreferencesService;
-import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.remote.AssetService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.task.CompletableTask;
@@ -99,7 +97,7 @@ public class ModServiceTest extends AbstractPlainJavaFxTest {
   public void setUp() throws Exception {
     gamePrefsPath = faDataDirectory.getRoot().toPath().resolve("game.prefs");
     Preferences preferences = PreferencesBuilder.create().defaultValues()
-        .forgedAlliancePrefs()
+        .totalAnnihilationPrefs()
         .preferencesFile(gamePrefsPath)
         .modsDirectory(modsDirectory.getRoot().toPath())
         .then()

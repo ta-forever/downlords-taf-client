@@ -1,7 +1,6 @@
 package com.faforever.client.map;
 
 import com.faforever.client.fx.PlatformService;
-import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.io.DownloadService;
 import com.faforever.client.notification.NotificationService;
@@ -11,7 +10,6 @@ import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.test.AbstractPlainJavaFxTest;
 
-import com.google.errorprone.annotations.DoNotMock;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -23,6 +21,9 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
@@ -54,12 +55,11 @@ public class DownloadMapBeanTaskTest extends AbstractPlainJavaFxTest {
   @Before
   public void setUp() throws Exception {
     Preferences preferences = PreferencesBuilder.create().defaultValues()
-        .forgedAlliancePrefs()
-        .customMapsDirectory(customMapsDirectory.getRoot().toPath())
+        .totalAnnihilationPrefs("MOD1", Paths.get("c:\\cavedog\\totala\\totala.exe"))
         .then()
         .get();
 
-    instance = new DownloadMapTask(platformService, preferencesService, notificationService, downloadService, i18n);
+    instance = new DownloadMapTask(preferencesService, notificationService, downloadService, i18n);
 
 
     when(preferencesService.getPreferences()).thenReturn(preferences);

@@ -4,6 +4,7 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapBeanBuilder;
 import com.faforever.client.map.MapService;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.test.AbstractPlainJavaFxTest;
 import com.faforever.client.theme.UiService;
 import javafx.collections.FXCollections;
@@ -22,6 +23,8 @@ public class MapsManagementControllerTest extends AbstractPlainJavaFxTest {
   @Mock
   private MapService mapService;
   @Mock
+  private PreferencesService preferencesService;
+  @Mock
   private I18n i18n;
   @Mock
   private UiService uiService;
@@ -37,15 +40,12 @@ public class MapsManagementControllerTest extends AbstractPlainJavaFxTest {
 
   @Before
   public void setUp() throws Exception {
-    when(mapService.isOfficialMap(officialMap)).thenReturn(true);
-    when(mapService.isCustomMap(officialMap)).thenReturn(false);
-    when(mapService.isCustomMap(customMap1)).thenReturn(true);
-    when(mapService.isCustomMap(customMap2)).thenReturn(true);
-    when(mapService.isOfficialMap(customMap1)).thenReturn(false);
-    when(mapService.isOfficialMap(customMap2)).thenReturn(false);
-    when(mapService.getInstalledMaps()).thenReturn(FXCollections.observableArrayList(officialMap, customMap1, customMap2));
+    when(mapService.isOfficialMap(officialMap.getMapName())).thenReturn(true);
+    when(mapService.isOfficialMap(customMap1.getMapName())).thenReturn(false);
+    when(mapService.isOfficialMap(customMap2.getMapName())).thenReturn(false);
+    when(mapService.getInstalledMaps("MOD1")).thenReturn(FXCollections.observableArrayList(officialMap, customMap1, customMap2));
 
-    instance = new MapsManagementController(uiService, mapService, i18n);
+    instance = new MapsManagementController(uiService, mapService, preferencesService, i18n);
     loadFxml("theme/vault/map/maps_management.fxml", param -> instance);
   }
 

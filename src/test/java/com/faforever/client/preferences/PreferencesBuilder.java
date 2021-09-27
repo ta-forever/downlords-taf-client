@@ -123,8 +123,8 @@ public class PreferencesBuilder {
     return new GeneratorPrefsBuilder();
   }
 
-  public ForgedAlliancePrefsBuilder forgedAlliancePrefs() {
-    return new ForgedAlliancePrefsBuilder();
+  public TotalAnnihilationPrefsBuilder totalAnnihilationPrefs(String baseGameName, Path installedExePath) {
+    return new TotalAnnihilationPrefsBuilder(baseGameName, installedExePath);
   }
 
   public LoginPrefsBuilder loginPrefs() {
@@ -261,69 +261,11 @@ public class PreferencesBuilder {
     }
   }
 
-  public class ForgedAlliancePrefsBuilder extends SubPreferencesBuilder {
-    private final ForgedAlliancePrefs forgedAlliancePrefs = preferences.getForgedAlliance();
+  public class TotalAnnihilationPrefsBuilder extends SubPreferencesBuilder {
+    private final TotalAnnihilationPrefs totalAnnihilationPrefs;
 
-    public ForgedAlliancePrefsBuilder path(Path path) {
-      forgedAlliancePrefs.setPath(path);
-      return this;
-    }
-
-    public ForgedAlliancePrefsBuilder installationPath(Path installationPath) {
-      forgedAlliancePrefs.setInstallationPath(installationPath);
-      return this;
-    }
-
-    public ForgedAlliancePrefsBuilder preferencesFile(Path preferencesFile) {
-      forgedAlliancePrefs.setPreferencesFile(preferencesFile);
-      return this;
-    }
-
-    public ForgedAlliancePrefsBuilder vaultBaseDirectory(Path vaultBaseDirectory) {
-      forgedAlliancePrefs.setVaultBaseDirectory(vaultBaseDirectory);
-      return this;
-    }
-
-    public ForgedAlliancePrefsBuilder customMapsDirectory(Path customMapsDirectory) {
-      forgedAlliancePrefs.customMapsDirectoryProperty().unbind();
-      forgedAlliancePrefs.setCustomMapsDirectory(customMapsDirectory);
-      return this;
-    }
-
-    public ForgedAlliancePrefsBuilder modsDirectory(Path modsDirectory) {
-      forgedAlliancePrefs.modsDirectoryProperty().unbind();
-      forgedAlliancePrefs.setModsDirectory(modsDirectory);
-      return this;
-    }
-
-    public ForgedAlliancePrefsBuilder forceRelay(boolean forceRelay) {
-      forgedAlliancePrefs.setForceRelay(forceRelay);
-      return this;
-    }
-
-    public ForgedAlliancePrefsBuilder autoDownloadMaps(boolean autoDownloadMaps) {
-      forgedAlliancePrefs.setAutoDownloadMaps(autoDownloadMaps);
-      return this;
-    }
-
-    public ForgedAlliancePrefsBuilder allowReplaysWhileInGame(boolean allowReplaysWhileInGame) {
-      forgedAlliancePrefs.setAllowReplaysWhileInGame(allowReplaysWhileInGame);
-      return this;
-    }
-
-    public ForgedAlliancePrefsBuilder vaultCheckDone(boolean vaultCheckDone) {
-      forgedAlliancePrefs.setVaultCheckDone(vaultCheckDone);
-      return this;
-    }
-
-    public ForgedAlliancePrefsBuilder executableDecorator(String executableDecorator) {
-      forgedAlliancePrefs.setExecutableDecorator(executableDecorator);
-      return this;
-    }
-
-    public ForgedAlliancePrefsBuilder executionDirectory(Path executionDirectory) {
-      forgedAlliancePrefs.setExecutionDirectory(executionDirectory);
-      return this;
+    public TotalAnnihilationPrefsBuilder(String baseGameName, Path installedExePath) {
+       totalAnnihilationPrefs = preferences.setTotalAnnihilation(baseGameName, installedExePath, null);
     }
   }
 
