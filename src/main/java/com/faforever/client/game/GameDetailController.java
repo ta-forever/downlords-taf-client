@@ -213,7 +213,7 @@ public class GameDetailController implements Controller<Pane> {
     Game thisGame = this.game.get();
     boolean isCurrentGame = thisGame != null && currentGame != null && Objects.equals(thisGame, currentGame);
     boolean isOwnGame = thisGame != null && currentPlayer != null && currentPlayer.getUsername().equals(thisGame.getHost());
-    boolean isGameProcessRunning = gameService.isGameRunning();
+    boolean isGameProcessRunning = gameService.isGameRunning() || gameService.getRunningGameUid() != 0;
     boolean isPlayerIdle = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.IDLE;
     boolean isPlayerHosting = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.HOSTING;
     boolean isPlayerJoining = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.JOINING;

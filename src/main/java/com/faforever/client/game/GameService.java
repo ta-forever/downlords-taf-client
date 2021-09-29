@@ -57,7 +57,6 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import lombok.RequiredArgsConstructor;
@@ -412,10 +411,16 @@ public class GameService implements InitializingBean {
     Map<String, Integer> featuredModVersions = game.getFeaturedModVersions();
     Set<String> simModUIds = game.getSimMods().keySet();
     autoJoinRequestedGameProperty.set(null);
+    runningGameUidProperty.set(game.getId());
     return
         modService.getFeaturedMod(game.getFeaturedMod())
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, null, featuredModVersions, simModUIds))
         .thenCompose(aVoid -> mapService.ensureMap(game.getFeaturedMod(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null))
+        .exceptionally(throwable -> {
+          log.warn("Exception preparing to join game", throwable);
+          notificationService.addImmediateErrorNotification(throwable, "games.errorInPreparing");
+          return null;
+        })
         .thenCompose(aVoid -> fafService.requestJoinGame(game.getId(), password))
         .thenAccept(gameLaunchMessage -> {
             // Store password in case we rehost
@@ -426,6 +431,7 @@ public class GameService implements InitializingBean {
         .exceptionally(throwable -> {
           log.warn("Game could not be joined", throwable);
           notificationService.addImmediateErrorNotification(throwable, "games.couldNotJoin");
+          setRunningGameUid(null);
           return null;
         });
   }
@@ -471,7 +477,7 @@ public class GameService implements InitializingBean {
     return modService.getFeaturedMod(modTechnical)
         //.thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, version, modVersions, simMods))
         .thenCompose(aVoid -> mapService.ensureMap(modTechnical, mapName, mapCrc, mapArchive, null, null))
-        .thenRun(() -> {
+        .thenAccept((aVoid) -> {
           try {
             if (isGameRunning()) {
               return;

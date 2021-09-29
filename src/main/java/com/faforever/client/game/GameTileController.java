@@ -172,7 +172,7 @@ public class GameTileController implements Controller<Node> {
   private void updateButtonsVisibility(Game currentGame, Game autoJoinPrototype, Player currentPlayer) {
     boolean isCurrentGame = game != null && currentGame != null && Objects.equals(game, currentGame);
     boolean isOwnGame = game != null && currentPlayer != null && currentPlayer.getUsername().equals(game.getHost());
-    boolean isGameProcessRunning = gameService.isGameRunning();
+    boolean isGameProcessRunning = gameService.isGameRunning() || gameService.getRunningGameUid() != 0;
     boolean isPlayerIdle = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.IDLE;
     boolean isPlayerHosting = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.HOSTING;
     boolean isPlayerJoining = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.JOINING;
