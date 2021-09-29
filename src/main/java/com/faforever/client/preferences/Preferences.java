@@ -69,6 +69,7 @@ public class Preferences {
   private final BooleanProperty advancedIceLogEnabled;
   private final IntegerProperty cacheLifeTimeInDays;
   private final BooleanProperty gameDataCacheActivated;
+  private final BooleanProperty gameDataPromptDownloadActivated;
   private final BooleanProperty debugLogEnabled;
 
   public Preferences() {
@@ -109,6 +110,7 @@ public class Preferences {
     preReleaseCheckEnabled = new SimpleBooleanProperty(false);
     cacheLifeTimeInDays = new SimpleIntegerProperty(30);
     gameDataCacheActivated = new SimpleBooleanProperty(false);
+    gameDataPromptDownloadActivated = new SimpleBooleanProperty(true);
     debugLogEnabled = new SimpleBooleanProperty(false);
   }
 
@@ -427,6 +429,18 @@ public class Preferences {
 
   public BooleanProperty gameDataCacheActivatedProperty() {
     return gameDataCacheActivated;
+  }
+
+  public boolean isGameDataPromptDownloadActivated() {
+    return gameDataPromptDownloadActivated.get();
+  }
+
+  public void setGameDataPromptDownloadActivated(boolean gameDataPromptDownloadActivated) {
+    this.gameDataPromptDownloadActivated.set(gameDataPromptDownloadActivated);
+  }
+
+  public BooleanProperty gameDataPromptDownloadActivatedProperty() {
+    return gameDataPromptDownloadActivated;
   }
 
   public boolean isDebugLogEnabled() {

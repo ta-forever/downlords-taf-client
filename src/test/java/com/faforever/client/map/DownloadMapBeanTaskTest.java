@@ -59,7 +59,7 @@ public class DownloadMapBeanTaskTest extends AbstractPlainJavaFxTest {
         .then()
         .get();
 
-    instance = new DownloadMapTask(preferencesService, notificationService, downloadService, i18n);
+    instance = new DownloadMapTask(platformService, preferencesService, notificationService, downloadService, i18n);
 
 
     when(preferencesService.getPreferences()).thenReturn(preferences);

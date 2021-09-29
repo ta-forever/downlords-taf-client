@@ -37,6 +37,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.image.Image;
+import javafx.util.Pair;
 import lombok.SneakyThrows;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -79,6 +80,7 @@ import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_ARCHIVE;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_CRC;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_DESCRIPTION;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_SIZE;
+import static com.faforever.client.util.LinkOrCopy.linkOrCopyWithBackup;
 import static com.github.nocatch.NoCatch.noCatch;
 import static com.google.common.net.UrlEscapers.urlFragmentEscaper;
 import static java.lang.String.format;
@@ -569,16 +571,56 @@ public class MapService implements InitializingBean, DisposableBean {
       downloadList.add(HPI_ARCHIVE_TA_FEATURES_2013);
     }
 
+    // make a copy of this list before we do anything to the installation
+    HashMap<String,MapBean> alreadyInstalledForModAllMaps = new HashMap<>();
+    alreadyInstalledForModAllMaps.putAll(getInstallation(modTechnicalName).mapsByName);
+
     if (mapName != null && mapCrc != null && downloadHpiArchiveName != null) {
-      MapBean installedMap = getInstallation(modTechnicalName).mapsByName.getOrDefault(mapName, null);
-      if (installedMap != null && installedMap.getMapName().equals(mapName) &&
-          (installedMap.getCrc().equals("00000000") || installedMap.getCrc().equals(mapCrc))) {
-        logger.info("{}/{}/{} already installed", installedMap.getHpiArchiveName(), installedMap.getMapName(), installedMap.getCrc());
-      } else {
+      List<Pair<Installation,MapBean>> alreadyInstalledAnywhere = installations.values().stream()
+          .map(installation -> new Pair<>(installation, installation.mapsByName.getOrDefault(mapName, null)))
+          .filter(pair -> pair.getValue() != null)
+          .filter(pair -> pair.getValue().getMapName().equals(mapName))
+          .filter(pair -> pair.getValue().getCrc().equals("00000000") || pair.getValue().getCrc().equals(mapCrc))
+          .sorted((a,b) -> b.getValue().getCrc().compareTo(a.getValue().getCrc()))  // those with non-zero crc first
+          .collect(Collectors.toList());
+
+      List<Pair<Installation,MapBean>> alreadyInstalledForMod = alreadyInstalledAnywhere.stream()
+          .filter(pair -> pair.getKey().modTechnicalName.equals(modTechnicalName))
+          .collect(Collectors.toList());
+
+      List<MapBean> alreadyInstalledForModAnyCrc = getInstalledMaps(modTechnicalName).stream()
+          .filter(mapBean -> mapBean.getMapName().equals(mapName))
+          .collect(Collectors.toList());
+
+      if (!alreadyInstalledForMod.isEmpty()) {
+        MapBean installedMap = alreadyInstalledForMod.get(0).getValue();
+        logger.info("{}/{}/{} already installed",
+            installedMap.getHpiArchiveName(), installedMap.getMapName(), installedMap.getCrc());
+
+      } else if (!alreadyInstalledAnywhere.isEmpty()) {
+        String donorModName = alreadyInstalledAnywhere.get(0).getKey().modTechnicalName;
+        String donatedArchiveName = alreadyInstalledAnywhere.get(0).getValue().getHpiArchiveName();
+        Path source = preferencesService.getTotalAnnihilation(donorModName).getInstalledPath().resolve(donatedArchiveName);
+        Path dest = installationPath.resolve(donatedArchiveName);
+        try {
+          logger.info("Installing {}/{}: link/copied {} to {}", mapName, mapCrc, source, dest);
+          linkOrCopyWithBackup(source, dest);
+          if (!alreadyInstalledForModAnyCrc.isEmpty()) {
+            // pre-existing, but different crc
+            removeArchive(installationPath.resolve(alreadyInstalledForModAnyCrc.get(0).getHpiArchiveName()));
+          }
+          // the new archive might contain other maps that conflict with existing archives
+          removeConflictingArchives(
+              modTechnicalName, alreadyInstalledForModAllMaps, installationPath.resolve(downloadHpiArchiveName));
+        } catch (IOException ex) {
+          logger.info("Unable to link/copy {} to {}: {}", source, dest, ex.getMessage());
+        }
+      }
+      else {
         downloadList.add(downloadHpiArchiveName);
-        if (installedMap != null) {
-          // but crc is different
-          removeArchive(installationPath.resolve(installedMap.getHpiArchiveName()));
+        if (!alreadyInstalledForModAnyCrc.isEmpty()) {
+          // pre-existing, but different crc
+          removeArchive(installationPath.resolve(alreadyInstalledForModAnyCrc.get(0).getHpiArchiveName()));
         }
       }
     }
@@ -597,23 +639,24 @@ public class MapService implements InitializingBean, DisposableBean {
       return CompletableFuture.completedFuture(null);
     }
 
-    CompletableFuture<Void> future = downloadAndInstallArchive(modTechnicalName, downloadList.get(0), progressProperty, titleProperty);
+    CompletableFuture<Void> future =
+        downloadAndInstallArchive(modTechnicalName, downloadList.get(0), progressProperty, titleProperty);
     if (downloadList.size() > 1) {
-      future = future.thenCompose(aVoid -> downloadAndInstallArchive(modTechnicalName, downloadHpiArchiveName, progressProperty, titleProperty));
+      future = future.thenCompose(aVoid ->
+          downloadAndInstallArchive(modTechnicalName, downloadHpiArchiveName, progressProperty, titleProperty));
     }
 
-    // we already removed any pre-existing archive containing mapName, but the new archive might contain other maps that conflict with existing archives
-    HashMap<String,MapBean> existingMaps = new HashMap<>();
-    existingMaps.putAll(getInstallation(modTechnicalName).mapsByName);
-    if (downloadHpiArchiveName != null) {
+    if (downloadList.stream().anyMatch(archiveName -> archiveName.equals(downloadHpiArchiveName))) {
+      // we already removed any pre-existing archive containing mapName,
+      // but the new archive might contain other maps that conflict with existing archives
       future = future.thenRun(() -> {
         removeConflictingArchives(
-            modTechnicalName,
-            existingMaps,
-            installationPath.resolve(downloadHpiArchiveName));
-        getInstallation(modTechnicalName).downloadingList.removeIf(archive -> Arrays.asList(downloadHpiArchiveName, HPI_ARCHIVE_TA_FEATURES_2013).contains(archive));
+            modTechnicalName, alreadyInstalledForModAllMaps, installationPath.resolve(downloadHpiArchiveName));
+        getInstallation(modTechnicalName).downloadingList.removeIf(
+            archive -> Arrays.asList(downloadHpiArchiveName, HPI_ARCHIVE_TA_FEATURES_2013).contains(archive));
       });
     }
+
     return future;
   }
 
