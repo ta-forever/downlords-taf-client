@@ -25,6 +25,7 @@ public class ImmediateNotification {
   private final List<Action> actions;
   private final Parent customUI;
   private boolean overlayClose = true;  // set to false if clicking outside the notification should NOT dismiss the notification
+  private boolean hideOnEscape = true;  // set to false if pressing escape should NOT hide the notification
   private BooleanProperty dismissTrigger;
 
   /// @brief Retrieve and retain this property if you need to later programmatically dismiss the notification.

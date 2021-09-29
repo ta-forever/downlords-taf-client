@@ -10,6 +10,7 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TitledPane;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -65,7 +66,7 @@ public class ImmediateNotificationController implements Controller<Node> {
     notificationText.setText(notification.getText());
 
     Optional.ofNullable(notification.getActions())
-        .map(actions -> actions.stream().map(this::createButton).collect(Collectors.toList()))
+        .map(actions -> actions.stream().map(this::createActionNode).collect(Collectors.toList()))
         .ifPresent(dialogLayout::setActions);
     if (notification.getCustomUI() != null) {
       immediateNotificationRoot.getChildren().add(notification.getCustomUI());
@@ -80,12 +81,20 @@ public class ImmediateNotificationController implements Controller<Node> {
     return this;
   }
 
+  private Node createActionNode(Action action) {
+    Button button = createButton(action);
+    if (action.getDescription() != null) {
+      button.setTooltip(new Tooltip(action.getDescription()));
+    }
+    return button;
+  }
+
   private Button createButton(Action action) {
     Button button = new Button(action.getTitle());
     button.setOnAction(event -> {
       action.call(event);
       if (action.getType() == Action.Type.OK_DONE) {
-        dismissTrigger.setValue(true);
+        triggerDismiss();
       }
     });
 
@@ -97,6 +106,10 @@ public class ImmediateNotificationController implements Controller<Node> {
     }
 
     return button;
+  }
+
+  private void triggerDismiss() {
+    dismissTrigger.setValue(true);
   }
 
   private void dismiss() {

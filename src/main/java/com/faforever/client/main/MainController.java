@@ -606,6 +606,7 @@ public class MainController implements Controller<Node> {
     dialog.setContent(controller.getDialogLayout());
     dialog.setAnimation(AlertAnimation.TOP_ANIMATION);
     dialog.setOverlayClose(notification.isOverlayClose());
+    dialog.setHideOnEscape(notification.isHideOnEscape());
     dialog.show();
   }
 

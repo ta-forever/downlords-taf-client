@@ -19,27 +19,33 @@ public class Action {
   }
 
   private final String title;
+  private final String description;
   private final ActionCallback callback;
   private final Type type;
 
   public Action(ActionCallback callback) {
-    this(null, Type.OK_DONE, callback);
+    this(null, null, Type.OK_DONE, callback);
   }
 
   /**
    * Creates an action that calls the specified callback when executed. Also, a type is specified that
    */
-  public Action(String title, Type type, ActionCallback callback) {
+  public Action(String title, String description, Type type, ActionCallback callback) {
     this.title = title;
+    this.description = description;
     this.type = type;
     this.callback = callback;
+  }
+
+  public Action(String title, Type type, ActionCallback callback) {
+    this(title, null, type, callback);
   }
 
   /**
    * Creates an action that does nothing.
    */
   public Action(String title) {
-    this(title, Type.OK_DONE, null);
+    this(title, null, Type.OK_DONE, null);
   }
 
   /**
@@ -47,7 +53,7 @@ public class Action {
    * {@link com.faforever.client.notification.Action.Type#OK_DONE}.
    */
   public Action(String title, ActionCallback callback) {
-    this(title, Type.OK_DONE, callback);
+    this(title, null, Type.OK_DONE, callback);
   }
 
   /**
@@ -62,6 +68,8 @@ public class Action {
   public String getTitle() {
     return title;
   }
+
+  public String getDescription() { return description; }
 
   public Type getType() {
     return type;
