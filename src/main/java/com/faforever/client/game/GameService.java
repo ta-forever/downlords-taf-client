@@ -411,7 +411,7 @@ public class GameService implements InitializingBean {
     Map<String, Integer> featuredModVersions = game.getFeaturedModVersions();
     Set<String> simModUIds = game.getSimMods().keySet();
     autoJoinRequestedGameProperty.set(null);
-    runningGameUidProperty.set(game.getId());
+    setRunningGameUid(game.getId());  // set it early so create-game button disabled during setup
     return
         modService.getFeaturedMod(game.getFeaturedMod())
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, null, featuredModVersions, simModUIds))
@@ -421,10 +421,16 @@ public class GameService implements InitializingBean {
           notificationService.addImmediateErrorNotification(throwable, "games.errorInPreparing");
           return null;
         })
-        .thenCompose(aVoid -> fafService.requestJoinGame(game.getId(), password))
+        .thenCompose(aVoid -> {
+          if (game.isPasswordProtected()) {
+            setRunningGameUid(null);  // we don't get an exception or anything if password is wrong
+          }
+          return fafService.requestJoinGame(game.getId(), password);
+          })
         .thenAccept(gameLaunchMessage -> {
             // Store password in case we rehost
             game.setPassword(password);
+            setRunningGameUid(game.getId());
             boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchOnJoinEnabled() && game.getStatus() == GameStatus.BATTLEROOM;
             startGame(gameLaunchMessage, inGameIrcUrl, autoLaunch, playerService.getCurrentPlayer().get().getUsername());
         })
@@ -769,10 +775,9 @@ public class GameService implements InitializingBean {
 
           String demoCompilerUrl = String.format("%s:%s/%s",
               clientProperties.getReplay().getRemoteHost(), clientProperties.getReplay().getCompilerPort(), uid);
-          String playerPublicIp = fafService.getLocalIps().size() > 0 ? fafService.getLocalIps().get(0) : "127.0.0.1";
 
           process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, uid, args,
-              adapterPort, getCurrentPlayer(), demoCompilerUrl, ircUrl, autoLaunch, playerPublicIp));
+              adapterPort, getCurrentPlayer(), demoCompilerUrl, ircUrl, autoLaunch));
           setRunningGameUid(uid);
           currentGameStatusProperty.set(GameStatus.SPAWNING);
           spawnGameTerminationListener(process, uid,  null);
