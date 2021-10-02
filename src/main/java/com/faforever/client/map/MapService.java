@@ -296,6 +296,7 @@ public class MapService implements InitializingBean, DisposableBean {
     loadInstalledMaps(installation);
   }
 
+  private Boolean enableLoadInstalledMapsOnDirectoryUpdate = true;
   private Thread startDirectoryWatcher(Installation installation, Path mapsDirectory) {
     Thread thread = new Thread(() -> noCatch(() -> {
       try (WatchService watcher = mapsDirectory.getFileSystem().newWatchService()) {
@@ -308,7 +309,7 @@ public class MapService implements InitializingBean, DisposableBean {
           if (events.stream()
               .filter(event -> matcher.matches((Path)event.context()) )
               .findAny().isPresent()) {
-            Platform.runLater(() -> { loadInstalledMaps(installation); });
+            Platform.runLater(() -> { if (enableLoadInstalledMapsOnDirectoryUpdate) loadInstalledMaps(installation); });
           }
           key.reset();
         }
@@ -318,6 +319,7 @@ public class MapService implements InitializingBean, DisposableBean {
     }));
     thread.setDaemon(true);
     thread.start();
+
     return thread;
   }
 
@@ -571,6 +573,8 @@ public class MapService implements InitializingBean, DisposableBean {
       downloadList.add(HPI_ARCHIVE_TA_FEATURES_2013);
     }
 
+    enableLoadInstalledMapsOnDirectoryUpdate = false;
+
     // make a copy of this list before we do anything to the installation
     HashMap<String,MapBean> alreadyInstalledForModAllMaps = new HashMap<>();
     alreadyInstalledForModAllMaps.putAll(getInstallation(modTechnicalName).mapsByName);
@@ -612,6 +616,7 @@ public class MapService implements InitializingBean, DisposableBean {
           // the new archive might contain other maps that conflict with existing archives
           removeConflictingArchives(
               modTechnicalName, alreadyInstalledForModAllMaps, installationPath.resolve(downloadHpiArchiveName));
+          loadInstalledMaps(modTechnicalName);
         } catch (IOException ex) {
           logger.info("Unable to link/copy {} to {}: {}", source, dest, ex.getMessage());
           notificationService.addNotification(new ImmediateNotification(
@@ -641,6 +646,7 @@ public class MapService implements InitializingBean, DisposableBean {
     }
 
     if (downloadList.isEmpty()) {
+      enableLoadInstalledMapsOnDirectoryUpdate = true;
       return CompletableFuture.completedFuture(null);
     }
 
@@ -669,10 +675,11 @@ public class MapService implements InitializingBean, DisposableBean {
             modTechnicalName, alreadyInstalledForModAllMaps, installationPath.resolve(downloadHpiArchiveName));
         getInstallation(modTechnicalName).downloadingList.removeIf(
             archive -> Arrays.asList(downloadHpiArchiveName, HPI_ARCHIVE_TA_FEATURES_2013).contains(archive));
+        loadInstalledMaps(modTechnicalName);
       });
     }
 
-    return future;
+    return future.thenRun(() -> enableLoadInstalledMapsOnDirectoryUpdate = true);
   }
 
   public CompletableFuture<Void> downloadAndInstallArchive(String modTechnical, String hpiArchiveName) {
