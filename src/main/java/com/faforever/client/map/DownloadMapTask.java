@@ -77,22 +77,22 @@ public class DownloadMapTask extends CompletableTask<Void> {
     Objects.requireNonNull(hpiArchiveName, "hpiArchiveName has not been set");
     Objects.requireNonNull(installationPath, "installationPath has not been set");
 
-    URLConnection urlConnection = mapUrl.openConnection();
-    int bytesToRead = urlConnection.getContentLength();
-    String content = urlConnection.getContentType();
-
-    updateTitle(i18n.get("mapDownloadTask.title", hpiArchiveName, bytesToRead/1000000));
-
-    Path cacheDirectory = preferencesService.getCacheDirectory().resolve("maps");
-    long cacheFreeSpace = cacheDirectory.toFile().getFreeSpace();
-
     Path target = installationPath.resolve(hpiArchiveName);
     if (target.toFile().exists()) {
       logger.info("{} already exists, skipping install", target);
       return null;
     }
 
+    Path cacheDirectory = preferencesService.getCacheDirectory().resolve("maps");
+    long cacheFreeSpace = cacheDirectory.toFile().getFreeSpace();
     Path downloadDirectory = cacheDirectory;
+
+    URLConnection urlConnection = mapUrl.openConnection();
+    int bytesToRead = urlConnection.getContentLength();
+    String content = urlConnection.getContentType();
+
+    updateTitle(i18n.get("mapDownloadTask.title", hpiArchiveName, bytesToRead/1000000));
+
     if (cacheFreeSpace < 10*bytesToRead) {
       downloadDirectory = installationPath;
     }
@@ -105,15 +105,14 @@ public class DownloadMapTask extends CompletableTask<Void> {
         bytesToRead==0) {
 
       String selection = getUserOption(hpiArchiveName, bytesToRead);
+
       if (selection == "taf") {
         doDownload(bytesToRead, downloadDirectory, urlConnection, content);
-      }
-      else if (selection == "always") {
+      } else if (selection == "always") {
         preferencesService.getPreferences().setGameDataPromptDownloadActivated(false);
         preferencesService.storeInBackground();
         doDownload(bytesToRead, downloadDirectory, urlConnection, content);
-      }
-      else {
+      } else {
         logger.info("skipping download ...");
         return null;
       }

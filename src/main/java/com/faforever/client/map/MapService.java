@@ -614,13 +614,28 @@ public class MapService implements InitializingBean, DisposableBean {
               modTechnicalName, alreadyInstalledForModAllMaps, installationPath.resolve(downloadHpiArchiveName));
         } catch (IOException ex) {
           logger.info("Unable to link/copy {} to {}: {}", source, dest, ex.getMessage());
+          notificationService.addNotification(new ImmediateNotification(
+              i18n.get("mapDownloadTask.title", downloadHpiArchiveName, "?"),
+              "Unable to link/copy map pack into your installation!",
+              Severity.WARN, Collections.singletonList(new DismissAction(i18n))));
         }
       }
       else {
-        downloadList.add(downloadHpiArchiveName);
-        if (!alreadyInstalledForModAnyCrc.isEmpty()) {
-          // pre-existing, but different crc
-          removeArchive(installationPath.resolve(alreadyInstalledForModAnyCrc.get(0).getHpiArchiveName()));
+        try {
+          getDownloadUrl(downloadHpiArchiveName, mapDownloadUrlFormat).openStream().close();
+          // no exception ... download should work
+          downloadList.add(downloadHpiArchiveName);
+          if (!alreadyInstalledForModAnyCrc.isEmpty()) {
+            // pre-existing, but different crc
+            removeArchive(installationPath.resolve(alreadyInstalledForModAnyCrc.get(0).getHpiArchiveName()));
+          }
+        }
+        catch (IOException e) {
+          logger.info("Unable to download {}: {}", downloadHpiArchiveName, e.getMessage());
+          notificationService.addNotification(new ImmediateNotification(
+              i18n.get("mapDownloadTask.title", downloadHpiArchiveName, "?"),
+              i18n.get("mapDownloadTask.notFound", downloadHpiArchiveName),
+              Severity.WARN, Collections.singletonList(new DismissAction(i18n))));
         }
       }
     }
