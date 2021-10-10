@@ -208,6 +208,17 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   }
 
   @Override
+  @Cacheable(value = CacheNames.TADEMO_MOD_HASH, sync = true)
+  public List<com.faforever.client.api.dto.FeaturedMod> findFeaturedModByTaDemoModHash(String taDemoModHash) {
+    return getMany("/data/featuredMod", 1, java.util.Map.of(
+            FILTER, rsql(qBuilder()
+              .string("versions.taHash").eq(taDemoModHash)
+              .and()
+              .bool("versions.confirmed").isTrue()),
+            INCLUDE, "versions"));
+  }
+
+  @Override
   @Cacheable(value = CacheNames.LEADERBOARD, sync = true)
   public List<Leaderboard> getLeaderboards() {
     return getAll(LEADERBOARD_ENDPOINT);
@@ -388,6 +399,18 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   public Optional<MapVersion> findMapByFolderName(String folderName) {
     List<MapVersion> maps = getMany(MAP_VERSION_ENDPOINT, 1, java.util.Map.of(
         FILTER, rsql(qBuilder().string("filename").eq(format(FILENAME_TEMPLATE, folderName))),
+        INCLUDE, MAP_VERSION_INCLUDES));
+    if (maps.isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.ofNullable(maps.get(0));
+  }
+
+  @Override
+  @Cacheable(value = CacheNames.TADEMO_MAP_HASH, sync = true)
+  public Optional<MapVersion> findMapByTaDemoMapHash(String taDemoMapHash) {
+    List<MapVersion> maps = getMany(MAP_VERSION_ENDPOINT, 1, java.util.Map.of(
+        FILTER, rsql(qBuilder().string("taHash").eq(taDemoMapHash)),
         INCLUDE, MAP_VERSION_INCLUDES));
     if (maps.isEmpty()) {
       return Optional.empty();

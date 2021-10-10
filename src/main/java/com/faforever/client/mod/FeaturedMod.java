@@ -1,5 +1,6 @@
 package com.faforever.client.mod;
 
+import com.faforever.client.api.dto.FeaturedModVersion;
 import com.google.common.base.Strings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
@@ -9,6 +10,7 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
 import java.net.URL;
+import java.util.Comparator;
 import java.util.Optional;
 
 import static com.github.nocatch.NoCatch.noCatch;
@@ -24,6 +26,7 @@ public class FeaturedMod {
   private final StringProperty gitUrl;
   private final StringProperty gitBranch;
   private final BooleanProperty visible;
+  private final StringProperty version;
 
   public FeaturedMod() {
     id = new SimpleStringProperty();
@@ -34,6 +37,7 @@ public class FeaturedMod {
     gitUrl = new SimpleStringProperty();
     gitBranch = new SimpleStringProperty();
     bireusUrl = new SimpleObjectProperty<>();
+    version = new SimpleStringProperty();
   }
 
   public static FeaturedMod fromFeaturedMod(com.faforever.client.api.dto.FeaturedMod featuredMod) {
@@ -45,6 +49,12 @@ public class FeaturedMod {
     bean.visible.setValue(featuredMod.isVisible());
     bean.gitUrl.set(Strings.emptyToNull(featuredMod.getGitUrl()));
     bean.gitBranch.set(Strings.emptyToNull(featuredMod.getGitBranch()));
+    if (featuredMod.getVersions() != null && !featuredMod.getVersions().isEmpty()) {
+      bean.version.set(featuredMod.getVersions().stream()
+          .map(FeaturedModVersion::getVersion)
+          .max(String::compareTo)
+          .get());
+    }
     Optional.ofNullable(featuredMod.getBireusUrl()).ifPresent(url -> bean.bireusUrl.set(noCatch(() -> new URL(url + "/"))));
     return bean;
   }

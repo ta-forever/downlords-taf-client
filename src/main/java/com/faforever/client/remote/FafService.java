@@ -288,6 +288,13 @@ public class FafService {
   }
 
   @Async
+  public CompletableFuture<List<FeaturedMod>> findFeaturedModByTaDemoModHash(String taDemoModHash) {
+    return CompletableFuture.completedFuture(fafApiAccessor.findFeaturedModByTaDemoModHash(taDemoModHash).stream()
+        .map(FeaturedMod::fromFeaturedMod)
+        .collect(Collectors.toList()));
+  }
+
+  @Async
   public CompletableFuture<List<FeaturedModFile>> getFeaturedModFiles(FeaturedMod featuredMod, Integer version) {
     return CompletableFuture.completedFuture(fafApiAccessor.getFeaturedModFiles(featuredMod, version));
   }
@@ -355,8 +362,15 @@ public class FafService {
         ((HashMap<String, Integer>) tuple.getSecond().get("page")).get("totalPages")));
   }
 
+  @Async
   public CompletableFuture<Optional<MapBean>> findMapByFolderName(String folderName) {
     return CompletableFuture.completedFuture(fafApiAccessor.findMapByFolderName(folderName)
+        .map(MapBean::fromMapVersionDto));
+  }
+
+  @Async
+  public CompletableFuture<Optional<MapBean>> findMapByTaDemoMapHash(String taDemoMapHash) {
+    return CompletableFuture.completedFuture(fafApiAccessor.findMapByTaDemoMapHash(taDemoMapHash)
         .map(MapBean::fromMapVersionDto));
   }
 

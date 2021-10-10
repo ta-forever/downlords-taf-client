@@ -7,6 +7,7 @@ import com.faforever.client.api.dto.Clan;
 import com.faforever.client.api.dto.CoopMission;
 import com.faforever.client.api.dto.CoopResult;
 import com.faforever.client.api.dto.FeaturedModFile;
+import com.faforever.client.api.dto.FeaturedModVersion;
 import com.faforever.client.api.dto.Game;
 import com.faforever.client.api.dto.GameReview;
 import com.faforever.client.api.dto.Leaderboard;
@@ -137,6 +138,11 @@ public class MockFafApiAccessor implements FafApiAccessor {
   }
 
   @Override
+  public List<com.faforever.client.api.dto.FeaturedMod> findFeaturedModByTaDemoModHash(String taDemoModHash) {
+    return getFeaturedMods();
+  }
+
+  @Override
   public List<LeaderboardRatingJournal> getRatingJournal(int playerId, int leaderboardId) {
     return List.of();
   }
@@ -215,6 +221,9 @@ public class MockFafApiAccessor implements FafApiAccessor {
   public Optional<MapVersion> findMapByFolderName(String folderName) {
     return Optional.empty();
   }
+
+  @Override
+  public Optional<MapVersion> findMapByTaDemoMapHash(String taDemoMapHash) { return Optional.empty(); }
 
   @Override
   public Optional<MapVersion> getMapLatestVersion(String mapFolderName) {

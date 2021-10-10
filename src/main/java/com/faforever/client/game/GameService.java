@@ -4,6 +4,7 @@ import com.faforever.client.chat.ChatService;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.discord.DiscordRichPresenceService;
 import com.faforever.client.fa.CloseGameEvent;
+import com.faforever.client.fa.DemoFileInfo;
 import com.faforever.client.fa.MapTool;
 import com.faforever.client.fa.TotalAnnihilationService;
 import com.faforever.client.fa.relay.event.AutoJoinRequestEvent;
@@ -28,6 +29,7 @@ import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.UserOfflineEvent;
 import com.faforever.client.preferences.NotificationsPrefs;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.ReconnectTimerService;
 import com.faforever.client.remote.domain.GameInfoMessage;
@@ -94,8 +96,10 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static com.github.nocatch.NoCatch.noCatch;
 import static java.util.Arrays.asList;
@@ -439,6 +443,46 @@ public class GameService implements InitializingBean {
           notificationService.addImmediateErrorNotification(throwable, "games.couldNotJoin");
           setRunningGameUid(null);
           return null;
+        });
+  }
+
+  public CompletableFuture<Void> runWithReplay(DemoFileInfo demoFileInfo) {
+    final FeaturedMod mod[] = new FeaturedMod[] {null};
+    final String mapName[] = new String[] {null};
+    final String mapCrc[] = new String[] {null};
+    final String mapArchive[] = new String[] {null};
+
+    return modService.findFeaturedModByTaDemoFileInfo(demoFileInfo)
+        .thenAccept(featuredMod -> mod[0] = featuredMod)
+        .thenCompose(aVoid -> fafService.findMapByTaDemoMapHash(demoFileInfo.getMapHash()))
+        .thenAccept(mapBeanOptional -> mapBeanOptional.ifPresent(v -> {
+          mapName[0] = v.getMapName();
+          mapCrc[0] = v.getCrc();
+          mapArchive[0] = v.getHpiArchiveName();
+        }))
+        .thenCompose(aVoid -> {
+          if (mod[0] == null) {
+            try {
+              List<Action> actionList = fafService.getFeaturedMods().get().stream()
+                .map(fm -> new Action(
+                    fm.getDisplayName(), (a) -> runWithReplay(
+                    demoFileInfo.getFilePath(), 0, fm.getTechnicalName(), mapName[0], mapCrc[0], mapArchive[0])))
+                .collect(Collectors.toList());
+
+              notificationService.addNotification(new ImmediateNotification(
+                  i18n.get("replay.selectMod.title"),
+                  i18n.get("replay.selectMod.text"),
+                  Severity.INFO,actionList));
+
+            } catch (Exception e) {
+              log.warn("Exception during mod enumeration: {}", e.getMessage());
+            }
+            return CompletableFuture.completedFuture(null);
+          }
+          else {
+            return runWithReplay(
+              demoFileInfo.getFilePath(), 0, mod[0].getTechnicalName(), mapName[0], mapCrc[0], mapArchive[0]);
+          }
         });
   }
 
@@ -817,8 +861,8 @@ public class GameService implements InitializingBean {
   }
 
   Integer waitForTermination(Process process) {
-    String command = process.info().command().orElse("<unknown>");
-    String commandFileName = Paths.get(command).getFileName().toString();
+    String command = process.info().command().orElse(null);
+    String commandFileName = command == null ? null : Paths.get(command).getFileName().toString();
     int exitCode;
 
     try {

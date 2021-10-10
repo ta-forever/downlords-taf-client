@@ -1,6 +1,7 @@
 package com.faforever.client.mod;
 
 import com.faforever.client.config.CacheNames;
+import com.faforever.client.fa.DemoFileInfo;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.i18n.I18n;
@@ -148,6 +149,26 @@ public class ModService implements InitializingBean, DisposableBean {
     }));
     thread.start();
     return thread;
+  }
+
+  public CompletableFuture<FeaturedMod> findFeaturedModByTaDemoFileInfo(DemoFileInfo demoFileInfo) {
+    return fafService.findFeaturedModByTaDemoModHash(demoFileInfo.getModHash())
+        .thenApply(featuredModList -> {
+          try {
+            if (!featuredModList.isEmpty()) {
+              return featuredModList.get(0);
+            }
+
+            String versionString = String.format("%d.%d", demoFileInfo.getTaVersionMajor(), demoFileInfo.getTaVersionMinor());
+            featuredModList = fafService.findFeaturedModByTaDemoModHash(versionString).get();
+            if (!featuredModList.isEmpty()) {
+              return featuredModList.get(0);
+            }
+          } catch (Exception e) {
+            logger.warn("Exception finding mod for demo file {}: {}", demoFileInfo, e.getMessage());
+          }
+          return null;
+        });
   }
 
   public void loadInstalledMods() {

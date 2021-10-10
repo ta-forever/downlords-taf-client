@@ -57,6 +57,8 @@ public interface FafApiAccessor {
 
   List<com.faforever.client.api.dto.FeaturedMod> getFeaturedMods();
 
+  List<com.faforever.client.api.dto.FeaturedMod> findFeaturedModByTaDemoModHash(String taDemoModHash);
+
   List<Leaderboard> getLeaderboards();
 
   List<LeaderboardEntry> getAllLeaderboardEntries(String leaderboardTechnicalName);
@@ -100,6 +102,8 @@ public interface FafApiAccessor {
   Tuple<List<Game>, java.util.Map<String, ?>> findReplaysByQueryWithMeta(String query, int maxResults, int page, SortConfig sortConfig);
 
   Optional<MapVersion> findMapByFolderName(String folderName);
+
+  Optional<MapVersion> findMapByTaDemoMapHash(String taDemoMapHash);
 
   Optional<MapVersion> getMapLatestVersion(String mapFolderName);
 

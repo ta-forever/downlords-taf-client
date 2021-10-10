@@ -39,6 +39,8 @@ import static com.faforever.client.config.CacheNames.MOD_THUMBNAIL;
 import static com.faforever.client.config.CacheNames.NEWS;
 import static com.faforever.client.config.CacheNames.RATING_HISTORY;
 import static com.faforever.client.config.CacheNames.STATISTICS;
+import static com.faforever.client.config.CacheNames.TADEMO_MAP_HASH;
+import static com.faforever.client.config.CacheNames.TADEMO_MOD_HASH;
 import static com.faforever.client.config.CacheNames.THEME_IMAGES;
 import static com.faforever.client.config.CacheNames.URL_PREVIEW;
 import static com.github.benmanes.caffeine.cache.Caffeine.newBuilder;
@@ -72,6 +74,8 @@ public class CacheConfig extends CachingConfigurerSupport {
         new CaffeineCache(FEATURED_MOD_FILES, newBuilder().expireAfterWrite(10, MINUTES).build()),
         new CaffeineCache(MATCHMAKER_QUEUES, newBuilder().expireAfterWrite(10, MINUTES).build()),
         new CaffeineCache(MATCHMAKER_POOLS, newBuilder().expireAfterWrite(1, MINUTES).build()),
+        new CaffeineCache(TADEMO_MAP_HASH, newBuilder().expireAfterWrite(1, MINUTES).build()),
+        new CaffeineCache(TADEMO_MOD_HASH, newBuilder().expireAfterWrite(1, MINUTES).build()),
 
         // Images should only be cached as long as they are in use. This avoids loading an image multiple times, while
         // at the same time it doesn't prevent unused images from being garbage collected.
