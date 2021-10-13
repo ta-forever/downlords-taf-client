@@ -4,7 +4,6 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +18,7 @@ public class ClientProperties {
   private Irc irc = new Irc();
   private Server server = new Server();
   private Vault vault = new Vault();
+  private Tada tada = new Tada();
   private Replay replay = new Replay();
   private Imgur imgur = new Imgur();
   private TrueSkill trueSkill = new TrueSkill();
@@ -85,6 +85,16 @@ public class ClientProperties {
     private String mapDownloadUrlFormat;
     private String mapPreviewUrlFormat;
     private String replayDownloadUrlFormat;
+  }
+
+  @Data
+  public static class Tada {
+    private String rootUrl;
+    private String downloadReplayUrlRegex;
+    private String browseReplayUrlRegex;
+    private String replayUrlRegex;
+    private String tadaUrlRegex;
+    private String replayDownloadEndpointFormat;
   }
 
   @Data

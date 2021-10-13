@@ -22,6 +22,7 @@ import com.faforever.client.preferences.LocalizationPrefs;
 import com.faforever.client.preferences.NotificationsPrefs;
 import com.faforever.client.preferences.Preferences;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.TadaIntegrationOption;
 import com.faforever.client.preferences.TimeInfo;
 import com.faforever.client.preferences.ToastPosition;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
@@ -152,6 +153,7 @@ public class SettingsController implements Controller<Node> {
   public CheckBox prereleaseToggle;
   public Region settingsHeader;
   public ComboBox<NavigationItem> startTabChoiceBox;
+  public ComboBox<TadaIntegrationOption> tadaIntegrationChoiceBox;
   public Label notifyAtMentionTitle;
   public Label notifyAtMentionDescription;
   public TextField channelTextField;
@@ -298,6 +300,7 @@ public class SettingsController implements Controller<Node> {
     configureThemeSelection();
     configureToastScreen(preferences);
     configureStartTab(preferences);
+    configureTadaIntegration(preferences);
 
     displayFriendOnlineToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendOnlineToastEnabledProperty());
     displayFriendOfflineToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendOfflineToastEnabledProperty());
@@ -413,6 +416,28 @@ public class SettingsController implements Controller<Node> {
     });
     startTabChoiceBox.getSelectionModel().select(mainWindow.getNavigationItem());
     mainWindow.navigationItemProperty().bind(startTabChoiceBox.getSelectionModel().selectedItemProperty());
+  }
+
+  private void configureTadaIntegration(Preferences preferences) {
+    tadaIntegrationChoiceBox.setItems(FXCollections.observableArrayList(TadaIntegrationOption.values()));
+    tadaIntegrationChoiceBox.setConverter(new StringConverter<>() {
+      @Override
+      public String toString(TadaIntegrationOption option) {
+        return i18n.get(option.getI18nKey());
+      }
+
+      @Override
+      public TadaIntegrationOption fromString(String s) {
+        throw new UnsupportedOperationException("Not needed");
+      }
+    });
+    tadaIntegrationChoiceBox.setValue(preferences.getTadaIntegrationOption());
+    preferences.tadaIntegrationOptionProperty().bindBidirectional(tadaIntegrationChoiceBox.valueProperty());
+  }
+
+  public void onTadaIntegrationSelected(ActionEvent actionEvent) {
+    this.preferencesService.getPreferences().tadaIntegrationOptionProperty().setValue(tadaIntegrationChoiceBox.getValue());
+    preferencesService.storeInBackground();
   }
 
   private void configureTimeSetting(Preferences preferences) {
@@ -589,6 +614,5 @@ public class SettingsController implements Controller<Node> {
     preferencesService.storeInBackground();
     channelTextField.clear();
   }
-
 }
 

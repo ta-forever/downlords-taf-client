@@ -47,7 +47,7 @@ public class BrowserCallbackTest extends AbstractPlainJavaFxTest {
     Vault vault = new Vault();
     vault.setReplayDownloadUrlFormat("replayId=%s");
     clientProperties.setVault(vault);
-    instance = new BrowserCallback(platformService, clientProperties, urlPreviewResolver, replayService, eventBus, clanService, uiService, playerService, i18n, notificationService);
+    instance = new BrowserCallback(platformService, clientProperties, urlPreviewResolver, eventBus, clanService, uiService);
   }
 
   @Test

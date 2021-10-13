@@ -71,6 +71,9 @@
                       <ToggleButton fx:id="tutorialsButton" disable="true" minWidth="-Infinity" mnemonicParsing="false"
                                     onAction="#onNavigateButtonClicked" styleClass="main-navigation-button"
                                     text="%main.tutorials" toggleGroup="$mainNavigation"/>
+                      <ToggleButton fx:id="tadaButton" disable="false" minWidth="-Infinity" mnemonicParsing="false"
+                                    onAction="#onNavigateButtonClicked" styleClass="main-navigation-button"
+                                    text="%main.tada" toggleGroup="$mainNavigation"/>
                   </children>
                </HBox>
                <MenuButton fx:id="navigationDropdown" minHeight="-Infinity" minWidth="-Infinity" />

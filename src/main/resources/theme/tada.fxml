@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ProgressIndicator?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.web.WebView?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.Button?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.Region?>
+<StackPane xmlns:fx="http://javafx.com/fxml/1" fx:id="rootPane" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" xmlns="http://javafx.com/javafx/8.0.141" fx:controller="com.faforever.client.tada.TadaController">
+    <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="10.0" minWidth="10.0" VBox.vgrow="ALWAYS">
+        <HBox>
+            <FlowPane fx:id="integratedBrowseControls" hgap="10" vgap="10" HBox.hgrow="ALWAYS">
+                <padding><Insets bottom="10.0" left="15.0" right="15.0" top="10.0"/></padding>
+                <Button mnemonicParsing="false" onAction="#onNavigateHomeButton" text="%tada.home">
+                    <graphic><Region styleClass="icon,navigate-home-icon"/></graphic></Button>
+                <Button mnemonicParsing="false" onAction="#onNavigatePreviousButton" text="%tada.back">
+                    <graphic><Region styleClass="icon,navigate-before-icon"/></graphic></Button>
+                <Button mnemonicParsing="false" onAction="#onNavigateNextButton" text="%tada.forward">
+                    <graphic><Region styleClass="icon,navigate-next-icon"/></graphic></Button>
+                <Button mnemonicParsing="false" onAction="#onBrowseButton" text="%tada.inBrowser"/>
+                <Label text="%tada.description"/>
+            </FlowPane>
+            <FlowPane fx:id="watchControlsPane" hgap="10" vgap="10" HBox.hgrow="ALWAYS">
+                <padding><Insets bottom="10.0" left="15.0" right="15.0" top="10.0"/></padding>
+                <TextField fx:id="urlTextField" onKeyReleased="#onUrlTextFieldKeyReleased"  promptText="%tada.open.description" prefWidth="480"/>
+                <Button mnemonicParsing="false" onAction="#onPlayButton">
+                    <graphic><Region styleClass="icon,play-icon"/></graphic></Button>
+                <HBox fx:id="externalBrowseControls">
+                    <Button fx:id="OpenTextFieldInBrowserButton" mnemonicParsing="false" onAction="#onBrowseButton" text="%tada.inBrowser"/>
+                </HBox>
+            </FlowPane>
+        </HBox>
+        <StackPane fx:id="tadaPane" alignment="CENTER" VBox.vgrow="ALWAYS"
+                   maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0">
+          <padding><Insets bottom="10.0" left="15.0" right="15.0" top="10.0"/></padding>
+          <children>
+              <WebView fx:id="webView" prefHeight="-1.0" prefWidth="-1.0"/>
+              <Label fx:id="loadingIndicator" contentDisplay="TOP" text="%loading" HBox.hgrow="ALWAYS">
+                  <graphic>
+                      <ProgressIndicator maxHeight="80.0" maxWidth="80.0"/>
+                  </graphic>
+              </Label>
+          </children>
+        </StackPane>
+    </VBox>
+</StackPane>

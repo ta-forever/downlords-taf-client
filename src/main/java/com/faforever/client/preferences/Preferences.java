@@ -1,5 +1,6 @@
 package com.faforever.client.preferences;
 
+import com.faforever.client.config.ClientProperties.Tada;
 import com.faforever.client.game.GamesTilesContainerController.TilesSortingOrder;
 import com.faforever.client.game.KnownFeaturedMod;
 import javafx.beans.property.BooleanProperty;
@@ -71,6 +72,7 @@ public class Preferences {
   private final BooleanProperty gameDataCacheActivated;
   private final BooleanProperty gameDataPromptDownloadActivated;
   private final BooleanProperty debugLogEnabled;
+  private final ObjectProperty<TadaIntegrationOption> tadaIntegrationOption;
 
   public Preferences() {
     gameTileSortingOrder = new SimpleObjectProperty<>(TilesSortingOrder.PLAYER_DES);
@@ -112,6 +114,7 @@ public class Preferences {
     gameDataCacheActivated = new SimpleBooleanProperty(false);
     gameDataPromptDownloadActivated = new SimpleBooleanProperty(true);
     debugLogEnabled = new SimpleBooleanProperty(false);
+    tadaIntegrationOption = new SimpleObjectProperty<>(TadaIntegrationOption.ASK);
   }
 
   public VaultPrefs getVault() {
@@ -453,5 +456,15 @@ public class Preferences {
 
   public BooleanProperty debugLogEnabledProperty() {
     return debugLogEnabled;
+  }
+
+  public TadaIntegrationOption getTadaIntegrationOption() {
+    return tadaIntegrationOption.get();
+  }
+
+  public void setTadaIntegrationOption(TadaIntegrationOption option) { this.tadaIntegrationOption.set(option); }
+
+  public ObjectProperty<TadaIntegrationOption> tadaIntegrationOptionProperty() {
+    return tadaIntegrationOption;
   }
 }

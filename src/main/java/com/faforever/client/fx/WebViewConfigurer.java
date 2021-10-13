@@ -8,6 +8,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
+import lombok.extern.slf4j.Slf4j;
 import netscape.javascript.JSObject;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.ApplicationContext;
@@ -17,7 +18,11 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
+import java.util.Set;
+import java.util.function.Function;
+
 @Component
+@Slf4j
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class WebViewConfigurer {
 
@@ -37,7 +42,16 @@ public class WebViewConfigurer {
     this.preferencesService = preferencesService;
   }
 
-  public void configureWebView(WebView webView) {
+  private String defaultSubstituteHrefs(String href) {
+    return String.format("javascript:java.openUrl('%s');", href);
+  }
+
+  public BrowserCallback configureWebView(WebView webView) {
+    return configureWebView(webView, this::defaultSubstituteHrefs);
+  }
+
+  public BrowserCallback configureWebView(WebView webView, Function<String,String> hrefTransformer) {
+
     WebEngine engine = webView.getEngine();
 //    Accessor.getPageFor(engine).setBackgroundColor(0);
     webView.setContextMenuEnabled(false);
@@ -67,23 +81,28 @@ public class WebViewConfigurer {
         return;
       }
       uiService.registerWebView(webView);
-
       ((JSObject) engine.executeScript("window")).setMember(JAVA_REFERENCE_IN_JAVASCRIPT, browserCallback);
 
       Document document = webView.getEngine().getDocument();
-      if (document == null) {
-        return;
-      }
-
-      NodeList nodeList = document.getElementsByTagName("a");
-      for (int i = 0; i < nodeList.getLength(); i++) {
-        Element link = (Element) nodeList.item(i);
-        String href = link.getAttribute("href");
-
-        link.setAttribute("onMouseOver", "java.previewUrl('" + href + "')");
-        link.setAttribute("onMouseOut", "java.hideUrlPreview()");
-        link.setAttribute("href", "javascript:java.openUrl('" + href + "');");
+      if (document != null) {
+        NodeList nodeList = document.getElementsByTagName("a");
+        substituteHrefs(nodeList, hrefTransformer);
       }
     });
+    return browserCallback;
+  }
+
+  public void substituteHrefs(NodeList nodeList, Function<String,String> hrefTransformer) {
+    for (int i = 0; i < nodeList.getLength(); i++) {
+      Element link = (Element) nodeList.item(i);
+      String href = link.getAttribute("href");
+      if (href == null) {
+        continue;
+      }
+
+//      link.setAttribute("onMouseOver", "java.previewUrl('" + href + "')");
+//      link.setAttribute("onMouseOut", "java.hideUrlPreview()");
+      link.setAttribute("href", hrefTransformer.apply(href));
+    }
   }
 }

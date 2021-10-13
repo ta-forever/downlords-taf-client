@@ -33,6 +33,14 @@ faf-client:
     spookiesUrl: https://faforever.github.io/spooky-db/#/
     rackOversUrl: https://unitdb.faforever.com?settings64=eyJwcmV2aWV3Q29ybmVyIjoiTm9uZSJ9
 
+  tada:
+    rootUrl: http://www.tada.tauniverse.com
+    downloadReplayUrlRegex: ^(http.?://)?(www\.)?tada\.tauniverse\.com/games/([0-9a-f]+)#download$
+    browseReplayUrlRegex: ^(http.?://)?(www\.)?tada\.tauniverse\.com/games/([0-9a-f]+)$
+    replayUrlRegex: ^(http.?://)?(www\.)?tada\.tauniverse\.com/games/([0-9a-f]+)(#download)?$
+    tadaUrlRegex: ^(http.?://)?(www\.)?tada\.tauniverse\.com.*
+    replayDownloadEndpointFormat: https://z151e60yl7.execute-api.us-east-2.amazonaws.com/staging/download?id=%s
+
   map-generator:
     repoAndOwnerName: FAForever/Neroxis-Map-Generator
     queryLatestVersionUrl: https://api.github.com/repos/${faf-client.map-generator.repoAndOwnerName}/releases/latest

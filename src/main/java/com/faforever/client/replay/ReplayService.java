@@ -2,11 +2,14 @@ package com.faforever.client.replay;
 
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.discord.DiscordSpectateEvent;
+import com.faforever.client.fa.DemoFile;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.game.Game;
 import com.faforever.client.game.GameService;
 import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.io.DownloadService;
+import com.faforever.client.main.event.ShowTadaReplayEvent;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
 import com.faforever.client.mod.FeaturedMod;
@@ -19,10 +22,11 @@ import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.PersistentNotification;
 import com.faforever.client.notification.Severity;
-import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.reporting.ReportingService;
+import com.faforever.client.task.CompletableTask;
+import com.faforever.client.task.CompletableTask.Priority;
 import com.faforever.client.task.TaskService;
 import com.faforever.client.user.UserService;
 import com.faforever.client.util.Tuple;
@@ -32,12 +36,16 @@ import com.github.rutledgepaulv.qbuilders.conditions.Condition;
 import com.github.rutledgepaulv.qbuilders.visitors.RSQLVisitor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
 import com.google.common.primitives.Bytes;
+import com.google.gson.Gson;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
@@ -48,8 +56,10 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -69,7 +79,6 @@ import java.util.stream.StreamSupport;
 import static com.faforever.client.notification.Severity.WARN;
 import static com.faforever.commons.api.elide.ElideNavigator.qBuilder;
 import static com.github.nocatch.NoCatch.noCatch;
-import static java.net.URLDecoder.decode;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.file.Files.createDirectories;
 import static java.nio.file.Files.move;
@@ -79,7 +88,7 @@ import static java.util.Collections.singletonList;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class ReplayService {
+public class ReplayService implements InitializingBean {
 
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -103,8 +112,8 @@ public class ReplayService {
   private final UserService userService;
   private final ReplayFileReader replayFileReader;
   private final NotificationService notificationService;
+  private final DownloadService downloadService;
   private final GameService gameService;
-  private final PlayerService playerService;
   private final TaskService taskService;
   private final I18n i18n;
   private final ReportingService reportingService;
@@ -115,6 +124,11 @@ public class ReplayService {
   private final MapService mapService;
   private final EventBus eventBus;
   protected List<Replay> localReplays = new ArrayList<>();
+
+  @Override
+  public void afterPropertiesSet() {
+    eventBus.register(this);
+  }
 
   @VisibleForTesting
   static Integer parseSupComVersion(byte[] rawReplayBytes) {
@@ -308,7 +322,7 @@ public class ReplayService {
 
   public CompletableFuture<Path> downloadReplay(int id) {
     ReplayDownloadTask task = applicationContext.getBean(ReplayDownloadTask.class);
-    task.setReplayId(id);
+    task.setReplayId(Integer.toString(id));
     return taskService.submitTask(task).getFuture();
   }
 
@@ -358,5 +372,51 @@ public class ReplayService {
   public CompletableFuture<Tuple<List<Replay>, Integer>> getOwnReplaysWithPageCount(int maxResults, int page) {
     SortConfig sortConfig = new SortConfig("startTime", SortOrder.DESC);
     return getReplaysForPlayerWithPageCount(userService.getUserId(), maxResults, page, sortConfig);
+  }
+
+  @Data class SignedUrl { private String signedUrl; };
+
+  @Subscribe
+  public void startReplay(ShowTadaReplayEvent event) throws MalformedURLException {
+
+    Path downloadPath = preferencesService.getCacheDirectory().resolve("replays").resolve(
+        String.format("%s.tad", event.getTadaReplayId()));
+
+    CompletableFuture<Path> downloadedReplayPathFuture;
+    if (downloadPath.toFile().exists()) {
+      logger.info("Replay {} already exists at {}", event.getTadaReplayId(), downloadPath);
+      downloadedReplayPathFuture = CompletableFuture.completedFuture(downloadPath);
+    }
+    else {
+      CompletableFuture<URL> signedUrlFuture = taskService.submitTask(
+          new CompletableTask<URL>(Priority.HIGH) {
+            @Override
+            protected URL call() throws Exception {
+              URL tadaDownloadEndpoint = new URL(String.format(
+                  clientProperties.getTada().getReplayDownloadEndpointFormat(), event.getTadaReplayId()));
+              SignedUrl signedUrl = downloadService.downloadJson(tadaDownloadEndpoint, SignedUrl.class);
+              return new URL(signedUrl.signedUrl);
+            }}).getFuture();
+
+      downloadedReplayPathFuture = signedUrlFuture.thenCompose(signedUrl ->
+              taskService.submitTask(applicationContext.getBean(ReplayDownloadTask.class)
+                      .setReplayId(event.getTadaReplayId()).setReplayUrl(signedUrl)
+                      .setDownloadPath(downloadPath))
+                  .getFuture());
+    }
+
+    downloadedReplayPathFuture
+        .thenApply(replayFile -> DemoFile.sneakyGetInfo(replayFile.toString()))
+        .thenCompose(this.gameService::runWithReplay)
+        .exceptionally(throwable -> {
+          if (throwable.getCause() instanceof FileNotFoundException) {
+            log.warn("Replay not available on server yet", throwable);
+            notificationService.addImmediateWarnNotification("replayNotAvailable", event.getTadaReplayId());
+          } else {
+            log.error("Replay could not be started", throwable);
+            notificationService.addImmediateErrorNotification(throwable, "replayCouldNotBeStarted", event.getTadaReplayId());
+          }
+          return null;
+        });
   }
 }

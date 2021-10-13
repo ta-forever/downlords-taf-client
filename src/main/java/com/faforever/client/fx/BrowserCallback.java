@@ -5,12 +5,10 @@ import com.faforever.client.chat.UrlPreviewResolver;
 import com.faforever.client.clan.ClanService;
 import com.faforever.client.clan.ClanTooltipController;
 import com.faforever.client.config.ClientProperties;
-import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.JoinChannelEvent;
+import com.faforever.client.main.event.OpenTadaPageEvent;
 import com.faforever.client.main.event.ShowReplayEvent;
-import com.faforever.client.notification.NotificationService;
-import com.faforever.client.player.PlayerService;
-import com.faforever.client.replay.ReplayService;
+import com.faforever.client.main.event.ShowTadaReplayEvent;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.StageHolder;
 import com.google.common.annotations.VisibleForTesting;
@@ -19,10 +17,15 @@ import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Tooltip;
 import javafx.stage.Popup;
 import javafx.stage.PopupWindow.AnchorLocation;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,40 +33,60 @@ import java.util.regex.Pattern;
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class BrowserCallback {
+
+  @RequiredArgsConstructor
+  @Getter
+  class UrlDispatcher {
+    final Pattern pattern;
+    final BiConsumer<String,Matcher> dispatcher;
+  }
+
   private final PlatformService platformService;
   private final UrlPreviewResolver urlPreviewResolver;
-  private final ReplayService replayService;
   private final EventBus eventBus;
-  private final Pattern replayUrlPattern;
   private final ClanService clanService;
   private final UiService uiService;
-  private final PlayerService playerService;
-  private final I18n i18n;
-  private final NotificationService notificationService;
+  private final ClientProperties clientProperties;
+  final private List<UrlDispatcher> urlDispatchers;
   @VisibleForTesting
   Popup clanInfoPopup;
   private Tooltip linkPreviewTooltip;
-  private Popup playerInfoPopup;
   private double lastMouseX;
   private double lastMouseY;
 
   BrowserCallback(PlatformService platformService, ClientProperties clientProperties,
-                  UrlPreviewResolver urlPreviewResolver, ReplayService replayService, EventBus eventBus,
-                  ClanService clanService, UiService uiService, PlayerService playerService, I18n i18n,
-                  NotificationService notificationService) {
+                  UrlPreviewResolver urlPreviewResolver, EventBus eventBus,
+                  ClanService clanService, UiService uiService) {
     this.platformService = platformService;
     this.urlPreviewResolver = urlPreviewResolver;
-    this.replayService = replayService;
     this.eventBus = eventBus;
     this.clanService = clanService;
     this.uiService = uiService;
-    this.playerService = playerService;
-    this.i18n = i18n;
-    this.notificationService = notificationService;
+    this.urlDispatchers = new ArrayList<>();
+    this.clientProperties = clientProperties;
 
+    addShowTafReplayDispatcher();
+  }
+
+  public void addShowTadaReplayDispatcher() {
+    Pattern tadaReplayDownloadUrlPattern = Pattern.compile(clientProperties.getTada().getDownloadReplayUrlRegex());
+    this.addDispatcher(tadaReplayDownloadUrlPattern, (url, matcher) -> eventBus.post(new ShowTadaReplayEvent(matcher.group(3))));
+  }
+
+  public void addShowTafReplayDispatcher() {
     String urlFormat = clientProperties.getVault().getReplayDownloadUrlFormat();
     String[] splitFormat = urlFormat.split("%s");
-    replayUrlPattern = Pattern.compile(Pattern.quote(splitFormat[0]) + "(\\d+)" + Pattern.compile(splitFormat.length == 2 ? splitFormat[1] : ""));
+    Pattern tafReplayUrlPattern = Pattern.compile(Pattern.quote(splitFormat[0]) + "(\\d+)" + Pattern.compile(splitFormat.length == 2 ? splitFormat[1] : ""));
+    this.addDispatcher(tafReplayUrlPattern, (url, matcher) -> eventBus.post(new ShowReplayEvent(Integer.parseInt(matcher.group(1)))));
+  }
+
+  public void addOpenTadaPageDispatcher() {
+    Pattern tadaPattern = Pattern.compile(clientProperties.getTada().getTadaUrlRegex());
+    this.addDispatcher(tadaPattern, (url, matcher) -> eventBus.post(new OpenTadaPageEvent(url)));
+  }
+
+  public void addDispatcher(Pattern pattern, BiConsumer<String, Matcher> dispatcher) {
+    this.urlDispatchers.add(new UrlDispatcher(pattern, dispatcher));
   }
 
   /**
@@ -71,14 +94,16 @@ public class BrowserCallback {
    */
   @SuppressWarnings("unused")
   public void openUrl(String url) {
-    Matcher replayUrlMatcher = replayUrlPattern.matcher(url);
-    if (!replayUrlMatcher.matches()) {
-      platformService.showDocument(url);
-      return;
+    for (UrlDispatcher dispatcher: this.urlDispatchers) {
+      Matcher matcher = dispatcher.getPattern().matcher(url);
+      if (matcher.matches()) {
+        dispatcher.getDispatcher().accept(url, matcher);
+        return;
+      }
     }
 
-    String replayId = replayUrlMatcher.group(1);
-    eventBus.post(new ShowReplayEvent(Integer.parseInt(replayId)));
+    platformService.showDocument(url);
+    return;
   }
 
   /**

@@ -17,7 +17,8 @@ public enum NavigationItem {
   LEADERBOARD("theme/leaderboard/leaderboards.fxml", "main.leaderboards"),
   UNITS("theme/units.fxml", "main.units"),
   TUTORIALS("theme/tutorial.fxml", "main.tutorials"),
-  TOURNAMENTS("theme/tournaments/tournaments.fxml", "main.tournaments");
+  TOURNAMENTS("theme/tournaments/tournaments.fxml", "main.tournaments"),
+  TADA("theme/tada.fxml", "main.tada");
 
   private static final HashMap<String, NavigationItem> fromString;
 

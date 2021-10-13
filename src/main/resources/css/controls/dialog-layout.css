@@ -7,6 +7,7 @@
 .dialog-layout > .layout-actions {
   -fx-alignment: center-right;
   -fx-hgap: 8;
+  -fx-vgap: 8;
   -fx-padding: 8 8 8 8;
 }
 

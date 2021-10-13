@@ -400,7 +400,7 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
   private void initChatView() {
     WebView messagesWebView = getMessagesWebView();
     webViewConfigurer.configureWebView(messagesWebView)
-        .addInternalOpenTadaPageDispatcher();
+        .addOpenTadaPageDispatcher();
 
     messagesWebView.zoomProperty().addListener(new WeakChangeListener<>(zoomChangeListener));
 
