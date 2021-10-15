@@ -186,13 +186,16 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     playerService.getPlayerByName(userName)
         .thenAccept(optionalPlayer -> {
           if (optionalPlayer.isPresent()) JavaFxUtil.runLater(() -> {
+            ContextMenu contextMenu = new ContextMenu();
+
             MenuItem userInfoMenuItem = new MenuItem(i18n.get("chat.userContext.userInfo"));
             userInfoMenuItem.setOnAction(e -> showUserInfo(optionalPlayer.get()));
+            contextMenu.getItems().add(userInfoMenuItem);
 
-            MenuItem viewReplaysMenuItem = new MenuItem(i18n.get("chat.userContext.viewReplays"));
-            viewReplaysMenuItem.setOnAction(e -> showUserReplays(optionalPlayer.get()));
+            //MenuItem viewReplaysMenuItem = new MenuItem(i18n.get("chat.userContext.viewReplays"));
+            //viewReplaysMenuItem.setOnAction(e -> showUserReplays(optionalPlayer.get()));
+            //contextMenu.getItems().add(viewReplaysMenuItem);
 
-            ContextMenu contextMenu = new ContextMenu(userInfoMenuItem, viewReplaysMenuItem);
             contextMenu.show(this.getRoot().getScene().getWindow(), event.getScreenX(), event.getScreenY());
           });
         });
