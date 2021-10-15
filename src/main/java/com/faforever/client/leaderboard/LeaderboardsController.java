@@ -1,21 +1,29 @@
 package com.faforever.client.leaderboard;
 
+import com.faforever.client.chat.UserInfoWindowController;
 import com.faforever.client.fx.AbstractViewController;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.StringCell;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.main.event.ShowUserReplaysEvent;
 import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.NotificationService;
-import com.faforever.client.remote.FafService;
+import com.faforever.client.player.Player;
+import com.faforever.client.player.PlayerService;
+import com.faforever.client.theme.UiService;
 import com.faforever.client.util.Validator;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.eventbus.EventBus;
 import javafx.beans.property.SimpleFloatProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Node;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.input.ContextMenuEvent;
 import javafx.scene.layout.Pane;
 import javafx.util.StringConverter;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +49,9 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   private final LeaderboardService leaderboardService;
   private final NotificationService notificationService;
   private final ModService modService;
+  private final UiService uiService;
+  private final PlayerService playerService;
+  private final EventBus eventBus;
   private final I18n i18n;
   public Pane leaderboardRoot;
   public TableColumn<LeaderboardEntry, Number> rankColumn;
@@ -168,4 +179,34 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   public Node getRoot() {
     return leaderboardRoot;
   }
+
+  public void openContextMenu(ContextMenuEvent event) {
+    int index = ratingTable.getSelectionModel().selectedIndexProperty().get();
+    String userName = ratingTable.getItems().get(index).getUsername();
+    playerService.getPlayerByName(userName)
+        .thenAccept(optionalPlayer -> {
+          if (optionalPlayer.isPresent()) JavaFxUtil.runLater(() -> {
+            MenuItem userInfoMenuItem = new MenuItem(i18n.get("chat.userContext.userInfo"));
+            userInfoMenuItem.setOnAction(e -> showUserInfo(optionalPlayer.get()));
+
+            MenuItem viewReplaysMenuItem = new MenuItem(i18n.get("chat.userContext.viewReplays"));
+            viewReplaysMenuItem.setOnAction(e -> showUserReplays(optionalPlayer.get()));
+
+            ContextMenu contextMenu = new ContextMenu(userInfoMenuItem, viewReplaysMenuItem);
+            contextMenu.show(this.getRoot().getScene().getWindow(), event.getScreenX(), event.getScreenY());
+          });
+        });
+  }
+
+  public void showUserInfo(Player player) {
+    UserInfoWindowController userInfoWindowController = uiService.loadFxml("theme/user_info_window.fxml");
+    userInfoWindowController.setPlayer(player);
+    userInfoWindowController.setOwnerWindow(this.getRoot().getScene().getWindow());
+    userInfoWindowController.show();
+  }
+
+  public void showUserReplays(Player player) {
+    eventBus.post(new ShowUserReplaysEvent(player.getId()));
+  }
+
 }

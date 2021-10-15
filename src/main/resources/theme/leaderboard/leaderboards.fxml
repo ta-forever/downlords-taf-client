@@ -29,6 +29,7 @@
           VBox.vgrow="ALWAYS" visible="false">
         <children>
             <TableView fx:id="ratingTable" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
+                       onContextMenuRequested="#openContextMenu"
                        minHeight="0.0" minWidth="0.0" VBox.vgrow="ALWAYS">
                 <columns>
                     <TableColumn fx:id="rankColumn" text="Rank"/>
