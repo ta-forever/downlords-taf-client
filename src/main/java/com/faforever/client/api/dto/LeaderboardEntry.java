@@ -23,6 +23,9 @@ public class LeaderboardEntry {
   private Double rating;
   private OffsetDateTime createTime;
   private OffsetDateTime updateTime;
+  private Integer streak;
+  private String recentScores;
+  private String recentMod;
 
   @Relationship("player")
   private Player player;

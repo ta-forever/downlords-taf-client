@@ -4,7 +4,9 @@ import com.faforever.client.fx.AbstractViewController;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.StringCell;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.NotificationService;
+import com.faforever.client.remote.FafService;
 import com.faforever.client.util.Validator;
 import com.google.common.annotations.VisibleForTesting;
 import javafx.beans.property.SimpleFloatProperty;
@@ -38,11 +40,15 @@ public class LeaderboardsController extends AbstractViewController<Node> {
 
   private final LeaderboardService leaderboardService;
   private final NotificationService notificationService;
+  private final ModService modService;
   private final I18n i18n;
   public Pane leaderboardRoot;
   public TableColumn<LeaderboardEntry, Number> rankColumn;
   public TableColumn<LeaderboardEntry, String> nameColumn;
-  public TableColumn<LeaderboardEntry, Number> winLossColumn;
+  public TableColumn<LeaderboardEntry, Number> winRateColumn;
+  public TableColumn<LeaderboardEntry, Number> recentWinRateColumn;
+  public TableColumn<LeaderboardEntry, String> recentModColumn;
+  public TableColumn<LeaderboardEntry, Number> streakColumn;
   public TableColumn<LeaderboardEntry, Number> gamesPlayedColumn;
   public TableColumn<LeaderboardEntry, Number> ratingColumn;
   public TableView<LeaderboardEntry> ratingTable;
@@ -73,8 +79,17 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     nameColumn.setCellValueFactory(param -> param.getValue().usernameProperty());
     nameColumn.setCellFactory(param -> new StringCell<>(name -> name));
 
-    winLossColumn.setCellValueFactory(param -> new SimpleFloatProperty(param.getValue().getWinLossRatio()));
-    winLossColumn.setCellFactory(param -> new StringCell<>(number -> i18n.get("percentage", number.floatValue() * 100)));
+    winRateColumn.setCellValueFactory(param -> new SimpleFloatProperty(param.getValue().getWinRate()));
+    winRateColumn.setCellFactory(param -> new StringCell<>(number -> i18n.get("percentage", number.floatValue() * 100)));
+
+    recentWinRateColumn.setCellValueFactory(param -> new SimpleFloatProperty(param.getValue().getRecentWinRate()));
+    recentWinRateColumn.setCellFactory(param -> new StringCell<>(number -> i18n.get("percentage", number.floatValue() * 100)));
+
+    streakColumn.setCellValueFactory(param -> param.getValue().streakProperty());
+    streakColumn.setCellFactory(param -> new StringCell<>(streak -> i18n.number(streak.intValue())));
+
+    recentModColumn.setCellValueFactory(param -> param.getValue().recentModProperty());
+    recentModColumn.setCellFactory(param -> new StringCell<>(mod -> modService.getFeaturedModDisplayName(mod)));
 
     gamesPlayedColumn.setCellValueFactory(param -> param.getValue().gamesPlayedProperty());
     gamesPlayedColumn.setCellFactory(param -> new StringCell<>(count -> i18n.number(count.intValue())));

@@ -16,14 +16,20 @@ public class LeaderboardEntry {
   private final StringProperty username;
   private final DoubleProperty rating;
   private final IntegerProperty gamesPlayed;
-  private final FloatProperty winLossRatio;
+  private final FloatProperty winRate;
+  private final FloatProperty recentWinRate;
+  private final StringProperty recentMod;
+  private final IntegerProperty streak;
   private final ObjectProperty<Leaderboard> leaderboard;
 
   public LeaderboardEntry() {
     username = new SimpleStringProperty();
     rating = new SimpleDoubleProperty();
     gamesPlayed = new SimpleIntegerProperty();
-    winLossRatio = new SimpleFloatProperty();
+    winRate = new SimpleFloatProperty();
+    recentWinRate = new SimpleFloatProperty();
+    recentMod = new SimpleStringProperty();
+    streak = new SimpleIntegerProperty();
     leaderboard = new SimpleObjectProperty<>();
   }
 
@@ -32,8 +38,16 @@ public class LeaderboardEntry {
     leaderboardEntry.setLeaderboard(Leaderboard.fromDto(entry.getLeaderboard()));
     leaderboardEntry.setUsername(entry.getPlayer().getLogin());
     leaderboardEntry.setRating(entry.getRating());
-    leaderboardEntry.setWinLossRatio(entry.getWonGames() / (float) entry.getTotalGames());
+    leaderboardEntry.setWinRate(entry.getWonGames() / (float) entry.getTotalGames());
     leaderboardEntry.setGamesPlayed(entry.getTotalGames());
+    leaderboardEntry.setStreak(entry.getStreak());
+    leaderboardEntry.setRecentMod(entry.getRecentMod());
+
+    long recentWinCount = entry.getRecentScores().chars().filter(c -> c == '2').count();
+    long recentPlayCount = entry.getRecentScores().length();
+    float recentWinRate = recentPlayCount > 0 ? (float)recentWinCount / (float)recentPlayCount : 0.0f;
+    leaderboardEntry.setRecentWinRate(recentWinRate);
+
     return leaderboardEntry;
   }
 
@@ -85,16 +99,40 @@ public class LeaderboardEntry {
     return gamesPlayed;
   }
 
-  public float getWinLossRatio() {
-    return winLossRatio.get();
+  public float getWinRate() { return winRate.get(); }
+
+  public void setWinRate(float winRate) {
+    this.winRate.set(winRate);
   }
 
-  public void setWinLossRatio(float winLossRatio) {
-    this.winLossRatio.set(winLossRatio);
+  public FloatProperty winRateProperty() {
+    return winRate;
   }
 
-  public FloatProperty winLossRatioProperty() {
-    return winLossRatio;
+  public float getRecentWinRate() { return recentWinRate.get(); }
+
+  public void setRecentWinRate(float recentWinRate) { this.recentWinRate.set(recentWinRate); }
+
+  public FloatProperty recentWinRateProperty() {
+    return recentWinRate;
+  }
+
+  public String getRecentMod() { return recentMod.get(); }
+
+  public void setRecentMod(String recentMod) { this.recentMod.set(recentMod); }
+
+  public StringProperty recentModProperty() {
+    return recentMod;
+  }
+
+  public int getStreak() { return streak.get(); }
+
+  public void setStreak(int streak) {
+    this.streak.set(streak);
+  }
+
+  public IntegerProperty streakProperty() {
+    return streak;
   }
 
   @Override

@@ -32,7 +32,7 @@ public class LeaderboardEntryBuilder {
   }
 
   public LeaderboardEntryBuilder winLossRatio(float winLossRatio) {
-    leaderboardEntry.setWinLossRatio(winLossRatio);
+    leaderboardEntry.setWinRate(winLossRatio);
     return this;
   }
 
