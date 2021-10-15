@@ -195,10 +195,8 @@ public class UserInfoWindowController implements Controller<Node> {
 
     usernameLabel.setText(player.getUsername());
     countryFlagService.loadCountryFlag(player.getCountry()).ifPresent(image -> countryImageView.setImage(image));
-    gamesPlayedLabel.setText(i18n.number(player.getNumberOfGames()));
 
     updateNameHistory();
-    updateRatingGrids();
     countryLabel.setText(i18n.getCountryNameLocalized(player.getCountry()));
 
     onRatingTypeChange();
@@ -215,16 +213,21 @@ public class UserInfoWindowController implements Controller<Node> {
         .thenAccept((x) -> plotGamesPlayedByModChart());
   }
 
-  private void updateRatingGrids() {
+  private void updateRatingGrids(List<LeaderboardEntry> leaderboardEntries) {
+    Integer gameCount = leaderboardEntries.stream()
+        .map(lbe -> lbe.getGamesPlayed())
+        .reduce(0, Integer::sum);
+    gamesPlayedLabel.setText(i18n.number(gameCount));
+
     leaderboardService.getLeaderboards().thenAccept(leaderboards -> {
       StringBuilder ratingNames = new StringBuilder();
       StringBuilder ratingNumbers = new StringBuilder();
-      leaderboards.forEach(leaderboard -> {
-        LeaderboardRating leaderboardRating = player.getLeaderboardRatings().get(leaderboard.getTechnicalName());
-        if (leaderboardRating != null) {
-          String leaderboardName = i18n.getWithDefault(leaderboard.getTechnicalName(), leaderboard.getNameKey());
+      leaderboardEntries.forEach(lbe -> {
+        if (lbe != null) {
+          Leaderboard lb = lbe.getLeaderboard();
+          String leaderboardName = i18n.getWithDefault(lb.getTechnicalName(), lb.getNameKey());
           ratingNames.append(i18n.get("leaderboard.rating", leaderboardName)).append("\n");
-          ratingNumbers.append(i18n.number(RatingUtil.getLeaderboardRating(player, leaderboard))).append("\n");
+          ratingNumbers.append(i18n.number((int)lbe.getRating())).append("\n");
         }
       });
       JavaFxUtil.runLater(() -> {
@@ -310,8 +313,9 @@ public class UserInfoWindowController implements Controller<Node> {
   private void plotGamesPlayedByLeaderboardChart() {
     JavaFxUtil.runLater(() -> gamesPlayedByLeaderboardChart.getData().clear());
     leaderboardService.getEntriesForPlayer(player.getId()).thenAccept(leaderboardEntries -> JavaFxUtil.runLater(() -> {
-        ratingTable.setItems(observableList(leaderboardEntries));
-        leaderboardEntries.forEach(leaderboardEntry ->
+      ratingTable.setItems(observableList(leaderboardEntries));
+      updateRatingGrids(leaderboardEntries);
+      leaderboardEntries.forEach(leaderboardEntry ->
             gamesPlayedByLeaderboardChart.getData().add(new PieChart.Data(
                 i18n.getWithDefault(leaderboardEntry.getLeaderboard().getTechnicalName(), leaderboardEntry.getLeaderboard().getNameKey()),
                 leaderboardEntry.getGamesPlayed())));
@@ -407,8 +411,8 @@ public class UserInfoWindowController implements Controller<Node> {
     series.setName(i18n.get("userInfo.ratingOverTime"));
     ratingHistoryChart.setData(FXCollections.observableList(Collections.singletonList(series)));
     ratingHistoryChart.clearMarkers();
-    Integer latestValue = values.get(values.size()-1).getYValue();
     if (!values.isEmpty()) {
+      Integer latestValue = values.get(values.size()-1).getYValue();
       ratingHistoryChart.addHorizontalValueMarker(
           new XYChart.Data<>(0L, latestValue), 4,
           latestValue >= 0
