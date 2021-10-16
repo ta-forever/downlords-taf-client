@@ -12,12 +12,12 @@ import com.faforever.client.fx.StringCell;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.leaderboard.LeaderboardEntry;
-import com.faforever.client.leaderboard.LeaderboardRating;
 import com.faforever.client.leaderboard.LeaderboardService;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.NameRecord;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.replay.Replay;
 import com.faforever.client.stats.StatisticsService;
@@ -28,7 +28,6 @@ import com.faforever.client.util.TimeService;
 import com.faforever.client.vault.search.SearchController.SortConfig;
 import com.faforever.client.vault.search.SearchController.SortOrder;
 import javafx.beans.property.SimpleFloatProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.scene.Node;
@@ -101,6 +100,7 @@ public class UserInfoWindowController implements Controller<Node> {
   private final NotificationService notificationService;
   private final LeaderboardService leaderboardService;
   private final FafService fafService;
+  private final PreferencesService preferencesService;
   public TabPane tabPane;
   public PieChart gamesPlayedByLeaderboardChart;
   public PieChart gamesPlayedByModChart;
@@ -108,6 +108,8 @@ public class UserInfoWindowController implements Controller<Node> {
   public PieChart unitsBuiltChart;
   public StackedBarChart factionsChart;
   public Label gamesPlayedLabel;
+  public Label resultsBreakdownLabel;
+  public Label recordScoreLabel;
   public HBox ratingsBox;
   public Label ratingsLabels;
   public Label ratingsValues;
@@ -131,7 +133,8 @@ public class UserInfoWindowController implements Controller<Node> {
   public TableColumn<LeaderboardEntry, Number> ratingTableGamesPlayedColumn;
   public TableColumn<LeaderboardEntry, Number> ratingTableRatingColumn;
   public TableColumn<LeaderboardEntry, Number> ratingTableWinRateColumn;
-  public TableColumn<LeaderboardEntry, Number> ratingTableRecentWinRateColumn;
+  public TableColumn<LeaderboardEntry, String> ratingTableAllResultsColumn;
+  public TableColumn<LeaderboardEntry, String> ratingTableRecentResultsColumn;
   public TableColumn<LeaderboardEntry, Number> ratingTableStreakColumn;
 
   private Player player;
@@ -147,7 +150,12 @@ public class UserInfoWindowController implements Controller<Node> {
 
     ratingMetricComboBox.setConverter(ratingMetricStringConverter());
     ratingMetricComboBox.getItems().addAll(RatingMetric.values());
-    ratingMetricComboBox.setValue(RatingMetric.TRUESKILL);
+    ratingMetricComboBox.setValue(preferencesService.getPreferences().getUserInfoRatingMetric());
+    ratingMetricComboBox.getSelectionModel().selectedItemProperty().addListener((obs,oldValue,newValue) -> {
+      if (preferencesService.getPreferences().getUserInfoRatingMetric() != newValue) {
+        preferencesService.getPreferences().setUserInfoRatingMetric(newValue);
+        preferencesService.storeInBackground();
+      }});
 
     timePeriodComboBox.setConverter(timePeriodStringConverter());
     timePeriodComboBox.getItems().addAll(TimePeriod.values());
@@ -170,13 +178,16 @@ public class UserInfoWindowController implements Controller<Node> {
     ratingTableWinRateColumn.setCellValueFactory(param -> new SimpleFloatProperty(param.getValue().getWinRate()));
     ratingTableWinRateColumn.setCellFactory(param -> new StringCell<>(number -> i18n.get("percentage", number.floatValue() * 100)));
 
-    ratingTableRecentWinRateColumn.setCellValueFactory(param -> new SimpleFloatProperty(param.getValue().getRecentWinRate()));
-    ratingTableRecentWinRateColumn.setCellFactory(param -> new StringCell<>(number -> i18n.get("percentage", number.floatValue() * 100)));
+    ratingTableAllResultsColumn.setCellValueFactory(param -> param.getValue().allResultsProperty());
+    ratingTableAllResultsColumn.setCellFactory(param -> new StringCell<>(results -> results));
+
+    ratingTableRecentResultsColumn.setCellValueFactory(param -> param.getValue().recentResultsProperty());
+    ratingTableRecentResultsColumn.setCellFactory(param -> new StringCell<>(rate -> rate));
 
     ratingTableStreakColumn.setCellValueFactory(param -> param.getValue().streakProperty());
     ratingTableStreakColumn.setCellFactory(param -> new StringCell<>(streak -> i18n.number(streak.intValue())));
 
-    ratingTableGamesPlayedColumn.setCellValueFactory(param -> param.getValue().gamesPlayedProperty());
+    ratingTableGamesPlayedColumn.setCellValueFactory(param -> param.getValue().totalGamesProperty());
     ratingTableGamesPlayedColumn.setCellFactory(param -> new StringCell<>(count -> i18n.number(count.intValue())));
 
     ratingTableRatingColumn.setCellValueFactory(param -> param.getValue().ratingProperty());
@@ -214,10 +225,12 @@ public class UserInfoWindowController implements Controller<Node> {
   }
 
   private void updateRatingGrids(List<LeaderboardEntry> leaderboardEntries) {
-    Integer gameCount = leaderboardEntries.stream()
-        .map(lbe -> lbe.getGamesPlayed())
-        .reduce(0, Integer::sum);
+    Integer winCount = leaderboardEntries.stream().map(LeaderboardEntry::getWonGames).reduce(0, Integer::sum);
+    Integer drawCount = leaderboardEntries.stream().map(LeaderboardEntry::getDrawnGames).reduce(0, Integer::sum);
+    Integer lossCount = leaderboardEntries.stream().map(LeaderboardEntry::getLostGames).reduce(0, Integer::sum);
+    Integer gameCount = winCount + drawCount + lossCount;
     gamesPlayedLabel.setText(i18n.number(gameCount));
+    resultsBreakdownLabel.setText(i18n.get("userInfo.winDrawLoss", winCount, drawCount, lossCount));
 
     leaderboardService.getLeaderboards().thenAccept(leaderboards -> {
       StringBuilder ratingNames = new StringBuilder();
@@ -318,7 +331,7 @@ public class UserInfoWindowController implements Controller<Node> {
       leaderboardEntries.forEach(leaderboardEntry ->
             gamesPlayedByLeaderboardChart.getData().add(new PieChart.Data(
                 i18n.getWithDefault(leaderboardEntry.getLeaderboard().getTechnicalName(), leaderboardEntry.getLeaderboard().getNameKey()),
-                leaderboardEntry.getGamesPlayed())));
+                leaderboardEntry.getWonGames())));
 
     })).exceptionally(throwable -> {
       log.warn("Leaderboard entry could not be read for player: " + player.getUsername(), throwable);
@@ -358,25 +371,19 @@ public class UserInfoWindowController implements Controller<Node> {
 
   private List<XYChart.Data<Long, Integer>> getStreakCount(List<RatingHistoryDataPoint> dataPoints) {
     List<XYChart.Data<Long, Integer>> values = new ArrayList<>();
-    Double meanPrevious = null;
+    Integer previousScore = null;
     int streak = 0;
     for (RatingHistoryDataPoint dataPoint: dataPoints) {
-      Double mean = dataPoint.getMean();
-      if (meanPrevious != null) {
-        if (streak >= 0 && mean > meanPrevious) {
-          ++streak;
+      Integer score = (int)dataPoint.getScore();
+      if (previousScore != null) {
+        if (streak * score >= 0) {
+          streak += score;
         }
-        else if (streak >= 0 && mean < meanPrevious) {
-          streak = -1;
-        }
-        else if (streak <= 0 && mean > meanPrevious) {
-          streak = 1;
-        }
-        else if (streak <= 0 && mean < meanPrevious) {
-          --streak;
+        else {
+          streak = score;
         }
       }
-      meanPrevious = mean;
+      previousScore = score;
       values.add(new Data<>(dataPoint.getInstant().toEpochSecond(), streak));
     }
     return values;
@@ -387,18 +394,32 @@ public class UserInfoWindowController implements Controller<Node> {
     OffsetDateTime afterDate = OffsetDateTime.of(timePeriodComboBox.getValue().getDate(), ZoneOffset.UTC);
     List<XYChart.Data<Long, Integer>> values = List.of();
 
+    List<XYChart.Data<Long, Integer>> trueskillHistory = ratingData.stream().sorted(Comparator.comparing(RatingHistoryDataPoint::getInstant))
+        .filter(dataPoint -> dataPoint.getInstant().isAfter(afterDate))
+        .map(dataPoint -> new Data<>(dataPoint.getInstant().toEpochSecond(), RatingUtil.getRating(dataPoint)))
+        .collect(Collectors.toList());
+
+    List<XYChart.Data<Long, Integer>> streakHistory = getStreakCount(ratingData.stream().sorted(Comparator.comparing(RatingHistoryDataPoint::getInstant))
+        .filter(dataPoint -> dataPoint.getInstant().isAfter(afterDate))
+        .sorted((a,b) -> (int)(a.getInstant().toEpochSecond() - b.getInstant().toEpochSecond()))
+        .collect(Collectors.toList()));
+
     if (ratingMetricComboBox.getSelectionModel().getSelectedItem().equals(RatingMetric.TRUESKILL)) {
-      values = ratingData.stream().sorted(Comparator.comparing(RatingHistoryDataPoint::getInstant))
-          .filter(dataPoint -> dataPoint.getInstant().isAfter(afterDate))
-          .map(dataPoint -> new Data<>(dataPoint.getInstant().toEpochSecond(), RatingUtil.getRating(dataPoint)))
-          .collect(Collectors.toList());
+      values = trueskillHistory;
     }
     else if (ratingMetricComboBox.getSelectionModel().getSelectedItem().equals(RatingMetric.STREAK)) {
-      values = getStreakCount(ratingData.stream().sorted(Comparator.comparing(RatingHistoryDataPoint::getInstant))
-          .filter(dataPoint -> dataPoint.getInstant().isAfter(afterDate))
-          .sorted((a,b) -> (int)(a.getInstant().toEpochSecond() - b.getInstant().toEpochSecond()))
-          .collect(Collectors.toList()));
+      values = streakHistory;
     }
+
+    int recordLowScore = values.stream()
+        .mapToInt(datapoint -> datapoint.getYValue())
+        .min()
+        .orElse(0);
+    int recordHighScore = values.stream()
+        .mapToInt(datapoint -> datapoint.getYValue())
+        .max()
+        .orElse(0);
+    recordScoreLabel.setText(i18n.get("userInfo.recordScore", recordHighScore, recordLowScore));
 
     xAxis.setTickLabelFormatter(ratingLabelFormatter());
     if (values.size() > 0) {

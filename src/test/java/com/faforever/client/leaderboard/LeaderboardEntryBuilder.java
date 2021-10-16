@@ -27,7 +27,7 @@ public class LeaderboardEntryBuilder {
   }
 
   public LeaderboardEntryBuilder gamesPlayed(int gamesPlayed) {
-    leaderboardEntry.setGamesPlayed(gamesPlayed);
+    leaderboardEntry.setWonGames(gamesPlayed);
     return this;
   }
 

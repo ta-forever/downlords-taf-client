@@ -20,6 +20,8 @@ public class LeaderboardEntry {
   private Double deviation;
   private Integer totalGames;
   private Integer wonGames;
+  private Integer lostGames;
+  private Integer drawnGames;
   private Double rating;
   private OffsetDateTime createTime;
   private OffsetDateTime updateTime;

@@ -56,12 +56,13 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   public Pane leaderboardRoot;
   public TableColumn<LeaderboardEntry, Number> rankColumn;
   public TableColumn<LeaderboardEntry, String> nameColumn;
-  public TableColumn<LeaderboardEntry, Number> winRateColumn;
-  public TableColumn<LeaderboardEntry, Number> recentWinRateColumn;
-  public TableColumn<LeaderboardEntry, String> recentModColumn;
-  public TableColumn<LeaderboardEntry, Number> streakColumn;
-  public TableColumn<LeaderboardEntry, Number> gamesPlayedColumn;
   public TableColumn<LeaderboardEntry, Number> ratingColumn;
+  public TableColumn<LeaderboardEntry, Number> gamesPlayedColumn;
+  public TableColumn<LeaderboardEntry, Number> winRateColumn;
+  public TableColumn<LeaderboardEntry, String> allResultsColumn;
+  public TableColumn<LeaderboardEntry, String> recentResultsColumn;
+  public TableColumn<LeaderboardEntry, Number> streakColumn;
+  public TableColumn<LeaderboardEntry, String> recentModColumn;
   public TableView<LeaderboardEntry> ratingTable;
   public ComboBox<Leaderboard> leaderboardComboBox;
   public TextField searchTextField;
@@ -93,8 +94,11 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     winRateColumn.setCellValueFactory(param -> new SimpleFloatProperty(param.getValue().getWinRate()));
     winRateColumn.setCellFactory(param -> new StringCell<>(number -> i18n.get("percentage", number.floatValue() * 100)));
 
-    recentWinRateColumn.setCellValueFactory(param -> new SimpleFloatProperty(param.getValue().getRecentWinRate()));
-    recentWinRateColumn.setCellFactory(param -> new StringCell<>(number -> i18n.get("percentage", number.floatValue() * 100)));
+    recentResultsColumn.setCellValueFactory(param -> param.getValue().recentResultsProperty());
+    recentResultsColumn.setCellFactory(param -> new StringCell<>(rate -> rate));
+
+    allResultsColumn.setCellValueFactory(param -> param.getValue().allResultsProperty());
+    allResultsColumn.setCellFactory(param -> new StringCell<>(results -> results));
 
     streakColumn.setCellValueFactory(param -> param.getValue().streakProperty());
     streakColumn.setCellFactory(param -> new StringCell<>(streak -> i18n.number(streak.intValue())));
@@ -102,7 +106,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     recentModColumn.setCellValueFactory(param -> param.getValue().recentModProperty());
     recentModColumn.setCellFactory(param -> new StringCell<>(mod -> modService.getFeaturedModDisplayName(mod)));
 
-    gamesPlayedColumn.setCellValueFactory(param -> param.getValue().gamesPlayedProperty());
+    gamesPlayedColumn.setCellValueFactory(param -> param.getValue().totalGamesProperty());
     gamesPlayedColumn.setCellFactory(param -> new StringCell<>(count -> i18n.number(count.intValue())));
 
     ratingColumn.setCellValueFactory(param -> param.getValue().ratingProperty());

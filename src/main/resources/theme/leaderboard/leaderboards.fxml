@@ -34,10 +34,11 @@
                 <columns>
                     <TableColumn fx:id="rankColumn" text="Rank"/>
                     <TableColumn fx:id="nameColumn" text="Name"/>
-                    <TableColumn fx:id="gamesPlayedColumn" text="Games Played"/>
                     <TableColumn fx:id="ratingColumn" text="Rating"/>
-                    <TableColumn fx:id="winRateColumn" text="Win Rate (all)"/>
-                    <TableColumn fx:id="recentWinRateColumn" text="Win Rate (last 10)"/>
+                    <TableColumn fx:id="gamesPlayedColumn" text="Games Played"/>
+                    <TableColumn fx:id="winRateColumn" text="Win Rate"/>
+                    <TableColumn fx:id="allResultsColumn" text="Win-Draw-Loss"/>
+                    <TableColumn fx:id="recentResultsColumn" text="Win-Draw-Loss(10)"/>
                     <TableColumn fx:id="streakColumn" text="Streak"/>
                     <TableColumn fx:id="recentModColumn" text="Last Mod"/>
                 </columns>
