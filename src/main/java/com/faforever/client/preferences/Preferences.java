@@ -1,5 +1,6 @@
 package com.faforever.client.preferences;
 
+import com.faforever.client.chat.RatingMetric;
 import com.faforever.client.config.ClientProperties.Tada;
 import com.faforever.client.game.GamesTilesContainerController.TilesSortingOrder;
 import com.faforever.client.game.KnownFeaturedMod;
@@ -73,6 +74,7 @@ public class Preferences {
   private final BooleanProperty gameDataPromptDownloadActivated;
   private final BooleanProperty debugLogEnabled;
   private final ObjectProperty<TadaIntegrationOption> tadaIntegrationOption;
+  private final ObjectProperty<RatingMetric> userInfoRatingMetric;
 
   public Preferences() {
     gameTileSortingOrder = new SimpleObjectProperty<>(TilesSortingOrder.PLAYER_DES);
@@ -115,6 +117,7 @@ public class Preferences {
     gameDataPromptDownloadActivated = new SimpleBooleanProperty(true);
     debugLogEnabled = new SimpleBooleanProperty(false);
     tadaIntegrationOption = new SimpleObjectProperty<>(TadaIntegrationOption.ASK);
+    userInfoRatingMetric = new SimpleObjectProperty<>(RatingMetric.TRUESKILL);
   }
 
   public VaultPrefs getVault() {
@@ -466,5 +469,17 @@ public class Preferences {
 
   public ObjectProperty<TadaIntegrationOption> tadaIntegrationOptionProperty() {
     return tadaIntegrationOption;
+  }
+
+  public RatingMetric getUserInfoRatingMetric() {
+    return userInfoRatingMetric.get();
+  }
+
+  public void setUserInfoRatingMetric(RatingMetric metric) {
+    this.userInfoRatingMetric.set(metric);
+  }
+
+  public ObjectProperty<RatingMetric> userInfoRatingMetricProperty() {
+    return userInfoRatingMetric;
   }
 }

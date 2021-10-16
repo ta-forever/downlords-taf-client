@@ -27,12 +27,12 @@ public class LeaderboardEntryBuilder {
   }
 
   public LeaderboardEntryBuilder gamesPlayed(int gamesPlayed) {
-    leaderboardEntry.setGamesPlayed(gamesPlayed);
+    leaderboardEntry.setWonGames(gamesPlayed);
     return this;
   }
 
   public LeaderboardEntryBuilder winLossRatio(float winLossRatio) {
-    leaderboardEntry.setWinLossRatio(winLossRatio);
+    leaderboardEntry.setWinRate(winLossRatio);
     return this;
   }
 

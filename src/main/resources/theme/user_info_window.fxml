@@ -9,14 +9,12 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ProgressIndicator?>
 <?import javafx.scene.control.ScrollPane?>
-<?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.ColumnConstraints?>
-<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
@@ -53,7 +51,7 @@
                         </columnConstraints>
                         <rowConstraints>
                             <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
-                            <RowConstraints minHeight="10.0" vgrow="ALWAYS"/>
+                             <RowConstraints minHeight="10.0" vgrow="ALWAYS"/>
                         </rowConstraints>
                         <children>
                             <GridPane prefWidth="250.0" styleClass="card">
@@ -63,11 +61,14 @@
                                 <rowConstraints>
                                     <RowConstraints minHeight="10.0" vgrow="NEVER"/>
                                     <RowConstraints minHeight="10.0" vgrow="ALWAYS"/>
+                                    <RowConstraints minHeight="10.0" vgrow="NEVER"/>
                                 </rowConstraints>
                                 <children>
                                     <Label styleClass="h2" text="%userInfo.gamesPlayed"/>
                                     <Label fx:id="gamesPlayedLabel" alignment="CENTER" maxWidth="1.7976931348623157E308"
                                            prefHeight="80.0" styleClass="h1" text="000" GridPane.rowIndex="1"/>
+                                    <Label fx:id="resultsBreakdownLabel" alignment="CENTER" maxWidth="1.7976931348623157E308"
+                                           prefHeight="15.0" styleClass="h3" text="000" GridPane.rowIndex="2"/>
                                 </children>
                                 <padding>
                                     <Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/>
@@ -91,11 +92,14 @@
                                             <Insets top="10.0"/>
                                         </padding>
                                         <children>
+                                            <Label fx:id="recordScoreLabel" alignment="CENTER" maxWidth="1.7976931348623157E308"
+                                                   prefHeight="15.0" styleClass="h3" text="000"/>
                                             <ComboBox fx:id="ratingMetricComboBox" onAction="#plotPlayerRatingGraph"/>
                                             <ComboBox fx:id="timePeriodComboBox" onAction="#plotPlayerRatingGraph"/>
                                             <ComboBox fx:id="ratingTypeComboBox" onAction="#onRatingTypeChange"/>
                                         </children>
                                     </HBox>
+
                                     <ScatterXChart fx:id="ratingHistoryChart" legendVisible="false"
                                                    prefHeight="300.0" VBox.vgrow="ALWAYS">
                                         <xAxis>
@@ -145,7 +149,7 @@
                       <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
                   </rowConstraints>
                   <children>
-                    <VBox styleClass="card">
+                    <VBox styleClass="card" visible="false" managed="false">
                       <children>
                           <StackedBarChart fx:id="factionsChart" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" title="%userInfo.winLossPerFaction">
                           <xAxis>
@@ -160,7 +164,7 @@
                             <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
                         </padding>
                     </VBox>
-                    <VBox styleClass="card" GridPane.columnIndex="1">
+                    <VBox styleClass="card" visible="false" managed="false">
                       <children>
                           <PieChart fx:id="unitsBuiltChart" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" title="%userInfo.builtByCategory" />
                       </children>
@@ -168,7 +172,7 @@
                             <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
                         </padding>
                     </VBox>
-                    <VBox styleClass="card" GridPane.rowIndex="1">
+                    <VBox styleClass="card" visible="false" managed="false">
                       <children>
                           <PieChart fx:id="techBuiltChart" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" title="%userInfo.builtByTech" />
                       </children>
@@ -176,14 +180,44 @@
                             <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
                         </padding>
                     </VBox>
-                    <VBox styleClass="card" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                    <VBox styleClass="card" GridPane.columnIndex="0" GridPane.rowIndex="0">
                       <children>
-                          <PieChart fx:id="gamesPlayedChart" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" title="%userInfo.gamesPlayed" />
+                          <PieChart fx:id="gamesPlayedByModChart" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" title="%userInfo.gamesPlayedByMod" />
                       </children>
                         <padding>
                             <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
                         </padding>
                     </VBox>
+                    <VBox styleClass="card" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                        <children>
+                            <PieChart fx:id="gamesPlayedByLeaderboardChart" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" title="%userInfo.gamesPlayedByLeaderboard" />
+                        </children>
+                        <padding>
+                            <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                        </padding>
+                    </VBox>
+                      <VBox GridPane.columnIndex="0" GridPane.rowIndex="1" GridPane.columnSpan="2">
+                          <children>
+                              <TableView fx:id="ratingTable" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
+                                         minHeight="0.0" minWidth="0.0" VBox.vgrow="ALWAYS">
+                                  <columns>
+                                      <TableColumn fx:id="ratingTableLeaderboardnameColumn" text="Leaderboard"/>
+                                      <TableColumn fx:id="ratingTableRatingColumn" text="Rating"/>
+                                      <TableColumn fx:id="ratingTableGamesPlayedColumn" text="Games Played"/>
+                                      <TableColumn fx:id="ratingTableWinRateColumn" text="Win Rate"/>
+                                      <TableColumn fx:id="ratingTableAllResultsColumn" text="Win-Draw-Loss"/>
+                                      <TableColumn fx:id="ratingTableRecentResultsColumn" text="Win-Draw-Loss(10)"/>
+                                      <TableColumn fx:id="ratingTableStreakColumn" text="Streak"/>
+                                  </columns>
+                                  <columnResizePolicy>
+                                      <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                                  </columnResizePolicy>
+                              </TableView>
+                          </children>
+                          <padding>
+                              <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                          </padding>
+                      </VBox>
                   </children>
                     <padding>
                         <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
@@ -196,104 +230,28 @@
               <Region styleClass="icon,statistics-icon" />
           </graphic>
         </Tab>
-        <Tab closable="false" text="%userInfo.achievements">
-          <content>
-            <VBox>
-              <children>
-                  <Label fx:id="loadingProgressLabel" alignment="CENTER" contentDisplay="TOP" graphicTextGap="10.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="%achievements.loading" VBox.vgrow="ALWAYS">
-                  <graphic>
-                      <ProgressIndicator prefHeight="50.0" prefWidth="50.0"/>
-                  </graphic>
-                </Label>
-                  <ScrollPane fx:id="achievementsPane" fitToWidth="true" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" VBox.vgrow="ALWAYS">
-                  <content>
-                    <VBox alignment="TOP_CENTER" maxWidth="1.7976931348623157E308" spacing="10.0">
-                      <children>
-                        <GridPane fx:id="mostRecentAchievementPane" hgap="20.0" VBox.vgrow="NEVER">
-                          <columnConstraints>
-                              <ColumnConstraints hgrow="NEVER" />
-                              <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
-                          </columnConstraints>
-                          <rowConstraints>
-                              <RowConstraints vgrow="NEVER" />
-                              <RowConstraints vgrow="NEVER" />
-                              <RowConstraints vgrow="NEVER" />
-                              <RowConstraints vgrow="ALWAYS" />
-                              <RowConstraints vgrow="NEVER" />
-                              <RowConstraints vgrow="NEVER" />
-                          </rowConstraints>
-                          <children>
-                              <ImageView fx:id="mostRecentAchievementImageView" fitHeight="100.0" fitWidth="100.0" pickOnBounds="true" preserveRatio="true" GridPane.rowSpan="3" />
-                              <Label text="%achievements.mostRecent" GridPane.columnIndex="1" />
-                              <Label fx:id="mostRecentAchievementNameLabel" styleClass="achievement-title" text="&lt;Title&gt;" GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.valignment="TOP" />
-                              <Label fx:id="mostRecentAchievementDescriptionLabel" text="&lt;Description&gt;" GridPane.columnIndex="1" GridPane.rowIndex="2" GridPane.valignment="TOP" />
-                          </children>
-                        </GridPane>
-                        <HBox fx:id="unlockedAchievementsHeader" alignment="CENTER" spacing="10.0">
-                          <children>
-                              <Separator HBox.hgrow="ALWAYS" />
-                              <Label fx:id="unlockedAchievementsHeaderLabel" styleClass="h1" text="%achievements.unlocked" />
-                              <Separator HBox.hgrow="ALWAYS" />
-                          </children>
-                          <VBox.margin>
-                              <Insets top="20.0" />
-                          </VBox.margin>
-                        </HBox>
-                          <FlowPane fx:id="unlockedAchievementsContainer" alignment="TOP_CENTER" hgap="10.0" maxWidth="1.7976931348623157E308" vgap="10.0" />
-                        <HBox fx:id="lockedAchievementsHeader" alignment="CENTER" spacing="10.0">
-                          <children>
-                              <Separator HBox.hgrow="ALWAYS" />
-                              <Label fx:id="lockedAchievementsHeaderLabel" styleClass="h1" text="%achievements.locked" />
-                              <Separator HBox.hgrow="ALWAYS" />
-                          </children>
-                          <VBox.margin>
-                              <Insets top="20.0" />
-                          </VBox.margin>
-                        </HBox>
-                          <FlowPane fx:id="lockedAchievementsContainer" alignment="TOP_CENTER" hgap="10.0" maxWidth="1.7976931348623157E308" vgap="10.0">
-                          <VBox.margin>
-                              <Insets />
-                          </VBox.margin>
-                        </FlowPane>
-                      </children>
-                      <padding>
-                          <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
-                      </padding>
-                    </VBox>
-                  </content>
-                </ScrollPane>
-              </children>
-                     <padding>
-                        <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
-                     </padding>
-            </VBox>
-          </content>
-          <graphic>
-              <Region styleClass="icon,icon-trophy" />
-          </graphic>
+        <Tab closable="false" text="%userInfo.nameHistory">
+            <content>
+                <TableView fx:id="nameHistoryTable">
+                    <placeholder>
+                        <Label text="%userInfo.nameHistory.noHistory" />
+                    </placeholder>
+                    <columns>
+                        <TableColumn fx:id="changeDateColumn" editable="false" prefWidth="150" text="%userInfo.nameHistory.date" />
+                        <TableColumn fx:id="nameColumn" editable="false" prefWidth="150" text="%userInfo.nameHistory.name" />
+                    </columns>
+                    <columnResizePolicy>
+                        <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                    </columnResizePolicy>
+                   <padding>
+                      <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                   </padding>
+                </TableView>
+            </content>
+            <graphic>
+                <Region styleClass="icon,icon-history" />
+            </graphic>
         </Tab>
-          <Tab closable="false" text="%userInfo.nameHistory">
-              <content>
-                  <TableView fx:id="nameHistoryTable">
-                      <placeholder>
-                          <Label text="%userInfo.nameHistory.noHistory" />
-                      </placeholder>
-                      <columns>
-                          <TableColumn fx:id="changeDateColumn" editable="false" prefWidth="150" text="%userInfo.nameHistory.date" />
-                          <TableColumn fx:id="nameColumn" editable="false" prefWidth="150" text="%userInfo.nameHistory.name" />
-                      </columns>
-                      <columnResizePolicy>
-                          <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-                      </columnResizePolicy>
-                     <padding>
-                        <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
-                     </padding>
-                  </TableView>
-              </content>
-              <graphic>
-                  <Region styleClass="icon,icon-history" />
-              </graphic>
-          </Tab>
       </tabs>
     </TabPane>
    </children>

@@ -15,15 +15,29 @@ public class LeaderboardEntry {
 
   private final StringProperty username;
   private final DoubleProperty rating;
-  private final IntegerProperty gamesPlayed;
-  private final FloatProperty winLossRatio;
+  private final IntegerProperty totalGames;
+  private final IntegerProperty wonGames;
+  private final IntegerProperty drawnGames;
+  private final IntegerProperty lostGames;
+  private final FloatProperty winRate;
+  private final StringProperty recentResults;
+  private final StringProperty allResults;
+  private final StringProperty recentMod;
+  private final IntegerProperty streak;
   private final ObjectProperty<Leaderboard> leaderboard;
 
   public LeaderboardEntry() {
     username = new SimpleStringProperty();
     rating = new SimpleDoubleProperty();
-    gamesPlayed = new SimpleIntegerProperty();
-    winLossRatio = new SimpleFloatProperty();
+    totalGames = new SimpleIntegerProperty();
+    wonGames = new SimpleIntegerProperty();
+    drawnGames = new SimpleIntegerProperty();
+    lostGames = new SimpleIntegerProperty();
+    winRate = new SimpleFloatProperty();
+    recentResults = new SimpleStringProperty();
+    allResults = new SimpleStringProperty();
+    recentMod = new SimpleStringProperty();
+    streak = new SimpleIntegerProperty();
     leaderboard = new SimpleObjectProperty<>();
   }
 
@@ -32,8 +46,24 @@ public class LeaderboardEntry {
     leaderboardEntry.setLeaderboard(Leaderboard.fromDto(entry.getLeaderboard()));
     leaderboardEntry.setUsername(entry.getPlayer().getLogin());
     leaderboardEntry.setRating(entry.getRating());
-    leaderboardEntry.setWinLossRatio(entry.getWonGames() / (float) entry.getTotalGames());
-    leaderboardEntry.setGamesPlayed(entry.getTotalGames());
+    leaderboardEntry.setStreak(entry.getStreak());
+    leaderboardEntry.setRecentMod(entry.getRecentMod());
+
+    int totalGames = entry.getWonGames() + entry.getDrawnGames() + entry.getLostGames();
+    leaderboardEntry.setTotalGames(totalGames);
+    leaderboardEntry.setWinRate(entry.getWonGames() / (float) totalGames);
+    leaderboardEntry.setWonGames(entry.getWonGames());
+    leaderboardEntry.setDrawnGames(entry.getDrawnGames());
+    leaderboardEntry.setLostGames(entry.getLostGames());
+    leaderboardEntry.setAllResults(String.format("%d-%d-%d",
+        entry.getWonGames(), entry.getDrawnGames(), entry.getLostGames()));
+
+    long recentWinCount = entry.getRecentScores().chars().filter(c -> c == '2').count();
+    long recentDrawCount = entry.getRecentScores().chars().filter(c -> c == '1').count();
+    long recentLossCount = entry.getRecentScores().chars().filter(c -> c == '0').count();
+    leaderboardEntry.setRecentResults(String.format("%d-%d-%d",
+        recentWinCount, recentDrawCount, recentLossCount));
+
     return leaderboardEntry;
   }
 
@@ -73,28 +103,94 @@ public class LeaderboardEntry {
     return rating;
   }
 
-  public int getGamesPlayed() {
-    return gamesPlayed.get();
+  public int getTotalGames() {
+    return totalGames.get();
   }
 
-  public void setGamesPlayed(int gamesPlayed) {
-    this.gamesPlayed.set(gamesPlayed);
+  public void setTotalGames(int count) {
+    this.totalGames.set(count);
   }
 
-  public IntegerProperty gamesPlayedProperty() {
-    return gamesPlayed;
+  public IntegerProperty totalGamesProperty() {
+    return totalGames;
   }
 
-  public float getWinLossRatio() {
-    return winLossRatio.get();
+  public int getWonGames() {
+    return wonGames.get();
   }
 
-  public void setWinLossRatio(float winLossRatio) {
-    this.winLossRatio.set(winLossRatio);
+  public void setWonGames(int count) {
+    this.wonGames.set(count);
   }
 
-  public FloatProperty winLossRatioProperty() {
-    return winLossRatio;
+  public IntegerProperty wonGamesProperty() {
+    return wonGames;
+  }
+
+  public int getDrawnGames() {
+    return drawnGames.get();
+  }
+
+  public void setDrawnGames(int count) { this.drawnGames.set(count); }
+
+  public IntegerProperty drawnGamesProperty() {
+    return drawnGames;
+  }
+
+  public int getLostGames() {
+    return lostGames.get();
+  }
+
+  public void setLostGames(int count) {
+    this.lostGames.set(count);
+  }
+
+  public IntegerProperty lostGamesProperty() {
+    return lostGames;
+  }
+
+  public float getWinRate() { return winRate.get(); }
+
+  public void setWinRate(float winRate) {
+    this.winRate.set(winRate);
+  }
+
+  public FloatProperty winRateProperty() {
+    return winRate;
+  }
+
+  public String getRecentResults() { return recentResults.get(); }
+
+  public void setRecentResults(String recentResults) { this.recentResults.set(recentResults); }
+
+  public StringProperty recentResultsProperty() {
+    return recentResults;
+  }
+
+  public String getAllResults() { return allResults.get(); }
+
+  public void setAllResults(String results) { this.allResults.set(results); }
+
+  public StringProperty allResultsProperty() {
+    return allResults;
+  }
+
+  public String getRecentMod() { return recentMod.get(); }
+
+  public void setRecentMod(String recentMod) { this.recentMod.set(recentMod); }
+
+  public StringProperty recentModProperty() {
+    return recentMod;
+  }
+
+  public int getStreak() { return streak.get(); }
+
+  public void setStreak(int streak) {
+    this.streak.set(streak);
+  }
+
+  public IntegerProperty streakProperty() {
+    return streak;
   }
 
   @Override

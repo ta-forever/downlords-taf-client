@@ -1,19 +1,29 @@
 package com.faforever.client.leaderboard;
 
+import com.faforever.client.chat.UserInfoWindowController;
 import com.faforever.client.fx.AbstractViewController;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.StringCell;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.main.event.ShowUserReplaysEvent;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.NotificationService;
+import com.faforever.client.player.Player;
+import com.faforever.client.player.PlayerService;
+import com.faforever.client.theme.UiService;
 import com.faforever.client.util.Validator;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.eventbus.EventBus;
 import javafx.beans.property.SimpleFloatProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Node;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.input.ContextMenuEvent;
 import javafx.scene.layout.Pane;
 import javafx.util.StringConverter;
 import lombok.RequiredArgsConstructor;
@@ -38,13 +48,21 @@ public class LeaderboardsController extends AbstractViewController<Node> {
 
   private final LeaderboardService leaderboardService;
   private final NotificationService notificationService;
+  private final ModService modService;
+  private final UiService uiService;
+  private final PlayerService playerService;
+  private final EventBus eventBus;
   private final I18n i18n;
   public Pane leaderboardRoot;
   public TableColumn<LeaderboardEntry, Number> rankColumn;
   public TableColumn<LeaderboardEntry, String> nameColumn;
-  public TableColumn<LeaderboardEntry, Number> winLossColumn;
-  public TableColumn<LeaderboardEntry, Number> gamesPlayedColumn;
   public TableColumn<LeaderboardEntry, Number> ratingColumn;
+  public TableColumn<LeaderboardEntry, Number> gamesPlayedColumn;
+  public TableColumn<LeaderboardEntry, Number> winRateColumn;
+  public TableColumn<LeaderboardEntry, String> allResultsColumn;
+  public TableColumn<LeaderboardEntry, String> recentResultsColumn;
+  public TableColumn<LeaderboardEntry, Number> streakColumn;
+  public TableColumn<LeaderboardEntry, String> recentModColumn;
   public TableView<LeaderboardEntry> ratingTable;
   public ComboBox<Leaderboard> leaderboardComboBox;
   public TextField searchTextField;
@@ -73,10 +91,22 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     nameColumn.setCellValueFactory(param -> param.getValue().usernameProperty());
     nameColumn.setCellFactory(param -> new StringCell<>(name -> name));
 
-    winLossColumn.setCellValueFactory(param -> new SimpleFloatProperty(param.getValue().getWinLossRatio()));
-    winLossColumn.setCellFactory(param -> new StringCell<>(number -> i18n.get("percentage", number.floatValue() * 100)));
+    winRateColumn.setCellValueFactory(param -> new SimpleFloatProperty(param.getValue().getWinRate()));
+    winRateColumn.setCellFactory(param -> new StringCell<>(number -> i18n.get("percentage", number.floatValue() * 100)));
 
-    gamesPlayedColumn.setCellValueFactory(param -> param.getValue().gamesPlayedProperty());
+    recentResultsColumn.setCellValueFactory(param -> param.getValue().recentResultsProperty());
+    recentResultsColumn.setCellFactory(param -> new StringCell<>(rate -> rate));
+
+    allResultsColumn.setCellValueFactory(param -> param.getValue().allResultsProperty());
+    allResultsColumn.setCellFactory(param -> new StringCell<>(results -> results));
+
+    streakColumn.setCellValueFactory(param -> param.getValue().streakProperty());
+    streakColumn.setCellFactory(param -> new StringCell<>(streak -> i18n.number(streak.intValue())));
+
+    recentModColumn.setCellValueFactory(param -> param.getValue().recentModProperty());
+    recentModColumn.setCellFactory(param -> new StringCell<>(mod -> modService.getFeaturedModDisplayName(mod)));
+
+    gamesPlayedColumn.setCellValueFactory(param -> param.getValue().totalGamesProperty());
     gamesPlayedColumn.setCellFactory(param -> new StringCell<>(count -> i18n.number(count.intValue())));
 
     ratingColumn.setCellValueFactory(param -> param.getValue().ratingProperty());
@@ -153,4 +183,37 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   public Node getRoot() {
     return leaderboardRoot;
   }
+
+  public void openContextMenu(ContextMenuEvent event) {
+    int index = ratingTable.getSelectionModel().selectedIndexProperty().get();
+    String userName = ratingTable.getItems().get(index).getUsername();
+    playerService.getPlayerByName(userName)
+        .thenAccept(optionalPlayer -> {
+          if (optionalPlayer.isPresent()) JavaFxUtil.runLater(() -> {
+            ContextMenu contextMenu = new ContextMenu();
+
+            MenuItem userInfoMenuItem = new MenuItem(i18n.get("chat.userContext.userInfo"));
+            userInfoMenuItem.setOnAction(e -> showUserInfo(optionalPlayer.get()));
+            contextMenu.getItems().add(userInfoMenuItem);
+
+            //MenuItem viewReplaysMenuItem = new MenuItem(i18n.get("chat.userContext.viewReplays"));
+            //viewReplaysMenuItem.setOnAction(e -> showUserReplays(optionalPlayer.get()));
+            //contextMenu.getItems().add(viewReplaysMenuItem);
+
+            contextMenu.show(this.getRoot().getScene().getWindow(), event.getScreenX(), event.getScreenY());
+          });
+        });
+  }
+
+  public void showUserInfo(Player player) {
+    UserInfoWindowController userInfoWindowController = uiService.loadFxml("theme/user_info_window.fxml");
+    userInfoWindowController.setPlayer(player);
+    userInfoWindowController.setOwnerWindow(this.getRoot().getScene().getWindow());
+    userInfoWindowController.show();
+  }
+
+  public void showUserReplays(Player player) {
+    eventBus.post(new ShowUserReplaysEvent(player.getId()));
+  }
+
 }
