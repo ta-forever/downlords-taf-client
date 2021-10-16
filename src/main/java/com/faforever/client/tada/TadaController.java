@@ -19,6 +19,7 @@ import com.faforever.client.preferences.TadaIntegrationOption;
 import com.faforever.client.util.ClipboardUtil;
 import com.google.common.eventbus.EventBus;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.concurrent.Worker;
 import javafx.scene.Node;
@@ -97,6 +98,17 @@ public class TadaController extends AbstractViewController<Node> {
     return rootPane;
   }
 
+  public TadaIntegrationOption getTadaIntegrationOption() {
+    TadaIntegrationOption configuredOption = preferencesService.getPreferences().getTadaIntegrationOption();
+    if (configuredOption == TadaIntegrationOption.ASK) {
+      // temporary until feedback on integration received
+      return TadaIntegrationOption.BROWSER;
+    }
+    else {
+      return configuredOption;
+    }
+  }
+
   @Override
   public void initialize() {
     webView.setContextMenuEnabled(false);
@@ -133,12 +145,17 @@ public class TadaController extends AbstractViewController<Node> {
     }
 
     integratedBrowseControls.visibleProperty().bind(Bindings.createBooleanBinding(
-        () -> preferencesService.getPreferences().getTadaIntegrationOption().equals(TadaIntegrationOption.INTEGRATED),
+        () -> getTadaIntegrationOption().equals(TadaIntegrationOption.INTEGRATED),
         preferencesService.getPreferences().tadaIntegrationOptionProperty()));
     integratedBrowseControls.managedProperty().bind(integratedBrowseControls.visibleProperty());
     externalBrowseControls.visibleProperty().bind(integratedBrowseControls.visibleProperty().not());
     externalBrowseControls.managedProperty().bind(externalBrowseControls.visibleProperty());
     webView.visibleProperty().bind(integratedBrowseControls.visibleProperty());
+
+    webView.getEngine().documentProperty().addListener((obs,oldValue,newValue) -> {
+      if (newValue != null) {
+        doSetUrlTextField(newValue.getDocumentURI());
+      }});
 
     installContextMenu();
   }
@@ -209,8 +226,7 @@ public class TadaController extends AbstractViewController<Node> {
 
   @Override
   protected void onDisplay(NavigateEvent navigateEvent) {
-    TadaIntegrationOption tadaIntegrationOption = preferencesService.getPreferences().getTadaIntegrationOption();
-    if (tadaIntegrationOption == TadaIntegrationOption.ASK) {
+    if (getTadaIntegrationOption() == TadaIntegrationOption.ASK) {
       doPromptIntegrationMode(navigateEvent);
     }
     else if (navigateEvent instanceof OpenTadaPageEvent) {
@@ -222,7 +238,7 @@ public class TadaController extends AbstractViewController<Node> {
   }
 
   private void onDisplayEvent() {
-    if (preferencesService.getPreferences().getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED &&
+    if (getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED &&
         webView.getEngine().getHistory().getEntries().size() == 0) {
       onLoadingStart();
       doLoadInWebView(clientProperties.getTada().getRootUrl());
@@ -233,7 +249,7 @@ public class TadaController extends AbstractViewController<Node> {
   }
 
   private void onDisplayEvent(String url) {
-    if (preferencesService.getPreferences().getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED) {
+    if (getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED) {
       doLoadInWebView(url);
     }
     else {
@@ -250,8 +266,13 @@ public class TadaController extends AbstractViewController<Node> {
 
   public void onPlayButton() {
     String url = this.urlTextField.getText();
-    if (preferencesService.getPreferences().getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED) {
-      Matcher matcher = this.tadaUrlPattern.matcher(url);
+    if (getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED) {
+      Matcher matcher = this.replayUrlPattern.matcher(url);
+      if (matcher.matches() && url.equals(webView.getEngine().getLocation())) {
+        doStartReplay(matcher.group(3));
+        return;
+      }
+      matcher = this.tadaUrlPattern.matcher(url);
       if (matcher.matches()) {
         doLoadInWebView(url);
         return;
@@ -273,7 +294,7 @@ public class TadaController extends AbstractViewController<Node> {
   }
 
   public void onBrowseButton() {
-    if (preferencesService.getPreferences().getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED) {
+    if (getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED) {
       if (webView.getEngine().getHistory().getEntries().size() == 0) {
         doLoadInBrowser(clientProperties.getTada().getRootUrl());
         return;
@@ -290,24 +311,28 @@ public class TadaController extends AbstractViewController<Node> {
         doLoadInBrowser(url);
         return;
       }
+      else if (url.isEmpty()) {
+        doLoadInBrowser(clientProperties.getTada().getRootUrl());
+        return;
+      }
     }
     notificationService.addImmediateInfoNotification("tada.badTadaUrl", "tada.badTadaUrl.description");
   }
 
   public void onNavigateHomeButton() {
-    if (preferencesService.getPreferences().getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED) {
+    if (getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED) {
       doLoadInWebView(clientProperties.getTada().getRootUrl());
     }
   }
 
   public void onNavigatePreviousButton() {
-    if (preferencesService.getPreferences().getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED) {
+    if (getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED) {
       doNavigate(-1);
     }
   }
 
   public void onNavigateNextButton() {
-    if (preferencesService.getPreferences().getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED) {
+    if (getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED) {
       doNavigate(+1);
     }
   }
@@ -329,14 +354,17 @@ public class TadaController extends AbstractViewController<Node> {
     ));
   }
 
-  private void doLoadInWebView(String url) {
-    JavaFxUtil.runLater(() -> webView.getEngine().load(
-        url.replace("#download","")));
+  private void doLoadInWebView(String _url) {
+    JavaFxUtil.runLater(() -> {
+      String url = _url.replace("#download", "");
+      webView.getEngine().load(url);
+    });
   }
 
-  private void doLoadInBrowser(String url) {
-    platformService.showDocument(
-        url.replace("#download",""));
+  private void doLoadInBrowser(String _url) {
+    String url = _url.replace("#download", "");
+    platformService.showDocument(url);
+    doSetUrlTextField(url);
   }
 
   private void doStartReplay(String replayId) {

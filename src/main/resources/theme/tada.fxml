@@ -27,7 +27,7 @@
             </FlowPane>
             <FlowPane fx:id="watchControlsPane" hgap="10" vgap="10" HBox.hgrow="ALWAYS">
                 <padding><Insets bottom="10.0" left="15.0" right="15.0" top="10.0"/></padding>
-                <TextField fx:id="urlTextField" onKeyReleased="#onUrlTextFieldKeyReleased"  promptText="%tada.open.description" prefWidth="480"/>
+                <TextField fx:id="urlTextField" onKeyReleased="#onUrlTextFieldKeyReleased" promptText="%tada.open.description" prefWidth="480"/>
                 <Button mnemonicParsing="false" onAction="#onPlayButton">
                     <graphic><Region styleClass="icon,play-icon"/></graphic></Button>
                 <HBox fx:id="externalBrowseControls">

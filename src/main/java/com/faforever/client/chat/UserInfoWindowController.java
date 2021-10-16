@@ -383,6 +383,9 @@ public class UserInfoWindowController implements Controller<Node> {
           streak = score;
         }
       }
+      else {
+        streak = score;
+      }
       previousScore = score;
       values.add(new Data<>(dataPoint.getInstant().toEpochSecond(), streak));
     }

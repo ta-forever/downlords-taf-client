@@ -1,7 +1,6 @@
 package com.faforever.client.preferences;
 
 import com.faforever.client.chat.RatingMetric;
-import com.faforever.client.config.ClientProperties.Tada;
 import com.faforever.client.game.GamesTilesContainerController.TilesSortingOrder;
 import com.faforever.client.game.KnownFeaturedMod;
 import javafx.beans.property.BooleanProperty;

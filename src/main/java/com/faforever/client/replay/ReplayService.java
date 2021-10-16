@@ -323,6 +323,7 @@ public class ReplayService implements InitializingBean {
   public CompletableFuture<Path> downloadReplay(int id) {
     ReplayDownloadTask task = applicationContext.getBean(ReplayDownloadTask.class);
     task.setReplayId(Integer.toString(id));
+    task.setDownloadPath(preferencesService.getCacheDirectory().resolve("replays").resolve(String.format("%s.tad", id)));
     return taskService.submitTask(task).getFuture();
   }
 

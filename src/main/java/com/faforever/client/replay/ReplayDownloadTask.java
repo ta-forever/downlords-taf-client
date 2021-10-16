@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+import org.springframework.util.Assert;
 
 import javax.inject.Inject;
 import java.io.InputStream;
@@ -45,8 +46,9 @@ public class ReplayDownloadTask extends CompletableTask<Path> {
   @Override
   protected Path call() throws Exception {
     updateTitle(i18n.get("mapReplayTask.title", replayId));
+    Assert.state(downloadPath != null, "you must set the replay download path!");
     if (replayUrl == null) {
-      replayUrl = new URL(Replay.getReplayUrl(Integer.getInteger(replayId), clientProperties.getVault().getReplayDownloadUrlFormat()));
+      replayUrl = new URL(Replay.getReplayUrl(Integer.parseInt(replayId), clientProperties.getVault().getReplayDownloadUrlFormat()));
     }
 
     logger.info("Downloading replay {} from {}", replayId, replayUrl);

@@ -464,10 +464,11 @@ public class GameService implements InitializingBean {
           if (mod[0] == null) {
             try {
               List<Action> actionList = fafService.getFeaturedMods().get().stream()
-                .map(fm -> new Action(
+                  .filter(fm -> fm.isVisible())
+                  .map(fm -> new Action(
                     fm.getDisplayName(), (a) -> runWithReplay(
                     demoFileInfo.getFilePath(), 0, fm.getTechnicalName(), mapName[0], mapCrc[0], mapArchive[0])))
-                .collect(Collectors.toList());
+                  .collect(Collectors.toList());
 
               notificationService.addNotification(new ImmediateNotification(
                   i18n.get("replay.selectMod.title"),
