@@ -70,11 +70,13 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.io.Serializable;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -235,11 +237,25 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   @Override
   @Cacheable(value = CacheNames.LEADERBOARD, sync = true)
   public List<LeaderboardEntry> getAllLeaderboardEntries(String leaderboardTechnicalName) {
-    return getAll(LEADERBOARD_ENTRY_ENDPOINT, java.util.Map.of(
-        FILTER, rsql(qBuilder().string("leaderboard.technicalName").eq(leaderboardTechnicalName)
-            .and().instant("updateTime").after(LocalDateTime.now().minusMonths(1).toInstant(ZoneOffset.UTC), false)),
+    List<LeaderboardEntry> allResults = getAll(LEADERBOARD_ENTRY_ENDPOINT, java.util.Map.of(
+        FILTER, rsql(qBuilder().string("leaderboard.technicalName").eq(leaderboardTechnicalName)),
         INCLUDE, LEADERBOARD_ENTRY_INCLUDES,
         SORT, "-rating"));
+
+    OffsetDateTime tCutOff = OffsetDateTime.now(ZoneOffset.UTC).minusMonths(1);
+    List<LeaderboardEntry> recentResults = allResults.stream()
+        .filter(le -> le.getUpdateTime().compareTo(tCutOff) >= 0)
+        .collect(Collectors.toList());
+
+    if (recentResults.size() >= 10) {
+      return recentResults;
+    }
+
+    return allResults.stream()
+        .sorted((a,b) -> b.getUpdateTime().compareTo(a.getUpdateTime()))
+        .limit(10)
+        .sorted((a,b) -> b.getRating().compareTo(a.getRating()))
+        .collect(Collectors.toList());
   }
 
   @Override
