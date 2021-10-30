@@ -152,14 +152,12 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
 
   @Inject
   // TODO cut dependencies
-  public AbstractChatTabController(WebViewConfigurer webViewConfigurer,
-                                   UserService userService, ChatService chatService,
-                                   PreferencesService preferencesService,
-                                   PlayerService playerService, AudioService audioService,
-                                   TimeService timeService, I18n i18n,
-                                   ImageUploadService imageUploadService,
-                                   NotificationService notificationService, ReportingService reportingService, UiService uiService,
-                                   EventBus eventBus, CountryFlagService countryFlagService, ChatUserService chatUserService) {
+  public AbstractChatTabController(
+      WebViewConfigurer webViewConfigurer, UserService userService, ChatService chatService,
+      PreferencesService preferencesService, PlayerService playerService, AudioService audioService,
+      TimeService timeService, I18n i18n, ImageUploadService imageUploadService,
+      NotificationService notificationService, ReportingService reportingService, UiService uiService,
+      EventBus eventBus, CountryFlagService countryFlagService, ChatUserService chatUserService) {
 
     this.webViewConfigurer = webViewConfigurer;
     this.uiService = uiService;
@@ -193,10 +191,14 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
       preferencesService.storeInBackground();
     };
     stageFocusedListener = (window, windowFocusOld, windowFocusNew) -> {
-      if (getRoot() != null
-          && getRoot().getTabPane() != null
-          && getRoot().getTabPane().isVisible()) {
-        messageTextField().requestFocus();
+      if (getRoot() != null &&
+          getRoot().getTabPane() != null &&
+          getRoot().getTabPane().isVisible()
+      ) {
+        try {
+          messageTextField().requestFocus();
+        }
+        catch (IllegalStateException e) { } // during shutdown after "view has already been closed"
       }
     };
     tabPaneFocusedListener = (focusedTabPane, oldTabPaneFocus, newTabPaneFocus) -> {
@@ -579,7 +581,7 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
   private void addMessage(ChatMessage chatMessage) {
     JavaFxUtil.assertApplicationThread();
     noCatch(() -> {
-      if (!hasFocus()) {
+      if (!hasFocus() && !playerService.isCurrentPlayer(chatMessage.getSubject())) {
         setUnread(true);
         incrementUnreadMessagesCount(1);
       }

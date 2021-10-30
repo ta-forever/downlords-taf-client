@@ -46,6 +46,7 @@ public class Replay {
   private final IntegerProperty id;
   private final StringProperty title;
   private final BooleanProperty replayAvailable;
+  private final BooleanProperty tadaAvailable;
   private final MapProperty<String, List<String>> teams;
   private final MapProperty<String, List<PlayerStats>> teamPlayerStats;
   private final ObjectProperty<OffsetDateTime> startTime;
@@ -70,6 +71,7 @@ public class Replay {
     id = new SimpleIntegerProperty();
     title = new SimpleStringProperty();
     replayAvailable = new SimpleBooleanProperty(false);
+    tadaAvailable = new SimpleBooleanProperty(false);
     teams = new SimpleMapProperty<>(FXCollections.observableHashMap());
     teamPlayerStats = new SimpleMapProperty<>(FXCollections.observableHashMap());
     startTime = new SimpleObjectProperty<>();
@@ -105,6 +107,7 @@ public class Replay {
   public static Replay fromDto(Game dto) {
     Replay replay = new Replay();
     replay.setReplayAvailable(dto.getReplayAvailable());
+    replay.setTadaAvailable(dto.getTadaAvailable());
     replay.setId(Integer.parseInt(dto.getId()));
     replay.setFeaturedMod(FeaturedMod.fromFeaturedMod(dto.getFeaturedMod()));
     replay.setTitle(dto.getName());
@@ -164,6 +167,18 @@ public class Replay {
 
   public BooleanProperty replayAvailableProperty() {
     return replayAvailable;
+  }
+
+  public boolean getTadaAvailable() {
+    return tadaAvailable.get();
+  }
+
+  public void setTadaAvailable(boolean available) {
+    this.tadaAvailable.set(available);
+  }
+
+  public BooleanProperty tadaAvailableProperty() {
+    return tadaAvailable;
   }
 
   public Validity getValidity() {

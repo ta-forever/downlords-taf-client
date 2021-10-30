@@ -28,7 +28,8 @@ public enum ClientMessageType {
   SET_PARTY_FACTIONS("set_party_factions"),
   SET_PLAYER_ALIAS("set_player_alias"),
   MATCHMAKER_INFO("matchmaker_info"),
-  GAME_MATCHMAKING("game_matchmaking");
+  GAME_MATCHMAKING("game_matchmaking"),
+  UPLOAD_REPLAY_TO_TADA("upload_replay_to_tada");
 
   private static Map<String, ClientMessageType> fromString;
 

@@ -99,4 +99,6 @@ public interface FafServerAccessor {
   void resetIdleSince();
 
   List<String> getLocalIps();
+
+  void uploadReplayToTada(Integer replayId);
 }

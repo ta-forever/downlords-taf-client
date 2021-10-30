@@ -110,7 +110,9 @@ public class ReplayDetailController implements Controller<Node> {
   public Button downloadMoreInfoButton;
   public Pane moreInformationPane;
   public ImageView mapThumbnailImageView;
+  public Node replayAvailableContainer;
   public Button watchButton;
+  public Button tadaUploadButton;
   public TextField replayIdField;
   public ScrollPane scrollPane;
   public Button showRatingChangeButton;
@@ -167,8 +169,9 @@ public class ReplayDetailController implements Controller<Node> {
 
   public void setReplay(Replay replay) {
     this.replay = replay;
-    watchButton.setDisable(false);
+    replayAvailableContainer.setDisable(false);
     downloadMoreInfoButton.setDisable(false);
+    tadaUploadButton .setVisible(replayService.uploadReplayToTadaPermitted(replay));
 
     replayIdField.setText(i18n.get("game.idFormat", replay.getId()));
     titleLabel.setText(replay.getTitle());
@@ -239,7 +242,7 @@ public class ReplayDetailController implements Controller<Node> {
           watchButton.setText(i18n.get("game.replayNotAvailable"));
         }
         downloadMoreInfoButton.setDisable(true);
-        watchButton.setDisable(true);
+        replayAvailableContainer.setDisable(true);
       }
       Optional<Player> currentPlayer = playerService.getCurrentPlayer();
       Assert.state(currentPlayer.isPresent(), "No user is logged in");
@@ -423,6 +426,7 @@ public class ReplayDetailController implements Controller<Node> {
     replayService.runDownloadReplay(replay);
   }
 
+  public void onTadaUploadButtonClicked() { replayService.uploadReplayToTada(replay.getId()); }
 
   public void copyLink() {
     String replayUrl = Replay.getReplayUrl(replay.getId(), clientProperties.getVault().getReplayDownloadUrlFormat());

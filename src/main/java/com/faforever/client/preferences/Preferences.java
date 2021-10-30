@@ -74,6 +74,7 @@ public class Preferences {
   private final BooleanProperty debugLogEnabled;
   private final ObjectProperty<TadaIntegrationOption> tadaIntegrationOption;
   private final ObjectProperty<RatingMetric> userInfoRatingMetric;
+  private final ObjectProperty<AutoUploadLogsOption> autoUploadLogsOption;
 
   public Preferences() {
     gameTileSortingOrder = new SimpleObjectProperty<>(TilesSortingOrder.PLAYER_DES);
@@ -84,7 +85,7 @@ public class Preferences {
     localization = new LocalizationPrefs();
     lastGame = new LastGamePrefs();
     mainWindow = new WindowPrefs();
-    totalAnnihilation = new SimpleListProperty<TotalAnnihilationPrefs>(FXCollections.observableArrayList());
+    totalAnnihilation = new SimpleListProperty<>(FXCollections.observableArrayList());
     themeName = new SimpleStringProperty(DEFAULT_THEME_NAME);
     ignoredNotifications = new SimpleListProperty<>(observableArrayList());
     notification = new NotificationsPrefs();
@@ -115,7 +116,8 @@ public class Preferences {
     gameDataCacheActivated = new SimpleBooleanProperty(false);
     gameDataPromptDownloadActivated = new SimpleBooleanProperty(true);
     debugLogEnabled = new SimpleBooleanProperty(false);
-    tadaIntegrationOption = new SimpleObjectProperty<>(TadaIntegrationOption.ASK);
+    autoUploadLogsOption = new SimpleObjectProperty<>(AutoUploadLogsOption.ASK);
+    tadaIntegrationOption = new SimpleObjectProperty<>(TadaIntegrationOption.BROWSER);
     userInfoRatingMetric = new SimpleObjectProperty<>(RatingMetric.TRUESKILL);
   }
 
@@ -480,5 +482,15 @@ public class Preferences {
 
   public ObjectProperty<RatingMetric> userInfoRatingMetricProperty() {
     return userInfoRatingMetric;
+  }
+
+  public AutoUploadLogsOption getAutoUploadLogsOption() {
+    return autoUploadLogsOption.get();
+  }
+
+  public void setAutoUploadLogsOption(AutoUploadLogsOption option) { this.autoUploadLogsOption.set(option); }
+
+  public ObjectProperty<AutoUploadLogsOption> autoUploadLogsOptionProperty() {
+    return autoUploadLogsOption;
   }
 }

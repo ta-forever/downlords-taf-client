@@ -2,10 +2,12 @@ package com.faforever.client.remote.domain;
 
 import com.faforever.client.notification.Severity;
 
+
 public class NoticeMessage extends FafServerMessage {
 
   private String text;
   private String style;
+  private String i18nKey;
 
   public NoticeMessage() {
     super(FafServerMessageType.NOTICE);
@@ -27,12 +29,16 @@ public class NoticeMessage extends FafServerMessage {
     }
   }
 
-  public String getText() {
-    return text;
-  }
+  public String getText() { return text; }
 
   public void setText(String text) {
     this.text = text;
+  }
+
+  public String getI18nKey() { return this.i18nKey; }
+
+  public void setI18nKey(String i18nKey) {
+    this.i18nKey = i18nKey;
   }
 
   public void setStyle(String style) {

@@ -50,9 +50,6 @@
                       <ToggleButton fx:id="matchmakerButton" minWidth="-Infinity" mnemonicParsing="false"
                                     onAction="#onMatchmaker" styleClass="main-navigation-button"
                                     text="%main.matchmaking" toggleGroup="$mainNavigation"/>
-                      <ToggleButton fx:id="replayButton" disable="true" minWidth="-Infinity" mnemonicParsing="false"
-                                    onAction="#onNavigateButtonClicked" styleClass="main-navigation-button"
-                                    text="%main.replay" toggleGroup="$mainNavigation"/>
                       <ToggleButton fx:id="mapButton" minWidth="-Infinity" mnemonicParsing="false"
                                     onAction="#onNavigateButtonClicked" styleClass="main-navigation-button"
                                     text="%main.maps" toggleGroup="$mainNavigation"/>
@@ -71,6 +68,9 @@
                       <ToggleButton fx:id="tutorialsButton" disable="true" minWidth="-Infinity" mnemonicParsing="false"
                                     onAction="#onNavigateButtonClicked" styleClass="main-navigation-button"
                                     text="%main.tutorials" toggleGroup="$mainNavigation"/>
+                      <ToggleButton fx:id="replayButton" minWidth="-Infinity" mnemonicParsing="false"
+                                    onAction="#onNavigateButtonClicked" styleClass="main-navigation-button"
+                                    text="%main.replay" toggleGroup="$mainNavigation"/>
                       <ToggleButton fx:id="tadaButton" disable="false" minWidth="-Infinity" mnemonicParsing="false"
                                     onAction="#onNavigateButtonClicked" styleClass="main-navigation-button"
                                     text="%main.tada" toggleGroup="$mainNavigation"/>

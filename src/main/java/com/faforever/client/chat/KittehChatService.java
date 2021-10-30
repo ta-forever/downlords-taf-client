@@ -6,6 +6,7 @@ import com.faforever.client.chat.event.ChatUserCategoryChangeEvent;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.config.ClientProperties.Irc;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.i18n.I18n;
 import com.faforever.client.net.ConnectionState;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerOnlineEvent;
@@ -15,6 +16,7 @@ import com.faforever.client.player.UserOfflineEvent;
 import com.faforever.client.preferences.ChatPrefs;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
+import com.faforever.client.remote.domain.NewTadaReplayMessage;
 import com.faforever.client.remote.domain.SocialMessage;
 import com.faforever.client.ui.tray.event.UpdateApplicationBadgeEvent;
 import com.faforever.client.user.UserService;
@@ -98,6 +100,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   private final EventBus eventBus;
   private final ClientProperties clientProperties;
   private final PlayerService playerService;
+  private final I18n i18n;
   /**
    * Maps channels by name.
    */
@@ -127,6 +130,8 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   public void afterPropertiesSet() {
     eventBus.register(this);
     fafService.addOnMessageListener(SocialMessage.class, this::onSocialMessage);
+    fafService.addOnMessageListener(NewTadaReplayMessage.class, this::onNewTadaReplayMessage);
+
     connectionState.addListener((observable, oldValue, newValue) -> {
       switch (newValue) {
         case DISCONNECTED, CONNECTING -> onDisconnected();
@@ -601,5 +606,19 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   private String mapKey(String username, String channelName) {
     return username + channelName;
+  }
+
+  private void onNewTadaReplayMessage(NewTadaReplayMessage newTadaReplayMessage) {
+    String players = newTadaReplayMessage.getPlayers().stream()
+        .reduce("", (a,b) -> a.isEmpty() ? b : a + "+" + b);
+
+    String chatContent = i18n.get("tada.advertise.newReplay",
+        clientProperties.getTada().getRootUrl(), newTadaReplayMessage.getTadaReplayId(),
+        players, newTadaReplayMessage.getMapName());
+
+    ChatMessage msg = new ChatMessage(
+        getDefaultChannelName(), Instant.now(), i18n.get("chat.operator"), chatContent, true);
+
+    eventBus.post(new ChatMessageEvent(msg));
   }
 }

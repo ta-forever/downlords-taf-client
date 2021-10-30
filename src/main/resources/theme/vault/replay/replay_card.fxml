@@ -10,6 +10,7 @@
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Tooltip?>
 <GridPane xmlns:fx="http://javafx.com/fxml/1" fx:id="replayTileRoot" hgap="20.0" prefWidth="512" prefHeight="300"
           onMouseClicked="#onShowReplayDetail" styleClass="card, pointable, hoverable" vgap="10.0"
           xmlns="http://javafx.com/javafx/8.0.141" fx:controller="com.faforever.client.replay.ReplayCardController">
@@ -84,11 +85,21 @@
             <Region styleClass="icon, balance-icon"/>
         </graphic>
     </Label>
-    <Button fx:id="watchButton" mnemonicParsing="false"
-            onAction="#onWatchButtonClicked" GridPane.halignment="RIGHT" GridPane.valignment="BOTTOM"
-            GridPane.rowIndex="8" GridPane.columnIndex="2" GridPane.hgrow="ALWAYS" GridPane.vgrow="ALWAYS">
-        <graphic>
-            <Region styleClass="icon,play-icon"/>
-        </graphic>
-    </Button>
+    <HBox fx:id="replayAvailableContainer" spacing="10"
+          GridPane.fillWidth="false"
+          GridPane.halignment="RIGHT" GridPane.valignment="BOTTOM"
+          GridPane.rowIndex="8" GridPane.columnIndex="2"
+          GridPane.hgrow="ALWAYS" GridPane.vgrow="ALWAYS">
+        <Button fx:id="tadaUploadButton" mnemonicParsing="false" onAction="#onTadaUploadButtonClicked" text="TADA">
+            <tooltip><Tooltip text="%tada.upload.tooltip" /></tooltip>
+            <graphic>
+                <Region styleClass="icon,upload-icon"/>
+            </graphic>
+        </Button>
+        <Button fx:id="watchButton" mnemonicParsing="false" onAction="#onWatchButtonClicked" >
+            <graphic>
+                <Region styleClass="icon,play-icon"/>
+            </graphic>
+        </Button>
+    </HBox>
 </GridPane>

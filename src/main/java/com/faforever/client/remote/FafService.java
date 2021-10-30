@@ -598,6 +598,11 @@ public class FafService {
   }
 
   @Async
+  public void uploadReplayToTada(Integer replayId) {
+    fafServerAccessor.uploadReplayToTada(replayId);
+  }
+
+  @Async
   public void banPlayer(int playerId, int duration, PeriodType periodType, String reason) {
     fafServerAccessor.banPlayer(playerId, duration, periodType, reason);
   }

@@ -56,6 +56,8 @@ public class ReplayCardController implements Controller<Node> {
   public Label numberOfReviewsLabel;
   public HBox teamsContainer;
   public Label onMapLabel;
+  public Node replayAvailableContainer;
+  public Button tadaUploadButton;
   public Button watchButton;
   public StarsController starsController;
   private Replay replay;
@@ -75,7 +77,8 @@ public class ReplayCardController implements Controller<Node> {
       onMapLabel.setText(i18n.get("game.onUnknownMap"));
     }
 
-    watchButton.setDisable(!replay.getReplayAvailable());
+    replayAvailableContainer.setDisable(!replay.getReplayAvailable());
+    tadaUploadButton.setVisible(replayService.uploadReplayToTadaPermitted(replay));
     gameTitleLabel.setText(replay.getTitle());
     dateLabel.setText(timeService.asDate(replay.getStartTime()));
     timeLabel.setText(timeService.asShortTime(replay.getStartTime()));
@@ -149,4 +152,6 @@ public class ReplayCardController implements Controller<Node> {
   public void onWatchButtonClicked() {
     replayService.runDownloadReplay(replay);
   }
+
+  public void onTadaUploadButtonClicked() { replayService.uploadReplayToTada(replay.getId()); }
 }

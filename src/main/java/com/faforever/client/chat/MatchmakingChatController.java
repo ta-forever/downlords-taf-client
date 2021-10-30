@@ -2,11 +2,9 @@ package com.faforever.client.chat;
 
 import com.faforever.client.audio.AudioService;
 import com.faforever.client.chat.event.UnreadPartyMessageEvent;
-import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.WebViewConfigurer;
 import com.faforever.client.game.PlayerStatus;
 import com.faforever.client.i18n.I18n;
-import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
@@ -17,7 +15,6 @@ import com.faforever.client.user.UserService;
 import com.faforever.client.util.TimeService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
-import javafx.collections.MapChangeListener;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TextInputControl;
@@ -104,7 +101,7 @@ public class MatchmakingChatController extends AbstractChatTabController {
       localPlayerStatus = playerService.getCurrentPlayer().get().getStatus();
     }
 
-    if (!hasFocus()) {
+    if (!hasFocus() && !playerService.isCurrentPlayer(chatMessage.getSubject())) {
       if (Set.of(PlayerStatus.IDLE, PlayerStatus.HOSTING, PlayerStatus.JOINING).contains(localPlayerStatus)) {
         audioService.playPrivateMessageSound();
       }
@@ -117,12 +114,16 @@ public class MatchmakingChatController extends AbstractChatTabController {
   @VisibleForTesting
   void onPlayerDisconnected(ChatChannelUser user) {
     super.onPlayerDisconnected(user);
-    onChatMessage(new ChatMessage(getReceiver(), Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerDisconnect", user.getUsername()), true));
+    onChatMessage(new ChatMessage(getReceiver(), Instant.now(),
+        i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerDisconnect", user.getUsername()),true)
+            .setSubject(user.getUsername()));
   }
 
   @VisibleForTesting
   void onPlayerConnected(ChatChannelUser user) {
     super.onPlayerConnected(user);
-    onChatMessage(new ChatMessage(getReceiver(), Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerConnect", user.getUsername()), true));
+    onChatMessage(new ChatMessage(getReceiver(), Instant.now(),
+        i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerConnect", user.getUsername()), true)
+        .setSubject(user.getUsername()));
   }
 }

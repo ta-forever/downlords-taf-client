@@ -21,6 +21,7 @@ import com.google.common.eventbus.EventBus;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Worker;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
@@ -156,6 +157,7 @@ public class TadaController extends AbstractViewController<Node> {
       if (newValue != null) {
         doSetUrlTextField(newValue.getDocumentURI());
       }});
+    doSetUrlTextField(clientProperties.getTada().getRootUrl());
 
     installContextMenu();
   }

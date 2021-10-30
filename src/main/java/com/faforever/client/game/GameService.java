@@ -24,11 +24,14 @@ import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.PersistentNotification;
 import com.faforever.client.notification.Severity;
+import com.faforever.client.notification.TransientNotification;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.UserOfflineEvent;
+import com.faforever.client.preferences.AutoUploadLogsOption;
 import com.faforever.client.preferences.NotificationsPrefs;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.TadaIntegrationOption;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.ReconnectTimerService;
@@ -39,6 +42,7 @@ import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.remote.domain.LoginMessage;
 import com.faforever.client.replay.Replay;
 import com.faforever.client.replay.ReplayServer;
+import com.faforever.client.tada.event.UploadToTadaEvent;
 import com.faforever.client.task.ResourceLocks;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.faforever.client.util.RatingUtil;
@@ -840,10 +844,13 @@ public class GameService implements InitializingBean {
 
   private void notifyRecentlyPlayedGameEnded(Game game) {
     NotificationsPrefs notification = preferencesService.getPreferences().getNotification();
-    if (false && notification.isAfterGameReviewEnabled() && notification.isTransientNotificationsEnabled()) {
+    if (notification.isAfterGameReviewEnabled() && notification.isTransientNotificationsEnabled()) {
       notificationService.addNotification(new PersistentNotification(i18n.get("game.ended", game.getTitle()),
           Severity.INFO,
-          singletonList(new Action(i18n.get("game.rate"), actionEvent -> eventBus.post(new ShowReplayEvent(game.getId()))))));
+          List.of(
+              new Action(i18n.get("tada.upload"), actionEvent -> eventBus.post(new UploadToTadaEvent(game.getId()))),
+              new Action(i18n.get("game.rate"), actionEvent -> eventBus.post(new ShowReplayEvent(game.getId())))
+          )));
     }
   }
 
@@ -879,6 +886,31 @@ public class GameService implements InitializingBean {
   }
 
   void submitLogs(int gameId) {
+    if (preferencesService.getPreferences().getAutoUploadLogsOption() == AutoUploadLogsOption.ALLOW) {
+      doSubmitLogs(gameId);
+    }
+    else if (preferencesService.getPreferences().getAutoUploadLogsOption() == AutoUploadLogsOption.ASK) {
+      notificationService.addNotification(new ImmediateNotification(
+          i18n.get("settings.autoLogsUpload"), i18n.get("settings.autoLogsUpload.description"),
+          Severity.INFO, Arrays.asList(
+          new Action(i18n.get("menu.revealLogFolder"), Action.Type.OK_STAY, event -> {
+            Path logPath = preferencesService.getFafLogDirectory();
+            this.platformService.reveal(logPath);
+          }),
+          new Action(i18n.get("settings.autoLogsUpload.allow"), Action.Type.OK_DONE, event -> {
+            preferencesService.getPreferences().setAutoUploadLogsOption(AutoUploadLogsOption.ALLOW);
+            preferencesService.storeInBackground();
+            doSubmitLogs(gameId);
+          }),
+          new Action(i18n.get("settings.autoLogsUpload.deny"), Action.Type.OK_DONE, event -> {
+            preferencesService.getPreferences().setAutoUploadLogsOption(AutoUploadLogsOption.DENY);
+            preferencesService.storeInBackground();
+          }))
+      ));
+    }
+  }
+
+  void doSubmitLogs(int gameId) {
     log.info("[submitLogs] submitting logs to TAF for game ID={}", gameId);
     Path logClient = preferencesService.getFafLogDirectory().resolve("client.log");
     Path logIceAdapter = preferencesService.getIceAdapterLogDirectory().resolve("ice-adapter.log");

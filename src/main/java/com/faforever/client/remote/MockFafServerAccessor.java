@@ -377,4 +377,7 @@ public class MockFafServerAccessor implements FafServerAccessor {
   public List<String> getLocalIps() {
     return null;
   }
+
+  @Override
+  public void uploadReplayToTada(Integer replayId) { }
 }

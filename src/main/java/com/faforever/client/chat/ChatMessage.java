@@ -14,6 +14,7 @@ public class ChatMessage {
   private final String username;
   private final String message;
   private boolean action;
+  private String subject;
 
   /**
    * @param source the name of the message source/target - either a channel or an username.
@@ -35,4 +36,12 @@ public class ChatMessage {
     return !Objects.toString(source, "").startsWith("#");
   }
 
+  /**
+   * @param subject who/what is the message about. Might be used to suppress notifications about oneself
+   * @return
+   */
+  public ChatMessage setSubject(String subject) {
+    this.subject = subject;
+    return this;
+  }
 }

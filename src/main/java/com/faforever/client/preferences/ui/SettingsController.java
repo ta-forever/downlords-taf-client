@@ -17,6 +17,7 @@ import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.PersistentNotification;
 import com.faforever.client.notification.Severity;
 import com.faforever.client.notification.TransientNotification;
+import com.faforever.client.preferences.AutoUploadLogsOption;
 import com.faforever.client.preferences.DateInfo;
 import com.faforever.client.preferences.LocalizationPrefs;
 import com.faforever.client.preferences.NotificationsPrefs;
@@ -152,8 +153,9 @@ public class SettingsController implements Controller<Node> {
   public CheckBox advancedIceLogToggle;
   public CheckBox prereleaseToggle;
   public Region settingsHeader;
-  public ComboBox<NavigationItem> startTabChoiceBox;
-  public ComboBox<TadaIntegrationOption> tadaIntegrationChoiceBox;
+  public ComboBox<NavigationItem> startTabComboBox;
+  public ComboBox<TadaIntegrationOption> tadaIntegrationComboBox;
+  public ComboBox<AutoUploadLogsOption> autoUploadLogsOptionComboBox;
   public Label notifyAtMentionTitle;
   public Label notifyAtMentionDescription;
   public TextField channelTextField;
@@ -301,6 +303,7 @@ public class SettingsController implements Controller<Node> {
     configureToastScreen(preferences);
     configureStartTab(preferences);
     configureTadaIntegration(preferences);
+    configureAutoUploadLogs(preferences);
 
     displayFriendOnlineToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendOnlineToastEnabledProperty());
     displayFriendOfflineToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendOfflineToastEnabledProperty());
@@ -402,8 +405,8 @@ public class SettingsController implements Controller<Node> {
 
   private void configureStartTab(Preferences preferences) {
     WindowPrefs mainWindow = preferences.getMainWindow();
-    startTabChoiceBox.setItems(FXCollections.observableArrayList(NavigationItem.values()));
-    startTabChoiceBox.setConverter(new StringConverter<>() {
+    startTabComboBox.setItems(FXCollections.observableArrayList(NavigationItem.values()));
+    startTabComboBox.setConverter(new StringConverter<>() {
       @Override
       public String toString(NavigationItem navigationItem) {
         return i18n.get(navigationItem.getI18nKey());
@@ -414,13 +417,13 @@ public class SettingsController implements Controller<Node> {
         throw new UnsupportedOperationException("Not needed");
       }
     });
-    startTabChoiceBox.getSelectionModel().select(mainWindow.getNavigationItem());
-    mainWindow.navigationItemProperty().bind(startTabChoiceBox.getSelectionModel().selectedItemProperty());
+    startTabComboBox.getSelectionModel().select(mainWindow.getNavigationItem());
+    mainWindow.navigationItemProperty().bind(startTabComboBox.getSelectionModel().selectedItemProperty());
   }
 
   private void configureTadaIntegration(Preferences preferences) {
-    tadaIntegrationChoiceBox.setItems(FXCollections.observableArrayList(TadaIntegrationOption.values()));
-    tadaIntegrationChoiceBox.setConverter(new StringConverter<>() {
+    tadaIntegrationComboBox.setItems(FXCollections.observableArrayList(TadaIntegrationOption.values()));
+    tadaIntegrationComboBox.setConverter(new StringConverter<>() {
       @Override
       public String toString(TadaIntegrationOption option) {
         return i18n.get(option.getI18nKey());
@@ -431,12 +434,12 @@ public class SettingsController implements Controller<Node> {
         throw new UnsupportedOperationException("Not needed");
       }
     });
-    tadaIntegrationChoiceBox.setValue(preferences.getTadaIntegrationOption());
-    preferences.tadaIntegrationOptionProperty().bindBidirectional(tadaIntegrationChoiceBox.valueProperty());
+    tadaIntegrationComboBox.setValue(preferences.getTadaIntegrationOption());
+    preferences.tadaIntegrationOptionProperty().bindBidirectional(tadaIntegrationComboBox.valueProperty());
   }
 
   public void onTadaIntegrationSelected(ActionEvent actionEvent) {
-    this.preferencesService.getPreferences().tadaIntegrationOptionProperty().setValue(tadaIntegrationChoiceBox.getValue());
+    this.preferencesService.getPreferences().tadaIntegrationOptionProperty().setValue(tadaIntegrationComboBox.getValue());
     preferencesService.storeInBackground();
   }
 
@@ -613,6 +616,28 @@ public class SettingsController implements Controller<Node> {
     preferencesService.getPreferences().getChat().getAutoJoinChannels().add(channelTextField.getText());
     preferencesService.storeInBackground();
     channelTextField.clear();
+  }
+
+  private void configureAutoUploadLogs(Preferences preferences) {
+    autoUploadLogsOptionComboBox.setItems(FXCollections.observableArrayList(AutoUploadLogsOption.values()));
+    autoUploadLogsOptionComboBox.setConverter(new StringConverter<>() {
+      @Override
+      public String toString(AutoUploadLogsOption option) {
+        return i18n.get(option.getI18nKey());
+      }
+
+      @Override
+      public AutoUploadLogsOption fromString(String s) {
+        throw new UnsupportedOperationException("Not needed");
+      }
+    });
+    autoUploadLogsOptionComboBox.setValue(preferences.getAutoUploadLogsOption());
+    preferences.autoUploadLogsOptionProperty().bindBidirectional(autoUploadLogsOptionComboBox.valueProperty());
+  }
+
+  public void onAutoUploadLogsSelected(ActionEvent actionEvent) {
+    this.preferencesService.getPreferences().autoUploadLogsOptionProperty().setValue(autoUploadLogsOptionComboBox.getValue());
+    preferencesService.storeInBackground();
   }
 }
 

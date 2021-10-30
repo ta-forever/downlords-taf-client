@@ -17,6 +17,7 @@
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 <?import java.lang.String?>
+<?import javafx.scene.control.Tooltip?>
 <AnchorPane xmlns:fx="http://javafx.com/fxml/1" fx:id="replayDetailRoot" onMouseClicked="#onDimmerClicked"
             styleClass="dimmer" xmlns="http://javafx.com/javafx/8.0.121"
             fx:controller="com.faforever.client.replay.ReplayDetailController">
@@ -102,18 +103,28 @@
                                      <Region styleClass="icon,balance-icon"/>
                                  </graphic>
                               </Label>
-                               <Button fx:id="watchButton" defaultButton="true" mnemonicParsing="false"
-                                       onAction="#onWatchButtonClicked" text="%game.watchButtonFormat"
-                                       GridPane.columnSpan="2147483647" GridPane.halignment="RIGHT"
-                                       GridPane.rowIndex="4" GridPane.columnIndex="5">
-                                   <graphic>
-                                       <Region styleClass="icon,play-icon"/>
-                                   </graphic>
-                               </Button>
+                               <HBox fx:id="replayAvailableContainer" spacing="10"
+                                     GridPane.fillWidth="false"
+                                     GridPane.halignment="RIGHT" GridPane.columnSpan="2147483647"
+                                     GridPane.rowIndex="4" GridPane.columnIndex="5">
+                                   <Button fx:id="tadaUploadButton" mnemonicParsing="false"
+                                           onAction="#onTadaUploadButtonClicked" text="TADA">
+                                       <tooltip><Tooltip text="%tada.upload.tooltip" /></tooltip>
+                                       <graphic>
+                                           <Region styleClass="icon,upload-icon"/>
+                                       </graphic>
+                                   </Button>
+                                   <Button fx:id="watchButton" defaultButton="true" mnemonicParsing="false"
+                                           onAction="#onWatchButtonClicked" text="%game.watchButtonFormat">
+                                       <graphic>
+                                           <Region styleClass="icon,play-icon"/>
+                                       </graphic>
+                                   </Button>
+                               </HBox>
                                <Label fx:id="onMapLabel" styleClass="secondary" text="&lt;OnMap&gt;"
                                       GridPane.columnIndex="1" GridPane.columnSpan="2147483647" GridPane.rowIndex="1"
                                       GridPane.valignment="TOP"/>
-                               <HBox alignment="TOP_RIGHT" prefWidth="100.0" GridPane.columnIndex="1"
+                               <HBox alignment="TOP_RIGHT" prefWidth="100.0" GridPane.columnIndex="1" spacing="10"
                                      GridPane.columnSpan="2147483647">
                                    <children>
                                        <TextField fx:id="replayIdField" alignment="CENTER_RIGHT" editable="false"

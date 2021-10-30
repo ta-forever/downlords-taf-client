@@ -139,15 +139,12 @@ public class ChannelTabController extends AbstractChatTabController {
   }
 
   // TODO cut dependencies
-  public ChannelTabController(UserService userService, ChatService chatService,
-                              PreferencesService preferencesService,
-                              PlayerService playerService, AudioService audioService, TimeService timeService,
-                              I18n i18n, ImageUploadService imageUploadService,
-                              NotificationService notificationService, ReportingService reportingService,
-                              UiService uiService, EventBus eventBus,
-                              WebViewConfigurer webViewConfigurer,
-                              CountryFlagService countryFlagService, PlatformService platformService,
-                              ChatUserService chatUserService) {
+  public ChannelTabController(
+      UserService userService, ChatService chatService, PreferencesService preferencesService,
+      PlayerService playerService, AudioService audioService, TimeService timeService, I18n i18n,
+      ImageUploadService imageUploadService, NotificationService notificationService, ReportingService reportingService,
+      UiService uiService, EventBus eventBus, WebViewConfigurer webViewConfigurer,
+      CountryFlagService countryFlagService, PlatformService platformService, ChatUserService chatUserService) {
 
     super(webViewConfigurer, userService, chatService, preferencesService, playerService, audioService,
         timeService, i18n, imageUploadService, notificationService, reportingService, uiService,
@@ -347,6 +344,10 @@ public class ChannelTabController extends AbstractChatTabController {
 
   @Override
   protected String getMessageCssClass(String login) {
+    if (i18n.get("chat.operator").equals(login)) {
+      return CSS_CLASS_MODERATOR;
+    }
+
     ChatChannelUser chatUser = chatService.getOrCreateChatUser(login, chatChannel.getName());
     Optional<Player> currentPlayerOptional = playerService.getCurrentPlayer();
 
@@ -535,6 +536,9 @@ public class ChannelTabController extends AbstractChatTabController {
 
   @Override
   protected String getInlineStyle(String username) {
+    if (i18n.get("chat.operator").equals(username)) {
+      return "";
+    }
     ChatChannelUser chatUser = chatService.getOrCreateChatUser(username, chatChannel.getName());
 
     Optional<Player> playerOptional = playerService.getPlayerForUsername(username);

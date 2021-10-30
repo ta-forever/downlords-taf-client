@@ -74,6 +74,7 @@ import com.faforever.client.remote.domain.SessionMessage;
 import com.faforever.client.remote.domain.SetPartyFactionsMessage;
 import com.faforever.client.remote.domain.SetPlayerAliasMessage;
 import com.faforever.client.remote.domain.UnreadyPartyMessage;
+import com.faforever.client.remote.domain.UploadReplayToTadaMessage;
 import com.faforever.client.remote.domain.VictoryCondition;
 import com.faforever.client.remote.gson.ClientMessageTypeTypeAdapter;
 import com.faforever.client.remote.gson.FactionTypeAdapter;
@@ -219,7 +220,10 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
     if (noticeMessage.getText() == null) {
       return;
     }
-    notificationService.addServerNotification(new ImmediateNotification(i18n.get("messageFromServer"), noticeMessage.getText(), noticeMessage.getSeverity(),
+    notificationService.addServerNotification(new ImmediateNotification(
+        i18n.get("messageFromServer"),
+        noticeMessage.getI18nKey() == null ? noticeMessage.getText() : i18n.get(noticeMessage.getI18nKey()),
+        noticeMessage.getSeverity(),
         Collections.singletonList(new DismissAction(i18n))));
   }
 
@@ -685,4 +689,7 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
 
   @Override
   public List<String> getLocalIps() { return localIps; }
+
+  @Override
+  public void uploadReplayToTada(Integer replayId) { writeToServer(new UploadReplayToTadaMessage(replayId)); }
 }

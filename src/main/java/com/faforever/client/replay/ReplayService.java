@@ -24,7 +24,10 @@ import com.faforever.client.notification.PersistentNotification;
 import com.faforever.client.notification.Severity;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
+import com.faforever.client.remote.domain.NewTadaReplayMessage;
+import com.faforever.client.remote.domain.ServerMessage;
 import com.faforever.client.reporting.ReportingService;
+import com.faforever.client.tada.event.UploadToTadaEvent;
 import com.faforever.client.task.CompletableTask;
 import com.faforever.client.task.CompletableTask.Priority;
 import com.faforever.client.task.TaskService;
@@ -38,7 +41,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.primitives.Bytes;
-import com.google.gson.Gson;
+import javafx.beans.property.BooleanProperty;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -59,7 +62,6 @@ import java.lang.invoke.MethodHandles;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -419,5 +421,37 @@ public class ReplayService implements InitializingBean {
           }
           return null;
         });
+  }
+
+  public boolean uploadReplayToTadaPermitted(Replay replay) {
+    if (replay == null) {
+      return false;
+    }
+
+    if (replay.getId() > 6000 && replay.getId() < 9340) {
+      return false;
+    }
+
+    if (replay.getTadaAvailable()) {
+      return false;
+    }
+
+    List<String> players = replay.getTeams().values().stream()
+        .reduce(new ArrayList<>(), (a,b) -> {
+          a.addAll(b);
+          return a;
+        });
+
+    boolean result = players.contains(userService.getUsername());
+    return result;
+  }
+
+  public void uploadReplayToTada(Integer replayId) {
+    this.fafService.uploadReplayToTada(replayId);
+  }
+
+  @Subscribe
+  public void onUploadToTadaEvent(UploadToTadaEvent event) {
+    uploadReplayToTada(event.getReplayId());
   }
 }

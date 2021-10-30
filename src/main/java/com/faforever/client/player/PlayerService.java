@@ -316,6 +316,13 @@ public class PlayerService implements InitializingBean {
     fafService.removeFoe(player);
   }
 
+  public boolean isCurrentPlayer(String userName) {
+    if (!getCurrentPlayer().isPresent()) {
+      return false;
+    }
+    return getCurrentPlayer().get().getUsername().equals(userName);
+  }
+
   public Optional<Player> getCurrentPlayer() {
     return Optional.ofNullable(currentPlayer.get());
   }

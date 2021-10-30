@@ -3,6 +3,7 @@ package com.faforever.client.chat;
 import com.faforever.client.chat.event.ChatMessageEvent;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.config.ClientProperties.Irc;
+import com.faforever.client.i18n.I18n;
 import com.faforever.client.net.ConnectionState;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerBuilder;
@@ -123,6 +124,8 @@ public class KittehChatServiceTest extends AbstractPlainJavaFxTest {
   private PlayerService playerService;
   @Mock
   private EventBus eventBus;
+  @Mock
+  private I18n i18n;
 
   @Captor
   private ArgumentCaptor<Consumer<SocialMessage>> socialMessageListenerCaptor;
@@ -142,7 +145,7 @@ public class KittehChatServiceTest extends AbstractPlainJavaFxTest {
         .setReconnectDelay(100);
 
     instance = new KittehChatService(chatUserService, preferencesService, userService, fafService,
-        eventBus, clientProperties, playerService);
+        eventBus, clientProperties, playerService, i18n);
 
     Irc irc = clientProperties.getIrc();
     instance.defaultChannelName = irc.getDefaultChannel();
