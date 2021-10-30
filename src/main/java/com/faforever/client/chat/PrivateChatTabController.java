@@ -139,7 +139,6 @@ public class PrivateChatTabController extends AbstractChatTabController {
     }
     super.onPlayerDisconnected(user);
     userOffline = true;
-    onChatMessage(new ChatMessage(user.getUsername(), Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.privateMessage.playerLeft", user.getUsername()), true));
   }
 
   @VisibleForTesting
@@ -149,7 +148,6 @@ public class PrivateChatTabController extends AbstractChatTabController {
       return;
     }
     userOffline = false;
-    onChatMessage(new ChatMessage(user.getUsername(), Instant.now(), i18n.get("chat.operator") + ":", i18n.get("chat.privateMessage.playerReconnect", user.getUsername()), true));
   }
 
   @Override
