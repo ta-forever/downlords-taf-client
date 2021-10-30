@@ -40,6 +40,7 @@
                     <TableColumn fx:id="allResultsColumn" text="Win-Draw-Loss"/>
                     <TableColumn fx:id="recentResultsColumn" text="Win-Draw-Loss(10)"/>
                     <TableColumn fx:id="streakColumn" text="Streak"/>
+                    <TableColumn fx:id="bestStreakColumn" text="Record Streak"/>
                     <TableColumn fx:id="recentModColumn" text="Last Mod"/>
                 </columns>
                 <columnResizePolicy>

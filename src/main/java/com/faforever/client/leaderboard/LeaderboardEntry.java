@@ -24,6 +24,7 @@ public class LeaderboardEntry {
   private final StringProperty allResults;
   private final StringProperty recentMod;
   private final IntegerProperty streak;
+  private final IntegerProperty bestStreak;
   private final ObjectProperty<Leaderboard> leaderboard;
 
   public LeaderboardEntry() {
@@ -38,6 +39,7 @@ public class LeaderboardEntry {
     allResults = new SimpleStringProperty();
     recentMod = new SimpleStringProperty();
     streak = new SimpleIntegerProperty();
+    bestStreak = new SimpleIntegerProperty();
     leaderboard = new SimpleObjectProperty<>();
   }
 
@@ -47,6 +49,7 @@ public class LeaderboardEntry {
     leaderboardEntry.setUsername(entry.getPlayer().getLogin());
     leaderboardEntry.setRating(entry.getRating());
     leaderboardEntry.setStreak(entry.getStreak());
+    leaderboardEntry.setBestStreak(entry.getBestStreak());
     leaderboardEntry.setRecentMod(entry.getRecentMod());
 
     int totalGames = entry.getWonGames() + entry.getDrawnGames() + entry.getLostGames();
@@ -191,6 +194,16 @@ public class LeaderboardEntry {
 
   public IntegerProperty streakProperty() {
     return streak;
+  }
+
+  public int getBestStreak() { return bestStreak.get(); }
+
+  public void setBestStreak(int streak) {
+    this.bestStreak.set(streak);
+  }
+
+  public IntegerProperty bestStreakProperty() {
+    return bestStreak;
   }
 
   @Override

@@ -136,6 +136,7 @@ public class UserInfoWindowController implements Controller<Node> {
   public TableColumn<LeaderboardEntry, String> ratingTableAllResultsColumn;
   public TableColumn<LeaderboardEntry, String> ratingTableRecentResultsColumn;
   public TableColumn<LeaderboardEntry, Number> ratingTableStreakColumn;
+  public TableColumn<LeaderboardEntry, Number> ratingTableBestStreakColumn;
 
   private Player player;
   private Window ownerWindow;  private List<RatingHistoryDataPoint> ratingData;
@@ -186,6 +187,9 @@ public class UserInfoWindowController implements Controller<Node> {
 
     ratingTableStreakColumn.setCellValueFactory(param -> param.getValue().streakProperty());
     ratingTableStreakColumn.setCellFactory(param -> new StringCell<>(streak -> i18n.number(streak.intValue())));
+
+    ratingTableBestStreakColumn.setCellValueFactory(param -> param.getValue().bestStreakProperty());
+    ratingTableBestStreakColumn.setCellFactory(param -> new StringCell<>(streak -> i18n.number(streak.intValue())));
 
     ratingTableGamesPlayedColumn.setCellValueFactory(param -> param.getValue().totalGamesProperty());
     ratingTableGamesPlayedColumn.setCellFactory(param -> new StringCell<>(count -> i18n.number(count.intValue())));

@@ -26,6 +26,7 @@ public class LeaderboardEntry {
   private OffsetDateTime createTime;
   private OffsetDateTime updateTime;
   private Integer streak;
+  private Integer bestStreak;
   private String recentScores;
   private String recentMod;
 

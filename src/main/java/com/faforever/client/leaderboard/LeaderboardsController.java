@@ -62,6 +62,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   public TableColumn<LeaderboardEntry, String> allResultsColumn;
   public TableColumn<LeaderboardEntry, String> recentResultsColumn;
   public TableColumn<LeaderboardEntry, Number> streakColumn;
+  public TableColumn<LeaderboardEntry, Number> bestStreakColumn;
   public TableColumn<LeaderboardEntry, String> recentModColumn;
   public TableView<LeaderboardEntry> ratingTable;
   public ComboBox<Leaderboard> leaderboardComboBox;
@@ -102,6 +103,9 @@ public class LeaderboardsController extends AbstractViewController<Node> {
 
     streakColumn.setCellValueFactory(param -> param.getValue().streakProperty());
     streakColumn.setCellFactory(param -> new StringCell<>(streak -> i18n.number(streak.intValue())));
+
+    bestStreakColumn.setCellValueFactory(param -> param.getValue().bestStreakProperty());
+    bestStreakColumn.setCellFactory(param -> new StringCell<>(streak -> i18n.number(streak.intValue())));
 
     recentModColumn.setCellValueFactory(param -> param.getValue().recentModProperty());
     recentModColumn.setCellFactory(param -> new StringCell<>(mod -> modService.getFeaturedModDisplayName(mod)));
@@ -196,9 +200,9 @@ public class LeaderboardsController extends AbstractViewController<Node> {
             userInfoMenuItem.setOnAction(e -> showUserInfo(optionalPlayer.get()));
             contextMenu.getItems().add(userInfoMenuItem);
 
-            //MenuItem viewReplaysMenuItem = new MenuItem(i18n.get("chat.userContext.viewReplays"));
-            //viewReplaysMenuItem.setOnAction(e -> showUserReplays(optionalPlayer.get()));
-            //contextMenu.getItems().add(viewReplaysMenuItem);
+            MenuItem viewReplaysMenuItem = new MenuItem(i18n.get("chat.userContext.viewReplays"));
+            viewReplaysMenuItem.setOnAction(e -> showUserReplays(optionalPlayer.get()));
+            contextMenu.getItems().add(viewReplaysMenuItem);
 
             contextMenu.show(this.getRoot().getScene().getWindow(), event.getScreenX(), event.getScreenY());
           });

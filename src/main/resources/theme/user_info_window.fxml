@@ -208,6 +208,7 @@
                                       <TableColumn fx:id="ratingTableAllResultsColumn" text="Win-Draw-Loss"/>
                                       <TableColumn fx:id="ratingTableRecentResultsColumn" text="Win-Draw-Loss(10)"/>
                                       <TableColumn fx:id="ratingTableStreakColumn" text="Streak"/>
+                                      <TableColumn fx:id="ratingTableBestStreakColumn" text="Record Streak"/>
                                   </columns>
                                   <columnResizePolicy>
                                       <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
