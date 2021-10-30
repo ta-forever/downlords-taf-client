@@ -43,6 +43,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -440,6 +441,7 @@ public class PreferencesService implements InitializingBean {
     return getFafDataDirectory().resolve("languages");
   }
 
+  boolean warnedUnknownHostException = false;
   public ClientConfiguration getRemotePreferences() throws IOException {
     if (clientConfiguration != null) {
       return clientConfiguration;
@@ -452,6 +454,19 @@ public class PreferencesService implements InitializingBean {
     try (Reader reader = new InputStreamReader(urlConnection.getInputStream(), StandardCharsets.UTF_8)) {
       clientConfiguration = gson.fromJson(reader, ClientConfiguration.class);
       return clientConfiguration;
+    }
+    catch(UnknownHostException e) {
+      if (warnedUnknownHostException == false) {
+        warnedUnknownHostException = true;
+        CountDownLatch waitForUserInput = new CountDownLatch(1);
+        JavaFxUtil.runLater(() -> {
+          Alert alert = new Alert(AlertType.ERROR, String.format("Unable to resolve host '%s'. Please check your internet connectivity and DNS settings", e.getMessage()), ButtonType.OK);
+          Optional<ButtonType> buttonType = alert.showAndWait();
+          waitForUserInput.countDown();
+        });
+        noCatch((NoCatchRunnable) waitForUserInput::await);
+      }
+      throw e;
     }
   }
 
