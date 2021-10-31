@@ -212,8 +212,8 @@ public class GameService implements InitializingBean {
     ircHostAndPort = String.format("%s:%d", clientProperties.getIrc().getHost(), 6667);//clientProperties.getIrc().getPort());
     faWindowTitle = clientProperties.getForgedAlliance().getWindowTitle();
     uidToGameInfoBean = FXCollections.observableMap(new ConcurrentHashMap<>());
-    inMatchmakerQueue = new SimpleBooleanProperty();
-    inOthersParty = new SimpleBooleanProperty();
+    inMatchmakerQueue = new SimpleBooleanProperty(false);
+    inOthersParty = new SimpleBooleanProperty(false);
     runningGameUidProperty = new SimpleIntegerProperty();
     currentGame = new SimpleObjectProperty<>();
     currentGameStatusProperty = new SimpleObjectProperty<>();
