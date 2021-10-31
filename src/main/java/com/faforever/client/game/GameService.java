@@ -24,15 +24,12 @@ import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.PersistentNotification;
 import com.faforever.client.notification.Severity;
-import com.faforever.client.notification.TransientNotification;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.UserOfflineEvent;
 import com.faforever.client.preferences.AutoUploadLogsOption;
 import com.faforever.client.preferences.NotificationsPrefs;
 import com.faforever.client.preferences.PreferencesService;
-import com.faforever.client.preferences.TadaIntegrationOption;
-import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.ReconnectTimerService;
 import com.faforever.client.remote.domain.GameInfoMessage;
@@ -83,7 +80,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -100,7 +96,6 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -109,7 +104,6 @@ import static com.github.nocatch.NoCatch.noCatch;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
-import static java.util.Collections.singletonList;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
 /**
@@ -287,8 +281,6 @@ public class GameService implements InitializingBean {
           }
         }
     );
-
-    //createFakeGame();
   }
 
   @NotNull
@@ -547,7 +539,7 @@ public class GameService implements InitializingBean {
             BooleanProperty dismissTrigger = openProcessRunningDialog(this.process,
                 i18n.get("replay.running.title", replayId, replayFileOrUrl),
                 new File(replayFileOrUrl).exists() ? i18n.get("replay.running.text.local") : i18n.get("replay.running.text.live"));
-            spawnGameTerminationListener(this.process, replayId, dismissTrigger);
+            spawnGameTerminationListener(this.process, replayId, modTechnical, dismissTrigger);
 
           } catch (IOException e) {
             notifyCantPlayReplay(replayId, e);
@@ -829,7 +821,7 @@ public class GameService implements InitializingBean {
               adapterPort, getCurrentPlayer(), demoCompilerUrl, ircUrl, autoLaunch));
           setRunningGameUid(uid);
           currentGameStatusProperty.set(GameStatus.SPAWNING);
-          spawnGameTerminationListener(process, uid,  null);
+          spawnGameTerminationListener(process, uid,  modTechnical, null);
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be started", throwable);
@@ -885,9 +877,9 @@ public class GameService implements InitializingBean {
     return exitCode;
   }
 
-  void submitLogs(int gameId) {
+  void submitLogs(int gameId, String modTechnical) {
     if (preferencesService.getPreferences().getAutoUploadLogsOption() == AutoUploadLogsOption.ALLOW) {
-      doSubmitLogs(gameId);
+      doSubmitLogs(gameId, modTechnical);
     }
     else if (preferencesService.getPreferences().getAutoUploadLogsOption() == AutoUploadLogsOption.ASK) {
       notificationService.addNotification(new ImmediateNotification(
@@ -900,7 +892,7 @@ public class GameService implements InitializingBean {
           new Action(i18n.get("settings.autoLogsUpload.allow"), Action.Type.OK_DONE, event -> {
             preferencesService.getPreferences().setAutoUploadLogsOption(AutoUploadLogsOption.ALLOW);
             preferencesService.storeInBackground();
-            doSubmitLogs(gameId);
+            doSubmitLogs(gameId, modTechnical);
           }),
           new Action(i18n.get("settings.autoLogsUpload.deny"), Action.Type.OK_DONE, event -> {
             preferencesService.getPreferences().setAutoUploadLogsOption(AutoUploadLogsOption.DENY);
@@ -910,18 +902,20 @@ public class GameService implements InitializingBean {
     }
   }
 
-  void doSubmitLogs(int gameId) {
+  void doSubmitLogs(int gameId, String modTechnical) {
     log.info("[submitLogs] submitting logs to TAF for game ID={}", gameId);
     Path logClient = preferencesService.getFafLogDirectory().resolve("client.log");
     Path logIceAdapter = preferencesService.getIceAdapterLogDirectory().resolve("ice-adapter.log");
     Path logLauncher = preferencesService.getMostRecentLogFile("talauncher").orElse(Path.of(""));
     Path logGpgnet4ta = preferencesService.getMostRecentLogFile("game").orElse(Path.of(""));
     Path logReplay = preferencesService.getMostRecentLogFile("replay").orElse(Path.of(""));
+    Path taErrorLog = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath().resolve("ErrorLog.txt");
     Path targetZipFile = preferencesService.getFafLogDirectory().resolve(String.format("game_logs_%d.zip", gameId));
+
     try {
       File files[] = {
           logClient.toFile(), logIceAdapter.toFile(), logLauncher.toFile(),
-          logGpgnet4ta.toFile(), logReplay.toFile()};
+          logGpgnet4ta.toFile(), logReplay.toFile(), taErrorLog.toFile()};
       ZipUtil.zipFile(files, targetZipFile.toFile());
       ResourceLocks.acquireUploadLock();
       fafService.uploadGameLogs(targetZipFile, "game", gameId, (written, total) -> {});
@@ -934,7 +928,7 @@ public class GameService implements InitializingBean {
   }
 
   @VisibleForTesting
-  void spawnGameTerminationListener(Process process, int gameId, @Nullable BooleanProperty triggerTerminationHandler) {
+  void spawnGameTerminationListener(Process process, int gameId, String modTechnical, @Nullable BooleanProperty triggerTerminationHandler) {
     if (process == null) {
       return;
     }
@@ -945,7 +939,7 @@ public class GameService implements InitializingBean {
       String commandFileName = Paths.get(command).getFileName().toString();
       Integer exitCode = waitForTermination(process);
 
-      submitLogs(gameId);
+      submitLogs(gameId, modTechnical);
       if (exitCode != null && exitCode != 0) {
         if (triggerTerminationHandler == null || !triggerTerminationHandler.get()) {
           String message = String.format("'%s' exited with code %d", command, exitCode);
@@ -1183,28 +1177,6 @@ public class GameService implements InitializingBean {
         platformService.focusWindow(faWindowTitle);
       }
     });
-  }
-
-  private void createFakeGame() {
-    Game fakeGame = new Game();
-    fakeGame.setId(7531);
-    fakeGame.setHost("TheArmCommander");
-    fakeGame.setTitle("testing please don't join");
-    fakeGame.setMapName("SHERWOOD");
-    fakeGame.setMapCrc("ead82fc5");
-    fakeGame.setMapArchiveName("totala2.hpi");
-    fakeGame.setFeaturedMod(KnownFeaturedMod.DEFAULT.getTechnicalName());
-    fakeGame.setNumPlayers(2);
-    fakeGame.setMaxPlayers(10);
-    fakeGame.setAverageRating(1000.0);
-    fakeGame.setRatingType("global");
-    fakeGame.setStatus(GameStatus.LIVE);
-    fakeGame.setStartTime(Instant.now().minusSeconds(270));
-    fakeGame.setGameType(GameType.CUSTOM);
-    synchronized (uidToGameInfoBean) {
-      uidToGameInfoBean.put(fakeGame.getId(), fakeGame);
-      eventBus.post(new GameAddedEvent(fakeGame));
-    }
   }
 
   private Game createOrUpdateGame(GameInfoMessage gameInfoMessage) {

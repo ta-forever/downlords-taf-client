@@ -16,6 +16,7 @@ import java.lang.invoke.MethodHandles;
 import java.net.Inet4Address;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -270,6 +271,7 @@ public class TotalAnnihilationService {
 
   public Process startGame(String modTechnical, int uid, @Nullable List<String> additionalArgs, int gpgPort,
                            Player currentPlayer, String demoCompilerUrl, @Nullable String ircUrl, boolean autoLaunch) throws IOException {
+    this.removeErrorLog(modTechnical);
     this.freePort47624();
     this.consolePort = getFreeTcpPort();
 
@@ -349,6 +351,28 @@ public class TotalAnnihilationService {
     }
     if (!isPortAvailable("127.0.0.1", 47624)) {
       logger.warn("Port 47624 appears to be STILL in use!");
+    }
+  }
+
+  private void removeErrorLog(String modTechnical) {
+    Path taPath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath();
+    if (taPath == null) {
+      return;
+    }
+    Path errorLogPath = taPath.resolve("ErrorLog.txt");
+
+    if (Files.exists(errorLogPath)) {
+      int i=1;
+      Path backupPath;
+      do {
+        backupPath = taPath.resolve(String.format("ErrorLog.txt(%d)", i++));
+      }
+      while (Files.exists(backupPath));
+      try {
+        Files.move(errorLogPath, backupPath);
+      } catch (IOException e) {
+        logger.warn("Unable to move ErrorLog.txt: ", e.getMessage());
+      }
     }
   }
 
