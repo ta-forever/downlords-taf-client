@@ -34,6 +34,10 @@
                     <Button fx:id="OpenTextFieldInBrowserButton" mnemonicParsing="false" onAction="#onBrowseButton" text="%tada.inBrowser"/>
                 </HBox>
             </FlowPane>
+            <FlowPane hgap="10" vgap="10" HBox.hgrow="NEVER">
+                <padding><Insets bottom="10.0" left="15.0" right="15.0" top="10.0"/></padding>
+                <Button mnemonicParsing="false" onAction="#onSelectIntegrationModeButton" text="%tada.selectIntegrationMode"/>
+            </FlowPane>
         </HBox>
         <StackPane fx:id="tadaPane" alignment="CENTER" VBox.vgrow="ALWAYS"
                    maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0">

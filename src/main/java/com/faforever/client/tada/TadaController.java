@@ -8,6 +8,7 @@ import com.faforever.client.fx.WebViewConfigurer;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.NavigateEvent;
 
+import com.faforever.client.main.event.NavigationItem;
 import com.faforever.client.main.event.OpenTadaPageEvent;
 import com.faforever.client.main.event.ShowTadaReplayEvent;
 import com.faforever.client.notification.Action;
@@ -23,6 +24,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Worker;
+import javafx.event.ActionEvent;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Control;
@@ -337,6 +339,10 @@ public class TadaController extends AbstractViewController<Node> {
     if (getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED) {
       doNavigate(+1);
     }
+  }
+
+  public void onSelectIntegrationModeButton(ActionEvent actionEvent) {
+    doPromptIntegrationMode(new NavigateEvent(NavigationItem.TADA));
   }
 
   private void doPromptIntegrationMode(NavigateEvent navigateEvent) {
