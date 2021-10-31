@@ -303,7 +303,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     Channel channel = event.getChannel();
     String source = channel.getName();
 
-    eventBus.post(new ChatMessageEvent(new ChatMessage(source, Instant.ofEpochMilli(user.getCreationTime()), user.getNick(), event.getMessage().replace("ACTION", user.getNick()), true)));
+    eventBus.post(new ChatMessageEvent(new ChatMessage(source, Instant.now(), user.getNick(), event.getMessage().replace("ACTION", user.getNick()), true)));
   }
 
   @Handler
@@ -338,7 +338,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
       log.debug("Suppressing chat message from foe '{}'", user.getNick());
       return;
     }
-    eventBus.post(new ChatMessageEvent(new ChatMessage(user.getNick(), Instant.ofEpochMilli(user.getCreationTime()), user.getNick(), event.getMessage())));
+    eventBus.post(new ChatMessageEvent(new ChatMessage(user.getNick(), Instant.now(), user.getNick(), event.getMessage())));
   }
 
   @Handler
