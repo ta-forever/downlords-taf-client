@@ -1,6 +1,7 @@
 package com.faforever.client.tada;
 
 import com.faforever.client.config.ClientProperties;
+import com.faforever.client.config.ClientProperties.Tada;
 import com.faforever.client.fx.AbstractViewController;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
@@ -159,7 +160,9 @@ public class TadaController extends AbstractViewController<Node> {
       if (newValue != null) {
         doSetUrlTextField(newValue.getDocumentURI());
       }});
-    doSetUrlTextField(clientProperties.getTada().getRootUrl());
+    if (getTadaIntegrationOption() != TadaIntegrationOption.BROWSER) {
+      doSetUrlTextField(clientProperties.getTada().getRootUrl());
+    }
 
     installContextMenu();
   }
@@ -357,6 +360,7 @@ public class TadaController extends AbstractViewController<Node> {
         new Action(i18n.get("settings.tada.browser"), event -> {
           preferencesService.getPreferences().setTadaIntegrationOption(TadaIntegrationOption.BROWSER);
           preferencesService.storeInBackground();
+          doSetUrlTextField("");
           onDisplay(navigateEvent);
         }))
     ));
@@ -372,7 +376,9 @@ public class TadaController extends AbstractViewController<Node> {
   private void doLoadInBrowser(String _url) {
     String url = _url.replace("#download", "");
     platformService.showDocument(url);
-    doSetUrlTextField(url);
+    if (getTadaIntegrationOption() != TadaIntegrationOption.BROWSER) {
+      doSetUrlTextField(url);
+    }
   }
 
   private void doStartReplay(String replayId) {
