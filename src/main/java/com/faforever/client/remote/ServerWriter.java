@@ -60,6 +60,8 @@ public class ServerWriter implements Closeable {
       logger.debug("Server writer has been closed");
     } catch (IOException e) {
       logger.debug("Server writer has been closed", e);
+    } catch (Exception e) {
+      logger.warn("Something wrong:", e);
     }
   }
 
