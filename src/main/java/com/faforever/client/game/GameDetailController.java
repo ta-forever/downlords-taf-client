@@ -126,9 +126,15 @@ public class GameDetailController implements Controller<Pane> {
     weakThisGameTeamsListener = new WeakInvalidationListener(thisGameTeamsInvalidationListener);
     weakThisGameStatusListener = new WeakInvalidationListener(thisGameStatusInvalidationListener);
 
-    currentGameStatusListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
-    gameRunningListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
-    autoJoinRequestedGameListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
+    currentGameStatusListener = (obs, newValue, oldValue) -> JavaFxUtil.runLater(() -> updateButtonsVisibility(
+        gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(),
+        playerService.getCurrentPlayer().get()));
+    gameRunningListener = (obs, newValue, oldValue) -> JavaFxUtil.runLater(() -> updateButtonsVisibility(
+        gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(),
+        playerService.getCurrentPlayer().get()));
+    autoJoinRequestedGameListener = (obs, newValue, oldValue) -> JavaFxUtil.runLater(() -> updateButtonsVisibility(
+        gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(),
+        playerService.getCurrentPlayer().get()));
     gameService.getCurrentGameStatusProperty().addListener(new WeakChangeListener<>(currentGameStatusListener));
     gameService.runningGameUidProperty().addListener(new WeakChangeListener<>(gameRunningListener));
     gameService.getAutoJoinRequestedGameProperty().addListener(new WeakChangeListener<>(autoJoinRequestedGameListener));
@@ -210,6 +216,7 @@ public class GameDetailController implements Controller<Pane> {
   }
 
   private void updateButtonsVisibility(Game currentGame, Game autoJoinPrototype, Player currentPlayer) {
+    JavaFxUtil.assertApplicationThread();
     Game thisGame = this.game.get();
     boolean isCurrentGame = thisGame != null && currentGame != null && Objects.equals(thisGame, currentGame);
     boolean isOwnGame = thisGame != null && currentPlayer != null && currentPlayer.getUsername().equals(thisGame.getHost());

@@ -126,9 +126,15 @@ public class GameTileController implements Controller<Node> {
     thisGameStatusInvalidationListener = observable -> onGameStatusChanged();
     weakThisGameStatusListener = new WeakInvalidationListener(thisGameStatusInvalidationListener);
 
-    currentGameStatusListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
-    gameRunningListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
-    autoJoinRequestedGameListener = (obs, newValue, oldValue) -> updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());
+    currentGameStatusListener = (obs, newValue, oldValue) -> JavaFxUtil.runLater(() -> updateButtonsVisibility(
+        gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(),
+        playerService.getCurrentPlayer().get()));
+    gameRunningListener = (obs, newValue, oldValue) -> JavaFxUtil.runLater(() -> updateButtonsVisibility(
+        gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(),
+        playerService.getCurrentPlayer().get()));
+    autoJoinRequestedGameListener = (obs, newValue, oldValue) -> JavaFxUtil.runLater(() -> updateButtonsVisibility(
+        gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(),
+        playerService.getCurrentPlayer().get()));
 
     JavaFxUtil.addListener(gameService.getCurrentGameStatusProperty(), new WeakChangeListener<>(currentGameStatusListener));
     JavaFxUtil.addListener(gameService.runningGameUidProperty(), new WeakChangeListener<>(gameRunningListener));
@@ -170,6 +176,7 @@ public class GameTileController implements Controller<Node> {
   }
 
   private void updateButtonsVisibility(Game currentGame, Game autoJoinPrototype, Player currentPlayer) {
+    JavaFxUtil.assertApplicationThread();
     boolean isCurrentGame = game != null && currentGame != null && Objects.equals(game, currentGame);
     boolean isOwnGame = game != null && currentPlayer != null && currentPlayer.getUsername().equals(game.getHost());
     boolean isGameProcessRunning = gameService.isGameRunning() || gameService.getRunningGameUid() != 0;

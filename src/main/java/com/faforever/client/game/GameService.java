@@ -288,14 +288,15 @@ public class GameService implements InitializingBean {
     return new InvalidationListener() {
       @Override
       public void invalidated(Observable observable) {
-        if (currentGame.get() == null || !Objects.equals(game, currentGame.get())) {
+        Game currentGame = getCurrentGame();
+        if (currentGame == null || !Objects.equals(game, currentGame)) {
           observable.removeListener(this);
           return;
         }
         final Player currentPlayer = playerService.getCurrentPlayer().orElseThrow(() -> new IllegalStateException("Player must be set"));
-        discordRichPresenceService.updatePlayedGameTo(currentGame.get(), currentPlayer.getId(), currentPlayer.getUsername());
+        discordRichPresenceService.updatePlayedGameTo(currentGame, currentPlayer.getId(), currentPlayer.getUsername());
 
-        if (currentPlayer.getStatus() == PlayerStatus.JOINING && currentGame.get().getStatus() == GameStatus.BATTLEROOM && preferencesService.getPreferences().getAutoLaunchOnJoinEnabled()) {
+        if (currentPlayer.getStatus() == PlayerStatus.JOINING && currentGame.getStatus() == GameStatus.BATTLEROOM && preferencesService.getPreferences().getAutoLaunchOnJoinEnabled()) {
           GameService.this.startBattleRoom();
         }
       }
@@ -312,7 +313,8 @@ public class GameService implements InitializingBean {
         }
 
         Player currentPlayer = getCurrentPlayer();
-        boolean playerStillInGame = currentPlayer != null && currentGame != null && currentGame.get() != null && currentPlayer.getCurrentGameUid() == currentGame.get().getId();
+        Game currentGame = getCurrentGame();
+        boolean playerStillInGame = currentPlayer != null && currentGame != null && currentPlayer.getCurrentGameUid() == currentGame.getId();
         /*game.getTeams().entrySet().stream()
             .flatMap(stringListEntry -> stringListEntry.getValue().stream())
             .anyMatch(playerName -> playerName.equals(currentPlayer.getUsername()));*/
@@ -329,12 +331,12 @@ public class GameService implements InitializingBean {
           GameService.this.notifyRecentlyPlayedGameEnded(game);
         }
 
-        if (Objects.equals(currentGame.get(), game) && currentGameStatusProperty.get() != newStatus) {
+        if (Objects.equals(currentGame, game) && currentGameStatusProperty.get() != newStatus) {
           currentGameStatusProperty.setValue(newStatus);
         }
 
-        if (newStatus == GameStatus.BATTLEROOM && Objects.equals(currentGame.get(), game)) {
-          discordRichPresenceService.updatePlayedGameTo(currentGame.get(), currentPlayer.getId(), currentPlayer.getUsername());
+        if (newStatus == GameStatus.BATTLEROOM && Objects.equals(currentGame, game)) {
+          discordRichPresenceService.updatePlayedGameTo(currentGame, currentPlayer.getId(), currentPlayer.getUsername());
           if (currentPlayer.getStatus() == PlayerStatus.JOINING && preferencesService.getPreferences().getAutoLaunchOnJoinEnabled()) {
             GameService.this.startBattleRoom();
           }
@@ -731,7 +733,9 @@ public class GameService implements InitializingBean {
    */
   @Nullable
   public Game getCurrentGame() {
-    return currentGame.get();
+    synchronized(currentGame) {
+      return currentGame.get();
+    }
   }
 
   public SimpleObjectProperty<Game> getCurrentGameProperty() {
@@ -776,9 +780,10 @@ public class GameService implements InitializingBean {
   }
 
   public void setMapForStagingGame(String mapName) {
-    if (isGameRunning() && currentGame.get() != null && currentGame.get().getStatus()==GameStatus.STAGING) {
+    Game currentGame = getCurrentGame();
+    if (isGameRunning() && currentGame != null && currentGame.getStatus()==GameStatus.STAGING) {
       try {
-        List<String[]> mapsDetails = MapTool.listMap(preferencesService.getTotalAnnihilation(currentGame.get().getFeaturedMod()).getInstalledPath(), mapName);
+        List<String[]> mapsDetails = MapTool.listMap(preferencesService.getTotalAnnihilation(currentGame.getFeaturedMod()).getInstalledPath(), mapName);
         final String UNIT_SEPARATOR = Character.toString((char)0x1f);
         String mapDetails = String.join(UNIT_SEPARATOR, mapsDetails.get(0));
         String command = String.format("/map %s", mapDetails);
@@ -982,7 +987,7 @@ public class GameService implements InitializingBean {
 
   private void onLoggedIn() {
     if (isGameRunning()) {
-      fafService.restoreGameSession(currentGame.get().getId());
+      fafService.restoreGameSession(getCurrentGame().getId());
     }
   }
 
@@ -1027,10 +1032,11 @@ public class GameService implements InitializingBean {
   }
 
   private void checkRehost() {
+    Game currentGame = getCurrentGame();
     if (rehostRequested.isPresent() &&
         getCurrentPlayer().getStatus() == PlayerStatus.IDLE &&
         getRunningGameUid() == 0 &&       // local instance not running.  yeah its zero, not null :/
-        getCurrentGame() == null          // server doesn't think we should be in a game
+        currentGame == null          // server doesn't think we should be in a game
     ) {
       log.info("[checkRehost] rehosting ...");
       Game prototype = rehostRequested.get();
@@ -1038,8 +1044,8 @@ public class GameService implements InitializingBean {
       JavaFxUtil.runLater(() -> rehost(prototype));
     }
     else {
-      log.info("[checkRehost] not yet ... isRequested={}, getRunningGameUid={}, getCurrentGame={}, getCurrentPlayer={}",
-          rehostRequested.isPresent(), getRunningGameUid(), getCurrentGame(), getCurrentPlayer().getStatus());
+      log.info("[checkRehost] not yet ... isRequested={}, getRunningGameUid={}, currentGame={}, getCurrentPlayer={}",
+          rehostRequested.isPresent(), getRunningGameUid(), currentGame, getCurrentPlayer().getStatus());
     }
   }
 
@@ -1086,17 +1092,18 @@ public class GameService implements InitializingBean {
     }
     Optional<Game> gameOptional = findMatchingAutoJoinable(prototype);
     Optional<Player> currentPlayerOptional = playerService.getCurrentPlayer();
+    Game currentGame = getCurrentGame();
 
     if (gameOptional.isPresent() && currentPlayerOptional.isPresent() &&
         currentPlayerOptional.get().getStatus() == PlayerStatus.IDLE &&
-        getCurrentGame() == null &&
+        currentGame == null &&
         getRunningGameUid() == 0) {
       log.info("[checkAutoJoin] auto-joining {}!", gameOptional.get());
       JavaFxUtil.runLater(() -> this.joinGame(gameOptional.get(), prototype.getPassword()));
     }
     else {
-      log.info("[checkAutoJoin] not yet joinableGame:{}, playerStatus:{}, getCurrentGame:{}, getRunningGameUid():{}",
-          gameOptional.isPresent(), currentPlayerOptional.get().getStatus(), getCurrentGame(), getRunningGameUid());
+      log.info("[checkAutoJoin] not yet joinableGame:{}, playerStatus:{}, currentGame{}, getRunningGameUid():{}",
+          gameOptional.isPresent(), currentPlayerOptional.get().getStatus(), currentGame, getRunningGameUid());
     }
   }
 
@@ -1225,6 +1232,7 @@ public class GameService implements InitializingBean {
     game.setPasswordProtected(gameInfoMessage.getPasswordProtected());
     game.setGameType(gameInfoMessage.getGameType());
     game.setRatingType(gameInfoMessage.getRatingType());
+    game.setVisibility(GameVisibility.fromString(gameInfoMessage.getVisibility()));
 
     //String UnitSeparator = Character.toString((char)0x1f);
     //String mapDetails[] = gameInfoMessage.getMapDetails().split(UnitSeparator); // determined by host: name,archive,crc,desc,size,numplayers,minwind-maxwind,tide,gravity
