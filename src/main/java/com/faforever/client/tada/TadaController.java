@@ -168,20 +168,17 @@ public class TadaController extends AbstractViewController<Node> {
   }
 
   private String substituteHrefs(String href) {
-    final Set<String> handledHrefs = Set.of("#download", "/upload", "https://www.fnta.xyz");
-    if (handledHrefs.contains(href)) {
-      if (href.startsWith("/")) {
-        return String.format("javascript:java.openUrl('%s%s');", clientProperties.getTada().getRootUrl(), href);
-      }
-      else if (href.startsWith("#")) {
-        return String.format("javascript:java.openUrl('%s%s');", webView.getEngine().getLocation(), href);
-      }
-      else {
-        return String.format("javascript:java.openUrl('%s');", href);
-      }
+    if (href.equals("/upload")) {
+      return String.format("javascript:java.openUrl('%s%s');", clientProperties.getTada().getRootUrl(), href);
+    }
+    else if (href.equals("#download")) {
+      return String.format("javascript:java.openUrl('%s%s');", webView.getEngine().getLocation(), href);
+    }
+    else if (href.startsWith("/")) {
+      return href;
     }
     else {
-      return href;
+      return String.format("javascript:java.openUrl('%s');", href);
     }
   }
 
