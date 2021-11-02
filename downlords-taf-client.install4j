@@ -6,7 +6,7 @@
       <registry />
       <directory location="jre" />
     </searchSequence>
-    <jreBundles jdkProviderId="AdoptOpenJDK" release="openjdk15/jdk-15.0.2+7" />
+    <jreBundles jdkProviderId="AdoptOpenJDK" release="openjdk15/jdk-15.0.1+9" />
   </application>
   <files>
     <roots>
@@ -672,7 +672,7 @@ return console.askYesNo(message, true);
         <entry location="natives/bin/maptool" />
         <entry location="natives/faf-uid" />
       </exclude>
-      <jreBundle usePack200="false" jreBundleSource="generated" directDownload="true" />
+      <jreBundle usePack200="false" jreBundleSource="preCreated" includedJre="windows-amd64-15.0.1" directDownload="true" />
     </windows>
     <windowsArchive name="Windows Archive" id="330" installDir="downlords-taf-client-${compiler:sys.version}">
       <exclude>
