@@ -105,8 +105,8 @@ public class Preferences {
     ircIntegrationEnabled = new SimpleBooleanProperty(true);
     autoLaunchOnHostEnabled = new SimpleBooleanProperty(false);
     autoLaunchOnJoinEnabled = new SimpleBooleanProperty(true);
-    autoRehostEnabled = new SimpleBooleanProperty(true);
-    autoJoinEnabled = new SimpleBooleanProperty(true);
+    autoRehostEnabled = new SimpleBooleanProperty(false);
+    autoJoinEnabled = new SimpleBooleanProperty(false);
     requireUacEnabled = new SimpleBooleanProperty(true);
     disallowJoinsViaDiscord = new SimpleBooleanProperty();
     showGameDetailsSidePane = new SimpleBooleanProperty(false);
