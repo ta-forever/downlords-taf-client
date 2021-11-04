@@ -177,6 +177,9 @@ public class TadaController extends AbstractViewController<Node> {
     else if (href.startsWith("/")) {
       return href;
     }
+    else if (href.startsWith("javascript:java.openUrl")) {
+      return href;
+    }
     else {
       return String.format("javascript:java.openUrl('%s');", href);
     }
