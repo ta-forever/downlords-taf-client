@@ -26,6 +26,9 @@ import java.nio.file.StandardCopyOption;
 public class DownloadService {
 
   public void downloadFile(URL url, Path targetFile, ByteCountListener progressListener) throws IOException {
+    if (!Files.exists(targetFile.getParent())) {
+      Files.createDirectories(targetFile.getParent());
+    }
     Path tempFile = Files.createTempFile(targetFile.getParent(), "download", null);
 
     HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
