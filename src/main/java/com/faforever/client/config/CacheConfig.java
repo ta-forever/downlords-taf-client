@@ -46,6 +46,7 @@ import static com.faforever.client.config.CacheNames.URL_PREVIEW;
 import static com.github.benmanes.caffeine.cache.Caffeine.newBuilder;
 import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 @Configuration
 @EnableCaching
@@ -61,7 +62,7 @@ public class CacheConfig extends CachingConfigurerSupport {
         new CaffeineCache(MODS, newBuilder().expireAfterWrite(10, MINUTES).build()),
         new CaffeineCache(MAPS, newBuilder().expireAfterWrite(10, MINUTES).build()),
         new CaffeineCache(MAP_GENERATOR, newBuilder().expireAfterWrite(10, MINUTES).build()),
-        new CaffeineCache(LEADERBOARD, newBuilder().expireAfterWrite(5, MINUTES).build()),
+        new CaffeineCache(LEADERBOARD, newBuilder().expireAfterWrite(15, SECONDS).build()),
         new CaffeineCache(GLOBAL_LEADERBOARD, newBuilder().maximumSize(1).expireAfterAccess(5, MINUTES).build()),
         new CaffeineCache(LADDER_1V1_LEADERBOARD, newBuilder().maximumSize(1).expireAfterAccess(5, MINUTES).build()),
         new CaffeineCache(AVAILABLE_AVATARS, newBuilder().expireAfterAccess(10, MINUTES).build()),
