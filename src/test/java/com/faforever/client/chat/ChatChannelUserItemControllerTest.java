@@ -116,6 +116,7 @@ public class ChatChannelUserItemControllerTest extends AbstractPlainJavaFxTest {
 
     assertFalse(instance.avatarImageView.isVisible());
     assertFalse(instance.playerStatusIndicator.isVisible());
+    assertFalse(instance.playerMapImage.isVisible());
     assertFalse(instance.countryImageView.isVisible());
   }
 
@@ -127,6 +128,7 @@ public class ChatChannelUserItemControllerTest extends AbstractPlainJavaFxTest {
         .player(player)
         .avatar(new Image(UiService.UNKNOWN_MAP_IMAGE))
         .countryFlag(new Image(UiService.UNKNOWN_MAP_IMAGE))
+        .mapImage(new Image(UiService.UNKNOWN_MAP_IMAGE))
         .statusImage(new Image(UiService.UNKNOWN_MAP_IMAGE))
         .get();
     instance.setChatUser(chatUser);
@@ -134,6 +136,7 @@ public class ChatChannelUserItemControllerTest extends AbstractPlainJavaFxTest {
 
     assertTrue(instance.avatarImageView.isVisible());
     assertTrue(instance.playerStatusIndicator.isVisible());
+    assertTrue(instance.playerMapImage.isVisible());
     assertTrue(instance.countryImageView.isVisible());
   }
 

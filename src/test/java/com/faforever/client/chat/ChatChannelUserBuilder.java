@@ -84,6 +84,11 @@ public final class ChatChannelUserBuilder {
     return this;
   }
 
+  public ChatChannelUserBuilder mapImage(Image mapImage) {
+    chatChannelUser.setMapImage(mapImage);
+    return this;
+  }
+
   public ChatChannelUserBuilder afkImage(Image afkImage) {
     chatChannelUser.setAfkImage(afkImage);
     return this;
