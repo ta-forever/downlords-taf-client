@@ -17,7 +17,6 @@ public class WindowPrefs {
   private final IntegerProperty width;
   private final IntegerProperty height;
   private final BooleanProperty maximized;
-  private final ObjectProperty<NavigationItem> navigationItem;
   private final DoubleProperty x;
   private final DoubleProperty y;
   private final ObjectProperty<Path> backgroundImagePath;
@@ -28,7 +27,6 @@ public class WindowPrefs {
     x = new SimpleDoubleProperty(-1d);
     y = new SimpleDoubleProperty(-1d);
     maximized = new SimpleBooleanProperty();
-    navigationItem = new SimpleObjectProperty<>();
     backgroundImagePath = new SimpleObjectProperty<>();
   }
 
@@ -102,17 +100,5 @@ public class WindowPrefs {
 
   public void setBackgroundImagePath(Path path) {
     this.backgroundImagePath.setValue(path);
-  }
-
-  public NavigationItem getNavigationItem() {
-    return navigationItem.get();
-  }
-
-  public void setNavigationItem(NavigationItem navigationItem) {
-    this.navigationItem.set(navigationItem);
-  }
-
-  public ObjectProperty<NavigationItem> navigationItemProperty() {
-    return navigationItem;
   }
 }

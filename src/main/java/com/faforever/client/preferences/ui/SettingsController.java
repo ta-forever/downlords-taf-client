@@ -153,7 +153,6 @@ public class SettingsController implements Controller<Node> {
   public CheckBox advancedIceLogToggle;
   public CheckBox prereleaseToggle;
   public Region settingsHeader;
-  public ComboBox<NavigationItem> startTabComboBox;
   public ComboBox<TadaIntegrationOption> tadaIntegrationComboBox;
   public ComboBox<AutoUploadLogsOption> autoUploadLogsOptionComboBox;
   public Label notifyAtMentionTitle;
@@ -301,7 +300,6 @@ public class SettingsController implements Controller<Node> {
     configureLanguageSelection();
     configureThemeSelection();
     configureToastScreen(preferences);
-    configureStartTab(preferences);
     configureTadaIntegration(preferences);
     configureAutoUploadLogs(preferences);
 
@@ -401,24 +399,6 @@ public class SettingsController implements Controller<Node> {
   public void updateGameLocationTable()
   {
     gameLocationTableView.setItems(preferencesService.getTotalAnnihilationAllMods());
-  }
-
-  private void configureStartTab(Preferences preferences) {
-    WindowPrefs mainWindow = preferences.getMainWindow();
-    startTabComboBox.setItems(FXCollections.observableArrayList(NavigationItem.values()));
-    startTabComboBox.setConverter(new StringConverter<>() {
-      @Override
-      public String toString(NavigationItem navigationItem) {
-        return i18n.get(navigationItem.getI18nKey());
-      }
-
-      @Override
-      public NavigationItem fromString(String s) {
-        throw new UnsupportedOperationException("Not needed");
-      }
-    });
-    startTabComboBox.getSelectionModel().select(mainWindow.getNavigationItem());
-    mainWindow.navigationItemProperty().bind(startTabComboBox.getSelectionModel().selectedItemProperty());
   }
 
   private void configureTadaIntegration(Preferences preferences) {

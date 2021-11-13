@@ -479,36 +479,7 @@ public class MainController implements Controller<Node> {
 
   @VisibleForTesting
   void openStartTab() {
-    final WindowPrefs mainWindow = preferencesService.getPreferences().getMainWindow();
-    NavigationItem navigationItem = mainWindow.getNavigationItem();
-    if (navigationItem == null) {
-      navigationItem = NavigationItem.NEWS;
-      askUserForPreferenceOverStartTab(mainWindow);
-    }
-    eventBus.post(new NavigateEvent(navigationItem));
-  }
-
-  private void askUserForPreferenceOverStartTab(WindowPrefs mainWindow) {
-    mainWindow.setNavigationItem(NavigationItem.NEWS);
-    preferencesService.storeInBackground();
-    List<Action> actions = Collections.singletonList(new Action(i18n.get("startTab.configure"), event -> {
-      makePopUpAskingForPreferenceInStartTab(mainWindow);
-    }));
-    notificationService.addNotification(new PersistentNotification(i18n.get("startTab.wantToConfigure"), Severity.INFO, actions));
-  }
-
-  private void makePopUpAskingForPreferenceInStartTab(WindowPrefs mainWindow) {
-    StartTabChooseController startTabChooseController = uiService.loadFxml("theme/start_tab_choose.fxml");
-    Action saveAction = new Action(i18n.get("startTab.save"), event -> {
-      NavigationItem newSelection = startTabChooseController.getSelected();
-      mainWindow.setNavigationItem(newSelection);
-      preferencesService.storeInBackground();
-      eventBus.post(new NavigateEvent(newSelection));
-    });
-    ImmediateNotification notification =
-        new ImmediateNotification(i18n.get("startTab.title"), i18n.get("startTab.message"),
-            Severity.INFO, null, Collections.singletonList(saveAction), startTabChooseController.getRoot());
-    notificationService.addNotification(notification);
+    eventBus.post(new NavigateEvent(NavigationItem.PLAY));
   }
 
   public void onNotificationsButtonClicked() {
