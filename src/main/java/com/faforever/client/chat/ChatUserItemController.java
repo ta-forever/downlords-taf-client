@@ -111,7 +111,7 @@ public class ChatUserItemController implements Controller<Node> {
 
     weakFormatInvalidationListener.invalidated(chatPrefs.chatFormatProperty());
 
-    JavaFxUtil.bindManagedToVisible(countryImageView, clanMenu, playerStatusIndicator, playerMapImage, playerAfkImage);
+    JavaFxUtil.bindManagedToVisible(countryImageView, clanMenu);
 
     JavaFxUtil.bind(avatarImageView.visibleProperty(), Bindings.isNotNull(avatarImageView.imageProperty()));
     JavaFxUtil.bind(countryImageView.visibleProperty(), Bindings.isNotNull(countryImageView.imageProperty()));
