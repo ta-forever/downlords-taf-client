@@ -651,6 +651,30 @@
                             <content>
                                 <VBox styleClass="view-content">
                                     <children>
+                                    <GridPane hgap="10.0" styleClass="setting-container">
+                                        <columnConstraints>
+                                            <ColumnConstraints hgrow="ALWAYS" minWidth="10.0"/>
+                                            <ColumnConstraints halignment="RIGHT" minWidth="10.0"/>
+                                        </columnConstraints>
+                                        <rowConstraints>
+                                            <RowConstraints minHeight="10.0" valignment="TOP" vgrow="SOMETIMES"/>
+                                            <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
+                                        </rowConstraints>
+                                        <children>
+                                            <Label contentDisplay="RIGHT"
+                                                   styleClass="setting-title" text="Installed game/mod locations"/>
+                                            <Label styleClass="setting-description" text="Click to change location of your Total Annihilation installations / mods" GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1"/>
+                                            <TableView fx:id="gameLocationTableView" onMouseClicked="#onSelectGameLocation"
+                                                       prefHeight="240.0" prefWidth="200.0"
+                                                       GridPane.rowIndex="2">
+                                                <columns>
+                                                    <TableColumn fx:id="gameLocationModTableColumn" editable="false" prefWidth="150.0" text="Mod" />
+                                                    <TableColumn fx:id="gameLocationExecutableTableColumn" editable="false" prefWidth="277.0" text="Installed Path" />
+                                                    <TableColumn fx:id="gameLocationCommandLineOptionsTableColumn" editable="false" prefWidth="217.0" text="Command Line Options" />
+                                                </columns>
+                                            </TableView>
+                                        </children>
+                                    </GridPane>
                                <GridPane styleClass="setting-container" visible="true">
                                    <columnConstraints>
                                        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
@@ -775,32 +799,8 @@
                                        <Label contentDisplay="RIGHT" maxWidth="1.7976931348623157E308" styleClass="setting-title" text="%settings.fa.proactiveResend" />
                                        <Label styleClass="setting-description" text="%settings.fa.proactiveResend.description" GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" />
                                        <CheckBox fx:id="proactiveResendToggle" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" GridPane.columnIndex="1" />
-                                            </children>
-                                        </GridPane>
-                                        <GridPane hgap="10.0" styleClass="setting-container">
-                                            <columnConstraints>
-                                                <ColumnConstraints hgrow="ALWAYS" minWidth="10.0"/>
-                                                <ColumnConstraints halignment="RIGHT" minWidth="10.0"/>
-                                            </columnConstraints>
-                                            <rowConstraints>
-                                                <RowConstraints minHeight="10.0" valignment="TOP" vgrow="SOMETIMES"/>
-                                                <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
-                                            </rowConstraints>
-                                            <children>
-                                                <Label contentDisplay="RIGHT"
-                                                       styleClass="setting-title" text="Installed game/mod locations"/>
-                                                <Label styleClass="setting-description" text="Click to change location of your Total Annihilation installations / mods" GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1"/>
-                                                <TableView fx:id="gameLocationTableView" onMouseClicked="#onSelectGameLocation"
-                                                        prefHeight="200.0" prefWidth="200.0"
-                                                        GridPane.rowIndex="2">
-                                         <columns>
-                                             <TableColumn fx:id="gameLocationModTableColumn" editable="false" prefWidth="150.0" text="Mod" />
-                                             <TableColumn fx:id="gameLocationExecutableTableColumn" editable="false" prefWidth="277.0" text="Installed Path" />
-                                             <TableColumn fx:id="gameLocationCommandLineOptionsTableColumn" editable="false" prefWidth="217.0" text="Command Line Options" />
-                                         </columns>
-                                     </TableView>
-                                            </children>
-                                        </GridPane>
+                                   </children>
+                               </GridPane>
                               <GridPane styleClass="setting-container" visible="false">
                                             <columnConstraints>
                                                 <ColumnConstraints hgrow="ALWAYS" minWidth="10.0"/>
