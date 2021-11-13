@@ -37,7 +37,6 @@ public class ChatUserService implements InitializingBean {
   static public final long MIN_AFK_TIMEOUT_SECONDS = 10*60;
 
   private final UiService uiService;
-  private final MapService mapService;
   private final AvatarService avatarService;
   private final ClanService clanService;
   private final CountryFlagService countryFlagService;
@@ -109,7 +108,6 @@ public class ChatUserService implements InitializingBean {
     } else {
       chatChannelUser.setStatusTooltipText(null);
       chatChannelUser.setGameStatusImage(null);
-      chatChannelUser.setMapImage(null);
       chatChannelUser.setAfkImage(null);
     }
   }
@@ -152,15 +150,6 @@ public class ChatUserService implements InitializingBean {
       default -> null;
     };
 
-    Image mapImage;
-    if (status != PlayerStatus.IDLE && player.getGame() != null) {
-      String modTechnical = player.getGame().getFeaturedMod();
-      String mapName = player.getGame().getMapName();
-      mapImage = mapService.loadPreview(modTechnical, mapName, PreviewType.MINI, 10);
-    } else {
-      mapImage = null;
-    }
-
     Image afkImage;
     if ((status == PlayerStatus.IDLE || status == PlayerStatus.HOSTING || status == PlayerStatus.JOINING) &&
         player.getAfkSeconds() >= MIN_AFK_TIMEOUT_SECONDS) {
@@ -172,7 +161,6 @@ public class ChatUserService implements InitializingBean {
     JavaFxUtil.runLater(() -> {
       chatChannelUser.setStatusTooltipText(i18n.get(status.getI18nKey()));
       chatChannelUser.setGameStatusImage(playerStatusImage);
-      chatChannelUser.setMapImage(mapImage);
       chatChannelUser.setAfkImage(afkImage);
     });
   }
@@ -191,7 +179,6 @@ public class ChatUserService implements InitializingBean {
       chatChannelUser.setPlayer(null);
       chatChannelUser.setStatusTooltipText(null);
       chatChannelUser.setGameStatusImage(null);
-      chatChannelUser.setMapImage(null);
       chatChannelUser.setAfkImage(null);
       chatChannelUser.setCountryFlag(null);
       chatChannelUser.setCountryName(null);
@@ -238,7 +225,6 @@ public class ChatUserService implements InitializingBean {
         } else {
           chatChannelUser.setStatusTooltipText(null);
           chatChannelUser.setGameStatusImage(null);
-          chatChannelUser.setMapImage(null);
           chatChannelUser.setAfkImage(null);
           chatChannelUser.setCountryFlag(null);
           chatChannelUser.setCountryName(null);

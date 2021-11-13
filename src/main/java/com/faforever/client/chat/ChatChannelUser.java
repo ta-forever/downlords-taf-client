@@ -42,7 +42,6 @@ public class ChatChannelUser {
   private final StringProperty clanTag;
   private final ObjectProperty<Image> countryFlag;
   private final StringProperty countryName;
-  private final ObjectProperty<Image> mapImage;
   private final ObjectProperty<Image> afkImage;
   private final ObjectProperty<Image> gameStatusImage;
   private final StringProperty statusTooltipText;
@@ -68,7 +67,6 @@ public class ChatChannelUser {
     this.clanTag = new SimpleStringProperty();
     this.countryFlag = new SimpleObjectProperty<>();
     this.countryName = new SimpleStringProperty();
-    this.mapImage = new SimpleObjectProperty<>();
     this.afkImage = new SimpleObjectProperty<>();
     this.gameStatusImage = new SimpleObjectProperty<>();
     this.statusTooltipText = new SimpleStringProperty();
@@ -237,18 +235,6 @@ public class ChatChannelUser {
 
   public StringProperty countryNameProperty() {
     return countryName;
-  }
-
-  public Optional<Image> getMapImage() {
-    return Optional.ofNullable(mapImage.get());
-  }
-
-  public void setMapImage(Image mapImage) {
-    this.mapImage.set(mapImage);
-  }
-
-  public ObjectProperty<Image> mapImageProperty() {
-    return mapImage;
   }
 
   public Optional<Image> getAfkImage() { return Optional.ofNullable(afkImage.get()); }
