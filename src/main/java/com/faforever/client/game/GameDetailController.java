@@ -5,6 +5,7 @@ import com.faforever.client.fa.relay.event.AutoJoinRequestEvent;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.ModService;
@@ -22,6 +23,7 @@ import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ObservableMap;
@@ -67,6 +69,7 @@ public class GameDetailController implements Controller<Pane> {
   public Pane gameDetailRoot;
   public Label gameTypeLabel;
   public Label mapLabel;
+  public Label mapDescription;
   public Label numberOfPlayersLabel;
   public Label gameStatusLabel;
   public Label hostLabel;
@@ -145,7 +148,7 @@ public class GameDetailController implements Controller<Pane> {
 
     mapContextMenuController = uiService.loadFxml("theme/play/game_detail_map_context_menu.fxml");
 
-    JavaFxUtil.addLabelContextMenus(uiService, gameTitleLabel, mapLabel, gameTypeLabel);
+    JavaFxUtil.addLabelContextMenus(uiService, gameTitleLabel, hostLabel);
     gameDetailRoot.parentProperty().addListener(observable -> {
       if (!(gameDetailRoot.getParent() instanceof Pane)) {
         return;
@@ -157,6 +160,7 @@ public class GameDetailController implements Controller<Pane> {
     gameTitleLabel.managedProperty().bind(gameTitleLabel.visibleProperty());
     hostLabel.managedProperty().bind(hostLabel.visibleProperty());
     mapLabel.managedProperty().bind(mapLabel.visibleProperty());
+    mapDescription.managedProperty().bind(mapDescription.visibleProperty());
     numberOfPlayersLabel.managedProperty().bind(numberOfPlayersLabel.visibleProperty());
     mapImageView.managedProperty().bind(mapImageView.visibleProperty());
     gameTypeLabel.managedProperty().bind(gameTypeLabel.visibleProperty());
@@ -264,6 +268,16 @@ public class GameDetailController implements Controller<Pane> {
     }
     else {
       this.watchButtonController.setGame(game);
+    }
+
+    Optional<MapBean> knownMap = mapService.getMapLocallyFromName(game.getFeaturedMod(), game.getMapName());
+    if (knownMap.isPresent()) {
+      mapDescription.setVisible(true);
+      mapDescription.textProperty().setValue(knownMap.get().getDescription());
+    }
+    else {
+      mapDescription.textProperty().setValue(null);
+      mapDescription.setVisible(false);
     }
 
     gameTitleLabel.textProperty().bind(game.titleProperty());
