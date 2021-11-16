@@ -8,15 +8,19 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
+import static com.faforever.client.theme.UiService.CHAT_LIST_STATUS_HOSTED;
+import static com.faforever.client.theme.UiService.CHAT_LIST_STATUS_HOSTING;
+import static com.faforever.client.theme.UiService.CHAT_LIST_STATUS_PLAYING;
+
 public enum GameStatus {
 
-  UNKNOWN("unknown"),
-  SPAWNING("spawning"),     // OS has spawned the executable but things are still initialising
-  STAGING("staging"),       // chat room has been opened but game hasn't been launched
-  BATTLEROOM("battleroom"), // players are in game battleroom. new players can still join
-  LAUNCHING("launching"),   // game has been started. new players can no longer join. teams have not been finalised
-  LIVE("live"),             // game in progress, teams have been finalised
-  ENDED("ended");           // game has terminated
+  UNKNOWN("unknown", null),
+  SPAWNING("spawning", null),        // OS has spawned the executable but things are still initialising
+  STAGING("staging", CHAT_LIST_STATUS_HOSTING),      // chat room has been opened but game hasn't been launched
+  BATTLEROOM("battleroom", CHAT_LIST_STATUS_HOSTED), // players are in game battleroom. new players can still join
+  LAUNCHING("launching", CHAT_LIST_STATUS_PLAYING),  // game has been started. new players can no longer join. teams have not been finalised
+  LIVE("live", CHAT_LIST_STATUS_PLAYING),            // game in progress, teams have been finalised
+  ENDED("ended", null);               // game has terminated
 
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private static final Map<String, GameStatus> fromString;
@@ -29,9 +33,11 @@ public enum GameStatus {
   }
 
   private final String string;
+  private final String themeImageFileName;
 
-  GameStatus(String string) {
+  GameStatus(String string, String themeImageFileName) {
     this.string = string;
+    this.themeImageFileName = themeImageFileName;
   }
 
   public boolean isOpen() {
@@ -54,4 +60,6 @@ public enum GameStatus {
   public String getString() {
     return string;
   }
+
+  public String getThemeImageFileName() { return themeImageFileName; }
 }

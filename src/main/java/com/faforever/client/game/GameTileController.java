@@ -12,6 +12,7 @@ import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.event.CurrentPlayerInfo;
 import com.faforever.client.remote.domain.GameStatus;
+import com.faforever.client.theme.UiService;
 import com.faforever.client.vault.replay.WatchButtonController;
 import com.google.common.base.Joiner;
 import com.google.common.eventbus.EventBus;
@@ -29,6 +30,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Region;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -62,6 +64,7 @@ public class GameTileController implements Controller<Node> {
   private final PlayerService playerService;
   private final ChatService chatService;
   private final EventBus eventBus;
+  private final UiService uiService;
   public Node lockIconLabel;
   public Label gameTypeLabel;
   public Node gameCardRoot;
@@ -242,6 +245,15 @@ public class GameTileController implements Controller<Node> {
       }}, game.replayDelaySecondsProperty()
     ));
     gameStatusLabel.textProperty().bind(game.statusProperty().asString());
+    gameStatusLabel.graphicProperty().bind(createObjectBinding(() -> {
+      String themeImageFileName = game.getStatus().getThemeImageFileName();
+      if (themeImageFileName != null) {
+        return new ImageView(uiService.getThemeImage(game.getStatus().getThemeImageFileName()));
+      }
+      else {
+        return null;
+      }}, game.statusProperty()
+    ));
     gameTimeSinceStartUpdater.play();
 
     avgRatingLabel.textProperty().bind(createStringBinding(

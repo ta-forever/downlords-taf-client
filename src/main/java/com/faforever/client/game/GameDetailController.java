@@ -34,6 +34,7 @@ import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -284,6 +285,15 @@ public class GameDetailController implements Controller<Pane> {
     hostLabel.textProperty().bind(game.hostProperty());
     mapLabel.textProperty().bind(game.mapNameProperty());
     gameStatusLabel.textProperty().bind(game.statusProperty().asString());
+    gameStatusLabel.graphicProperty().bind(createObjectBinding(() -> {
+      String themeImageFileName = game.getStatus().getThemeImageFileName();
+      if (themeImageFileName != null) {
+        return new ImageView(uiService.getThemeImage(game.getStatus().getThemeImageFileName()));
+      }
+      else {
+        return null;
+      }}, game.statusProperty()
+    ));
     gameTimeSinceStartUpdater.play();
 
     numberOfPlayersLabel.textProperty().bind(createStringBinding(
