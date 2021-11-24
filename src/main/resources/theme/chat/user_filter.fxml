@@ -17,19 +17,13 @@
     </columnConstraints>
     <rowConstraints>
         <RowConstraints vgrow="SOMETIMES"/>
-        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
-        <RowConstraints vgrow="SOMETIMES"/>
         <RowConstraints maxHeight="25.0" minHeight="0.0" prefHeight="21.0" vgrow="SOMETIMES"/>
     </rowConstraints>
     <children>
         <TextField fx:id="clanFilterField" promptText="%chat.filter.clan" GridPane.columnSpan="2147483647"/>
-        <TextField fx:id="minRatingFilterField" promptText="%chat.filter.minRating" GridPane.columnSpan="2147483647"
-                   GridPane.rowIndex="2"/>
-        <TextField fx:id="maxRatingFilterField" promptText="%chat.filter.maxRating" GridPane.columnSpan="2147483647"
-                   GridPane.rowIndex="1"/>
         <TextField fx:id="countryFilterField" promptText="%chat.filter.countryPrompt" GridPane.columnSpan="2147483647"
-                  GridPane.rowIndex="3" />
-        <MenuButton fx:id="gameStatusMenu" mnemonicParsing="false" text="%game.gameStatus" GridPane.rowIndex="4">
+                  GridPane.rowIndex="1" />
+        <MenuButton fx:id="gameStatusMenu" mnemonicParsing="false" text="%game.gameStatus" GridPane.rowIndex="2">
             <items>
                 <RadioMenuItem mnemonicParsing="false" text="%game.gameStatus.none" onAction="#onGameStatusNone">
                     <toggleGroup>

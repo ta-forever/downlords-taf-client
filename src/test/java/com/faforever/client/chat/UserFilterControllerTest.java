@@ -61,26 +61,6 @@ public class UserFilterControllerTest extends AbstractPlainJavaFxTest {
   }
 
   @Test
-  public void testIsBoundedByRatingWithinBounds() {
-    player.setLeaderboardRatings(LeaderboardRatingMapBuilder.create().defaultValues().get());
-
-    instance.minRatingFilterField.setText("-100");
-    instance.maxRatingFilterField.setText("100");
-
-    assertTrue(instance.isBoundByRating(chatChannelUser));
-  }
-
-  @Test
-  public void testIsBoundedByRatingNotWithinBounds() {
-    player.setLeaderboardRatings(LeaderboardRatingMapBuilder.create().defaultValues().get());
-
-    instance.minRatingFilterField.setText("300");
-    instance.maxRatingFilterField.setText("600");
-
-    assertFalse(instance.isBoundByRating(chatChannelUser));
-  }
-
-  @Test
   public void testIsGameStatusMatchPlaying() {
     player.setGame(GameBuilder.create().defaultValues().status(GameStatus.LIVE).get());
     instance.playerStatusFilter = PlayerStatus.PLAYING;
