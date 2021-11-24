@@ -1,9 +1,9 @@
 faf-client:
   server:
-    host: 192.168.1.109
+    host: 192.168.0.100
 
   irc:
-    host: 192.168.1.109
+    host: 192.168.0.100
 
   vault:
     base-url: https://content.taforever.com
@@ -13,13 +13,13 @@ faf-client:
     feed-url: https://direct.taforever.com/news/feed
 
   replay:
-    remote-host: 192.168.1.109
+    remote-host: 192.168.0.100
 
   website:
-    base-url: http://192.168.1.109:8020
+    base-url: http://192.168.0.100:8020
 
   api:
-    base-url: http://192.168.1.109:8010
+    base-url: http://192.168.0.100:8010
     client-id: 3bc8282c-7730-11e5-8bcf-feff819cdc9f
     client-secret: 6035bd78-7730-11e5-8bcf-feff819cdc9f
 
@@ -27,7 +27,7 @@ faf-client:
     exe-url: https://content.faforever.com/faf/updaterNew/updates_faf_files/ForgedAlliance.exe
 
   use-remote-preferences: true
-  client-config-url: http://192.168.1.109/dfc-config.json
+  client-config-url: http://192.168.0.100/dfc-config.json
 
 
 logging:
