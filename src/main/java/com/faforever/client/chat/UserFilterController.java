@@ -29,8 +29,6 @@ public class UserFilterController implements Controller<Node> {
   public MenuButton gameStatusMenu;
   public GridPane filterUserRoot;
   public TextField clanFilterField;
-  public TextField minRatingFilterField;
-  public TextField maxRatingFilterField;
   public ToggleGroup gameStatusToggleGroup;
   public TextField countryFilterField;
 
@@ -55,8 +53,6 @@ public class UserFilterController implements Controller<Node> {
 
   public void initialize() {
     clanFilterField.textProperty().addListener((observable, oldValue, newValue) -> filterUsers());
-    minRatingFilterField.textProperty().addListener((observable, oldValue, newValue) -> filterUsers());
-    maxRatingFilterField.textProperty().addListener((observable, oldValue, newValue) -> filterUsers());
     countryFilterField.textProperty().addListener(((observable, oldValue, newValue) -> filterCountry()));
     currentSelectedCountries = flagService.getCountries(null);
   }
@@ -64,9 +60,7 @@ public class UserFilterController implements Controller<Node> {
   public void filterUsers() {
     channelTabController.setUserFilter(this::filterUser);
     filterApplied.set(
-        !maxRatingFilterField.getText().isEmpty()
-            || !minRatingFilterField.getText().isEmpty()
-            || !clanFilterField.getText().isEmpty()
+        !clanFilterField.getText().isEmpty()
             || playerStatusFilter != null
             || !countryFilterField.getText().isEmpty()
     );
@@ -81,7 +75,6 @@ public class UserFilterController implements Controller<Node> {
     ChatChannelUser user = userListItem.getUser();
     return channelTabController.isUsernameMatch(user)
         && isInClan(user)
-        && isBoundByRating(user)
         && isGameStatusMatch(user)
         && isCountryMatch(user);
   }
@@ -119,38 +112,6 @@ public class UserFilterController implements Controller<Node> {
 
     String lowerCaseSearchString = clan.toLowerCase();
     return lowerCaseSearchString.contains(clanFilterField.getText().toLowerCase());
-  }
-
-  @VisibleForTesting
-  boolean isBoundByRating(ChatChannelUser chatUser) {
-    if (minRatingFilterField.getText().isEmpty() && maxRatingFilterField.getText().isEmpty()) {
-      return true;
-    }
-
-    Optional<Player> optionalPlayer = chatUser.getPlayer();
-
-    if (!optionalPlayer.isPresent()) {
-      return false;
-    }
-
-    //TODO filter by specifc leaderboard rating remove hardcoded value
-    Player player = optionalPlayer.get();
-    int rating = RatingUtil.getLeaderboardRating(player, "global");
-    int minRating;
-    int maxRating;
-
-    try {
-      minRating = Integer.parseInt(minRatingFilterField.getText());
-    } catch (NumberFormatException e) {
-      minRating = Integer.MIN_VALUE;
-    }
-    try {
-      maxRating = Integer.parseInt(maxRatingFilterField.getText());
-    } catch (NumberFormatException e) {
-      maxRating = Integer.MAX_VALUE;
-    }
-
-    return rating >= minRating && rating <= maxRating;
   }
 
   @VisibleForTesting
