@@ -5,6 +5,7 @@ import com.faforever.client.api.dto.GamePlayerStats;
 import com.faforever.client.api.dto.LeaderboardRatingJournal;
 import com.faforever.client.api.dto.Validity;
 import com.faforever.client.game.Faction;
+import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.vault.review.Review;
@@ -460,6 +461,7 @@ public class Replay {
     private final Double afterDeviation;
     private final int score;
     private final Faction faction;
+    private final Leaderboard leaderboard;
 
     public static PlayerStats fromDto(GamePlayerStats gamePlayerStats) {
       Optional<LeaderboardRatingJournal> ratingJournal = gamePlayerStats.getLeaderboardRatingJournals().stream().findFirst();
@@ -467,6 +469,7 @@ public class Replay {
       Double beforeDeviation = ratingJournal.map(LeaderboardRatingJournal::getDeviationBefore).orElse(null);
       Double afterMean = ratingJournal.map(LeaderboardRatingJournal::getMeanAfter).orElse(null);
       Double afterDeviation = ratingJournal.map(LeaderboardRatingJournal::getDeviationAfter).orElse(null);
+      Leaderboard leaderboard = ratingJournal.map(lb -> Leaderboard.fromDto(lb.getLeaderboard())).orElse(null);
       return new PlayerStats(
           Integer.parseInt(gamePlayerStats.getPlayer().getId()),
           beforeMean,
@@ -474,7 +477,8 @@ public class Replay {
           afterMean,
           afterDeviation,
           gamePlayerStats.getScore(),
-          gamePlayerStats.getFaction()
+          gamePlayerStats.getFaction(),
+          leaderboard
       );
     }
   }

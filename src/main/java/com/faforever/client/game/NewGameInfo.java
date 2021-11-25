@@ -21,8 +21,5 @@ public class NewGameInfo {
   private Integer ratingMax;
   private Boolean enforceRatingRange;
   private Integer replayDelaySeconds; // or -ve to disable
-
-  public NewGameInfo(String title, String password, FeaturedMod featuredMod, String map, Set<String> simMods) {
-    this(title, password, featuredMod, map, simMods, GameVisibility.PUBLIC, null, null, false, 300);
-  }
+  private String ratingType;
 }

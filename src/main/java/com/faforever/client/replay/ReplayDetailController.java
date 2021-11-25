@@ -89,7 +89,6 @@ public class ReplayDetailController implements Controller<Node> {
   public Label timeLabel;
   public Label modLabel;
   public Label durationLabel;
-  public Label replayDurationLabel;
   public Label playerCountLabel;
   public Label ratingLabel;
   public Label qualityLabel;
@@ -118,6 +117,7 @@ public class ReplayDetailController implements Controller<Node> {
   public Button showRatingChangeButton;
   public Button reportButton;
   public Label notRatedReasonLabel;
+  public Label ratingTypeLabel;
   private Replay replay;
   private ObservableMap<String, List<PlayerStats>> teams;
 
@@ -159,9 +159,9 @@ public class ReplayDetailController implements Controller<Node> {
     timeLabel.setTooltip(new Tooltip(i18n.get("replay.timeTooltip")));
     modLabel.setTooltip(new Tooltip(i18n.get("replay.modTooltip")));
     durationLabel.setTooltip(new Tooltip(i18n.get("replay.durationTooltip")));
-    replayDurationLabel.setTooltip(new Tooltip(i18n.get("replay.replayDurationTooltip")));
     playerCountLabel.setTooltip(new Tooltip(i18n.get("replay.playerCountTooltip")));
     ratingLabel.setTooltip(new Tooltip(i18n.get("replay.ratingTooltip")));
+    ratingTypeLabel.setTooltip(new Tooltip(i18n.get("leaderboard.displayName")));
     qualityLabel.setTooltip(new Tooltip(i18n.get("replay.qualityTooltip")));
     showRatingChangeButton.managedProperty().bind(showRatingChangeButton.visibleProperty());
     notRatedReasonLabel.managedProperty().bind(notRatedReasonLabel.visibleProperty());
@@ -195,13 +195,6 @@ public class ReplayDetailController implements Controller<Node> {
       durationLabel.setVisible(false);
     }
 
-    Integer replayTicks = replay.getReplayTicks();
-    if (replayTicks != null) {
-      replayDurationLabel.setText(timeService.shortDuration(Duration.ofMillis(replayTicks * 100)));
-    } else {
-      replayDurationLabel.setVisible(false);
-    }
-
     modLabel.setText(
         Optional.ofNullable(replay.getFeaturedMod())
             .map(FeaturedMod::getDisplayName)
@@ -216,7 +209,6 @@ public class ReplayDetailController implements Controller<Node> {
       qualityLabel.setText(i18n.get("gameQuality.undefined"));
     }
 
-
     replay.getTeamPlayerStats().values().stream()
         .flatMapToInt(playerStats -> playerStats.stream().filter(stats -> stats.getBeforeMean() != null && stats.getBeforeDeviation() != null)
             .mapToInt(stats -> RatingUtil.getRating(stats.getBeforeMean(), stats.getBeforeDeviation())))
@@ -224,6 +216,13 @@ public class ReplayDetailController implements Controller<Node> {
         .ifPresentOrElse(averageRating -> ratingLabel.setText(i18n.number((int) averageRating)),
             () -> ratingLabel.setText("-"));
 
+    ratingTypeLabel.setText("-");
+    replay.getTeamPlayerStats().values().stream().findAny()
+        .ifPresent(playerStatsList -> playerStatsList.stream().findAny()
+            .ifPresent(playerStats -> Optional.ofNullable(playerStats.getLeaderboard())
+                .ifPresent(leaderboard -> ratingTypeLabel.setText(i18n.get(leaderboard.getNameKey())))
+            ));
+    
     if (replay.getReplayFile() == null) {
       if (replay.getReplayAvailable()) {
         replayService.getSize(replay.getId())

@@ -48,6 +48,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.faforever.client.game.GameService.DEFAULT_RATING_TYPE;
+
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @Component
 @RequiredArgsConstructor
@@ -63,6 +65,7 @@ public class GamesTableController implements Controller<Node> {
   public TableView<Game> gamesTable;
   public TableColumn<Game, Image> mapPreviewColumn;
   public TableColumn<Game, String> modsColumn;
+  public TableColumn<Game, Boolean> rankedColumn;
   public TableColumn<Game, GameStatus> statusColumn;
   public TableColumn<Game, String> gameTitleColumn;
   public TableColumn<Game, PlayerFill> playersColumn;
@@ -137,7 +140,8 @@ public class GamesTableController implements Controller<Node> {
     hostColumn.setCellFactory(param -> new StringCell<>(String::toString));
     modsColumn.setCellValueFactory(this::modCell);
     modsColumn.setCellFactory(param -> new StringCell<>(String::toString));
-
+    rankedColumn.setCellValueFactory(param -> param.getValue().ratingTypeProperty().isEqualTo(DEFAULT_RATING_TYPE).not());
+    rankedColumn.setCellFactory(param -> rankedIndicatorColumn());
     coopMissionName.setVisible(coopMissionNameProvider != null);
 
     if (averageRatingColumn != null) {
@@ -262,6 +266,11 @@ public class GamesTableController implements Controller<Node> {
   private TableCell<Game, Boolean> passwordIndicatorColumn() {
     return new IconCell<>(
         isPasswordProtected -> isPasswordProtected ? "lock-icon" : "");
+  }
+
+  private TableCell<Game, Boolean> rankedIndicatorColumn() {
+    return new IconCell<>(
+        enabled -> enabled ? "icon-trophy" : "");
   }
 
   private TableCell<Game, PlayerFill> playersCell() {

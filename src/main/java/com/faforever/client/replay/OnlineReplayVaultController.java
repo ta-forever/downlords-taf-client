@@ -148,15 +148,8 @@ public class OnlineReplayVaultController extends VaultEntityController<Replay> {
           leaderboardFilterController.setItems(leaderboardItems));
     });
 
-    //FIXME: Cannot search by rating without using depreciated rating relationships
-//    searchController.addRangeFilter("playerStats.player.ladder1v1Rating.rating", i18n.get("game.ladderRating"),
-//        0, 3000, 100);
-//    searchController.addRangeFilter("playerStats.player.globalRating.rating", i18n.get("game.globalRating"),
-//        0, 3000, 100);
-
     searchController.addDateRangeFilter("endTime", i18n.get("game.date"), 1);
     searchController.addToggleFilter("validity", i18n.get("game.onlyRanked"), "VALID");
-
   }
 
   @Override

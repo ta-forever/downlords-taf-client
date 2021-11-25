@@ -38,24 +38,30 @@
             </VBox>
         </AnchorPane>
         <Label fx:id="gameTitleLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" styleClass="game-title" text="&lt;A pretty long game title&gt;" wrapText="true" GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" />
-        <Label fx:id="gameTypeLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Game type&gt;" wrapText="true" GridPane.rowIndex="2" />
-        <Label fx:id="gameStatusLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map&gt;" wrapText="true" GridPane.rowIndex="3">
+        <Label fx:id="gameTypeLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Game type&gt;" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+        <Label fx:id="gameRatingTypeLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Rating Type&gt;" GridPane.rowIndex="2" GridPane.columnIndex="0">
+            <graphic>
+                <Region styleClass="icon,icon-trophy"/>
+            </graphic>
+        </Label>
+        <Label fx:id="gameRatingTypeGlobalLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="%leaderboard.global.name" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+        <Label fx:id="gameStatusLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map&gt;" wrapText="true" GridPane.rowIndex="3" GridPane.columnSpan="2">
             <graphic>
                 <Region styleClass="icon,info-icon" />
             </graphic>
         </Label>
-        <Label fx:id="gameTimeSinceStartLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map&gt;" wrapText="true" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
-        <Label fx:id="hostLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Host&gt;" wrapText="true" GridPane.rowIndex="4">
-            <graphic>
-                <Region styleClass="icon,host-icon" />
-            </graphic>
-        </Label>
-        <Label fx:id="numberOfPlayersLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Number of players&gt;" wrapText="true" GridPane.rowIndex="5">
+        <Label fx:id="gameTimeSinceStartLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map&gt;" wrapText="true" GridPane.columnIndex="1" GridPane.rowIndex="3"  GridPane.columnSpan="2"/>
+        <Label fx:id="numberOfPlayersLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Number of players&gt;" wrapText="true" GridPane.rowIndex="4"  GridPane.columnSpan="2">
             <graphic>
                 <Region styleClass="icon,players-icon" />
             </graphic>
         </Label>
-        <Label fx:id="liveReplayDelayLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Number of players&gt;" wrapText="true" GridPane.rowIndex="6">
+        <Label fx:id="hostLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Host&gt;" wrapText="true" GridPane.rowIndex="5" GridPane.columnSpan="2">
+            <graphic>
+                <Region styleClass="icon,host-icon" />
+            </graphic>
+        </Label>
+        <Label fx:id="liveReplayDelayLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Number of players&gt;" wrapText="true" GridPane.rowIndex="6"  GridPane.columnSpan="2">
             <graphic>
                 <Region styleClass="icon,live-tv-icon" />
             </graphic>

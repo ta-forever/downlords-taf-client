@@ -145,6 +145,8 @@ public interface FafApiAccessor {
 
   Optional<MatchmakerQueue> getMatchmakerQueue(String technicalName);
 
+  List<MatchmakerQueue> getMatchmakerQueuesByMod(String modTechnicalName);
+
   List<Tournament> getAllTournaments();
 
   List<ModerationReport> getPlayerModerationReports(int playerId);

@@ -11,6 +11,7 @@ import com.faforever.client.fx.StringListCell;
 import com.faforever.client.fx.WebViewConfigurer;
 import com.faforever.client.game.Game;
 import com.faforever.client.game.GameService;
+import com.faforever.client.game.GameVisibility;
 import com.faforever.client.game.GamesTableController;
 import com.faforever.client.game.NewGameInfo;
 import com.faforever.client.i18n.I18n;
@@ -59,6 +60,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static com.faforever.client.game.GameService.DEFAULT_RATING_TYPE;
 import static com.faforever.client.game.KnownFeaturedMod.COOP;
 import static java.util.Collections.emptySet;
 import static javafx.collections.FXCollections.observableList;
@@ -265,7 +267,7 @@ public class CoopController extends AbstractViewController<Node> {
     modService.getFeaturedMod(COOP.getTechnicalName())
         .thenAccept(featuredModBean -> gameService.hostGame(new NewGameInfo(titleTextField.getText(),
             Strings.emptyToNull(passwordTextField.getText()), featuredModBean, getSelectedMission().getMapFolderName(),
-            emptySet())));
+            emptySet(), GameVisibility.PUBLIC, null, null, false, 300, DEFAULT_RATING_TYPE)));
   }
 
   public Node getRoot() {

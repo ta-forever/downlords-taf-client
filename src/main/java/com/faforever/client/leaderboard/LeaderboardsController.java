@@ -10,6 +10,7 @@ import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.util.Validator;
 import com.google.common.annotations.VisibleForTesting;
@@ -51,6 +52,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   private final ModService modService;
   private final UiService uiService;
   private final PlayerService playerService;
+  private final PreferencesService preferencesService;
   private final EventBus eventBus;
   private final I18n i18n;
   public Pane leaderboardRoot;
@@ -81,7 +83,12 @@ public class LeaderboardsController extends AbstractViewController<Node> {
         leaderboardComboBox.getItems().clear();
         leaderboardComboBox.setConverter(leaderboardStringConverter());
         leaderboardComboBox.getItems().addAll(leaderboards);
-        leaderboardComboBox.getSelectionModel().selectFirst();
+        leaderboards.stream()
+            .filter(lbe -> lbe.getTechnicalName().equals(preferencesService.getPreferences().getLastLeaderboardSelection()))
+            .findAny()
+            .ifPresentOrElse(
+                lbe -> leaderboardComboBox.getSelectionModel().select(lbe),
+                () -> leaderboardComboBox.getSelectionModel().selectFirst());
       });
       return null;
     });
@@ -170,7 +177,12 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     if (usernamesAutoCompletion != null) {
       usernamesAutoCompletion.dispose();
     }
+
+    preferencesService.getPreferences().setLastLeaderboardSelection(leaderboardComboBox.getValue().getTechnicalName());
+    preferencesService.storeInBackground();
+
     leaderboardService.getEntries(leaderboardComboBox.getValue()).thenAccept(leaderboardEntryBeans -> {
+      ratingTable.getItems().clear();
       ratingTable.setItems(observableList(leaderboardEntryBeans));
       usernamesAutoCompletion = TextFields.bindAutoCompletion(searchTextField,
           leaderboardEntryBeans.stream().map(LeaderboardEntry::getUsername).collect(Collectors.toList()));

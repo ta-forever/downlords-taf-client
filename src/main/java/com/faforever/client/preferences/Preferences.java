@@ -75,6 +75,7 @@ public class Preferences {
   private final ObjectProperty<TadaIntegrationOption> tadaIntegrationOption;
   private final ObjectProperty<RatingMetric> userInfoRatingMetric;
   private final ObjectProperty<AutoUploadLogsOption> autoUploadLogsOption;
+  private final StringProperty lastLeaderboardSelection;
 
   public Preferences() {
     gameTileSortingOrder = new SimpleObjectProperty<>(TilesSortingOrder.PLAYER_DES);
@@ -119,6 +120,7 @@ public class Preferences {
     autoUploadLogsOption = new SimpleObjectProperty<>(AutoUploadLogsOption.ASK);
     tadaIntegrationOption = new SimpleObjectProperty<>(TadaIntegrationOption.BROWSER);
     userInfoRatingMetric = new SimpleObjectProperty<>(RatingMetric.TRUESKILL);
+    lastLeaderboardSelection = new SimpleStringProperty("global");
   }
 
   public VaultPrefs getVault() {
@@ -492,5 +494,15 @@ public class Preferences {
 
   public ObjectProperty<AutoUploadLogsOption> autoUploadLogsOptionProperty() {
     return autoUploadLogsOption;
+  }
+
+  public String getLastLeaderboardSelection() {
+    return lastLeaderboardSelection.get();
+  }
+
+  public void setLastLeaderboardSelection(String option) { this.lastLeaderboardSelection.set(option); }
+
+  public StringProperty lastLeaderboardSelectionProperty() {
+    return lastLeaderboardSelection;
   }
 }

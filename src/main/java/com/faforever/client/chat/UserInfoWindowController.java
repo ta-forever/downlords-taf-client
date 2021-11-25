@@ -167,7 +167,13 @@ public class UserInfoWindowController implements Controller<Node> {
         ratingTypeComboBox.getItems().clear();
         ratingTypeComboBox.getItems().addAll(leaderboards);
         ratingTypeComboBox.setConverter(leaderboardStringConverter());
-        ratingTypeComboBox.getSelectionModel().selectFirst();
+
+        leaderboards.stream()
+            .filter(lbe -> lbe.getTechnicalName().equals(preferencesService.getPreferences().getLastLeaderboardSelection()))
+            .findAny()
+            .ifPresentOrElse(
+                lbe -> ratingTypeComboBox.getSelectionModel().select(lbe),
+                () -> ratingTypeComboBox.getSelectionModel().selectFirst());
       });
       return null;
     });
@@ -330,9 +336,12 @@ public class UserInfoWindowController implements Controller<Node> {
   private void plotGamesPlayedByLeaderboardChart() {
     JavaFxUtil.runLater(() -> gamesPlayedByLeaderboardChart.getData().clear());
     leaderboardService.getEntriesForPlayer(player.getId()).thenAccept(leaderboardEntries -> JavaFxUtil.runLater(() -> {
-      ratingTable.setItems(observableList(leaderboardEntries));
-      updateRatingGrids(leaderboardEntries);
-      leaderboardEntries.forEach(leaderboardEntry ->
+      List<LeaderboardEntry> sortedEntries = leaderboardEntries.stream()
+          .sorted((a,b) -> (int)(b.getRating() - a.getRating()))
+          .collect(Collectors.toList());
+      ratingTable.setItems(observableList(sortedEntries));
+      updateRatingGrids(sortedEntries);
+      sortedEntries.forEach(leaderboardEntry ->
             gamesPlayedByLeaderboardChart.getData().add(new PieChart.Data(
                 i18n.getWithDefault(leaderboardEntry.getLeaderboard().getTechnicalName(), leaderboardEntry.getLeaderboard().getNameKey()),
                 leaderboardEntry.getWonGames())));
@@ -345,6 +354,10 @@ public class UserInfoWindowController implements Controller<Node> {
 
   public void onRatingTypeChange() {
     if (ratingTypeComboBox.getValue() != null) {
+
+      preferencesService.getPreferences().setLastLeaderboardSelection(ratingTypeComboBox.getValue().getTechnicalName());
+      preferencesService.storeInBackground();
+
       ratingHistoryChart.setVisible(false);
       loadingHistoryPane.setVisible(true);
       loadStatistics(ratingTypeComboBox.getValue()).thenRun(() -> JavaFxUtil.runLater(this::plotPlayerRatingGraph));

@@ -27,6 +27,7 @@ public final class CacheNames {
   public static final String COOP_LEADERBOARD = "coopLeaderboard";
   public static final String CLAN = "clan";
   public static final String MATCHMAKER_QUEUES = "matchmakerQueues";
+  public static final String MATCHMAKER_QUEUES_BY_MOD = "matchmakerQueuesByMod";
   public static final String MATCHMAKER_POOLS = "matchmakerPools";
   public static final String TADEMO_MAP_HASH = "taDemoMapHash";
   public static final String TADEMO_MOD_HASH = "taDemoModHash";

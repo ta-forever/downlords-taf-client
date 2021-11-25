@@ -47,7 +47,7 @@
                       <ToggleButton fx:id="playButton" minWidth="-Infinity" mnemonicParsing="false" onAction="#onPlay"
                                     styleClass="main-navigation-button" text="%main.play"
                                     toggleGroup="$mainNavigation"/>
-                      <ToggleButton fx:id="matchmakerButton" minWidth="-Infinity" mnemonicParsing="false"
+                      <ToggleButton fx:id="matchmakerButton" disable="true" minWidth="-Infinity" mnemonicParsing="false"
                                     onAction="#onMatchmaker" styleClass="main-navigation-button"
                                     text="%main.matchmaking" toggleGroup="$mainNavigation"/>
                       <ToggleButton fx:id="mapButton" minWidth="-Infinity" mnemonicParsing="false"

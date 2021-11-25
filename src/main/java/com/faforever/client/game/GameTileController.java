@@ -11,6 +11,7 @@ import com.faforever.client.mod.ModService;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.event.CurrentPlayerInfo;
+import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.vault.replay.WatchButtonController;
@@ -21,6 +22,7 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ObservableMap;
@@ -30,7 +32,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.Region;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -47,6 +48,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static com.faforever.client.game.GameService.DEFAULT_RATING_TYPE;
 import static javafx.beans.binding.Bindings.createObjectBinding;
 import static javafx.beans.binding.Bindings.createStringBinding;
 
@@ -65,6 +67,7 @@ public class GameTileController implements Controller<Node> {
   private final ChatService chatService;
   private final EventBus eventBus;
   private final UiService uiService;
+  private final FafService fafService;
   public Node lockIconLabel;
   public Label gameTypeLabel;
   public Node gameCardRoot;
@@ -77,6 +80,8 @@ public class GameTileController implements Controller<Node> {
   public Label modsLabel;
   public Label liveReplayDelayLabel;
   public ImageView mapImageView;
+  public Label gameRatingTypeLabel;
+  public Label gameRatingTypeGlobalLabel;
   private Consumer<Game> onSelectedListener;
   private Game game;
   private Timeline gameTimeSinceStartUpdater;
@@ -114,6 +119,7 @@ public class GameTileController implements Controller<Node> {
     modsLabel.managedProperty().bind(modsLabel.visibleProperty());
     modsLabel.visibleProperty().bind(modsLabel.textProperty().isNotEmpty());
     gameTypeLabel.managedProperty().bind(gameTypeLabel.visibleProperty());
+    gameRatingTypeLabel.managedProperty().bind(gameRatingTypeLabel.visibleProperty());
     lockIconLabel.managedProperty().bind(lockIconLabel.visibleProperty());
 
     // make a bit more room for the autoJoin button's text
@@ -222,8 +228,17 @@ public class GameTileController implements Controller<Node> {
       this.watchButtonController.setGame(game);
     }
 
-    modService.getFeaturedMod(game.getFeaturedMod())
-        .thenAccept(featuredModBean -> JavaFxUtil.runLater(() -> gameTypeLabel.setText(StringUtils.defaultString(featuredModBean.getDisplayName()))));
+    modService.getFeaturedMod(game.getFeaturedMod()).thenAccept(featuredModBean -> JavaFxUtil.runLater(
+            () -> gameTypeLabel.setText(featuredModBean.getDisplayName())
+        ));
+
+    gameRatingTypeLabel.textProperty().bind(createStringBinding(
+        () -> i18n.get(String.format("leaderboard.%s.name", game.getRatingType())),
+        game.ratingTypeProperty()));
+
+    gameTypeLabel.visibleProperty().bind(game.ratingTypeProperty().isEqualTo(DEFAULT_RATING_TYPE));
+    gameRatingTypeGlobalLabel.visibleProperty().bind(gameTypeLabel.visibleProperty());
+    gameRatingTypeLabel.visibleProperty().bind(gameTypeLabel.visibleProperty().not());
 
     gameTitleLabel.textProperty().bind(game.titleProperty());
     hostLabel.setText(game.getHost());

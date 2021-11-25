@@ -20,6 +20,7 @@ import com.faforever.client.preferences.PreferenceUpdateListener;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.domain.GameStatus;
+import com.faforever.client.teammatchmaking.MatchmakingQueue;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.google.common.eventbus.EventBus;
@@ -36,6 +37,7 @@ import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.collections.WeakListChangeListener;
 import javafx.collections.transformation.FilteredList;
 import javafx.css.PseudoClass;
@@ -69,6 +71,7 @@ import java.lang.ref.WeakReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -77,6 +80,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.faforever.client.game.GameService.DEFAULT_RATING_TYPE;
 import static com.faforever.client.net.ConnectionState.CONNECTED;
 import static java.util.Collections.emptySet;
 import static javafx.scene.layout.BackgroundPosition.CENTER;
@@ -124,6 +128,10 @@ public class CreateGameController implements Controller<Pane> {
   public ComboBox<Integer> mapPreviewMaxPositionsComboBox;
   public CheckBox onlyForFriendsCheckBox;
   public ComboBox<LiveReplayOption> liveReplayOptionComboBox;
+  public ListView<MatchmakingQueue> mapPoolListView;
+
+  public CheckBox rankedEnabledCheckBox;
+  public Label rankedEnabledLabel;
   @VisibleForTesting
   FilteredList<MapBean> filteredMapBeans;
   private Runnable onCloseButtonClickedListener;
@@ -306,6 +314,7 @@ public class CreateGameController implements Controller<Pane> {
     bindLiveReplayDelayOption();
     initMapSelection(KnownFeaturedMod.DEFAULT.getBaseGameName());
     initFeaturedModList();
+    initMapPoolList();
     initRatingBoundaries();
     selectAppropriateMap();
     setLastGameTitle();
@@ -332,6 +341,11 @@ public class CreateGameController implements Controller<Pane> {
 
     createGameButton.disableProperty().bind(validatedButtonsDisableProperty);
     updateGameButton.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
+    mapPoolListView.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
+
+    rankedEnabledCheckBox.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
+    rankedEnabledCheckBox.setSelected(preferencesService.getPreferences().getLastGame().getLastGameRankedEnabled());
+    rankedEnabledLabel.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
 
     createGameButton.visibleProperty().bind(interactionLevelProperty.isEqualTo("CREATE"));
     updateGameButton.visibleProperty().bind(createGameButton.visibleProperty().not());
@@ -417,17 +431,60 @@ public class CreateGameController implements Controller<Pane> {
   }
 
   protected void setAvailableMaps(String modTechnical) {
-    filteredMapBeans = new FilteredList<>(
-        mapService.getInstalledMaps(modTechnical).filtered(mapBean -> mapBean.getType() == Type.SKIRMISH).sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName()))
-    );
 
-    Path installedExePath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledExePath();
-    if (filteredMapBeans.isEmpty() && installedExePath != null && Files.isExecutable(installedExePath)) {
-      mapListView.setItems(mapService.getOfficialMaps());
+    if (rankedEnabledCheckBox.isSelected() && mapPoolListView.getSelectionModel().getSelectedItem() != null) {
+      try {
+        MatchmakingQueue q = mapPoolListView.getSelectionModel().getSelectedItem();
+        HashSet<String> mapPoolMapNames = mapService.getMatchmakerMaps(q).get().stream()
+            .map(MapBean::getMapName)
+            .collect(Collectors.toCollection(HashSet::new));
+
+        filteredMapBeans = new FilteredList<>(mapService.getInstalledMaps(modTechnical)
+            .filtered(mapBean -> mapBean.getType() == Type.SKIRMISH)
+            .filtered(mapBean -> mapPoolMapNames.contains(mapBean.getMapName()))
+            .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())));
+
+        doSetAvailableMaps(modTechnical, filteredMapBeans);
+
+      } catch (Exception e) {
+        log.error("[setAvailableMaps] {}", e.getMessage());
+        filteredMapBeans = new FilteredList<>(mapService.getInstalledMaps(modTechnical)
+            .filtered(mapBean -> mapBean.getType() == Type.SKIRMISH)
+            .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())));
+        doSetAvailableMaps(modTechnical, filteredMapBeans);
+      }
     }
     else {
-      mapListView.setItems(filteredMapBeans);
+      filteredMapBeans = new FilteredList<>(mapService.getInstalledMaps(modTechnical)
+          .filtered(mapBean -> mapBean.getType() == Type.SKIRMISH)
+          .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())));
+      doSetAvailableMaps(modTechnical, filteredMapBeans);
     }
+  }
+
+  protected void doSetAvailableMaps(String modTechnical, ObservableList<MapBean> items) {
+    JavaFxUtil.runLater(() -> {
+      Path installedExePath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledExePath();
+      if (filteredMapBeans.isEmpty() && installedExePath != null && Files.isExecutable(installedExePath)) {
+        mapListView.setItems(mapService.getOfficialMaps());
+      } else {
+        mapListView.setItems(items);
+      }
+    });
+  }
+
+  protected void setAvailableMapPools(String modTechnical) {
+    fafService.getMatchingQueuesByMod(modTechnical)
+        .thenAccept(queues -> {
+          JavaFxUtil.runLater(() -> {
+            mapPoolListView.getItems().setAll(queues);
+            if (mapPoolListView.getItems().size() > 0) {
+              mapPoolListView.getSelectionModel().select(0);
+            }
+          });
+          // just page the maps into cache so they're available should the user select them
+          queues.forEach(mapService::getMatchmakerMaps);
+        });
   }
 
   protected void setSelectedMap(MapBean newValue, PreviewType previewType, int maxNumPlayers) {
@@ -490,6 +547,7 @@ public class CreateGameController implements Controller<Pane> {
     modService.getFeaturedMods().thenAccept(featuredModBeans -> JavaFxUtil.runLater(() -> {
       featuredModListView.setItems(FXCollections.observableList(featuredModBeans).filtered(FeaturedMod::isVisible));
       featuredModListView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> JavaFxUtil.runLater(() -> {
+        setAvailableMapPools(newValue.getTechnicalName());
         setAvailableMaps(newValue.getTechnicalName());
         Path installedExePath = preferencesService.getTotalAnnihilation(newValue.getTechnicalName()).getInstalledExePath();
         setGamePathButton.setStyle(installedExePath == null || !Files.isExecutable(installedExePath)
@@ -501,6 +559,26 @@ public class CreateGameController implements Controller<Pane> {
       }));
       selectLastOrDefaultGameType();
     }));
+  }
+
+  private void initMapPoolList() {
+    mapPoolListView.setCellFactory(param ->
+        new StringListCell<>((q) -> i18n.get(q.getLeaderboard().getNameKey()))
+    );
+    mapPoolListView.visibleProperty().bind(rankedEnabledCheckBox.selectedProperty());
+    rankedEnabledCheckBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
+      if (featuredModListView.getSelectionModel().getSelectedItem() != null) {
+        setAvailableMaps(featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName());
+        selectAppropriateMap();
+      }
+      preferencesService.getPreferences().getLastGame().setLastGameRankedEnabled(newValue);
+      preferencesService.storeInBackground();
+    });
+
+    mapPoolListView.getSelectionModel().selectedItemProperty().addListener((obs,oldValue,newValue) -> {
+      setAvailableMaps(featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName());
+      selectAppropriateMap();
+    });
   }
 
   private void initRatingBoundaries() {
@@ -634,7 +712,10 @@ public class CreateGameController implements Controller<Pane> {
         minRating,
         maxRating,
         enforceRating,
-        liveReplayOptionComboBox.getSelectionModel().getSelectedItem().getDelaySeconds());
+        liveReplayOptionComboBox.getSelectionModel().getSelectedItem().getDelaySeconds(),
+        rankedEnabledCheckBox.isSelected()
+            ? mapPoolListView.getSelectionModel().getSelectedItem().getLeaderboard().getTechnicalName()
+            : DEFAULT_RATING_TYPE);
 
     gameService.hostGame(newGameInfo).exceptionally(throwable -> {
       log.warn("Game could not be hosted", throwable);
@@ -644,7 +725,11 @@ public class CreateGameController implements Controller<Pane> {
   }
 
   public void onUpdateButtonClicked() {
-    gameService.setMapForStagingGame(mapListView.getSelectionModel().getSelectedItem().getMapName());
+    gameService.updateSettingsForStagingGame(
+        mapListView.getSelectionModel().getSelectedItem().getMapName(),
+        rankedEnabledCheckBox.isSelected()
+            ? mapPoolListView.getSelectionModel().getSelectedItem().getLeaderboard().getTechnicalName()
+            : DEFAULT_RATING_TYPE);
   }
 
   public Pane getRoot() {

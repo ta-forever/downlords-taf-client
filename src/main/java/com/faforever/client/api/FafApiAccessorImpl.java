@@ -105,7 +105,7 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   private static final String REPORT_ENDPOINT = "/data/moderationReport";
   private static final String TOURNAMENT_LIST_ENDPOINT = "/challonge/v1/tournaments.json";
   private static final String REPLAY_INCLUDES = "featuredMod,playerStats,playerStats.player,playerStats.ratingChanges,reviews," +
-      "reviews.player,mapVersion,mapVersion.map,reviewsSummary";
+      "reviews.player,mapVersion,mapVersion.map,reviewsSummary,playerStats.ratingChanges.leaderboard";
   private static final String MAP_INCLUDES = "latestVersion,author,statistics,reviewsSummary," +
       "versions.reviews,versions.reviews.player";
   private static final String MAP_VERSION_INCLUDES = "map,map.latestVersion,map.author,map.statistics," +
@@ -564,6 +564,14 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
       return Optional.empty();
     }
     return Optional.ofNullable(queue.get(0));
+  }
+
+  @Override
+  @Cacheable(value = CacheNames.MATCHMAKER_QUEUES_BY_MOD, sync = true)
+  public List<MatchmakerQueue> getMatchmakerQueuesByMod(String modTechnicalName) {
+    return getAll("/data/matchmakerQueue", java.util.Map.of(
+        INCLUDE, "leaderboard,featuredMod",
+        FILTER, rsql(qBuilder().string("featuredMod.technicalName").eq(modTechnicalName))));
   }
 
   @Override

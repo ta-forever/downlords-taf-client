@@ -47,7 +47,13 @@
             <Insets top="5.0" />
          </padding>
         </Label>
-        <Label fx:id="gameTypeLabel" minWidth="0.0" styleClass="card-featured-mod" text="&lt;Game Type&gt;" GridPane.columnIndex="1" GridPane.columnSpan="2147483647" GridPane.rowIndex="1" />
+        <Label fx:id="gameTypeLabel" minWidth="0.0" styleClass="card-featured-mod" text="&lt;Game Type&gt;" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+        <Label fx:id="gameRatingTypeLabel" minWidth="0.0" styleClass="card-featured-mod" text="&lt;Rating Type&gt;" GridPane.columnIndex="1" GridPane.rowIndex="1">
+            <graphic>
+                <Region styleClass="icon,icon-trophy"/>
+            </graphic>
+        </Label>
+        <Label fx:id="gameRatingTypeGlobalLabel" minWidth="0.0" styleClass="card-featured-mod" text="%leaderboard.global.name" GridPane.columnIndex="2" GridPane.rowIndex="1" />
         <Label fx:id="gameStatusLabel" minWidth="0.0" styleClass="card-info" text="&lt;Status&gt;" GridPane.columnIndex="1" GridPane.rowIndex="2">
             <graphic>
                 <Region styleClass="icon,info-icon" />

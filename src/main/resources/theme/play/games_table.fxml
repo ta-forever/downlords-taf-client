@@ -6,6 +6,7 @@
   <columns>
     <TableColumn fx:id="passwordProtectionColumn" editable="false" maxWidth="30.0" minWidth="30.0" prefWidth="20.0"
                  resizable="false"/>
+    <TableColumn fx:id="rankedColumn" editable="false" minWidth="30.0" maxWidth="30" prefWidth="20.0" resizable="false"/>
     <TableColumn fx:id="mapPreviewColumn" editable="false" minWidth="45.0" prefWidth="45.0" resizable="false"
                  text="%game.map"/>
     <TableColumn fx:id="modsColumn" editable="false" minWidth="20.0" prefWidth="20.0" text="%game.mods" />

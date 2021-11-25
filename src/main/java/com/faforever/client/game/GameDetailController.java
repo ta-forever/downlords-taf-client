@@ -23,7 +23,6 @@ import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ObservableMap;
@@ -34,7 +33,6 @@ import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -49,6 +47,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.faforever.client.game.GameService.DEFAULT_RATING_TYPE;
 import static javafx.beans.binding.Bindings.createObjectBinding;
 import static javafx.beans.binding.Bindings.createStringBinding;
 
@@ -91,12 +90,15 @@ public class GameDetailController implements Controller<Pane> {
   private final WeakInvalidationListener weakThisGameTeamsListener;
   private final WeakInvalidationListener weakThisGameStatusListener;
   public Node watchButton;
+  public Label gameRatingTypeLabel;
+  public Label gameRatingTypeGlobalLabel;
   private Timeline gameTimeSinceStartUpdater;
   public Label gameTimeSinceStartLabel;
   public GameDetailMapContextMenuController mapContextMenuController;
 
   @SuppressWarnings("FieldCanBeLocal")
   private InvalidationListener featuredModInvalidationListener;
+  private InvalidationListener gameRatingTypeInvalidationListener;
   private ChangeListener<GameStatus> currentGameStatusListener;
   private ChangeListener<Number> gameRunningListener;
   private ChangeListener<Game> autoJoinRequestedGameListener;
@@ -261,6 +263,7 @@ public class GameDetailController implements Controller<Pane> {
       Optional.ofNullable(weakThisGameTeamsListener).ifPresent(listener -> oldGame.getTeams().removeListener(listener));
       Optional.ofNullable(weakThisGameStatusListener).ifPresent(listener -> oldGame.statusProperty().removeListener(listener));
       Optional.ofNullable(featuredModInvalidationListener).ifPresent(listener -> oldGame.featuredModProperty().removeListener(listener));
+      Optional.ofNullable(gameRatingTypeInvalidationListener).ifPresent(listener -> oldGame.ratingTypeProperty().removeListener(listener));
     });
 
     this.game.set(game);
@@ -323,6 +326,15 @@ public class GameDetailController implements Controller<Pane> {
         }));
     game.featuredModProperty().addListener(featuredModInvalidationListener);
     featuredModInvalidationListener.invalidated(game.featuredModProperty());
+
+    gameRatingTypeInvalidationListener = observable -> JavaFxUtil.runLater(() ->
+        gameRatingTypeLabel.setText(i18n.get(String.format("leaderboard.%s.name", game.getRatingType()))));
+    game.ratingTypeProperty().addListener(gameRatingTypeInvalidationListener);
+    gameRatingTypeInvalidationListener.invalidated(game.ratingTypeProperty());
+
+    gameTypeLabel.visibleProperty().bind(game.ratingTypeProperty().isEqualTo(DEFAULT_RATING_TYPE));
+    gameRatingTypeGlobalLabel.visibleProperty().bind(gameTypeLabel.visibleProperty());
+    gameRatingTypeLabel.visibleProperty().bind(gameTypeLabel.visibleProperty().not());
 
     JavaFxUtil.addListener(game.getTeams(), weakThisGameTeamsListener);
     thisGameTeamsInvalidationListener.invalidated(game.getTeams());

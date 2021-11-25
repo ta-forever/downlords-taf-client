@@ -67,38 +67,38 @@
                                      <Region styleClass="icon,time-icon"/>
                                  </graphic>
                               </Label>
+                               <Label fx:id="durationLabel" graphicTextGap="10.0" text="&lt;Duration&gt;"
+                                      GridPane.columnIndex="3" GridPane.rowIndex="2">
+                                   <graphic>
+                                       <Region styleClass="icon,duration-icon"/>
+                                   </graphic>
+                               </Label>
+                               <Label fx:id="playerCountLabel" graphicTextGap="10.0" text="&lt;PlayerCount&gt;"
+                                      GridPane.columnIndex="4" GridPane.rowIndex="2">
+                                   <graphic>
+                                       <Region styleClass="icon,players-icon"/>
+                                   </graphic>
+                               </Label>
                                <Label fx:id="modLabel" graphicTextGap="10.0" text="&lt;Mods&gt;"
                                       GridPane.columnIndex="1" GridPane.rowIndex="3">
                                  <graphic>
                                      <Region styleClass="icon,mods-icon"/>
                                  </graphic>
                               </Label>
-                               <Label fx:id="durationLabel" graphicTextGap="10.0" text="&lt;Duration&gt;"
-                                      GridPane.columnIndex="3" GridPane.rowIndex="2">
-                                 <graphic>
-                                     <Region styleClass="icon,duration-icon"/>
-                                 </graphic>
-                              </Label>
-                               <Label fx:id="replayDurationLabel" graphicTextGap="10.0" text="&lt;Duration&gt;"
-                                      GridPane.columnIndex="3" GridPane.rowIndex="3">
-                                 <graphic>
-                                     <Region styleClass="icon,duration-icon"/>
-                                 </graphic>
-                              </Label>
-                               <Label fx:id="playerCountLabel" graphicTextGap="10.0" text="&lt;PlayerCount&gt;"
+                               <Label fx:id="ratingTypeLabel" graphicTextGap="10.0"
                                       GridPane.columnIndex="2" GridPane.rowIndex="3">
-                                 <graphic>
-                                     <Region styleClass="icon,players-icon"/>
-                                 </graphic>
-                              </Label>
+                                   <graphic>
+                                       <Region styleClass="icon, icon-trophy"/>
+                                   </graphic>
+                               </Label>
                                <Label fx:id="ratingLabel" graphicTextGap="10.0" text="&lt;AvgRating&gt;"
-                                      GridPane.columnIndex="4" GridPane.rowIndex="3">
+                                      GridPane.columnIndex="3" GridPane.rowIndex="3">
                                  <graphic>
                                      <Region styleClass="icon,statistics-icon"/>
                                  </graphic>
                               </Label>
                                <Label fx:id="qualityLabel" graphicTextGap="10.0" text="&lt;Quality&gt;"
-                                      GridPane.columnIndex="4" GridPane.rowIndex="2">
+                                      GridPane.columnIndex="4" GridPane.rowIndex="3">
                                  <graphic>
                                      <Region styleClass="icon,balance-icon"/>
                                  </graphic>

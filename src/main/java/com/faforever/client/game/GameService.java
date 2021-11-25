@@ -115,9 +115,7 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 @RequiredArgsConstructor
 public class GameService implements InitializingBean {
 
-  @VisibleForTesting
-  static final String DEFAULT_RATING_TYPE = "global";
-
+  public static final String DEFAULT_RATING_TYPE = "global";
   public static final String CUSTOM_GAME_CHANNEL_REGEX = "^#.+\\[.+\\]$";
 
   /**
@@ -779,16 +777,15 @@ public class GameService implements InitializingBean {
     }
   }
 
-  public void setMapForStagingGame(String mapName) {
+  public void updateSettingsForStagingGame(String mapName, String ratingType) {
     Game currentGame = getCurrentGame();
     if (isGameRunning() && currentGame != null && currentGame.getStatus()==GameStatus.STAGING) {
       try {
         List<String[]> mapsDetails = MapTool.listMap(preferencesService.getTotalAnnihilation(currentGame.getFeaturedMod()).getInstalledPath(), mapName);
         final String UNIT_SEPARATOR = Character.toString((char)0x1f);
         String mapDetails = String.join(UNIT_SEPARATOR, mapsDetails.get(0));
-        String command = String.format("/map %s", mapDetails);
-        log.info("[setMapForStagingGame] Sending '{}' to game console", command);
-        this.totalAnnihilationService.sendToConsole(command);
+        this.totalAnnihilationService.sendToConsole(String.format("/map %s", mapDetails));
+        this.totalAnnihilationService.sendToConsole(String.format("/rating_type %s", ratingType));
       }
       catch (IOException e) {
         log.info("[setMapForStagingGame] unable to get details for map {}", mapName);
@@ -796,7 +793,7 @@ public class GameService implements InitializingBean {
       }
     }
     else {
-      log.info("[setMapForStagingGame] attempt to set map while current game is not in STAGING state. ignoring");
+      log.info("[setMapForStagingGame] attempt to update settings while current game is not in STAGING state. ignoring");
     }
   }
 
@@ -1059,7 +1056,8 @@ public class GameService implements InitializingBean {
             new HashSet<>(prototype.getSimMods().values()),
             prototype.getVisibility(),
             prototype.getMinRating(), prototype.getMaxRating(),
-            prototype.getEnforceRating(), prototype.getReplayDelaySeconds())));
+            prototype.getEnforceRating(), prototype.getReplayDelaySeconds(),
+            prototype.getRatingType())));
   }
 
   private ObjectProperty<Game> autoJoinRequestedGameProperty = new SimpleObjectProperty<>();

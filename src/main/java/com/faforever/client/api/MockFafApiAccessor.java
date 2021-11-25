@@ -326,6 +326,9 @@ public class MockFafApiAccessor implements FafApiAccessor {
   }
 
   @Override
+  public List<MatchmakerQueue> getMatchmakerQueuesByMod(String modTechnicalName) { return List.of(); }
+
+  @Override
   public List<Tournament> getAllTournaments() {
     return List.of();
   }

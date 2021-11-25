@@ -18,14 +18,12 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.control.ComboBox?>
-<?import javafx.collections.FXCollections?>
-<?import java.lang.Integer?>
-<?import java.lang.String?>
+<?import javafx.scene.control.Tooltip?>
 <GridPane xmlns:fx="http://javafx.com/fxml/1" fx:id="createGameRoot" hgap="10.0" styleClass="create-game-root" vgap="10.0" xmlns="http://javafx.com/javafx/8.0.141" fx:controller="com.faforever.client.game.CreateGameController">
     <columnConstraints>
-        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="256.0"/>
-        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="256.0"/>
-        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="360.0"/>
+        <ColumnConstraints hgrow="NEVER" minWidth="10.0" prefWidth="256.0"/>
+        <ColumnConstraints hgrow="NEVER" minWidth="10.0" prefWidth="256.0"/>
+        <ColumnConstraints hgrow="NEVER" minWidth="10.0" prefWidth="360.0"/>
     </columnConstraints>
     <rowConstraints>
         <RowConstraints vgrow="NEVER"/>
@@ -83,7 +81,24 @@
         <!-- Game Type -->
         <Label styleClass="h2" text="%game.create.gameType" GridPane.rowIndex="3"/>
         <VBox spacing="10.0" GridPane.columnIndex="0" GridPane.rowIndex="4" GridPane.rowSpan="2" GridPane.vgrow="ALWAYS">
-            <ListView fx:id="featuredModListView" VBox.vgrow="ALWAYS" />
+            <ListView fx:id="featuredModListView" VBox.vgrow="SOMETIMES" prefHeight="180"/>
+            <HBox alignment="CENTER_LEFT" spacing="10.0">
+                <CheckBox fx:id="rankedEnabledCheckBox">
+                    <tooltip>
+                        <Tooltip text="%games.create.rankedEnabled.tooltip"/>
+                    </tooltip>
+                </CheckBox>
+                <Label fx:id="rankedEnabledLabel" text="%games.create.rankedEnabled">
+                    <tooltip>
+                        <Tooltip text="%games.create.rankedEnabled.tooltip"/>
+                    </tooltip>
+                </Label>
+            </HBox>
+            <ListView fx:id="mapPoolListView" VBox.vgrow="SOMETIMES" prefHeight="60">
+                <tooltip>
+                    <Tooltip text="%games.create.rankedEnabled.tooltip"/>
+                </tooltip>
+            </ListView>
             <Button fx:id="setGamePathButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onSetGamePathClicked"
                     styleClass="more-button-padding" text="%game.create.install" GridPane.halignment="LEFT">
             </Button>
@@ -133,9 +148,9 @@
                 <Label fx:id="versionLabel" text="&lt;Version&gt;"/>
             </HBox>
             <Separator GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS"/>
-            <ScrollPane fitToWidth="true" maxHeight="1.7976931348623157E308" VBox.vgrow="ALWAYS">
+            <ScrollPane maxWidth="360" fitToWidth="true" maxHeight="1.7976931348623157E308" VBox.vgrow="ALWAYS">
                 <Label fx:id="mapDescriptionLabel" alignment="TOP_LEFT" maxHeight="1.7976931348623157E308"
-                       maxWidth="1.7976931348623157E308" text="&lt;Description&gt;" wrapText="true"/>
+                       maxWidth="360" text="&lt;Description&gt;" wrapText="true"/>
             </ScrollPane>
             <Separator GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS"/>
         </VBox>

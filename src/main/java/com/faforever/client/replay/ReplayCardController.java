@@ -52,6 +52,7 @@ public class ReplayCardController implements Controller<Node> {
   public Label durationLabel;
   public Label playerCountLabel;
   public Label ratingLabel;
+  public Label ratingTypeLabel;
   public Label qualityLabel;
   public Label numberOfReviewsLabel;
   public HBox teamsContainer;
@@ -97,6 +98,13 @@ public class ReplayCardController implements Controller<Node> {
         .average()
         .ifPresentOrElse(averageRating -> ratingLabel.setText(i18n.number((int) averageRating)),
             () -> ratingLabel.setText("-"));
+
+    ratingTypeLabel.setText("-");
+    replay.getTeamPlayerStats().values().stream().findAny()
+        .ifPresent(playerStatsList -> playerStatsList.stream().findAny()
+            .ifPresent(playerStats -> Optional.ofNullable(playerStats.getLeaderboard())
+                .ifPresent(leaderboard -> ratingTypeLabel.setText(i18n.get(leaderboard.getNameKey())))
+            ));
 
     Integer replayTicks = replay.getReplayTicks();
     if (replayTicks != null) {

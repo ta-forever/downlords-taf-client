@@ -911,6 +911,13 @@ public class MapService implements InitializingBean, DisposableBean {
     return fafService.getMatchmakerMapsWithPageCount(matchmakerQueue.getQueueId(), meanRating, count, page);
   }
 
+  public CompletableFuture<List<MapBean>> getMatchmakerMaps(MatchmakingQueue matchmakerQueue) {
+    Player player = playerService.getCurrentPlayer().orElseThrow(() -> new IllegalStateException("No user is logged in"));
+    float meanRating = Optional.ofNullable(player.getLeaderboardRatings().get(matchmakerQueue.getLeaderboard().getTechnicalName()))
+        .map(LeaderboardRating::getMean).orElse(0f);
+    return fafService.getMatchmakerMaps(matchmakerQueue.getQueueId(), meanRating);
+  }
+
   public CompletableFuture<Tuple<List<MapBean>, Integer>> getOwnedMapsWithPageCount(int loadMoreCount, int page) {
     Player player = playerService.getCurrentPlayer()
         .orElseThrow(() -> new IllegalStateException("Current player not set"));

@@ -34,6 +34,7 @@ import static com.faforever.client.config.CacheNames.MAP_GENERATOR;
 import static com.faforever.client.config.CacheNames.MAP_PREVIEW;
 import static com.faforever.client.config.CacheNames.MATCHMAKER_POOLS;
 import static com.faforever.client.config.CacheNames.MATCHMAKER_QUEUES;
+import static com.faforever.client.config.CacheNames.MATCHMAKER_QUEUES_BY_MOD;
 import static com.faforever.client.config.CacheNames.MODS;
 import static com.faforever.client.config.CacheNames.MOD_THUMBNAIL;
 import static com.faforever.client.config.CacheNames.NEWS;
@@ -74,7 +75,8 @@ public class CacheConfig extends CachingConfigurerSupport {
         new CaffeineCache(FEATURED_MODS, newBuilder().build()),
         new CaffeineCache(FEATURED_MOD_FILES, newBuilder().expireAfterWrite(10, MINUTES).build()),
         new CaffeineCache(MATCHMAKER_QUEUES, newBuilder().expireAfterWrite(10, MINUTES).build()),
-        new CaffeineCache(MATCHMAKER_POOLS, newBuilder().expireAfterWrite(1, MINUTES).build()),
+        new CaffeineCache(MATCHMAKER_QUEUES_BY_MOD, newBuilder().expireAfterWrite(10, MINUTES).build()),
+        new CaffeineCache(MATCHMAKER_POOLS, newBuilder().expireAfterWrite(10, MINUTES).build()),
         new CaffeineCache(TADEMO_MAP_HASH, newBuilder().expireAfterWrite(1, MINUTES).build()),
         new CaffeineCache(TADEMO_MOD_HASH, newBuilder().expireAfterWrite(1, MINUTES).build()),
 
