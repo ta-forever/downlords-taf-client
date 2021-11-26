@@ -74,6 +74,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_ARCHIVE;
@@ -399,6 +401,7 @@ public class MapService implements InitializingBean, DisposableBean {
     });
   }
 
+  static final Pattern MAP_SIZE_FROM_DESCRIPTION_REGEX = Pattern.compile("([0-9]+\\s?[xX]\\s?[0-9]+)[\\s\\.].*");
   @NotNull
   public MapBean readMap(String mapName, String [] mapDetails) {
     MapBean mapBean = new MapBean();
@@ -423,6 +426,12 @@ public class MapService implements InitializingBean, DisposableBean {
       logger.warn("index out of bounds for map: {}. details: {}", String.join("/",mapDetails));
     }
 
+    if (mapSizeStr.isEmpty()) {
+      Matcher matcher = MAP_SIZE_FROM_DESCRIPTION_REGEX.matcher(description);
+      if (matcher.find()) {
+        mapSizeStr = matcher.group(1);
+      }
+    }
     String mapSizeArray[] = mapSizeStr.replaceAll("[^0-9x]", "").split("x");
 
     mapBean.setDownloadUrl(getDownloadUrl(archiveName, mapDownloadUrlFormat));
