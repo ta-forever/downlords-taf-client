@@ -71,7 +71,6 @@ import java.lang.ref.WeakReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -435,15 +434,8 @@ public class CreateGameController implements Controller<Pane> {
     if (rankedEnabledCheckBox.isSelected() && mapPoolListView.getSelectionModel().getSelectedItem() != null) {
       try {
         MatchmakingQueue q = mapPoolListView.getSelectionModel().getSelectedItem();
-        HashSet<String> mapPoolMapNames = mapService.getMatchmakerMaps(q).get().stream()
-            .map(MapBean::getMapName)
-            .collect(Collectors.toCollection(HashSet::new));
-
-        filteredMapBeans = new FilteredList<>(mapService.getInstalledMaps(modTechnical)
-            .filtered(mapBean -> mapBean.getType() == Type.SKIRMISH)
-            .filtered(mapBean -> mapPoolMapNames.contains(mapBean.getMapName()))
+        filteredMapBeans = new FilteredList<>(FXCollections.observableArrayList(mapService.getMatchmakerMaps(q).get())
             .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())));
-
         doSetAvailableMaps(modTechnical, filteredMapBeans);
 
       } catch (Exception e) {
