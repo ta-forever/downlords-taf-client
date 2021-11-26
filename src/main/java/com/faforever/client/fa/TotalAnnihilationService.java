@@ -314,20 +314,7 @@ public class TotalAnnihilationService {
     return launch(getNativeGpgnet4taDir(), replayCommand);
   }
 
-  private boolean isPortAvailable(String host, int port) {
-    boolean result = true;
-    try {
-      (new Socket(host, port)).close();
-      result = false;
-    }
-    catch(IOException e) {  }
-    return result;
-  }
-
   private void freePort47624() {
-    if (!isPortAvailable("127.0.0.1", 47624)) {
-      logger.info("Port 47624 appears to be in use");
-    }
     try {
       if (org.bridj.Platform.isLinux()) {
         for (String executable : List.of("dplaysvr.exe", "gpgnet4ta")) {
@@ -348,9 +335,6 @@ public class TotalAnnihilationService {
       logger.warn("InterruptedException shutting process: {}", e.getMessage());
     } catch (IOException e) {
       logger.warn("IOException shutting down process: {}", e.getMessage());
-    }
-    if (!isPortAvailable("127.0.0.1", 47624)) {
-      logger.warn("Port 47624 appears to be STILL in use!");
     }
   }
 
