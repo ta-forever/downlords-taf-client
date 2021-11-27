@@ -431,7 +431,8 @@ public class CreateGameController implements Controller<Pane> {
 
   protected void setAvailableMaps(String modTechnical) {
 
-    if (rankedEnabledCheckBox.isSelected() && mapPoolListView.getSelectionModel().getSelectedItem() != null) {
+    if (rankedEnabledCheckBox.isSelected() && mapPoolListView.getSelectionModel().getSelectedItem() != null &&
+        !mapService.getInstalledMaps(modTechnical).isEmpty()) {
       try {
         MatchmakingQueue q = mapPoolListView.getSelectionModel().getSelectedItem();
         filteredMapBeans = new FilteredList<>(FXCollections.observableArrayList(mapService.getMatchmakerMaps(q).get())
