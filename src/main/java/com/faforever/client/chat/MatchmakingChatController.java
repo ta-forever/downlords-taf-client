@@ -15,6 +15,7 @@ import com.faforever.client.user.UserService;
 import com.faforever.client.util.TimeService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TextInputControl;
@@ -36,6 +37,7 @@ public class MatchmakingChatController extends AbstractChatTabController {
   public WebView messagesWebView;
   public TextInputControl messageTextField;
   public TextFlow topicText;
+  public Button dockButton;
 
   private ChatChannel channel;
 
@@ -125,5 +127,9 @@ public class MatchmakingChatController extends AbstractChatTabController {
     onChatMessage(new ChatMessage(getReceiver(), Instant.now(),
         i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerConnect", user.getUsername()), true)
         .setSubject(user.getUsername()));
+  }
+
+  public Button getDockButton() {
+    return this.dockButton;
   }
 }

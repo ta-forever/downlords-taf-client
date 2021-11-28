@@ -76,6 +76,7 @@ public class Preferences {
   private final ObjectProperty<RatingMetric> userInfoRatingMetric;
   private final ObjectProperty<AutoUploadLogsOption> autoUploadLogsOption;
   private final StringProperty lastLeaderboardSelection;
+  private final BooleanProperty gameRoomPopout;
 
   public Preferences() {
     gameTileSortingOrder = new SimpleObjectProperty<>(TilesSortingOrder.PLAYER_DES);
@@ -121,6 +122,7 @@ public class Preferences {
     tadaIntegrationOption = new SimpleObjectProperty<>(TadaIntegrationOption.BROWSER);
     userInfoRatingMetric = new SimpleObjectProperty<>(RatingMetric.TRUESKILL);
     lastLeaderboardSelection = new SimpleStringProperty("global");
+    gameRoomPopout = new SimpleBooleanProperty(true);
   }
 
   public VaultPrefs getVault() {
@@ -504,5 +506,15 @@ public class Preferences {
 
   public StringProperty lastLeaderboardSelectionProperty() {
     return lastLeaderboardSelection;
+  }
+
+  public boolean getGameRoomPopout() {
+    return gameRoomPopout.get();
+  }
+
+  public void setGameRoomPopout(boolean option) { this.gameRoomPopout.set(option); }
+
+  public BooleanProperty gameRoomPopoutProperty() {
+    return gameRoomPopout;
   }
 }

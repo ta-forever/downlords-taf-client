@@ -10,7 +10,9 @@ import com.faforever.client.game.CustomGamesController;
 import com.faforever.client.game.Game;
 import com.faforever.client.game.GameDetailController;
 import com.faforever.client.game.GameService;
+import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.NavigateEvent;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.theme.UiService;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -20,6 +22,7 @@ import javafx.scene.control.SplitPane;
 import javafx.scene.control.TabPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +38,8 @@ public class PlayController extends AbstractViewController<Node> {
   private final GameService gameService;
   private final UiService uiService;
   private final EventBus eventBus;
+  private final PreferencesService preferencesService;
+  private final I18n i18n;
 
   public StackPane playRoot;
   public Node customGames;
@@ -53,21 +58,25 @@ public class PlayController extends AbstractViewController<Node> {
   private ChatController mainChatController;
   private MatchmakingChatController gameChatController;
   private GameDetailController gameDetailController;
+  private GamePopoutController gamePopoutController;
 
-  public PlayController(GameService gameService, UiService uiService, EventBus eventBus) {
+  public PlayController(GameService gameService, UiService uiService, EventBus eventBus,
+                        PreferencesService preferencesService, I18n i18n) {
     this.gameService = gameService;
     this.uiService = uiService;
     this.eventBus = eventBus;
+    this.preferencesService = preferencesService;
+    this.i18n = i18n;
 
     eventBus.register(this);
   }
 
   @Override
   public void initialize() {
-    gameChatController = uiService.loadFxml("theme/play/teammatchmaking/matchmaking_chat.fxml");
-    gameChat.getTabs().add(gameChatController.getRoot());
-
+    gamePopoutController = uiService.loadFxml("theme/play/game_popout.fxml");
+    this.dockChatController(uiService.loadFxml("theme/play/teammatchmaking/matchmaking_chat.fxml"));
     gameDetailController = uiService.loadFxml("theme/play/game_detail.fxml");
+
     gameDetailContainer.setContent(gameDetailController.getRoot());
     JavaFxUtil.bindManagedToVisible(gameDetailContainer);
     gameDetailContainer.setVisible(false);
@@ -99,6 +108,20 @@ public class PlayController extends AbstractViewController<Node> {
     setChatContainerOrientation();
   }
 
+  public MatchmakingChatController undockChatController() {
+    if (gameChatController != null) {
+      gameChat.getTabs().remove(gameChatController.getRoot());
+    }
+    return gameChatController;
+  }
+
+  public void dockChatController(MatchmakingChatController chatController) {
+    if (chatController != null) {
+      this.gameChatController = chatController;
+      gameChat.getTabs().add(chatController.getRoot());
+    }
+  }
+
   @Override
   protected void onDisplay(NavigateEvent navigateEvent) {
     customGamesController.display(navigateEvent);
@@ -124,9 +147,17 @@ public class PlayController extends AbstractViewController<Node> {
   }
 
   private void setCurrentGame(Game game) {
-    enableGameChatBox(game != null);
-    setGameChatBoxChannel(game);
-    setChatContainerOrientation();
+    if (preferencesService.getPreferences().getGameRoomPopout()) {
+      enableGameRoomPopout(game != null);
+      enableGameChatBox(false);
+      setGameChatBoxChannel(game);
+    }
+    else {
+      enableGameRoomPopout(false);
+      enableGameChatBox(game != null);
+      setGameChatBoxChannel(game);
+      setChatContainerOrientation();
+    }
   }
 
   private void setFocusedGame(Game game) {
@@ -176,5 +207,29 @@ public class PlayController extends AbstractViewController<Node> {
       chatContainer.getItems().remove(gameChatContainer);
       mainViewContainer.getItems().remove(gameChatContainer);
     }
+  }
+
+  private void enableGameRoomPopout(boolean enable) {
+    if (enable) {
+      gamePopoutController.show();
+      gamePopoutController.getStage().setOnCloseRequest((event) -> this.setGameRoomPopoutOption(false));
+      gameChatController.getDockButton().setOnAction((event) -> this.setGameRoomPopoutOption(false));
+      gameChatController.getDockButton().getTooltip().setText(i18n.get("game.chatBox.dock"));
+      gamePopoutController.dockChatController(this.undockChatController());
+
+    } else {
+      if (gamePopoutController.fxStage != null) {
+        gamePopoutController.fxStage.getStage().close();
+      }
+      gameChatController.getDockButton().setOnAction((event) -> this.setGameRoomPopoutOption(true));
+      gameChatController.getDockButton().getTooltip().setText(i18n.get("game.chatBox.undock"));
+      this.dockChatController(gamePopoutController.undockChatController());
+    }
+  }
+
+  private void setGameRoomPopoutOption(boolean option) {
+    preferencesService.getPreferences().setGameRoomPopout(option);
+    preferencesService.storeInBackground();
+    this.setCurrentGame(gameService.getCurrentGame());
   }
 }

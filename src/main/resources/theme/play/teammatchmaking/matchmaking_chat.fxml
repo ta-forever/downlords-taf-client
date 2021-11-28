@@ -10,12 +10,23 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.TextFlow?>
 <?import javafx.scene.web.WebView?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.Region?>
 <Tab xmlns="http://javafx.com/javafx"
      xmlns:fx="http://javafx.com/fxml" fx:id="matchmakingChatTabRoot"
      fx:controller="com.faforever.client.chat.MatchmakingChatController">
     <VBox>
         <children>
             <HBox spacing="50.0">
+                <Button fx:id="dockButton">
+                    <tooltip>
+                        <Tooltip text="dock"/>
+                    </tooltip>
+                    <graphic>
+                        <Region styleClass="icon,dock-icon"/>
+                    </graphic>
+                </Button>
                 <TextFlow fx:id="topicText" maxWidth="1.7976931348623157E308">
                     <Hyperlink fx:id="discordLink" text="https://discord.gg/hTRDqn3mkX" styleClass="discord-invite-link"/>
                 </TextFlow>

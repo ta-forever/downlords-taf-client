@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.Label?>
+<StackPane fx:id="root" prefWidth="800" prefHeight="600" maxHeight="1.7976931348623157E308" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.faforever.client.play.GamePopoutController">
+    <VBox>
+        <HBox alignment="CENTER_LEFT" styleClass="user-info-header-area" VBox.vgrow="NEVER">
+            <Label fx:id="headingLabel" maxWidth="1.7976931348623157E308" styleClass="h2" text="%game.chatBox.title"/>
+        </HBox>
+        <HBox VBox.vgrow="ALWAYS">
+            <TabPane fx:id="chatTabPane" styleClass="chat-tab-pane" tabClosingPolicy="UNAVAILABLE" HBox.hgrow="ALWAYS"/>
+            <ScrollPane fx:id="gameDetailScrollPane" fitToWidth="TRUE" prefWidth="250" HBox.Hgrow="SOMETIMES" styleClass="game-detail-framed"/>
+        </HBox>
+    </VBox>
+</StackPane>
