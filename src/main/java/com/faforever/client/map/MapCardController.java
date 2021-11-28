@@ -42,7 +42,6 @@ public class MapCardController implements Controller<Node> {
   public ImageView thumbnailImageView;
   public Label nameLabel;
   public Node mapTileRoot;
-  public Label authorLabel;
   public Label mapVersionLabel;
   public Label mapHpiArchiveNameLabel;
   public StarsController starsController;
@@ -90,7 +89,6 @@ public class MapCardController implements Controller<Node> {
     }
     thumbnailImageView.setImage(image);
     nameLabel.setText(map.getMapName());
-    authorLabel.setText(Optional.ofNullable(map.getAuthor()).orElse(i18n.get("map.unknownAuthor")));
     mapHpiArchiveNameLabel.setText(Optional.ofNullable(map.getHpiArchiveName()).orElse("<unknown archive>"));
     numberOfPlaysLabel.setText(i18n.number(map.getNumberOfPlays()));
 

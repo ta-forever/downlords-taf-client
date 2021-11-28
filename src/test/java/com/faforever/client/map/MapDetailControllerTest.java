@@ -205,7 +205,7 @@ public class MapDetailControllerTest extends AbstractPlainJavaFxTest {
 
     verify(reviewsController).setCanWriteReview(true);
     assertEquals(testMap.getDisplayName(), instance.nameLabel.getText());
-    assertEquals(testMap.getAuthor(), instance.authorLabel.getText());
+    assertEquals(testMap.getAuthor(), instance.maintainerLabel.getText());
     assertEquals(String.valueOf(testMap.getPlayers()), instance.maxPlayersLabel.getText());
     assertEquals(testMap.getId(), instance.mapIdLabel.getText());
     assertEquals("map size", instance.dimensionsLabel.getText());

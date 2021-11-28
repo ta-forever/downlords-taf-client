@@ -67,7 +67,7 @@ public class MapDetailController implements Controller<Node> {
   public Button installButton;
   public ImageView thumbnailImageView;
   public Label nameLabel;
-  public Label authorLabel;
+  public Label maintainerLabel;
   public Label mapVersionLabel;
   public Label mapCrcLabel;
   public Label mapHpiArchiveNameLabel;
@@ -94,7 +94,7 @@ public class MapDetailController implements Controller<Node> {
   public void initialize() {
     JavaFxUtil.bindManagedToVisible(uninstallButton, installButton, progressBar, progressLabel, hideButton,
         unrankButton, loadingContainer, hideBox, getRoot());
-    JavaFxUtil.addLabelContextMenus(uiService, nameLabel, authorLabel, mapDescriptionLabel, mapIdLabel);
+    JavaFxUtil.addLabelContextMenus(uiService, nameLabel, maintainerLabel, mapDescriptionLabel, mapIdLabel);
     JavaFxUtil.fixScrollSpeed(scrollPane);
     progressBar.visibleProperty().bind(uninstallButton.visibleProperty().not().and(installButton.visibleProperty().not()));
     progressLabel.visibleProperty().bind(progressBar.visibleProperty());
@@ -169,7 +169,7 @@ public class MapDetailController implements Controller<Node> {
     thumbnailImageView.setImage(image);
     renewAuthorControls();
     nameLabel.setText(map.getMapName());
-    authorLabel.setText(Optional.ofNullable(map.getAuthor()).orElse(i18n.get("map.unknownAuthor")));
+    maintainerLabel.setText(i18n.get("map.maintainer") + ": " + Optional.ofNullable(map.getAuthor()).orElse(i18n.get("unknown")));
     maxPlayersLabel.setText(i18n.number(map.getPlayers()));
     mapIdLabel.setText("ID: " + i18n.get("map.id", map.getId()));
     mapCrcLabel.setText("CRC32: " + map.getCrc());

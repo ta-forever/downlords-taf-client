@@ -86,7 +86,7 @@ public class MapVaultController extends VaultEntityController<MapBean> {
     searchController.setSavedQueries(preferencesService.getPreferences().getVault().getSavedMapQueries());
 
     searchController.addTextFilter("displayName", i18n.get("map.name"));
-    searchController.addTextFilter("author.login", i18n.get("map.author"));
+    searchController.addTextFilter("author.login", i18n.get("map.maintainer"));
     searchController.addDateRangeFilter("latestVersion.updateTime", i18n.get("map.uploadedDateTime"), 0);
     taInstallationBox.setVisible(true);
 
