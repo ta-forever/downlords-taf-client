@@ -1,0 +1,14 @@
+#backdrop {
+  -fx-background-color: transparent;
+  -fx-padding: 10;
+}
+
+.fxwindow {
+  -fx-background-color: white;
+  /* disabled due to performance issues when no GPU available */
+  /*-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0.2, 0, 0);*/
+}
+
+#backdrop:maximized {
+  -fx-padding: 0;
+}

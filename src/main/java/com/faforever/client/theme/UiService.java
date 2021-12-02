@@ -370,7 +370,8 @@ public class UiService implements InitializingBean, DisposableBean {
   public String[] getStylesheets() {
     return new String[]{
         FxStage.BASE_CSS.toExternalForm(),
-        FxStage.UNDECORATED_CSS.toExternalForm(),
+        //FxStage.UNDECORATED_CSS.toExternalForm(),   # massive performance issue for VM's without GPU
+        getThemeFile("theme/fxstage-undecorated.css"),
         WaitomoTheme.WAITOMO_CSS.toExternalForm(),
         getThemeFile("theme/colors.css"),
         getThemeFile("theme/icons.css"),
