@@ -274,15 +274,19 @@ public class GameDetailController implements Controller<Pane> {
       this.watchButtonController.setGame(game);
     }
 
-    Optional<MapBean> knownMap = mapService.getMapLocallyFromName(game.getFeaturedMod(), game.getMapName());
-    if (knownMap.isPresent()) {
-      mapDescription.setVisible(true);
-      mapDescription.textProperty().setValue(knownMap.get().getDescription());
-    }
-    else {
-      mapDescription.textProperty().setValue(null);
-      mapDescription.setVisible(false);
-    }
+    ChangeListener<String> mapNameListener = (obs,oldValue,newValue) -> {
+      Optional<MapBean> knownMap = mapService.getMapLocallyFromName(game.getFeaturedMod(), game.getMapName());
+      if (knownMap.isPresent()) {
+        mapDescription.setVisible(true);
+        mapDescription.textProperty().setValue(knownMap.get().getDescription());
+      }
+      else {
+        mapDescription.textProperty().setValue(null);
+        mapDescription.setVisible(false);
+      }
+    };
+    game.mapNameProperty().addListener(mapNameListener);
+    mapNameListener.changed(game.mapNameProperty(), game.mapNameProperty().get(), game.mapNameProperty().get());
 
     gameTitleLabel.textProperty().bind(game.titleProperty());
     hostLabel.textProperty().bind(game.hostProperty());
