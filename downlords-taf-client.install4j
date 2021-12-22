@@ -276,7 +276,7 @@ return console.askOkCancel(message, true);
                 <serializedBean>
                   <property name="file">
                     <object class="java.io.File">
-                      <string>downlords-taf-client</string>
+                      <string>taf-java-client</string>
                     </object>
                   </property>
                   <property name="name" type="string">${compiler:sys.fullName}</property>

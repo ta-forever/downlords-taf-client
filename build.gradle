@@ -4,24 +4,90 @@ import org.gradle.internal.os.OperatingSystem
 buildscript {
   repositories {
     mavenCentral()
-    maven { url 'https://maven.ej-technologies.com/repository' }
     maven { url 'https://repo.spring.io/plugins-release' }
   }
 
   dependencies {
-    classpath("gradle.plugin.install4j.install4j:gradle_plugin:7.0.7")
-    classpath("org.springframework.build.gradle:propdeps-plugin:${propdepsVersion}")
-    classpath "org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}"
+    classpath "org.springframework.boot:spring-boot-gradle-plugin:2.6.1"
   }
 }
 
 plugins {
-  id "com.install4j.gradle" version "7.0.7"
+  id "com.install4j.gradle" version "9.0.5"
   id "co.riiid.gradle" version "0.4.2"
-  id "de.undercouch.download" version "3.4.3"
-  id 'net.ltgt.apt' version '0.19'
+  id "de.undercouch.download" version "4.1.2"
   id 'jacoco'
-  id 'com.github.kt3k.coveralls' version "${coverallsGradlePluginVersion}"
+}
+
+tasks.withType(Test) {
+  String ANSI_BOLD_WHITE = "\u001B[0;1m";
+  String ANSI_RESET = "\u001B[0m";
+  String ANSI_BLACK = "\u001B[30m";
+  String ANSI_RED = "\u001B[31m";
+  String ANSI_GREEN = "\u001B[32m";
+  String ANSI_YELLOW = "\u001B[33m";
+  String ANSI_BLUE = "\u001B[34m";
+  String ANSI_PURPLE = "\u001B[35m";
+  String ANSI_CYAN = "\u001B[36m";
+  String ANSI_WHITE = "\u001B[37m";
+  String CHECK_MARK = "\u2713";
+  String NEUTRAL_FACE = "\u0CA0_\u0CA0";
+  String X_MARK = "\u274C";
+  String indent = '\t';
+
+  def outputCache = new HashMap<TestDescriptor, List<String>>()
+
+  beforeTest { TestDescriptor descriptor -> outputCache.put(descriptor, new ArrayList()) }
+
+  onOutput { TestDescriptor descriptor, TestOutputEvent testOutputEvent ->
+
+    def outputLines = outputCache.get(descriptor)
+    if (outputLines != null) {
+      outputLines.add(testOutputEvent.getMessage())
+    }
+  }
+
+  afterTest { TestDescriptor descriptor, TestResult result ->
+    if (result.failedTestCount > 0) {
+      String output = outputCache.remove(descriptor).join(indent)
+
+
+      def nameParts = descriptor.parent.name.split("\\.")
+      def simpleParentName  = nameParts[nameParts.length - 1]
+
+      out.println()
+      out.println(simpleParentName + " > " + descriptor.name + " STANDARD_OUT")
+      out.println(indent + output)
+      out.println()
+    }
+  }
+
+  afterSuite { desc, result ->
+    if (!desc.parent) { // will match the outermost suite
+      def failStyle = ANSI_RED
+      def skipStyle = ANSI_YELLOW
+      def summaryStyle = ANSI_WHITE
+
+      switch (result.resultType) {
+        case TestResult.ResultType.SUCCESS:
+          summaryStyle = ANSI_GREEN;
+          break;
+        case TestResult.ResultType.FAILURE:
+          summaryStyle = ANSI_RED;
+          break;
+      }
+
+      out.println("--------------------------------------------------------------------------");
+      out.println("Results: " + summaryStyle + " ${result.resultType} " + ANSI_RESET
+              + " (${result.testCount} tests, "
+              + ANSI_GREEN + " ${result.successfulTestCount} passed " + ANSI_RESET
+              + ", " + failStyle + " ${result.failedTestCount} failed " + ANSI_RESET
+              + ", " + skipStyle + " ${result.skippedTestCount} skipped " + ANSI_RESET
+              + ")");
+      out.println("--------------------------------------------------------------------------");
+    }
+  }
+
 }
 
 //Specify jacoco version to work with java15
@@ -32,7 +98,6 @@ jacoco {
 apply plugin: 'java'
 apply plugin: 'org.springframework.boot'
 apply plugin: 'io.spring.dependency-management'
-apply plugin: 'propdeps'
 apply plugin: 'distribution'
 
 
@@ -81,8 +146,12 @@ jacocoTestReport {
 }
 
 test {
+  useJUnitPlatform()
+  systemProperties = [
+          'junit.jupiter.execution.parallel.enabled': true
+  ]
   testLogging {
-    events("failed")
+    exceptionFormat = 'full'
   }
 }
 
@@ -93,14 +162,31 @@ configurations {
 
 bootRun {
     main = "com.faforever.client.Main"
+    jvmArgs = [
+            "-DnativeDir=build/resources/native",
+            "-Dprism.dirtyopts=false",
+            "-Dprism.forceGPU=true",
+            "-Xms128m",
+            "-Xmx712m",
+            "-XX:MinHeapFreeRatio=15",
+            "-XX:MaxHeapFreeRatio=33",
+            "-XX:+HeapDumpOnOutOfMemoryError",
+            "-XX:+UseStringDeduplication",
+            "-XX:ConcGCThreads=1",
+            "-XX:ParallelGCThreads=1",
+            "-XX:+UseG1GC",
+            "-javaagent:webview-patch/build/libs/webview-patch.jar",
+            "-Djava.net.preferIPv4Stack=true",
+            "-XX:TieredStopAtLevel=1"
+    ]
 }
 
 jar {
   manifest {
     attributes "Main-Class": "com.faforever.client.Main",
-        "Implementation-Title": "Downlord's TAF Client",
-        "Implementation-Version": version,
-        "Implementation-Vendor": "Downlord"
+        "Implementation-Title": "TAF Client",
+        "Implementation-Version": archiveVersion,
+        "Implementation-Vendor": "TA Forever"
   }
 }
 
@@ -109,7 +195,7 @@ distributions {
     contents {
       from {
         [
-            configurations.runtime,
+            configurations.runtimeClasspath,
             jar,
             downloadIceAdapter.outputs.files,
             downloadUnixUid.outputs.files,
@@ -243,6 +329,8 @@ task extractWindowsTafToolbox(type: Copy, dependsOn: [downloadWindowsTafToolbox]
 }
 
 task downloadNativeDependencies(dependsOn: [downloadUnixUid, downloadWindowsUid, downloadIceAdapter, extractUnixGpgnet4Ta, extractWindowsGpgnet4Ta, extractUnixTafToolbox, extractWindowsTafToolbox]) {
+//task downloadNativeDependencies(dependsOn: [downloadUnixUid, downloadWindowsUid, downloadIceAdapter]) {
+//task downloadNativeDependencies(dependsOn: []) {
   group "native dependencies"
 }
 
@@ -256,77 +344,81 @@ task sendCoverageToCodacy(type: JavaExec, dependsOn: jacocoTestReport) {
 }
 
 repositories {
-  jcenter()
+  mavenCentral()
   maven { url "https://jitpack.io" }
   maven { url 'https://maven.ej-technologies.com/repository' }
-  maven { url "https://dl.bintray.com/typesafe/maven-releases" }
-  maven { url "https://maven.teamdev.com/repository/products" }
-  maven { url "https://repo.spring.io/milestone/" }
 }
 
 dependencies {
-  compile("org.springframework.boot:spring-boot-starter")
-  compile("org.springframework.boot:spring-boot-starter-cache")
-  compile("org.springframework.boot:spring-boot-starter-logging")
-  compile("org.springframework.boot:spring-boot-starter-websocket")
-  compile("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:${springSecurityOauth2AutoconfigureVersion}")
-  compile("org.springframework:spring-web")
-  compile("org.springframework:spring-websocket")
+  implementation("org.springframework.boot:spring-boot-starter")
+  implementation("org.springframework.boot:spring-boot-starter-cache")
+  implementation("org.springframework.boot:spring-boot-starter-logging")
+  implementation("org.springframework.boot:spring-boot-starter-websocket")
+  implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.1")
+  implementation("org.springframework:spring-web")
+  implementation("org.springframework:spring-websocket")
 
-  compile("com.github.FAForever:faf-java-commons:${fafCommonsVersion}") {
+  implementation("com.github.FAForever:faf-java-commons:c1db35776a062a4f345cd6e17366dddd8b09492f") {
     exclude module: 'guava'
   }
-  compile("com.google.code.gson:gson:2.8.5")
-  compile("com.google.guava:guava:30.0-jre")
-  compile("org.apache.commons:commons-compress:1.20")
-  compile("net.java.dev.jna:jna:${jnaVersion}")
-  compile("net.java.dev.jna:jna-platform:${jnaVersion}")
-  compile("org.eclipse.jgit:org.eclipse.jgit:5.9.0.202009080501-r")
-  compile("org.jetbrains:annotations:20.1.0")
-  compile("com.neovisionaries:nv-i18n:1.23")
-  compile("com.rometools:rome:1.11.1")
-  compile("org.jsoup:jsoup:1.11.3")
-  compile("com.nativelibs4java:bridj:0.7.0")
-  compile("com.github.luben:zstd-jni:1.4.8-1")
-  compile("com.github.nocatch:nocatch:1.1")
-  compile("org.luaj:luaj-jse:3.0.1")
-  compile("commons-validator:commons-validator:1.6")
-  compile("com.github.micheljung:JJsonRpc:01a7fba5f4")
-  compile("javax.inject:javax.inject:1")
-  compile("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
-  compile("com.github.rutledgepaulv:q-builders:${qBuildersVersion}")
-  compile("com.github.nsp:JSkills:${jSkillsVersion}")
-  compile("com.github.jasminb:jsonapi-converter:${jsonapiConverterVersion}")
-  compile("javax.annotation:javax.annotation-api:1.3.1")
-  compile("com.github.ben-manes.caffeine:caffeine")
-  compile("org.apache.httpcomponents:httpclient")
-  compile("ch.micheljung.fxstage:fxstage:0.7.4")
-  compile("ch.micheljung.waitomo:jfx-waitomo-theme:0.2.0")
-  compile("org.kitteh.irc:client-lib:7.3.0")
+  implementation("com.google.code.gson:gson:2.8.5")
+  implementation("com.google.guava:guava:31.0.1-jre")
+  implementation("org.apache.commons:commons-compress:1.21")
+  implementation("net.java.dev.jna:jna:5.10.0")
+  implementation("net.java.dev.jna:jna-platform:5.10.0")
+  implementation("org.eclipse.jgit:org.eclipse.jgit:6.0.0.202111291000-r")
+  implementation("org.jetbrains:annotations:23.0.0")
+  implementation("com.neovisionaries:nv-i18n:1.29")
+  implementation("com.rometools:rome:1.16.0")
+  implementation("org.jsoup:jsoup:1.14.3")
+  implementation("com.nativelibs4java:bridj:0.7.0")
+  implementation("com.github.luben:zstd-jni:1.5.0-5")
+  implementation("io.github.micheljung:nocatch:2.0")
+  implementation("org.luaj:luaj-jse:3.0.1")
+  implementation("commons-validator:commons-validator:1.7")
+  implementation("com.github.micheljung:JJsonRpc:01a7fba5f4")
+  implementation("javax.inject:javax.inject:1")
+  implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+  implementation("com.github.rutledgepaulv:q-builders:1.6")
+  implementation("com.github.nsp:JSkills:8b333ec63d")
+  implementation("com.github.jasminb:jsonapi-converter:0.11")
+  implementation("javax.annotation:javax.annotation-api:1.3.2")
+  implementation("com.github.ben-manes.caffeine:caffeine")
+  implementation("org.apache.httpcomponents:httpclient")
+  implementation("io.github.micheljung:fxstage:0.8.2")
+  implementation("io.github.micheljung:jfx-waitomo-theme:0.3.0")
+  implementation("org.kitteh.irc:client-lib:8.0.0")
+  implementation("org.apache.logging.log4j:log4j-api:2.16.0")
+  implementation("org.apache.logging.log4j:log4j-core:2.16.0")
+  implementation("org.apache.logging.log4j:log4j-to-slf4j:2.16.0")
 
-  compile("org.openjfx:javafx-base:${javafxVersion}:${javafxPlatform}")
-  compile("org.openjfx:javafx-controls:${javafxVersion}:${javafxPlatform}")
-  compile("org.openjfx:javafx-graphics:${javafxVersion}:${javafxPlatform}")
-  compile("org.openjfx:javafx-swing:${javafxVersion}:${javafxPlatform}")
-  compile("org.openjfx:javafx-fxml:${javafxVersion}:${javafxPlatform}")
-  compile("org.openjfx:javafx-web:${javafxVersion}:${javafxPlatform}")
-  compile("org.openjfx:javafx-media:${javafxVersion}:${javafxPlatform}")
-  compile("com.github.1-alex98:discord-rpc:${discordRpcVersion}")
-  compile("org.controlsfx:controlsfx:${controlsfxVersion}")
-  compile("org.fxmisc.flowless:flowless:${flowlessVersion}")
+  implementation("org.openjfx:javafx-base:15.0.1:${javafxPlatform}")
+  implementation("org.openjfx:javafx-controls:15.0.1:${javafxPlatform}")
+  implementation("org.openjfx:javafx-graphics:15.0.1:${javafxPlatform}")
+  implementation("org.openjfx:javafx-swing:15.0.1:${javafxPlatform}")
+  implementation("org.openjfx:javafx-fxml:15.0.1:${javafxPlatform}")
+  implementation("org.openjfx:javafx-web:15.0.1:${javafxPlatform}")
+  implementation("org.openjfx:javafx-media:15.0.1:${javafxPlatform}")
+  implementation("com.github.1-alex98:discord-rpc:1.6.2-jna")
+  implementation("org.controlsfx:controlsfx:11.1.1")
+  implementation("org.fxmisc.flowless:flowless:0.6.7")
 
-  compile project(":webview-patch")
-  compile("org.javassist:javassist:${project.ext['javassist.version']}")
+  implementation(project(":webview-patch"))
+  implementation("org.javassist:javassist:${project.ext['javassist.version']}")
 
-  provided("com.install4j:install4j-runtime:${install4jRuntimeVersion}")
+  implementation("com.install4j:install4j-runtime:9.0.5")
 
-  testCompile 'junit:junit:4.13'
-  testCompile("org.testfx:testfx-core:4.0.8-alpha") {
+  testImplementation("com.squareup.okhttp3:okhttp")
+  testImplementation("com.squareup.okhttp3:mockwebserver")
+  testImplementation("io.projectreactor:reactor-test")
+  testImplementation("org.testfx:testfx-core:4.0.16-alpha") {
     exclude module: 'guava'
   }
-  testCompile("org.testfx:testfx-junit:4.0.8-alpha")
-  testCompile("com.natpryce.hamcrest:hamcrest-reflection:0.1-2")
-  testCompile("org.springframework.boot:spring-boot-starter-test")
+  testImplementation("io.projectreactor.netty:reactor-netty:1.0.14")
+  testImplementation("org.testfx:testfx-junit5:4.0.16-alpha")
+  testImplementation("com.natpryce.hamcrest:hamcrest-reflection:0.1-2")
+  testImplementation("org.springframework.boot:spring-boot-starter-test")
+  testImplementation("org.testfx:openjfx-monocle:jdk-12.0.1+2")
 
   annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
   annotationProcessor("org.projectlombok:lombok")
