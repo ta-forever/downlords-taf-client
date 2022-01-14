@@ -571,11 +571,12 @@ public class GameService implements InitializingBean {
       log.warn("In matchmaker queue, not starting replay");
       notificationService.addImmediateWarnNotification("replay.inQueue");
       return false;
-    } else if (inOthersParty.get()) {
-      log.info("In party, not starting replay");
-      notificationService.addImmediateWarnNotification("replay.inParty");
-      return false;
     }
+//    else if (inOthersParty.get()) {
+//      log.info("In party, not starting replay");
+//      notificationService.addImmediateWarnNotification("replay.inParty");
+//      return false;
+//    }
     return true;
   }
 
