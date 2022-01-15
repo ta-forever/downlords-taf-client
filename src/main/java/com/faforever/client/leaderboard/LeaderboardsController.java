@@ -161,7 +161,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     return new StringConverter<>() {
       @Override
       public String toString(Leaderboard leaderboard) {
-        return i18n.getWithDefault(leaderboard.getTechnicalName(), leaderboard.getNameKey());
+        return i18n.get(leaderboard.getNameKey());
       }
 
       @Override
