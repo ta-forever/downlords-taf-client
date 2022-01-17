@@ -109,7 +109,8 @@ public class CustomGamesController extends AbstractViewController<Node> {
   static private final IntegerProperty nullIntegerProperty = new SimpleIntegerProperty();
   public void initialize() {
     this.createGameDialogRoot = this.gamesRoot;
-    JavaFxUtil.bind(createGameButton.disableProperty(), gameService.runningGameUidProperty().isNotEqualTo(nullIntegerProperty));
+    gameService.runningGameUidProperty().addListener((obs,oldValue,newValue) -> JavaFxUtil.runLater(() ->
+        createGameButton.setDisable(newValue != null && newValue.longValue() > 0)));
 
     getRoot().sceneProperty().addListener((observable, oldValue, newValue) -> {
       if (newValue == null) {
