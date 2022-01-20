@@ -161,6 +161,7 @@ public class SettingsController implements Controller<Node> {
   public Button clearCacheButton;
   public CheckBox gameDataCacheCheckBox;
   public CheckBox gameDataPromptDownloadCheckBox;
+  public CheckBox gameDataMapDownloadKeepVersionTagCheckBox;
   public Spinner<Integer> gameDataCacheTimeSpinner;
   public CheckBox allowReplayWhileInGameCheckBox;
   public Button allowReplayWhileInGameButton;
@@ -382,6 +383,7 @@ public class SettingsController implements Controller<Node> {
   private void initGameDataCache() {
     gameDataCacheCheckBox.selectedProperty().bindBidirectional(preferencesService.getPreferences().gameDataCacheActivatedProperty());
     gameDataPromptDownloadCheckBox.selectedProperty().bindBidirectional(preferencesService.getPreferences().gameDataPromptDownloadActivatedProperty());
+    gameDataMapDownloadKeepVersionTagCheckBox.selectedProperty().bindBidirectional(preferencesService.getPreferences().gameDataMapDownloadKeepVersionTagProperty());
     //Binding for CacheLifeTimeInDays does not work because of some java fx bug
     gameDataCacheTimeSpinner.getValueFactory().setValue(preferencesService.getPreferences().getCacheLifeTimeInDays());
     gameDataCacheTimeSpinner.getValueFactory().valueProperty()

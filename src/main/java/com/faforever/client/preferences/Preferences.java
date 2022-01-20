@@ -71,6 +71,7 @@ public class Preferences {
   private final IntegerProperty cacheLifeTimeInDays;
   private final BooleanProperty gameDataCacheActivated;
   private final BooleanProperty gameDataPromptDownloadActivated;
+  private final BooleanProperty gameDataMapDownloadKeepVersionTag;
   private final BooleanProperty debugLogEnabled;
   private final ObjectProperty<TadaIntegrationOption> tadaIntegrationOption;
   private final ObjectProperty<RatingMetric> userInfoRatingMetric;
@@ -117,6 +118,7 @@ public class Preferences {
     cacheLifeTimeInDays = new SimpleIntegerProperty(30);
     gameDataCacheActivated = new SimpleBooleanProperty(false);
     gameDataPromptDownloadActivated = new SimpleBooleanProperty(true);
+    gameDataMapDownloadKeepVersionTag = new SimpleBooleanProperty(false);
     debugLogEnabled = new SimpleBooleanProperty(false);
     autoUploadLogsOption = new SimpleObjectProperty<>(AutoUploadLogsOption.ASK);
     tadaIntegrationOption = new SimpleObjectProperty<>(TadaIntegrationOption.BROWSER);
@@ -452,6 +454,18 @@ public class Preferences {
 
   public BooleanProperty gameDataPromptDownloadActivatedProperty() {
     return gameDataPromptDownloadActivated;
+  }
+
+  public boolean isGameDataMapDownloadKeepVersionTag() {
+    return gameDataMapDownloadKeepVersionTag.get();
+  }
+
+  public void setGameDataMapDownloadKeepVersionTag(boolean value) {
+    this.gameDataMapDownloadKeepVersionTag.set(value);
+  }
+
+  public BooleanProperty gameDataMapDownloadKeepVersionTagProperty() {
+    return gameDataMapDownloadKeepVersionTag;
   }
 
   public boolean isDebugLogEnabled() {

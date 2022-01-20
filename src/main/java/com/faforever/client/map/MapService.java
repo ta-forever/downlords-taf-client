@@ -53,6 +53,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import javax.inject.Inject;
+import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.net.URL;
@@ -323,6 +324,18 @@ public class MapService implements InitializingBean, DisposableBean {
     thread.start();
 
     return thread;
+  }
+
+  private void removeVersionTag(File archive) {
+    Pattern pattern = Pattern.compile("(.*)(.v[0-9]{4})(.ufo)");
+    Matcher matcher = pattern.matcher(archive.toString());
+    if (matcher.matches()) {
+      File renamedArchive = new File(String.format("%s%s", matcher.group(1), matcher.group(3)));
+      if (archive.exists() && !renamedArchive.exists()) {
+        logger.info("[removeVersionTag] renaming {} to {}", archive, renamedArchive);
+        archive.renameTo(renamedArchive);
+      }
+    }
   }
 
   public void loadInstalledMaps(String modTechnical) {
@@ -623,8 +636,10 @@ public class MapService implements InitializingBean, DisposableBean {
             removeArchive(installationPath.resolve(alreadyInstalledForModAnyCrc.get(0).getHpiArchiveName()));
           }
           // the new archive might contain other maps that conflict with existing archives
-          removeConflictingArchives(
-              modTechnicalName, alreadyInstalledForModAllMaps, installationPath.resolve(downloadHpiArchiveName));
+          removeConflictingArchives(modTechnicalName, alreadyInstalledForModAllMaps, dest);
+          if (!preferencesService.getPreferences().isGameDataMapDownloadKeepVersionTag()) {
+            removeVersionTag(dest.toFile());
+          }
           loadInstalledMaps(modTechnicalName);
         } catch (IOException ex) {
           logger.info("Unable to link/copy {} to {}: {}", source, dest, ex.getMessage());
@@ -684,6 +699,9 @@ public class MapService implements InitializingBean, DisposableBean {
             modTechnicalName, alreadyInstalledForModAllMaps, installationPath.resolve(downloadHpiArchiveName));
         getInstallation(modTechnicalName).downloadingList.removeIf(
             archive -> Arrays.asList(downloadHpiArchiveName, HPI_ARCHIVE_TA_FEATURES_2013).contains(archive));
+        if (!preferencesService.getPreferences().isGameDataMapDownloadKeepVersionTag()) {
+          removeVersionTag(installationPath.resolve(downloadHpiArchiveName).toFile());
+        }
         loadInstalledMaps(modTechnicalName);
       });
     }

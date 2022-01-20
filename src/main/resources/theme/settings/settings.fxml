@@ -690,7 +690,7 @@
                                        <CheckBox fx:id="requireUacToggle" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" GridPane.columnIndex="1" />
                                    </children>
                                </GridPane>
-                               <GridPane styleClass="setting-container" visible="true">
+                               <GridPane styleClass="setting-container" visible="false" managed="false">
                                    <columnConstraints>
                                        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
                                        <ColumnConstraints halignment="RIGHT" hgrow="SOMETIMES" minWidth="10.0" />
@@ -1076,6 +1076,26 @@
                                                        GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS"
                                                        GridPane.rowIndex="1"/>
                                                 <CheckBox fx:id="gameDataPromptDownloadCheckBox" contentDisplay="RIGHT"
+                                                          mnemonicParsing="false" GridPane.columnIndex="1"/>
+                                            </children>
+                                        </GridPane>
+                                        <GridPane styleClass="setting-container">
+                                            <columnConstraints>
+                                                <ColumnConstraints hgrow="ALWAYS" minWidth="10.0"/>
+                                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0"/>
+                                            </columnConstraints>
+                                            <rowConstraints>
+                                                <RowConstraints minHeight="10.0" valignment="TOP" vgrow="SOMETIMES"/>
+                                                <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
+                                            </rowConstraints>
+                                            <children>
+                                                <Label contentDisplay="RIGHT" styleClass="setting-title"
+                                                       text="%settings.data.mapDownloadKeepVersionTag"/>
+                                                <Label styleClass="setting-description"
+                                                       text="%settings.data.mapDownloadKeepVersionTag.description"
+                                                       GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS"
+                                                       GridPane.rowIndex="1"/>
+                                                <CheckBox fx:id="gameDataMapDownloadKeepVersionTagCheckBox" contentDisplay="RIGHT"
                                                           mnemonicParsing="false" GridPane.columnIndex="1"/>
                                             </children>
                                         </GridPane>
