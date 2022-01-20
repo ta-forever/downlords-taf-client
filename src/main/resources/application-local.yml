@@ -7,7 +7,7 @@ faf-client:
 
   vault:
     base-url: https://content.taforever.com
-    replay-download-url-format: http://192.168.1.109/replays/0/0/0/1/%s.zip
+    replay-download-url-format: http://192.168.0.100/replays/0/0/0/1/%s.zip
 
   news:
     feed-url: https://direct.taforever.com/news/feed
