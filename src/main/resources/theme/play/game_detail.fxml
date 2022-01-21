@@ -34,7 +34,7 @@
             <ImageView fx:id="mapImageView" onMouseClicked="#onClickedMap" fitWidth="230.0" fitHeight="320.0" pickOnBounds="true" preserveRatio="true" styleClass="map-preview"/>
             <VBox alignment="BOTTOM_LEFT" styleClass="image-dimmer" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
                 <Label fx:id="mapLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map&gt;" wrapText="true"/>
-                <Label fx:id="mapDescription" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map Description&gt;" wrapText="true"/>
+                <Label fx:id="mapDescription" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map Description&gt;" wrapText="false"/>
             </VBox>
         </AnchorPane>
         <Label fx:id="gameTitleLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" styleClass="game-title" text="&lt;A pretty long game title&gt;" wrapText="true" GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" />
