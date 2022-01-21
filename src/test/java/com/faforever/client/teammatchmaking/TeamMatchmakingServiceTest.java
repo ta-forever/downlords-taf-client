@@ -395,7 +395,7 @@ public class TeamMatchmakingServiceTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testSetPartyFactions() {
-    List<Faction> factions = Arrays.asList(Faction.UEF, Faction.AEON);
+    List<Faction> factions = Arrays.asList(Faction.ARM, Faction.CORE);
 
     instance.sendFactionSelection(factions);
 

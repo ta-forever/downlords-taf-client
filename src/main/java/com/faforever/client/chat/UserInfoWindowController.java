@@ -68,20 +68,18 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import static com.faforever.client.events.EventService.EVENT_AEON_PLAYS;
-import static com.faforever.client.events.EventService.EVENT_AEON_WINS;
+import static com.faforever.client.events.EventService.EVENT_CORE_PLAYS;
+import static com.faforever.client.events.EventService.EVENT_CORE_WINS;
 import static com.faforever.client.events.EventService.EVENT_BUILT_AIR_UNITS;
 import static com.faforever.client.events.EventService.EVENT_BUILT_LAND_UNITS;
 import static com.faforever.client.events.EventService.EVENT_BUILT_NAVAL_UNITS;
 import static com.faforever.client.events.EventService.EVENT_BUILT_TECH_1_UNITS;
 import static com.faforever.client.events.EventService.EVENT_BUILT_TECH_2_UNITS;
 import static com.faforever.client.events.EventService.EVENT_BUILT_TECH_3_UNITS;
-import static com.faforever.client.events.EventService.EVENT_CYBRAN_PLAYS;
-import static com.faforever.client.events.EventService.EVENT_CYBRAN_WINS;
-import static com.faforever.client.events.EventService.EVENT_SERAPHIM_PLAYS;
-import static com.faforever.client.events.EventService.EVENT_SERAPHIM_WINS;
-import static com.faforever.client.events.EventService.EVENT_UEF_PLAYS;
-import static com.faforever.client.events.EventService.EVENT_UEF_WINS;
+import static com.faforever.client.events.EventService.EVENT_GOK_PLAYS;
+import static com.faforever.client.events.EventService.EVENT_GOK_WINS;
+import static com.faforever.client.events.EventService.EVENT_ARM_PLAYS;
+import static com.faforever.client.events.EventService.EVENT_ARM_WINS;
 import static javafx.collections.FXCollections.observableList;
 
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
@@ -271,29 +269,25 @@ public class UserInfoWindowController implements Controller<Node> {
   }
 
   private void plotFactionsChart(Map<String, PlayerEvent> playerEvents) {
-    int aeonPlays = playerEvents.containsKey(EVENT_AEON_PLAYS) ? playerEvents.get(EVENT_AEON_PLAYS).getCurrentCount() : 0;
-    int cybranPlays = playerEvents.containsKey(EVENT_CYBRAN_PLAYS) ? playerEvents.get(EVENT_CYBRAN_PLAYS).getCurrentCount() : 0;
-    int uefPlays = playerEvents.containsKey(EVENT_UEF_PLAYS) ? playerEvents.get(EVENT_UEF_PLAYS).getCurrentCount() : 0;
-    int seraphimPlays = playerEvents.containsKey(EVENT_SERAPHIM_PLAYS) ? playerEvents.get(EVENT_SERAPHIM_PLAYS).getCurrentCount() : 0;
+    int corePlays = playerEvents.containsKey(EVENT_CORE_PLAYS) ? playerEvents.get(EVENT_CORE_PLAYS).getCurrentCount() : 0;
+    int gokPlays = playerEvents.containsKey(EVENT_GOK_PLAYS) ? playerEvents.get(EVENT_GOK_PLAYS).getCurrentCount() : 0;
+    int armPlays = playerEvents.containsKey(EVENT_ARM_PLAYS) ? playerEvents.get(EVENT_ARM_PLAYS).getCurrentCount() : 0;
 
-    int aeonWins = playerEvents.containsKey(EVENT_AEON_WINS) ? playerEvents.get(EVENT_AEON_WINS).getCurrentCount() : 0;
-    int cybranWins = playerEvents.containsKey(EVENT_CYBRAN_WINS) ? playerEvents.get(EVENT_CYBRAN_WINS).getCurrentCount() : 0;
-    int uefWins = playerEvents.containsKey(EVENT_UEF_WINS) ? playerEvents.get(EVENT_UEF_WINS).getCurrentCount() : 0;
-    int seraphimWins = playerEvents.containsKey(EVENT_SERAPHIM_WINS) ? playerEvents.get(EVENT_SERAPHIM_WINS).getCurrentCount() : 0;
+    int coreWins = playerEvents.containsKey(EVENT_CORE_WINS) ? playerEvents.get(EVENT_CORE_WINS).getCurrentCount() : 0;
+    int gokWins = playerEvents.containsKey(EVENT_GOK_WINS) ? playerEvents.get(EVENT_GOK_WINS).getCurrentCount() : 0;
+    int armWins = playerEvents.containsKey(EVENT_ARM_WINS) ? playerEvents.get(EVENT_ARM_WINS).getCurrentCount() : 0;
 
     XYChart.Series<String, Integer> winsSeries = new XYChart.Series<>();
     winsSeries.setName(i18n.get("userInfo.wins"));
-    winsSeries.getData().add(new XYChart.Data<>("Aeon", aeonWins));
-    winsSeries.getData().add(new XYChart.Data<>("Cybran", cybranWins));
-    winsSeries.getData().add(new XYChart.Data<>("UEF", uefWins));
-    winsSeries.getData().add(new XYChart.Data<>("Seraphim", seraphimWins));
+    winsSeries.getData().add(new XYChart.Data<>("Core", coreWins));
+    winsSeries.getData().add(new XYChart.Data<>("GoK", gokWins));
+    winsSeries.getData().add(new XYChart.Data<>("Arm", armWins));
 
     XYChart.Series<String, Integer> lossSeries = new XYChart.Series<>();
     lossSeries.setName(i18n.get("userInfo.losses"));
-    lossSeries.getData().add(new XYChart.Data<>("Aeon", aeonPlays - aeonWins));
-    lossSeries.getData().add(new XYChart.Data<>("Cybran", cybranPlays - cybranWins));
-    lossSeries.getData().add(new XYChart.Data<>("UEF", uefPlays - uefWins));
-    lossSeries.getData().add(new XYChart.Data<>("Seraphim", seraphimPlays - seraphimWins));
+    lossSeries.getData().add(new XYChart.Data<>("Core", corePlays - coreWins));
+    lossSeries.getData().add(new XYChart.Data<>("GoK", gokPlays - gokWins));
+    lossSeries.getData().add(new XYChart.Data<>("Arm", armPlays - armWins));
 
     JavaFxUtil.runLater(() -> factionsChart.getData().addAll(winsSeries, lossSeries));
   }

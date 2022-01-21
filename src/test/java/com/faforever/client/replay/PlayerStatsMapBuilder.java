@@ -21,7 +21,7 @@ public class PlayerStatsMapBuilder {
         .beforeMean(1000.0)
         .afterDeviation(15.0)
         .afterMean(1100.0)
-        .faction(Faction.UEF)
+        .faction(Faction.ARM)
         .playerId(0)
         .score(1)
         .build();
@@ -30,7 +30,7 @@ public class PlayerStatsMapBuilder {
         .beforeMean(1000.0)
         .afterDeviation(15.0)
         .afterMean(900.0)
-        .faction(Faction.CYBRAN)
+        .faction(Faction.GOK)
         .playerId(1)
         .score(-1)
         .build();

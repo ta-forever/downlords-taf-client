@@ -52,7 +52,7 @@ public class Party {
 
     public PartyMember(Player player) {
       this.player = player;
-      this.factions = Arrays.asList(Faction.AEON, Faction.CYBRAN, Faction.SERAPHIM, Faction.UEF);
+      this.factions = Arrays.asList(Faction.CORE, Faction.GOK, Faction.ARM);
     }
   }
 }

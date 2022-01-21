@@ -76,32 +76,25 @@
                                     </HBox>
                                 </children>
                             </VBox>
-                            <ToggleButton fx:id="uefButton" mnemonicParsing="false" visible="false" managed="false"
-                                          styleClass="faction-button, tmm, uef"
+                            <ToggleButton fx:id="armButton" mnemonicParsing="false" visible="false" managed="false"
+                                          styleClass="faction-button, tmm, arm"
                                           onAction="#onFactionButtonClicked" selected="true">
                                 <graphic>
-                                    <Region styleClass="uef-icon"/>
+                                    <Region styleClass="arm-icon"/>
                                 </graphic>
                             </ToggleButton>
-                            <ToggleButton fx:id="cybranButton" mnemonicParsing="false" visible="false" managed="false"
-                                          styleClass="faction-button, tmm, cybran"
+                            <ToggleButton fx:id="gokButton" mnemonicParsing="false" visible="false" managed="false"
+                                          styleClass="faction-button, tmm, gok"
                                           onAction="#onFactionButtonClicked" selected="true">
                                 <graphic>
-                                    <Region styleClass="cybran-icon"/>
+                                    <Region styleClass="gok-icon"/>
                                 </graphic>
                             </ToggleButton>
-                            <ToggleButton fx:id="aeonButton" mnemonicParsing="false" visible="false" managed="false"
-                                          styleClass="faction-button, tmm, aeon"
+                            <ToggleButton fx:id="coreButton" mnemonicParsing="false" visible="false" managed="false"
+                                          styleClass="faction-button, tmm, core"
                                           onAction="#onFactionButtonClicked" selected="true">
                                 <graphic>
-                                    <Region styleClass="aeon-icon"/>
-                                </graphic>
-                            </ToggleButton>
-                            <ToggleButton fx:id="seraphimButton" mnemonicParsing="false" visible="false" managed="false"
-                                          styleClass="faction-button, tmm, seraphim"
-                                          onAction="#onFactionButtonClicked" selected="true">
-                                <graphic>
-                                    <Region styleClass="seraphim-icon"/>
+                                    <Region styleClass="core-icon"/>
                                 </graphic>
                             </ToggleButton>
                         </HBox>

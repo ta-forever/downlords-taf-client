@@ -47,7 +47,6 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -85,10 +84,9 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
   public Button invitePlayerButton;
   public Button leavePartyButton;
   public Label refreshingLabel;
-  public ToggleButton uefButton;
-  public ToggleButton cybranButton;
-  public ToggleButton aeonButton;
-  public ToggleButton seraphimButton;
+  public ToggleButton armButton;
+  public ToggleButton gokButton;
+  public ToggleButton coreButton;
   public ImageView avatarImageView;
   public ImageView countryImageView;
   public Label clanLabel;
@@ -149,10 +147,9 @@ public class TeamMatchmakingController extends AbstractViewController<Node> {
     initializeDynamicChatPosition();
 
     factionsToButtons = new HashMap<>();
-    factionsToButtons.put(Faction.AEON, aeonButton);
-    factionsToButtons.put(Faction.UEF, uefButton);
-    factionsToButtons.put(Faction.CYBRAN, cybranButton);
-    factionsToButtons.put(Faction.SERAPHIM, seraphimButton);
+    factionsToButtons.put(Faction.CORE, coreButton);
+    factionsToButtons.put(Faction.ARM, armButton);
+    factionsToButtons.put(Faction.GOK, gokButton);
 
     playerService.currentPlayerProperty().addListener((obs,oldPlayer,newPlayer) -> initPlayer(newPlayer));
     if (playerService.getCurrentPlayer().isPresent()) {

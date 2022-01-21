@@ -20,7 +20,6 @@ import javafx.event.ActionEvent;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.ContextMenuEvent;
 import javafx.scene.layout.HBox;
@@ -59,10 +58,9 @@ public class PartyMemberItemController implements Controller<Node> {
   public Label aliasLabel;
   public Label leagueLabel;
   public Label gameCountLabel;
-  public Label uefLabel;
-  public Label cybranLabel;
-  public Label aeonLabel;
-  public Label seraphimLabel;
+  public Label armLabel;
+  public Label gokLabel;
+  public Label coreLabel;
   public Label crownLabel;
   public HBox playerCard;
   public ImageView playerStatusImageView;
@@ -135,10 +133,9 @@ public class PartyMemberItemController implements Controller<Node> {
   }
 
   private void selectFactionsBasedOnParty() {
-    uefLabel.setDisable(!isFactionSelectedInParty(Faction.UEF));
-    aeonLabel.setDisable(!isFactionSelectedInParty(Faction.AEON));
-    cybranLabel.setDisable(!isFactionSelectedInParty(Faction.CYBRAN));
-    seraphimLabel.setDisable(!isFactionSelectedInParty(Faction.SERAPHIM));
+    armLabel.setDisable(!isFactionSelectedInParty(Faction.ARM));
+    coreLabel.setDisable(!isFactionSelectedInParty(Faction.CORE));
+    gokLabel.setDisable(!isFactionSelectedInParty(Faction.GOK));
   }
 
   private boolean isFactionSelectedInParty(Faction faction) {

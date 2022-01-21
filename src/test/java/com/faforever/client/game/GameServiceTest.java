@@ -58,7 +58,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import static com.faforever.client.game.Faction.CYBRAN;
+import static com.faforever.client.game.Faction.GOK;
 import static com.faforever.client.remote.domain.GameStatus.ENDED;
 import static com.faforever.client.remote.domain.GameStatus.STAGING;
 import static com.faforever.client.remote.domain.GameStatus.LIVE;
@@ -498,7 +498,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
     GameLaunchMessage gameLaunchMessage = new GameLaunchMessageBuilder().defaultValues()
         .uid(uid).mod("FAF").mapname(map)
         .expectedPlayers(2)
-        .faction(CYBRAN)
+        .faction(GOK)
         .initMode(LobbyMode.AUTO_LOBBY)
         .mapPosition(4)
         .team(1)
@@ -508,7 +508,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
     FeaturedMod featuredMod = FeaturedModBeanBuilder.create().defaultValues().get();
 
     String[] additionalArgs = {"/team", "1", "/players", "2", "/startspot", "4"};
-    mockStartGameProcess(uid, LADDER_1v1_RATING_TYPE, CYBRAN, false, additionalArgs);
+    mockStartGameProcess(uid, LADDER_1v1_RATING_TYPE, GOK, false, additionalArgs);
     when(fafService.startSearchMatchmaker()).thenReturn(completedFuture(gameLaunchMessage));
     when(gameUpdater.update(featuredMod, null, Collections.emptyMap(), Collections.emptySet())).thenReturn(completedFuture(null));
     when(mapService.isInstalled("tacc", map, "00000000")).thenReturn(false);

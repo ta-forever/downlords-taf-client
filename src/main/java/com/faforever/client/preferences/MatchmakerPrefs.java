@@ -12,7 +12,7 @@ public class MatchmakerPrefs {
   private final ListProperty<Faction> factions;
 
   public MatchmakerPrefs() {
-    this.factions = new SimpleListProperty<>(observableArrayList(Faction.AEON, Faction.CYBRAN, Faction.UEF, Faction.SERAPHIM));
+    this.factions = new SimpleListProperty<>(observableArrayList(Faction.CORE, Faction.GOK, Faction.ARM));
   }
 
   public ObservableList<Faction> getFactions() {

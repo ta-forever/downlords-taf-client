@@ -39,14 +39,12 @@ public class EventService {
   public static final String EVENT_LOST_EXPERIMENTALS = "701ca426-0943-4931-85af-6a08d36d9aaa";
   public static final String EVENT_BUILT_ENGINEERS = "60bb1fc0-601b-45cd-bd26-83b1a1ac979b";
   public static final String EVENT_LOST_ENGINEERS = "e8e99a68-de1b-4676-860d-056ad2207119";
-  public static final String EVENT_AEON_PLAYS = "96ccc66a-c5a0-4f48-acaa-888b00778b57";
-  public static final String EVENT_AEON_WINS = "a6b51c26-64e6-4e7a-bda7-ea1cfe771ebb";
-  public static final String EVENT_CYBRAN_PLAYS = "ad193982-e7ca-465c-80b0-5493f9739559";
-  public static final String EVENT_CYBRAN_WINS = "56b06197-1890-42d0-8b59-25e1add8dc9a";
-  public static final String EVENT_UEF_PLAYS = "1b900d26-90d2-43d0-a64e-ed90b74c3704";
-  public static final String EVENT_UEF_WINS = "7be6fdc5-7867-4467-98ce-f7244a66625a";
-  public static final String EVENT_SERAPHIM_PLAYS = "fefcb392-848f-4836-9683-300b283bc308";
-  public static final String EVENT_SERAPHIM_WINS = "15b6c19a-6084-4e82-ada9-6c30e282191f";
+  public static final String EVENT_CORE_PLAYS = "96ccc66a-c5a0-4f48-acaa-888b00778b57";
+  public static final String EVENT_CORE_WINS = "a6b51c26-64e6-4e7a-bda7-ea1cfe771ebb";
+  public static final String EVENT_GOK_PLAYS = "ad193982-e7ca-465c-80b0-5493f9739559";
+  public static final String EVENT_GOK_WINS = "56b06197-1890-42d0-8b59-25e1add8dc9a";
+  public static final String EVENT_ARM_PLAYS = "1b900d26-90d2-43d0-a64e-ed90b74c3704";
+  public static final String EVENT_ARM_WINS = "7be6fdc5-7867-4467-98ce-f7244a66625a";
 
   private final FafApiAccessor fafApiAccessor;
   private final ExecutorService executorService;

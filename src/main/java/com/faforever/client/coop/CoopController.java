@@ -19,7 +19,6 @@ import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.NotificationService;
-import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.replay.ReplayService;
 import com.faforever.client.reporting.ReportingService;
@@ -214,14 +213,14 @@ public class CoopController extends AbstractViewController<Node> {
           label.setGraphic(iconRegion);
           iconRegion.getStyleClass().add(UiService.CSS_CLASS_ICON);
           switch (mission.getCategory()) {
-            case AEON:
-              iconRegion.getStyleClass().add(UiService.AEON_STYLE_CLASS);
+            case CORE:
+              iconRegion.getStyleClass().add(UiService.CORE_STYLE_CLASS);
               break;
-            case CYBRAN:
-              iconRegion.getStyleClass().add(UiService.CYBRAN_STYLE_CLASS);
+            case GOK:
+              iconRegion.getStyleClass().add(UiService.GOK_STYLE_CLASS);
               break;
-            case UEF:
-              iconRegion.getStyleClass().add(UiService.UEF_STYLE_CLASS);
+            case ARM:
+              iconRegion.getStyleClass().add(UiService.ARM_STYLE_CLASS);
               break;
             default:
               return null;

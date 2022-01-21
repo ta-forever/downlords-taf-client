@@ -35,7 +35,7 @@ public class FactionTypeAdapter extends TypeAdapter<Faction> {
       // this is necessary as the faction is expressed everywhere as a string but the game launch message
       // uses id's for legacy purposes which have been ignored by the java client so far
       try {
-        return Faction.fromFaValue(Integer.parseInt(s));
+        return Faction.fromTaValue(Integer.parseInt(s));
       } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
         return null;
       }

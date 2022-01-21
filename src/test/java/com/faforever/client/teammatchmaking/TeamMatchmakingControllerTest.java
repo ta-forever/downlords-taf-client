@@ -72,7 +72,7 @@ public class TeamMatchmakingControllerTest extends AbstractPlainJavaFxTest {
     Player player = new Player("tester");
     player.setId(1);
     prepareParty(player);
-    ObservableList<Faction> factionList = FXCollections.observableArrayList(Faction.SERAPHIM, Faction.AEON);
+    ObservableList<Faction> factionList = FXCollections.observableArrayList(Faction.ARM, Faction.CORE);
 
     preferences = PreferencesBuilder.create().defaultValues()
         .matchmakerPrefs()
@@ -112,12 +112,11 @@ public class TeamMatchmakingControllerTest extends AbstractPlainJavaFxTest {
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<Faction>> captor = ArgumentCaptor.forClass(List.class);
 
-    assertThat(instance.aeonButton.isSelected(), is(true));
-    assertThat(instance.seraphimButton.isSelected(), is(true));
-    assertThat(instance.uefButton.isSelected(), is(false));
-    assertThat(instance.cybranButton.isSelected(), is(false));
+    assertThat(instance.coreButton.isSelected(), is(true));
+    assertThat(instance.armButton.isSelected(), is(true));
+    assertThat(instance.gokButton.isSelected(), is(false));
     verify(teamMatchmakingService).sendFactionSelection(captor.capture());
-    assertThat(captor.getValue(), containsInAnyOrder(Faction.SERAPHIM, Faction.AEON));
+    assertThat(captor.getValue(), containsInAnyOrder(Faction.ARM, Faction.CORE));
   }
 
   @Test
@@ -142,36 +141,33 @@ public class TeamMatchmakingControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testOnFactionButtonClicked() {
-    instance.uefButton.setSelected(true);
-    instance.aeonButton.setSelected(true);
-    instance.cybranButton.setSelected(false);
-    instance.seraphimButton.setSelected(false);
+    instance.armButton.setSelected(true);
+    instance.coreButton.setSelected(true);
+    instance.gokButton.setSelected(false);
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<Faction>> captor = ArgumentCaptor.forClass(List.class);
 
     instance.onFactionButtonClicked();
 
-    assertThat(preferences.getMatchmaker().getFactions(), containsInAnyOrder(Faction.UEF, Faction.AEON));
+    assertThat(preferences.getMatchmaker().getFactions(), containsInAnyOrder(Faction.ARM, Faction.CORE));
     // First invocation happens in initialize()
     verify(teamMatchmakingService, times(2)).sendFactionSelection(captor.capture());
-    assertThat(captor.getValue(), containsInAnyOrder(Faction.UEF, Faction.AEON));
+    assertThat(captor.getValue(), containsInAnyOrder(Faction.ARM, Faction.CORE));
     verify(preferencesService).storeInBackground();
   }
 
   @Test
   public void testOnFactionButtonClickedWhileNoFactionsSelected() {
-    instance.uefButton.setSelected(false);
-    instance.aeonButton.setSelected(false);
-    instance.cybranButton.setSelected(false);
-    instance.seraphimButton.setSelected(false);
+    instance.armButton.setSelected(false);
+    instance.coreButton.setSelected(false);
+    instance.gokButton.setSelected(false);
 
     instance.onFactionButtonClicked();
 
     verify(preferencesService, never()).storeInBackground();
-    assertThat(instance.uefButton.isSelected(), is(true));
-    assertThat(instance.aeonButton.isSelected(), is(true));
-    assertThat(instance.cybranButton.isSelected(), is(true));
-    assertThat(instance.seraphimButton.isSelected(), is(true));
+    assertThat(instance.armButton.isSelected(), is(true));
+    assertThat(instance.coreButton.isSelected(), is(true));
+    assertThat(instance.gokButton.isSelected(), is(true));
   }
 
   @Test

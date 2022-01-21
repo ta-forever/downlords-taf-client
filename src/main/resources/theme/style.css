@@ -925,20 +925,16 @@
 
 /***************** Faction buttons *****************/
 
-.toggle-button.aeon:selected {
-  -fx-border-color: AEON_COLOR;
+.toggle-button.core:selected {
+  -fx-border-color: CORE_COLOR;
 }
 
-.toggle-button.cybran:selected {
-  -fx-border-color: CYBRAN_COLOR;
+.toggle-button.gok:selected {
+  -fx-border-color: GOK_COLOR;
 }
 
-.toggle-button.uef:selected {
-  -fx-border-color: UEF_COLOR;
-}
-
-.toggle-button.seraphim:selected {
-  -fx-border-color: SERAPHIM_COLOR;
+.toggle-button.arm:selected {
+  -fx-border-color: ARM_COLOR;
 }
 
 .toggle-button.faction-button {
@@ -954,16 +950,12 @@
 }
 
 /* 34 * aspect ratio */
-.toggle-button .cybran-icon {
+.toggle-button .gok-icon {
     -fx-max-height: 32.7;
 }
 
-.toggle-button .aeon-icon {
+.toggle-button .core-icon {
     -fx-max-width: 24.3;
-}
-
-.toggle-button .seraphim-icon {
-    -fx-max-width: 28;
 }
 
 .toggle-button.faction-button * {
@@ -1012,20 +1004,16 @@
   -fx-pref-height: 2em;
 }
 
-.aeon-icon {
-  -fx-background-color: AEON_COLOR;
+.core-icon {
+  -fx-background-color: CORE_COLOR;
 }
 
-.cybran-icon {
-  -fx-background-color: CYBRAN_COLOR;
+.gok-icon {
+  -fx-background-color: GOK_COLOR;
 }
 
-.uef-icon {
-  -fx-background-color: UEF_COLOR;
-}
-
-.seraphim-icon {
-  -fx-background-color: SERAPHIM_COLOR;
+.arm-icon {
+  -fx-background-color: ARM_COLOR;
 }
 
 /***************** Map preview *****************/

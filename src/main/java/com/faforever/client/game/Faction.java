@@ -8,13 +8,15 @@ import java.util.Map;
 
 public enum Faction {
   // Order is crucial
-  // Same order as the info from the server (1=UEF etc.)
-  UEF("uef"),
-  AEON("aeon"),
-  CYBRAN("cybran"),
-  SERAPHIM("seraphim"),
-  RANDOM("random"),
-  CIVILIAN("civilian");
+  // Same order as the info from the server (1=CORE, 6=ARM)
+  ZERO_FACTION("Zero"),
+  CORE("Core"),
+  GOK("GoK"),
+  THREE_FACTION("Three"),
+  FOUR_FACTION("Four"),
+  FIVE_FACTION("Five"),
+  ARM("Arm"),
+  RANDOM("random");
 
   private static final Map<String, Faction> fromString;
 
@@ -32,8 +34,9 @@ public enum Faction {
   }
 
   @JsonCreator
-  public static Faction fromFaValue(int value) {
-    return Faction.values()[value - 1];
+  public static Faction fromTaValue(int value) {
+    //return Faction.values()[value];
+    return RANDOM;  // faction is somehow getting muddled up before making it into database
   }
 
   public static Faction fromString(String string) {
@@ -41,11 +44,11 @@ public enum Faction {
   }
 
   /**
-   * Returns the faction value used as in "Forged Alliance Forever".
+   * Returns the faction value used as in "Total Annihilation".
    */
   @JsonValue
-  public int toFaValue() {
-    return ordinal() + 1;
+  public int toTaValue() {
+    return ordinal();
   }
 
   /**

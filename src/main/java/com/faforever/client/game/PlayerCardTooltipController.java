@@ -77,17 +77,14 @@ public class PlayerCardTooltipController implements Controller<Node> {
 
     factionIcon.setVisible(true);
     switch (faction) {
-      case AEON:
-        factionIcon.getStyleClass().add(UiService.AEON_STYLE_CLASS);
+      case CORE:
+        factionIcon.getStyleClass().add(UiService.CORE_STYLE_CLASS);
         break;
-      case CYBRAN:
-        factionIcon.getStyleClass().add(UiService.CYBRAN_STYLE_CLASS);
+      case GOK:
+        factionIcon.getStyleClass().add(UiService.GOK_STYLE_CLASS);
         break;
-      case SERAPHIM:
-        factionIcon.getStyleClass().add(UiService.SERAPHIM_STYLE_CLASS);
-        break;
-      case UEF:
-        factionIcon.getStyleClass().add(UiService.UEF_STYLE_CLASS);
+      case ARM:
+        factionIcon.getStyleClass().add(UiService.ARM_STYLE_CLASS);
         break;
       default:
         factionIcon.setVisible(false);

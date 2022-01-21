@@ -38,9 +38,9 @@ public class PlayerCardTooltipControllerTest extends AbstractPlainJavaFxTest {
         .defaultValues()
         .socialStatus(SocialStatus.FOE);
     Player player = playerBuilder.get();
-    instance.setPlayer(player, 1000, Faction.CYBRAN);
+    instance.setPlayer(player, 1000, Faction.CORE);
 
-    assertThat(instance.factionIcon.getStyleClass(), hasItem(UiService.CYBRAN_STYLE_CLASS));
+    assertThat(instance.factionIcon.getStyleClass(), hasItem(UiService.CORE_STYLE_CLASS));
     assertThat(instance.factionIcon.isVisible(), is(true));
     assertThat(instance.factionImage.isVisible(), is(false));
     assertThat(instance.foeIconText.isVisible(), is(true));
@@ -56,9 +56,9 @@ public class PlayerCardTooltipControllerTest extends AbstractPlainJavaFxTest {
         .defaultValues()
         .socialStatus(SocialStatus.FRIEND);
     Player player = playerBuilder.get();
-    instance.setPlayer(player, 1000, Faction.SERAPHIM);
+    instance.setPlayer(player, 1000, Faction.ARM);
 
-    assertThat(instance.factionIcon.getStyleClass(), hasItem(UiService.SERAPHIM_STYLE_CLASS));
+    assertThat(instance.factionIcon.getStyleClass(), hasItem(UiService.ARM_STYLE_CLASS));
     assertThat(instance.factionIcon.isVisible(), is(true));
     assertThat(instance.factionImage.isVisible(), is(false));
     assertThat(instance.foeIconText.isVisible(), is(false));
