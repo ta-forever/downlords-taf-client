@@ -729,6 +729,10 @@ public class CreateGameController implements Controller<Pane> {
     return createGameRoot;
   }
 
+  void resetMapSearch() {
+    mapSearchTextField.clear();
+  }
+
   /**
    * @return returns true of the map was found and false if not
    */

@@ -216,6 +216,10 @@ public class CustomGamesController extends AbstractViewController<Node> {
     }
     createGameController.setContextGame(contextGame);
 
+    if (mapFolderName != null) {
+      createGameController.resetMapSearch();
+    }
+
     if (mapFolderName != null && !createGameController.selectMap(mapFolderName)) {
       log.warn("Map with folder name '{}' could not be found in map list", mapFolderName);
     }
