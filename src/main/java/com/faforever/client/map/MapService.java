@@ -895,7 +895,7 @@ public class MapService implements InitializingBean, DisposableBean {
     return getMapLatestVersion(map).thenCompose(latestMap -> {
       CompletableFuture<Void> downloadFuture;
       if (!isInstalled(modTechnical, latestMap.getMapName(), latestMap.getCrc())) {
-        downloadFuture = ensureMap(modTechnical, map, null, null);
+        downloadFuture = ensureMap(modTechnical, latestMap, null, null);
       } else {
         downloadFuture = CompletableFuture.completedFuture(null);
       }

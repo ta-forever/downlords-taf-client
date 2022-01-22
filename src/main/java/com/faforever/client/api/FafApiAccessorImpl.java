@@ -126,7 +126,6 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   private static final String SORT = "sort";
   private static final String INCLUDE = "include";
   private static final String NOT_HIDDEN = "latestVersion.hidden==\"false\"";
-  private static final String FILENAME_TEMPLATE = "maps/%s.zip";
 
 
   private final EventBus eventBus;
@@ -414,7 +413,7 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   @Override
   public Optional<MapVersion> findMapByFolderName(String folderName) {
     List<MapVersion> maps = getMany(MAP_VERSION_ENDPOINT, 1, java.util.Map.of(
-        FILTER, rsql(qBuilder().string("filename").eq(format(FILENAME_TEMPLATE, folderName))),
+        FILTER, rsql(qBuilder().string("map.displayName").eq(folderName)),
         INCLUDE, MAP_VERSION_INCLUDES));
     if (maps.isEmpty()) {
       return Optional.empty();
@@ -437,7 +436,7 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   @Override
   public Optional<MapVersion> getMapLatestVersion(String mapFolderName) {
     String queryFilter = rsql(qBuilder()
-        .string("filename").eq(format(FILENAME_TEMPLATE, mapFolderName))
+        .string("map.displayName").eq(mapFolderName)
         .and()
         .string("map.latestVersion.hidden").eq("false"));
     List<MapVersion> currentVersionMap = getMany(MAP_VERSION_ENDPOINT, 1, java.util.Map.of(
