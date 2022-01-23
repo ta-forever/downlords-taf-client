@@ -103,7 +103,10 @@ public class ReplayCardController implements Controller<Node> {
     replay.getTeamPlayerStats().values().stream().findAny()
         .ifPresent(playerStatsList -> playerStatsList.stream().findAny()
             .ifPresent(playerStats -> Optional.ofNullable(playerStats.getLeaderboard())
-                .ifPresent(leaderboard -> ratingTypeLabel.setText(i18n.get(leaderboard.getNameKey())))
+                .ifPresent(leaderboard -> {
+                  ratingTypeLabel.setText(i18n.get(leaderboard.getNameKey()));
+                  ratingTypeLabel.setVisible(!"global".equals(leaderboard.getTechnicalName()));
+                })
             ));
 
     Integer replayTicks = replay.getReplayTicks();
