@@ -718,11 +718,14 @@ public class CreateGameController implements Controller<Pane> {
   }
 
   public void onUpdateButtonClicked() {
-    gameService.updateSettingsForStagingGame(
-        mapListView.getSelectionModel().getSelectedItem().getMapName(),
-        rankedEnabledCheckBox.isSelected()
-            ? mapPoolListView.getSelectionModel().getSelectedItem().getLeaderboard().getTechnicalName()
-            : DEFAULT_RATING_TYPE);
+    mapService.ensureMap(
+        featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(),
+        mapListView.getSelectionModel().getSelectedItem(), null, null)
+        .thenRun(() -> gameService.updateSettingsForStagingGame(
+          mapListView.getSelectionModel().getSelectedItem().getMapName(),
+          rankedEnabledCheckBox.isSelected()
+              ? mapPoolListView.getSelectionModel().getSelectedItem().getLeaderboard().getTechnicalName()
+              : DEFAULT_RATING_TYPE));
   }
 
   public Pane getRoot() {

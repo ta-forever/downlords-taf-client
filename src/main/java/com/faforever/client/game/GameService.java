@@ -774,7 +774,9 @@ public class GameService implements InitializingBean {
 
   public void startBattleRoom() {
     if (isGameRunning()) {
-      this.totalAnnihilationService.sendToConsole("/launch");
+      Game game = getCurrentGame();
+      mapService.ensureMap(game.getFeaturedMod(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null)
+          .thenRun(() -> this.totalAnnihilationService.sendToConsole("/launch"));
     }
   }
 
