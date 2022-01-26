@@ -31,20 +31,27 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Control;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextField;
+import javafx.scene.input.DragEvent;
+import javafx.scene.input.Dragboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.Pane;
 import javafx.scene.web.WebView;
 import lombok.extern.slf4j.Slf4j;
 import netscape.javascript.JSObject;
+import org.apache.commons.compress.utils.FileNameUtils;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -271,9 +278,33 @@ public class TadaController extends AbstractViewController<Node> {
     }
   }
 
+  public void onUrlTextFieldDragOver(DragEvent event) {
+    Dragboard db = event.getDragboard();
+    if (event.getGestureSource() != this.urlTextField && db.hasFiles() && db.getFiles().size() == 1) {
+      event.acceptTransferModes(TransferMode.LINK);
+    }
+    event.consume();
+  }
+
+  public void onUrlTextFieldDragDropped(DragEvent event) {
+    Dragboard db = event.getDragboard();
+    boolean success = false;
+    if (db.hasFiles()) {
+      this.urlTextField.setText(db.getFiles().get(0).toString());
+      success = true;
+    }
+    event.setDropCompleted(success);
+    event.consume();
+  }
+
   public void onPlayButton() {
     String url = this.urlTextField.getText();
-    if (getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED) {
+
+    if (Files.exists(Path.of(url))) {
+      doStartLocalReplay(url);
+      return;
+    }
+    else if (getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED) {
       Matcher matcher = this.replayUrlPattern.matcher(url);
       if (matcher.matches() && url.equals(webView.getEngine().getLocation())) {
         doStartReplay(matcher.group(3));
@@ -383,6 +414,10 @@ public class TadaController extends AbstractViewController<Node> {
 
   private void doStartReplay(String replayId) {
     this.eventBus.post(new ShowTadaReplayEvent(replayId));
+  }
+
+  private void doStartLocalReplay(String filename) {
+    this.eventBus.post(new ShowTadaReplayEvent(filename));
   }
 
   private void doSetUrlTextField(String url) {

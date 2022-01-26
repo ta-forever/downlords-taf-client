@@ -386,7 +386,11 @@ public class ReplayService implements InitializingBean {
         String.format("%s.tad", event.getTadaReplayId()));
 
     CompletableFuture<Path> downloadedReplayPathFuture;
-    if (downloadPath.toFile().exists()) {
+    if (Files.exists(Path.of(event.getTadaReplayId()))) {
+      logger.info("Local replay file: {}", event.getTadaReplayId());
+      downloadedReplayPathFuture = CompletableFuture.completedFuture(Path.of(event.getTadaReplayId()));
+    }
+    else if (downloadPath.toFile().exists()) {
       logger.info("Replay {} already exists at {}", event.getTadaReplayId(), downloadPath);
       downloadedReplayPathFuture = CompletableFuture.completedFuture(downloadPath);
     }
