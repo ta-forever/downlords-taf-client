@@ -167,6 +167,10 @@ public class TotalAnnihilationService {
         "--launchserverport", String.valueOf(launchServerPort)
     ));
 
+    if (preferencesService.getPreferences().getSuppressReplayChatEnabled()) {
+      command.add("--nochat");
+    }
+
     return command;
   }
 

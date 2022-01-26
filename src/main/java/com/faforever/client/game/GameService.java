@@ -468,7 +468,8 @@ public class GameService implements InitializingBean {
 
               notificationService.addNotification(new ImmediateNotification(
                   i18n.get("replay.selectMod.title"),
-                  i18n.get("replay.selectMod.text"),
+                  i18n.get("replay.selectMod.text", demoFileInfo.getModHash(),
+                      demoFileInfo.getTaVersionMajor(), demoFileInfo.getTaVersionMinor()),
                   Severity.INFO,actionList));
 
             } catch (Exception e) {

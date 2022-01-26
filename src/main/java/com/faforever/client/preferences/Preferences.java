@@ -51,6 +51,7 @@ public class Preferences {
   // TA options @todo they need to be in TotalAnnilationPreferences()
   private final BooleanProperty forceRelayEnabled;
   private final BooleanProperty proactiveResendEnabled;
+  private final BooleanProperty suppressReplayChatEnabled;
   private final BooleanProperty ircIntegrationEnabled;
   private final BooleanProperty autoLaunchOnHostEnabled;
   private final BooleanProperty autoLaunchOnJoinEnabled;
@@ -105,6 +106,7 @@ public class Preferences {
     showModdedGames = new SimpleBooleanProperty(true);
     forceRelayEnabled = new SimpleBooleanProperty(false);
     proactiveResendEnabled = new SimpleBooleanProperty(false);
+    suppressReplayChatEnabled = new SimpleBooleanProperty(false);
     ircIntegrationEnabled = new SimpleBooleanProperty(true);
     autoLaunchOnHostEnabled = new SimpleBooleanProperty(false);
     autoLaunchOnJoinEnabled = new SimpleBooleanProperty(true);
@@ -193,6 +195,10 @@ public class Preferences {
     return proactiveResendEnabled;
   }
 
+  public BooleanProperty getSuppressReplayChatEnabledProperty() {
+    return suppressReplayChatEnabled;
+  }
+
   public BooleanProperty getIrcIntegrationEnabledProperty() { return ircIntegrationEnabled; }
 
   public BooleanProperty getAutoLaunchOnHostEnabledProperty() { return autoLaunchOnHostEnabled; }
@@ -217,6 +223,10 @@ public class Preferences {
 
   public boolean getProactiveResendEnabled() {
     return proactiveResendEnabled.get();
+  }
+
+  public boolean getSuppressReplayChatEnabled() {
+    return suppressReplayChatEnabled.get();
   }
 
   public boolean getIrcIntegrationEnabled() {

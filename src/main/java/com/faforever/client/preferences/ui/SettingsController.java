@@ -104,6 +104,7 @@ public class SettingsController implements Controller<Node> {
   public CheckBox hideFoeToggle;
   public CheckBox forceRelayToggle;
   public CheckBox proactiveResendToggle;
+  public CheckBox suppressReplayChatToggle;
   public CheckBox enableIrcIntegrationToggle;
   public CheckBox enableAutoLaunchOnHostToggle;
   public CheckBox enableAutoLaunchOnJoinToggle;
@@ -348,6 +349,7 @@ public class SettingsController implements Controller<Node> {
 
     forceRelayToggle.selectedProperty().bindBidirectional(preferences.getForceRelayEnabledProperty());
     proactiveResendToggle.selectedProperty().bindBidirectional(preferences.getProactiveResendEnabledProperty());
+    suppressReplayChatToggle.selectedProperty().bindBidirectional(preferences.getSuppressReplayChatEnabledProperty());
     enableIrcIntegrationToggle.selectedProperty().bindBidirectional(preferences.getIrcIntegrationEnabledProperty());
     enableAutoLaunchOnHostToggle.selectedProperty().bindBidirectional(preferences.getAutoLaunchOnHostEnabledProperty());
     enableAutoLaunchOnJoinToggle.selectedProperty().bindBidirectional(preferences.getAutoLaunchOnJoinEnabledProperty());
