@@ -138,11 +138,6 @@ public class MockFafApiAccessor implements FafApiAccessor {
   }
 
   @Override
-  public List<com.faforever.client.api.dto.FeaturedMod> findFeaturedModByTaDemoModHash(String taDemoModHash) {
-    return getFeaturedMods();
-  }
-
-  @Override
   public List<LeaderboardRatingJournal> getRatingJournal(int playerId, int leaderboardId) {
     return List.of();
   }

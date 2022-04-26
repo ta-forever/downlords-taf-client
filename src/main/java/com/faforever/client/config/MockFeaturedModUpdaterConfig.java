@@ -1,7 +1,7 @@
 package com.faforever.client.config;
 
 import com.faforever.client.FafClientApplication;
-import com.faforever.client.mod.ModService;
+import com.faforever.client.map.MapService;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.patch.FeaturedModUpdater;
 import com.faforever.client.patch.GameUpdater;
@@ -20,17 +20,18 @@ import org.springframework.context.annotation.Profile;
 @AllArgsConstructor
 public class MockFeaturedModUpdaterConfig {
 
-  private final ModService modService;
   private final ApplicationContext applicationContext;
   private final TaskService taskService;
   private final FafService fafService;
+  private final MapService mapService;
   private final FeaturedModUpdater featuredModUpdater;
-  private final PreferencesService preferencesService;
   private final NotificationService notificationService;
+  private final PreferencesService preferencesService;
 
   @Bean
   GameUpdater gameUpdater() {
-    return new GameUpdaterImpl(modService, applicationContext, taskService, fafService, preferencesService, notificationService)
+    return new GameUpdaterImpl(
+        applicationContext, taskService, fafService, mapService, notificationService, preferencesService)
         .addFeaturedModUpdater(featuredModUpdater);
   }
 }

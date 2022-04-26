@@ -17,6 +17,7 @@ import com.faforever.client.main.event.JoinChannelEvent;
 import com.faforever.client.main.event.ShowReplayEvent;
 import com.faforever.client.map.MapService;
 import com.faforever.client.mod.FeaturedMod;
+import com.faforever.client.mod.FeaturedModVersion;
 import com.faforever.client.mod.ModService;
 import com.faforever.client.net.ConnectionState;
 import com.faforever.client.notification.Action;
@@ -24,6 +25,7 @@ import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.PersistentNotification;
 import com.faforever.client.notification.Severity;
+import com.faforever.client.patch.GameUpdater;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.UserOfflineEvent;
@@ -37,7 +39,6 @@ import com.faforever.client.remote.domain.GameLaunchMessage;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.remote.domain.LoginMessage;
-import com.faforever.client.replay.Replay;
 import com.faforever.client.replay.ReplayServer;
 import com.faforever.client.tada.event.UploadToTadaEvent;
 import com.faforever.client.task.ResourceLocks;
@@ -86,7 +87,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -102,8 +102,6 @@ import java.util.stream.Collectors;
 
 import static com.github.nocatch.NoCatch.noCatch;
 import static java.util.Arrays.asList;
-import static java.util.Collections.emptyMap;
-import static java.util.Collections.emptySet;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
 /**
@@ -128,6 +126,7 @@ public class GameService implements InitializingBean {
   private final TotalAnnihilationService totalAnnihilationService;
   private final MapService mapService;
   private final PreferencesService preferencesService;
+  private final GameUpdater gameUpdater;
   private final NotificationService notificationService;
   private final I18n i18n;
   private final ExecutorService executorService;
@@ -170,6 +169,7 @@ public class GameService implements InitializingBean {
                      TotalAnnihilationService totalAnnihilationService,
                      MapService mapService,
                      PreferencesService preferencesService,
+                     GameUpdater gameUpdater,
                      NotificationService notificationService,
                      I18n i18n,
                      ExecutorService executorService,
@@ -188,6 +188,7 @@ public class GameService implements InitializingBean {
     this.totalAnnihilationService = totalAnnihilationService;
     this.mapService = mapService;
     this.preferencesService = preferencesService;
+    this.gameUpdater = gameUpdater;
     this.notificationService = notificationService;
     this.i18n = i18n;
     this.executorService = executorService;
@@ -378,8 +379,11 @@ public class GameService implements InitializingBean {
     boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchOnHostEnabled();
 
     autoJoinRequestedGameProperty.set(null);
-    return updateGameIfNecessary(newGameInfo.getFeaturedMod(), null, Map.of(), newGameInfo.getSimMods())
-        .thenCompose(aVoid -> fafService.requestHostGame(newGameInfo))
+    return updateGameIfNecessary(newGameInfo.getFeaturedMod(), newGameInfo.getFeaturedModVersionKey())
+        .thenCompose(modVersionKey -> {
+          newGameInfo.setFeaturedModVersionKey(modVersionKey);
+          return fafService.requestHostGame(newGameInfo);
+        })
         .thenAccept(gameLaunchMessage -> startGame(gameLaunchMessage, inGameIrcUrl, autoLaunch, playerService.getCurrentPlayer().get().getUsername()));
   }
 
@@ -408,13 +412,12 @@ public class GameService implements InitializingBean {
 
     String inGameIrcChannel = getInGameIrcChannel(game);
     String inGameIrcUrl = getInGameIrcUrl(inGameIrcChannel);
-    Map<String, Integer> featuredModVersions = game.getFeaturedModVersions();
-    Set<String> simModUIds = game.getSimMods().keySet();
     autoJoinRequestedGameProperty.set(null);
     setRunningGameUid(game.getId());  // set it early so create-game button disabled during setup
     return
         modService.getFeaturedMod(game.getFeaturedMod())
-        .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, null, featuredModVersions, simModUIds))
+        .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, game.getFeaturedModVersion() != null
+            ? game.getFeaturedModVersion() : featuredModBean.getGitBranch()))
         .thenCompose(aVoid -> mapService.ensureMap(game.getFeaturedMod(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null))
         .exceptionally(throwable -> {
           log.warn("Exception preparing to join game", throwable);
@@ -443,10 +446,10 @@ public class GameService implements InitializingBean {
   }
 
   public CompletableFuture<Void> runWithReplay(DemoFileInfo demoFileInfo) {
-    final FeaturedMod mod[] = new FeaturedMod[] {null};
-    final String mapName[] = new String[] {null};
-    final String mapCrc[] = new String[] {null};
-    final String mapArchive[] = new String[] {null};
+    final FeaturedMod[] mod = new FeaturedMod[] {null};
+    final String[] mapName = new String[] {null};
+    final String[] mapCrc = new String[] {null};
+    final String[] mapArchive = new String[] {null};
 
     return modService.findFeaturedModByTaDemoFileInfo(demoFileInfo)
         .thenAccept(featuredMod -> mod[0] = featuredMod)
@@ -457,56 +460,93 @@ public class GameService implements InitializingBean {
           mapArchive[0] = v.getHpiArchiveName();
         }))
         .thenCompose(aVoid -> {
-          if (mod[0] == null) {
-            try {
-              List<Action> actionList = fafService.getFeaturedMods().get().stream()
-                  .filter(fm -> fm.isVisible())
-                  .map(fm -> new Action(
-                    fm.getDisplayName(), (a) -> runWithReplay(
-                    demoFileInfo.getFilePath(), 0, fm.getTechnicalName(), mapName[0], mapCrc[0], mapArchive[0])))
-                  .collect(Collectors.toList());
-
-              notificationService.addNotification(new ImmediateNotification(
-                  i18n.get("replay.selectMod.title"),
-                  i18n.get("replay.selectMod.text", demoFileInfo.getModHash(),
-                      demoFileInfo.getTaVersionMajor(), demoFileInfo.getTaVersionMinor()),
-                  Severity.INFO,actionList));
-
-            } catch (Exception e) {
-              log.warn("Exception during mod enumeration: {}", e.getMessage());
-            }
-            return CompletableFuture.completedFuture(null);
+          if (mod[0] == null || mod[0].getVersions().isEmpty()) {
+            return fafService.getFeaturedMods()
+                .thenCompose(featuredMods -> promptMod(featuredMods, demoFileInfo))
+                .thenCompose(fm -> {
+                  mod[0] = fm;
+                  return promptModVersion(fm, demoFileInfo);
+                })
+                .thenCompose(userSelectedVersion ->
+                    runWithReplay(demoFileInfo.getFilePath(), 0, mod[0].getTechnicalName(),
+                        userSelectedVersion.getGitBranch(),
+                        mapName[0], mapCrc[0], mapArchive[0]));
           }
           else {
-            return runWithReplay(
-              demoFileInfo.getFilePath(), 0, mod[0].getTechnicalName(), mapName[0], mapCrc[0], mapArchive[0]);
+            return runWithReplay(demoFileInfo.getFilePath(), 0, mod[0].getTechnicalName(),
+                mod[0].getVersions().get(0).getGitBranch(),
+                mapName[0], mapCrc[0], mapArchive[0]);
           }
         });
   }
 
-  public CompletableFuture<Void> runWithReplay(String replayFileOrUrl, Replay replay) {
-    if (replay.getMap() != null) {
-      return runWithReplay(
-          replayFileOrUrl, replay.getId(), replay.getFeaturedMod().getTechnicalName(),
-          replay.getMap().getMapName(), replay.getMap().getCrc(), replay.getMap().getHpiArchiveName());
-    }
-    else {
-      return runWithReplay(replayFileOrUrl, replay.getId(), replay.getFeaturedMod().getTechnicalName(),
-          null, null, null);
-    }
+  private CompletableFuture<FeaturedMod> promptMod(List<FeaturedMod> featuredMods, DemoFileInfo demoFileInfo) {
+    CompletableFuture<FeaturedMod> future = new CompletableFuture<>();
+    List<Action> selectModActionList = featuredMods.stream()
+        .filter(FeaturedMod::isVisible)
+        .map(fm -> new Action(fm.getDisplayName(), (a) -> future.complete(fm)))
+        .collect(Collectors.toList());
+
+    notificationService.addNotification(new ImmediateNotification(
+        i18n.get("replay.selectMod.title"),
+        i18n.get("replay.selectMod.text", demoFileInfo.getModHash(),
+            demoFileInfo.getTaVersionMajor(), demoFileInfo.getTaVersionMinor()),
+        Severity.INFO, selectModActionList));
+
+    return future;
   }
+
+  private CompletableFuture<FeaturedModVersion> promptModVersion(FeaturedMod fm, DemoFileInfo demoFileInfo) {
+    CompletableFuture<FeaturedModVersion> future = new CompletableFuture<>();
+    List<Action> selectModActionList = fm.getVersions().stream()
+        .map(fmv -> new Action(fmv.getDisplayName(), (a) -> future.complete(fmv)))
+        .collect(Collectors.toList());
+
+    notificationService.addNotification(new ImmediateNotification(
+        i18n.get("replay.selectModVersion.title", fm.getDisplayName()),
+        i18n.get("replay.selectModVersion.text", demoFileInfo.getModHash(),
+            demoFileInfo.getTaVersionMajor(), demoFileInfo.getTaVersionMinor()),
+        Severity.INFO, selectModActionList));
+
+    return future;
+  }
+
+//  public CompletableFuture<Void> runWithReplay(String replayFileOrUrl, Replay replay) {
+//    final String mapName = replay.getMap() != null ? replay.getMap().getMapName() : null;
+//    final String mapCrc = replay.getMap() != null ? replay.getMap().getCrc() : null;
+//    final String mapArchive = replay.getMap() != null ? replay.getMap().getHpiArchiveName() : null;
+//
+//    if (replay.getDemoFileInfo() != null) {
+//      fafService.findFeaturedModByTaDemoModHash(replay.getDemoFileInfo().getModHash())
+//          .thenCompose((fm) -> {
+//            if (fm != null && !fm.getVersions().isEmpty()) {
+//              return runWithReplay(replayFileOrUrl, replay.getId(), fm.getTechnicalName(),
+//                  fm.getVersions().get(0).getGitBranch(), mapName, mapCrc, mapArchive);
+//            }
+//            else {
+//              return this.promptModVersion(replay.getFeaturedMod(), replay.getDemoFileInfo())
+//                  .thenCompose(userSelectedVersion -> runWithReplay(
+//                      replayFileOrUrl, replay.getId(), replay.getFeaturedMod().getTechnicalName(),
+//                      userSelectedVersion.getGitBranch(), mapName, mapCrc, mapArchive));
+//            }
+//          });
+//    }
+//
+//    return runWithReplay(replayFileOrUrl, replay.getId(), replay.getFeaturedMod().getTechnicalName(),
+//        replay.getFeaturedMod().getGitBranch(), mapName, mapCrc, mapArchive);
+//  }
 
   public CompletableFuture<Void> runWithReplay(String replayFileOrUrl, Game game) {
     return runWithReplay(
-        replayFileOrUrl, game.getId(), game.getFeaturedMod(),
-        game.getMapName(), game.getMapCrc(), game.getMapArchiveName());
+        replayFileOrUrl, game.getId(), game.getFeaturedMod(), game.getFeaturedModVersion(), game.getMapName(),
+        game.getMapCrc(), game.getMapArchiveName());
   }
 
   /**
    * @param replayFileOrUrl Either a path to a locally available file, or a url eg taforever.com:15000/1234
    */
   public CompletableFuture<Void> runWithReplay(
-      String replayFileOrUrl, Integer replayId, String modTechnical,
+      String replayFileOrUrl, Integer replayId, String modTechnical, @Nullable String modVersion,
       @Nullable String mapName, @Nullable String mapCrc, @Nullable String mapArchive) {
 
     if (!canStartReplay()) {
@@ -516,14 +556,14 @@ public class GameService implements InitializingBean {
     if (!preferencesService.isGameExeValid(modTechnical)) {
       CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(modTechnical);
       gameDirectoryFuture.thenAccept(pathSet -> runWithReplay(
-          replayFileOrUrl, replayId, modTechnical, mapName, mapCrc, mapArchive));
+          replayFileOrUrl, replayId, modTechnical, modVersion, mapName, mapCrc, mapArchive));
       return completedFuture(null);
     }
 
     onMatchmakerSearchStopped();
 
     return modService.getFeaturedMod(modTechnical)
-        //.thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, version, modVersions, simMods))
+        .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, modVersion))
         .thenCompose(aVoid -> mapService.ensureMap(modTechnical, mapName, mapCrc, mapArchive, null, null))
         .thenAccept((aVoid) -> {
           try {
@@ -689,7 +729,7 @@ public class GameService implements InitializingBean {
     autoJoinRequestedGameProperty.set(null);
     return
         modService.getFeaturedMod(modTechnical)
-        .thenAccept(featuredModBean -> updateGameIfNecessary(featuredModBean, null, emptyMap(), emptySet()))
+        .thenAccept(featuredModBean -> updateGameIfNecessary(featuredModBean, null))
         .thenCompose(aVoid -> fafService.startSearchMatchmaker())
         .thenAccept((gameLaunchMessage) ->
             mapService.ensureMap(gameLaunchMessage.getMod(), gameLaunchMessage.getMapname(), gameLaunchMessage.getMapCrc(), gameLaunchMessage.getMapArchive(), null, null)
@@ -754,9 +794,8 @@ public class GameService implements InitializingBean {
     return process != null && process.isAlive();
   }
 
-  private CompletableFuture<Void> updateGameIfNecessary(FeaturedMod featuredMod, @Nullable Integer version, @NotNull Map<String, Integer> featuredModVersions, @NotNull Set<String> simModUids) {
-    return CompletableFuture.completedFuture(null);
-    //return gameUpdater.update(featuredMod, version, featuredModVersions, simModUids);
+  private CompletableFuture<String> updateGameIfNecessary(FeaturedMod featuredMod, @Nullable String version) {
+    return gameUpdater.update(featuredMod, version);
   }
 
   public Integer getRunningGameUid() {
@@ -767,8 +806,7 @@ public class GameService implements InitializingBean {
     try {
       noCatch(() -> runningGameUidProperty.setValue(uidOrNull));
     }
-    catch(Exception e)
-    {
+    catch(Exception e) {
       log.warn("[setRunningGameUid] {}", e.getMessage());
     }
   }
@@ -1056,6 +1094,7 @@ public class GameService implements InitializingBean {
             prototype.getTitle(),
             prototype.getPassword(),
             featuredModBean,
+            prototype.getFeaturedModVersion(),
             prototype.getMapName(),
             new HashSet<>(prototype.getSimMods().values()),
             prototype.getVisibility(),

@@ -75,6 +75,7 @@ public class Preferences {
   private final BooleanProperty gameDataMapDownloadKeepVersionTag;
   private final BooleanProperty debugLogEnabled;
   private final ObjectProperty<TadaIntegrationOption> tadaIntegrationOption;
+  private final ObjectProperty<AskAlwaysOrNever> featuredModRevertOption;
   private final ObjectProperty<RatingMetric> userInfoRatingMetric;
   private final ObjectProperty<AutoUploadLogsOption> autoUploadLogsOption;
   private final StringProperty lastLeaderboardSelection;
@@ -124,6 +125,7 @@ public class Preferences {
     debugLogEnabled = new SimpleBooleanProperty(false);
     autoUploadLogsOption = new SimpleObjectProperty<>(AutoUploadLogsOption.ASK);
     tadaIntegrationOption = new SimpleObjectProperty<>(TadaIntegrationOption.BROWSER);
+    featuredModRevertOption = new SimpleObjectProperty<>(AskAlwaysOrNever.ASK);
     userInfoRatingMetric = new SimpleObjectProperty<>(RatingMetric.TRUESKILL);
     lastLeaderboardSelection = new SimpleStringProperty("global");
     gameRoomPopout = new SimpleBooleanProperty(true);
@@ -254,10 +256,11 @@ public class Preferences {
   }
 
   public TotalAnnihilationPrefs getTotalAnnihilation(String modTechnical) {
-    return setTotalAnnihilation(modTechnical, null, null);
+    return setTotalAnnihilation(modTechnical, null, null, AskAlwaysOrNever.ASK);
   }
 
-  public TotalAnnihilationPrefs setTotalAnnihilation(String modTechnical, Path installedExePath, String commandLineOptions) {
+  public TotalAnnihilationPrefs setTotalAnnihilation(String modTechnical, Path installedExePath,
+                                                     String commandLineOptions, AskAlwaysOrNever autoUpdateEnable) {
     String baseGameName = modTechnical;
     KnownFeaturedMod kfm = KnownFeaturedMod.fromString(modTechnical);
     if (kfm != null) {
@@ -269,11 +272,13 @@ public class Preferences {
         if (installedExePath != null && commandLineOptions != null) {
           pref.setInstalledExePath(installedExePath);
           pref.setCommandLineOptions(commandLineOptions);
+          pref.setAutoUpdateEnable(autoUpdateEnable);
         }
         return pref;
       }
     }
-    TotalAnnihilationPrefs pref = new TotalAnnihilationPrefs(baseGameName, installedExePath, commandLineOptions);
+    TotalAnnihilationPrefs pref = new TotalAnnihilationPrefs(baseGameName, installedExePath, commandLineOptions,
+        AskAlwaysOrNever.ASK);
     totalAnnihilation.add(pref);
     return pref;
   }
@@ -493,11 +498,17 @@ public class Preferences {
   public TadaIntegrationOption getTadaIntegrationOption() {
     return tadaIntegrationOption.get();
   }
-
   public void setTadaIntegrationOption(TadaIntegrationOption option) { this.tadaIntegrationOption.set(option); }
-
   public ObjectProperty<TadaIntegrationOption> tadaIntegrationOptionProperty() {
     return tadaIntegrationOption;
+  }
+
+  public AskAlwaysOrNever getFeaturedModRevertOption() {
+    return featuredModRevertOption.get();
+  }
+  public void setFeaturedModRevertOption(AskAlwaysOrNever option) { this.featuredModRevertOption.set(option); }
+  public ObjectProperty<AskAlwaysOrNever> featuredModRevertOptionProperty() {
+    return featuredModRevertOption;
   }
 
   public RatingMetric getUserInfoRatingMetric() {

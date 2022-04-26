@@ -27,25 +27,22 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.luaj.vm2.LuaError;
 import org.mockito.Mock;
 import org.springframework.context.ApplicationContext;
-import org.springframework.util.FileSystemUtils;
 import org.testfx.util.WaitForAsyncUtils;
 
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import static com.faforever.client.util.LinkOrCopy.linkOrCopy;
+import static com.faforever.client.util.LinkOrCopy.anyLinkOrCopy;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
@@ -259,13 +256,13 @@ public class MapServiceTest extends AbstractPlainJavaFxTest {
     for (String archive: mod2Contents.split(";")) {
       Path source = Paths.get(getClass().getResource("/maps/" + archive).toURI());
       Path dest = preferencesService.getTotalAnnihilation("MOD2").getInstalledPath().resolve(archive);
-      linkOrCopy(source, dest);
+      anyLinkOrCopy(source, dest);
     }
 
     for (String archive: mapCacheContents.split(";")) {
       Path source = Paths.get(getClass().getResource("/maps/" + archive).toURI());
       Path dest = preferencesService.getCacheDirectory().resolve("maps").resolve(archive);
-      linkOrCopy(source, dest);
+      anyLinkOrCopy(source, dest);
     }
 
     doMapInstallationTests("MOD1");
@@ -347,7 +344,7 @@ public class MapServiceTest extends AbstractPlainJavaFxTest {
     for (String hpiArchiveName : hpiArchiveNames) {
       Path source = Paths.get(getClass().getResource("/maps/" + hpiArchiveName).toURI());
       Path dest = preferencesService.getCacheDirectory().resolve("maps").resolve(hpiArchiveName);
-      linkOrCopy(source, dest);
+      anyLinkOrCopy(source, dest);
     }
   }
 }

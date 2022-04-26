@@ -2,20 +2,20 @@ package com.faforever.client.mod;
 
 import com.faforever.client.config.CacheNames;
 import com.faforever.client.fa.DemoFileInfo;
-import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.mod.ModVersion.ModType;
-import com.faforever.client.notification.Action;
 import com.faforever.client.notification.NotificationService;
-import com.faforever.client.notification.PersistentNotification;
+import com.faforever.client.patch.GameUpdater;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.query.SearchablePropertyMappings;
 import com.faforever.client.remote.AssetService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.task.CompletableTask;
-import com.faforever.client.task.CompletableTask.Priority;
 import com.faforever.client.task.TaskService;
+import com.faforever.client.theme.UiService;
+import com.faforever.client.ui.statusbar.StatusBarController;
 import com.faforever.client.util.IdenticonUtil;
 import com.faforever.client.util.Tuple;
 import com.faforever.client.vault.search.SearchController.SearchConfig;
@@ -23,7 +23,8 @@ import com.faforever.client.vault.search.SearchController.SortConfig;
 import com.faforever.client.vault.search.SearchController.SortOrder;
 import com.faforever.commons.mod.ModLoadException;
 import com.faforever.commons.mod.ModReader;
-import javafx.beans.InvalidationListener;
+import com.google.common.eventbus.EventBus;
+import com.google.gson.Gson;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
@@ -44,18 +45,15 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpMethod;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.WatchKey;
-import java.nio.file.WatchService;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,7 +66,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.github.nocatch.NoCatch.noCatch;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
 @Lazy
@@ -87,10 +84,14 @@ public class ModService implements InitializingBean, DisposableBean {
   private final TaskService taskService;
   private final ApplicationContext applicationContext;
   private final NotificationService notificationService;
+  private final UiService uiService;
+  private final EventBus eventBus;
+  private final StatusBarController statusBarController;
   private final I18n i18n;
   private final PlatformService platformService;
   private final AssetService assetService;
   private final ModReader modReader = new ModReader();
+  private final GameUpdater gameUpdater;
 
   private Path modsDirectory;
   private final Map<Path, ModVersion> pathToMod = new HashMap<>();
@@ -99,70 +100,20 @@ public class ModService implements InitializingBean, DisposableBean {
   private Thread directoryWatcherThread;
 
   @Override
-  public void afterPropertiesSet() {
-//    InvalidationListener modDirectoryChangedListener = observable -> {
-//      modsDirectory = preferencesService.getPreferences().getForgedAlliance().getModsDirectory();
-//      if (modsDirectory != null) {
-//        installedModVersions.clear();
-//        onModDirectoryReady();
-//      }
-//    };
-//    taskService.submitTask(new CompletableTask<Void>(Priority.LOW) {
-//      @Override
-//      protected Void call() throws Exception {
-//        updateTitle(i18n.get("modVault.loadingMods"));
-//        modDirectoryChangedListener.invalidated(preferencesService.getPreferences().getForgedAlliance().modsDirectoryProperty());
-//        return null;
-//      }
-//    });
-//    JavaFxUtil.addListener(preferencesService.getPreferences().getForgedAlliance().modsDirectoryProperty(), modDirectoryChangedListener);
-  }
-
-  private void onModDirectoryReady() {
-//    try {
-//      createDirectories(modsDirectory);
-//      Optional.ofNullable(directoryWatcherThread).ifPresent(Thread::interrupt);
-//      directoryWatcherThread = startDirectoryWatcher(modsDirectory);
-//    } catch (IOException e) {
-//      logger.warn("Could not start mod directory watcher", e);
-//      // TODO notify user
-//    }
-//    loadInstalledMods();
-  }
-
-  private Thread startDirectoryWatcher(Path modsDirectory) {
-    Thread thread = new Thread(() -> noCatch(() -> {
-      WatchService watcher = modsDirectory.getFileSystem().newWatchService();
-      modsDirectory.register(watcher, ENTRY_DELETE);
-
-      try {
-        while (!Thread.interrupted()) {
-          WatchKey key = watcher.take();
-          key.pollEvents().stream()
-              .filter(event -> event.kind() == ENTRY_DELETE)
-              .forEach(event -> removeMod(modsDirectory.resolve((Path) event.context())));
-          key.reset();
-        }
-      } catch (InterruptedException e) {
-        logger.debug("Watcher terminated ({})", e.getMessage());
-      }
-    }));
-    thread.start();
-    return thread;
-  }
+  public void afterPropertiesSet() { }
 
   public CompletableFuture<FeaturedMod> findFeaturedModByTaDemoFileInfo(DemoFileInfo demoFileInfo) {
     return fafService.findFeaturedModByTaDemoModHash(demoFileInfo.getModHash())
-        .thenApply(featuredModList -> {
+        .thenApply(fm -> {
           try {
-            if (!featuredModList.isEmpty()) {
-              return featuredModList.get(0);
+            if (fm != null && fm.getVersions() != null) {
+              return fm;
             }
 
             String versionString = String.format("%d.%d", demoFileInfo.getTaVersionMajor(), demoFileInfo.getTaVersionMinor());
-            featuredModList = fafService.findFeaturedModByTaDemoModHash(versionString).get();
-            if (!featuredModList.isEmpty()) {
-              return featuredModList.get(0);
+            fm = fafService.findFeaturedModByTaDemoModHash(versionString).get();
+            if (fm != null && fm.getVersions() != null) {
+              return fm;
             }
           } catch (Exception e) {
             logger.warn("Exception finding mod for demo file {}: {}", demoFileInfo, e.getMessage());
@@ -360,5 +311,32 @@ public class ModService implements InitializingBean, DisposableBean {
   @Override
   public void destroy() {
     Optional.ofNullable(directoryWatcherThread).ifPresent(Thread::interrupt);
+  }
+
+  // @return version that was finally installed, or null
+  public CompletableFuture<String> downloadAndInstallFeaturedMod(
+      FeaturedMod fm, Path originalTaPath, String installPackagePathOrUrl, Path targetInstallationPath) {
+
+    FeaturedModInstallSpecs specs = new Gson().fromJson(fm.getInstallPackage(), FeaturedModInstallSpecs.class);
+    InstallFeaturedModTask task = applicationContext.getBean(InstallFeaturedModTask.class);
+    task.setFeaturedMod(fm);
+    task.setReferenceTaPath(originalTaPath);
+    task.setTargetPath(targetInstallationPath);
+    for (String url: installPackagePathOrUrl.split(";")) {
+      task.addInstallPackagePathOrUrl(url);
+    }
+    task.setFeaturedModInstallSpecs(specs);
+
+    return taskService.submitTask(task).getFuture()
+        .thenCompose(installedPath -> {
+          if (installedPath != null && installedPath.resolve("TotalA.exe").toFile().exists()) {
+            TotalAnnihilationPrefs taPrefs = preferencesService.getTotalAnnihilation(fm.getTechnicalName());
+            taPrefs.setInstalledExePath(installedPath.resolve("TotalA.exe"));
+            return gameUpdater.update(fm, fm.getGitBranch());
+          }
+          else {
+            return CompletableFuture.completedFuture(null);
+          }
+        });
   }
 }

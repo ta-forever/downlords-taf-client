@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.ButtonBar?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.layout.StackPane?>
+<StackPane xmlns:fx="http://javafx.com/fxml/1" fx:id="featuredModInstallControllerRoot" styleClass="dialog-framed"
+           xmlns="http://javafx.com/javafx/8.0.111" fx:controller="com.faforever.client.mod.FeaturedModInstallController">
+    <VBox spacing="10">
+        <GridPane hgap="10.0" vgap="10.0">
+            <columnConstraints>
+                <ColumnConstraints hgrow="NEVER" minWidth="60.0" prefWidth="120.0"/>
+                <ColumnConstraints hgrow="NEVER" minWidth="170.0" prefWidth="340.0"/>
+                <ColumnConstraints hgrow="NEVER" minWidth="30.0" prefWidth="60.0"/>
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints vgrow="NEVER"/>
+            </rowConstraints>
+            <Label fx:id="titleLabel" styleClass="header"
+                   GridPane.rowIndex="0" GridPane.columnIndex="0" GridPane.ColumnSpan="2"/>
+            <Button onMouseClicked="#openContextMenu" text="..." GridPane.rowIndex="0" GridPane.columnIndex="2">
+                <tooltip><Tooltip text="%installFeaturedMod.website"/></tooltip>
+            </Button>
+        </GridPane>
+        <Label text="%installFeaturedMod.description" wrapText="true" prefWidth="520"/>
+        <Separator/>
+        <VBox fx:id="containerLayout" spacing="10">
+            <CheckBox fx:id="useExistingCheckBox" mnemonicParsing="false" text="%installFeaturedMod.useExistingCheckBox"
+                      GridPane.rowIndex="0" GridPane.columnIndex="1">
+              <tooltip><Tooltip text="%installFeaturedMod.useExistingCheckBox.tooltip"/></tooltip>
+            </CheckBox>
+            <GridPane fx:id="newInstallParamsGridPane" hgap="10.0" vgap="10.0">
+              <columnConstraints>
+                <ColumnConstraints hgrow="NEVER" minWidth="60.0" prefWidth="120.0"/>
+                <ColumnConstraints hgrow="NEVER" minWidth="170.0" prefWidth="340.0"/>
+                <ColumnConstraints hgrow="NEVER" minWidth="30.0" prefWidth="60.0"/>
+              </columnConstraints>
+              <rowConstraints>
+                <RowConstraints vgrow="NEVER"/>
+              </rowConstraints>
+
+              <Label maxHeight="1.7976931348623157E308"
+                     maxWidth="1.7976931348623157E308" prefHeight="22.0" prefWidth="225.0"
+                     text="%installFeaturedMod.originalTaPathLabel" wrapText="true"
+                     GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+              <TextField fx:id="originalTaPathTextField" maxWidth="1.7976931348623157E308"
+                         promptText="%installFeaturedMod.originalTaPathTextField"
+                         GridPane.rowIndex="0" GridPane.columnIndex="1">
+                <tooltip><Tooltip text="%installFeaturedMod.originalTaPathTextField"/></tooltip>
+              </TextField>
+              <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onOriginalTaPathButton"
+                      text="..." GridPane.rowIndex="0" GridPane.columnIndex="2"/>
+
+              <VBox visible="false">
+                  <Label maxHeight="1.7976931348623157E308"
+                         maxWidth="1.7976931348623157E308" prefHeight="22.0" prefWidth="225.0"
+                         text="%installFeaturedMod.installPackageUrlLabel" wrapText="true"
+                         GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                  <TextField fx:id="installPackageUrlTextField" maxWidth="1.7976931348623157E308"
+                             promptText="%installFeaturedMod.installPackageUrlTextField"
+                             GridPane.rowIndex="1" GridPane.columnIndex="1">
+                    <tooltip><Tooltip text="%installFeaturedMod.installPackageUrlTextField"/></tooltip>
+                  </TextField>
+                  <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onInstallPackageUrlButton" text="..."
+                          GridPane.rowIndex="1" GridPane.columnIndex="2"/>
+              </VBox>
+            </GridPane>
+
+            <GridPane fx:id="settingsGridPane" hgap="10.0" vgap="10.0">
+              <columnConstraints>
+                <ColumnConstraints hgrow="NEVER" minWidth="60.0" prefWidth="120.0"/>
+                <ColumnConstraints hgrow="NEVER" minWidth="170.0" prefWidth="340.0"/>
+                <ColumnConstraints hgrow="NEVER" minWidth="30.0" prefWidth="60.0"/>
+              </columnConstraints>
+              <rowConstraints>
+                <RowConstraints vgrow="NEVER"/>
+              </rowConstraints>
+              <Label maxHeight="1.7976931348623157E308"
+                   maxWidth="1.7976931348623157E308" prefHeight="22.0" prefWidth="225.0"
+                   text="%installFeaturedMod.installPathLabel" wrapText="true"
+                   GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+              <TextField fx:id="installPathTextField" maxWidth="1.7976931348623157E308"
+                       promptText="%installFeaturedMod.installPathTextField"
+                       GridPane.rowIndex="0" GridPane.columnIndex="1">
+                <tooltip><Tooltip text="%installFeaturedMod.installPathTextField"/></tooltip>
+              </TextField>
+              <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onInstallPathButton" text="..."
+                    GridPane.rowIndex="0" GridPane.columnIndex="2"/>
+
+              <Label maxHeight="1.7976931348623157E308"
+                     maxWidth="1.7976931348623157E308" prefHeight="22.0" prefWidth="225.0"
+                     text="%installFeaturedMod.commandLineLabel" wrapText="true"
+                     GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+              <TextField fx:id="commandLineTextField" maxWidth="1.7976931348623157E308"
+                         promptText="%installFeaturedMod.commandLineTextField"
+                         GridPane.rowIndex="1" GridPane.columnIndex="1">
+                  <tooltip><Tooltip text="%installFeaturedMod.commandLineTextField"/></tooltip>
+              </TextField>
+
+              <Label maxHeight="1.7976931348623157E308"
+                   maxWidth="1.7976931348623157E308" prefHeight="22.0" prefWidth="225.0"
+                   text="%installFeaturedMod.autoUpdateComboBox" wrapText="true"
+                   GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+              <ComboBox fx:id="autoUpdateComboBox" GridPane.rowIndex="2" GridPane.columnIndex="1">
+                <tooltip><Tooltip text="%installFeaturedMod.autoUpdateComboBox.tooltip"/></tooltip>
+              </ComboBox>
+            </GridPane>
+        </VBox>
+        <Separator/>
+        <ButtonBar fx:id="buttonBar">
+          <buttons>
+            <Button cancelButton="true" mnemonicParsing="false" onAction="#onCancelButton" text="%cancel"/>
+            <Button defaultButton="true" mnemonicParsing="false" onAction="#onConfirmButton" text="OK"/>
+          </buttons>
+        </ButtonBar>
+    </VBox>
+    <padding>
+        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
+    </padding>
+</StackPane>

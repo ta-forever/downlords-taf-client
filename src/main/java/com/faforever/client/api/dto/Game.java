@@ -20,6 +20,7 @@ public class Game {
   private String id;
   private String name;
   private Boolean replayAvailable;
+  private String replayMeta;
   private Boolean tadaAvailable;
   private OffsetDateTime startTime;
   private OffsetDateTime endTime;

@@ -20,6 +20,7 @@ public class GameInfoMessage extends FafServerMessage {
   private Integer numPlayers;
   private Map<String, List<String>> teams;
   private String featuredMod;
+  private String featuredModVersion;
   private Integer uid;
   private Integer maxPlayers;
   private String title;

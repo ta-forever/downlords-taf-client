@@ -265,8 +265,9 @@ public class CoopController extends AbstractViewController<Node> {
   public void onPlayButtonClicked() {
     modService.getFeaturedMod(COOP.getTechnicalName())
         .thenAccept(featuredModBean -> gameService.hostGame(new NewGameInfo(titleTextField.getText(),
-            Strings.emptyToNull(passwordTextField.getText()), featuredModBean, getSelectedMission().getMapFolderName(),
-            emptySet(), GameVisibility.PUBLIC, null, null, false, 300, DEFAULT_RATING_TYPE)));
+            Strings.emptyToNull(passwordTextField.getText()), featuredModBean, featuredModBean.getGitBranch(),
+            getSelectedMission().getMapFolderName(), emptySet(), GameVisibility.PUBLIC, null, null,
+            false, 300, DEFAULT_RATING_TYPE)));
   }
 
   public Node getRoot() {

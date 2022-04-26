@@ -1,5 +1,7 @@
 package com.faforever.client.preferences;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -13,6 +15,7 @@ public class TotalAnnihilationPrefs {
   private final StringProperty baseGameName;
   private final ObjectProperty<Path> installedExePath;
   private final StringProperty commandLineOptions;
+  private final ObjectProperty<AskAlwaysOrNever> autoUpdateEnable;
 
   public static final String TOTAL_ANNIHILATION_EXE = "TotalA.exe";
   public static final Path CAVEDOG_TA_PATH;
@@ -26,16 +29,19 @@ public class TotalAnnihilationPrefs {
     }
   }
 
-  public TotalAnnihilationPrefs(String baseGameName, Path installedExePath, String commandLineOptions) {
+  public TotalAnnihilationPrefs(String baseGameName, Path installedExePath, String commandLineOptions,
+                                AskAlwaysOrNever autoUpdateEnable) {
     this.baseGameName = new SimpleStringProperty(baseGameName);
     this.installedExePath = new SimpleObjectProperty<>(installedExePath);
     this.commandLineOptions = new SimpleStringProperty(commandLineOptions);
+    this.autoUpdateEnable = new SimpleObjectProperty<>(autoUpdateEnable);
   }
 
   private TotalAnnihilationPrefs() {
     this.baseGameName = new SimpleStringProperty();
     this.installedExePath = new SimpleObjectProperty<>();
     this.commandLineOptions = new SimpleStringProperty();
+    this.autoUpdateEnable = new SimpleObjectProperty<>(AskAlwaysOrNever.ASK);
   }
 
   public StringProperty getModNameProperty() { return baseGameName; }
@@ -51,6 +57,10 @@ public class TotalAnnihilationPrefs {
   public StringProperty getCommandLineOptionsProperty() { return commandLineOptions; }
   public String getCommandLineOptions() { return this.commandLineOptions.get(); }
   public void setCommandLineOptions(String commandLineOptions) { this.commandLineOptions.set(commandLineOptions); }
+
+  public ObjectProperty<AskAlwaysOrNever> getAutoUpdateEnableProperty() { return autoUpdateEnable; }
+  public AskAlwaysOrNever getAutoUpdateEnable() { return this.autoUpdateEnable.get(); }
+  public void setAutoUpdateEnable(AskAlwaysOrNever autoUpdateEnable) { this.autoUpdateEnable.set(autoUpdateEnable); }
 
   public Path getInstalledPath() {
     if (this.installedExePath.get() != null) {

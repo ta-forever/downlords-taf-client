@@ -24,7 +24,7 @@ import java.util.Objects;
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @Slf4j
-public class SimpleHttpFeaturedModUpdaterTask extends CompletableTask<PatchResult> {
+public class SimpleHttpFeaturedModUpdaterTask extends CompletableTask<String> {
   private final FafService fafService;
   private final PreferencesService preferencesService;
   private final DownloadService downloadService;
@@ -51,7 +51,7 @@ public class SimpleHttpFeaturedModUpdaterTask extends CompletableTask<PatchResul
   }
 
   @Override
-  protected PatchResult call() throws Exception {
+  protected String call() throws Exception {
     String initFileName = "init_" + featuredMod.getTechnicalName() + ".lua";
 
     updateTitle(i18n.get("updater.taskTitle"));
@@ -96,7 +96,7 @@ public class SimpleHttpFeaturedModUpdaterTask extends CompletableTask<PatchResul
         .max()
         .orElseThrow(() -> new IllegalStateException("No version found for featured mod: " + featuredMod.getTechnicalName()));
 
-    return PatchResult.withLegacyInitFile(new ComparableVersion(String.valueOf(maxVersion)), initFile);
+    return String.format("%d", version);
   }
 
   private boolean fileAlreadyLoaded(FeaturedModFile featuredModFile, Path targetPath) throws IOException {

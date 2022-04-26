@@ -205,18 +205,8 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   @Override
   @Cacheable(value = CacheNames.FEATURED_MODS, sync = true)
   public List<com.faforever.client.api.dto.FeaturedMod> getFeaturedMods() {
-    return getMany("/data/featuredMod", 1000, java.util.Map.of());
-  }
-
-  @Override
-  @Cacheable(value = CacheNames.TADEMO_MOD_HASH, sync = true)
-  public List<com.faforever.client.api.dto.FeaturedMod> findFeaturedModByTaDemoModHash(String taDemoModHash) {
-    return getMany("/data/featuredMod", 1, java.util.Map.of(
-            FILTER, rsql(qBuilder()
-              .string("versions.taHash").eq(taDemoModHash)
-              .and()
-              .bool("versions.confirmed").isTrue()),
-            INCLUDE, "versions"));
+    return getMany("/data/featuredMod", 1000, java.util.Map.of(
+        INCLUDE, "versions"));
   }
 
   @Override

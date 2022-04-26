@@ -29,6 +29,7 @@ public class Game {
   private final StringProperty mapCrc;
   private final StringProperty mapArchiveName;
   private final StringProperty featuredMod;
+  private final StringProperty featuredModVersion;
   private final IntegerProperty id;
   private final IntegerProperty numPlayers;
   private final IntegerProperty maxPlayers;
@@ -63,6 +64,7 @@ public class Game {
     mapCrc = new SimpleStringProperty();
     mapArchiveName = new SimpleStringProperty();
     featuredMod = new SimpleStringProperty();
+    featuredModVersion = new SimpleStringProperty();
     numPlayers = new SimpleIntegerProperty();
     maxPlayers = new SimpleIntegerProperty();
     averageRating = new SimpleDoubleProperty(0);
@@ -147,12 +149,20 @@ public class Game {
     return featuredMod.get();
   }
 
-  public void setFeaturedMod(String featuredMod) {
-    this.featuredMod.set(featuredMod);
-  }
+  public void setFeaturedMod(String featuredMod) { this.featuredMod.set(featuredMod); }
 
   public StringProperty featuredModProperty() {
     return featuredMod;
+  }
+
+  public String getFeaturedModVersion() {
+    return featuredModVersion.get();
+  }
+
+  public void setFeaturedModVersion(String featuredModVersion) { this.featuredModVersion.set(featuredModVersion); }
+
+  public StringProperty featuredModVersionProperty() {
+    return featuredModVersion;
   }
 
   public int getId() {

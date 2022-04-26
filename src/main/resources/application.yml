@@ -70,6 +70,8 @@ faf-client:
         url: https://discord.gg/Z4hJpVbmyW
       - title: TA Mayhem
         url: https://discord.gg/y83tKZyrAW
+      - title: TA ReImagined
+        url: https://discord.gg/vj6qKZkeHj
 
 spring:
   profiles:

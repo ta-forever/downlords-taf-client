@@ -3,6 +3,7 @@ package com.faforever.client.replay;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.discord.DiscordSpectateEvent;
 import com.faforever.client.fa.DemoFile;
+import com.faforever.client.fa.DemoFileInfo;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.game.Game;
 import com.faforever.client.game.GameService;
@@ -286,7 +287,8 @@ public class ReplayService implements InitializingBean {
 
   public void runDownloadReplay(Replay replay) {
     downloadReplay(replay.getId())
-        .thenAccept(replayFile -> this.gameService.runWithReplay(replayFile.toString(), replay))
+        .thenApply(replayFile -> DemoFile.sneakyGetInfo(replayFile.toString()))
+        .thenAccept(this.gameService::runWithReplay)
         .exceptionally(throwable -> {
           if (throwable.getCause() instanceof FileNotFoundException) {
             log.warn("Replay not available on server yet", throwable);

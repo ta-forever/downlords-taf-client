@@ -1,10 +1,12 @@
 package com.faforever.client.config;
 
 import com.faforever.client.FafClientApplication;
+import com.faforever.client.map.MapService;
 import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.patch.GameUpdater;
 import com.faforever.client.patch.GameUpdaterImpl;
+import com.faforever.client.patch.GitLfsFeaturedModUpdater;
 import com.faforever.client.patch.SimpleHttpFeaturedModUpdater;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
@@ -20,17 +22,21 @@ import org.springframework.context.annotation.Profile;
 @AllArgsConstructor
 public class FeaturedModUpdaterConfig {
 
-  private final ModService modService;
   private final ApplicationContext applicationContext;
   private final TaskService taskService;
   private final FafService fafService;
-  private final SimpleHttpFeaturedModUpdater httpFeaturedModUpdater;
-  private final PreferencesService preferencesService;
+  private final MapService mapService;
+  private final GitLfsFeaturedModUpdater gitLfsFeaturedModUpdater;
   private final NotificationService notificationService;
+  private final PreferencesService preferencesService;
 
   @Bean
   GameUpdater gameUpdater() {
-    return new GameUpdaterImpl(modService, applicationContext, taskService, fafService, preferencesService, notificationService)
-        .addFeaturedModUpdater(httpFeaturedModUpdater);
+    GameUpdaterImpl gu = new GameUpdaterImpl(
+        applicationContext, taskService, fafService, mapService, notificationService, preferencesService);
+
+    gu.addFeaturedModUpdater(gitLfsFeaturedModUpdater);
+    //gu.proactiveUpdateCurrentVersions();
+    return gu;
   }
 }

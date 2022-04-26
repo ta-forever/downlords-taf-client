@@ -4,6 +4,7 @@ import com.faforever.client.fa.FaStrings;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.DualStringListCell;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.fx.PlatformService;
 import com.faforever.client.fx.StringListCell;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapBean;
@@ -18,6 +19,7 @@ import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.LastGamePrefs;
 import com.faforever.client.preferences.PreferenceUpdateListener;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.teammatchmaking.MatchmakingQueue;
@@ -26,6 +28,7 @@ import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.google.common.eventbus.EventBus;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
@@ -58,6 +61,7 @@ import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundImage;
 import javafx.scene.layout.BackgroundSize;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 import lombok.RequiredArgsConstructor;
@@ -74,6 +78,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -104,6 +109,8 @@ public class CreateGameController implements Controller<Pane> {
   private final FafService fafService;
   private final UiService uiService;
   private final EventBus eventBus;
+  private final PlatformService platformService;
+
   public Label mapSizeLabel;
   public Label mapPlayersLabel;
   public Label mapDescriptionLabel;
@@ -115,10 +122,10 @@ public class CreateGameController implements Controller<Pane> {
   public CheckBox enforceRankingCheckBox;
   public ListView<FeaturedMod> featuredModListView;
   public ListView<MapBean> mapListView;
-  public Pane createGameRoot;
+  public StackPane createGameRoot;
   public Button createGameButton;
   public Button updateGameButton;
-  public Button setGamePathButton;
+  public Button installGameButton;
   public VBox mapPreview;
   public Pane mapPreviewPane;
   public Label versionLabel;
@@ -131,6 +138,7 @@ public class CreateGameController implements Controller<Pane> {
 
   public CheckBox rankedEnabledCheckBox;
   public Label rankedEnabledLabel;
+  public Button openGameFolderButton;
   @VisibleForTesting
   FilteredList<MapBean> filteredMapBeans;
   private Runnable onCloseButtonClickedListener;
@@ -164,6 +172,8 @@ public class CreateGameController implements Controller<Pane> {
     validatedButtonsDisableProperty = new SimpleBooleanProperty();
     interactionLevelProperty = new SimpleStringProperty();
     contextGameProperty = new SimpleObjectProperty<>();
+//    featuredModInstallController = uiService.loadFxml("theme/featured_mod_install.fxml");
+//    featuredModInstallController.attachToOwner(createGameRoot);
 
     JavaFxUtil.addLabelContextMenus(uiService, hpiArchiveLabel, mapDescriptionLabel);
     versionLabel.managedProperty().bind(versionLabel.visibleProperty());
@@ -352,7 +362,8 @@ public class CreateGameController implements Controller<Pane> {
     onlyForFriendsCheckBox.disableProperty().bind(updateGameButton.visibleProperty());
     liveReplayOptionComboBox.disableProperty().bind(updateGameButton.visibleProperty());
     featuredModListView.disableProperty().bind(updateGameButton.visibleProperty());
-    setGamePathButton.disableProperty().bind(updateGameButton.visibleProperty());
+    installGameButton.disableProperty().bind(updateGameButton.visibleProperty());
+    openGameFolderButton.disableProperty().bind(updateGameButton.visibleProperty());
     passwordTextField.disableProperty().bind(updateGameButton.visibleProperty());
     minRankingTextField.disableProperty().bind(updateGameButton.visibleProperty());
     maxRankingTextField.disableProperty().bind(updateGameButton.visibleProperty());
@@ -423,8 +434,10 @@ public class CreateGameController implements Controller<Pane> {
         mapService.getInstalledMaps(mod.getTechnicalName()).addListener(new WeakListChangeListener<>(changeListener));
       });
     } catch (InterruptedException e) {
+      notificationService.addImmediateErrorNotification(e, "[initMapListListeners] InterruptedException", e.getLocalizedMessage());
       log.error("[initMapListListeners] InterruptedException: {}", e.getMessage());
     } catch (ExecutionException e) {
+      notificationService.addImmediateErrorNotification(e, "[initMapListListeners] ExecutionException", e.getLocalizedMessage());
       log.error("[initMapListListeners] ExecutionException: {}", e.getMessage());
     }
   }
@@ -539,19 +552,25 @@ public class CreateGameController implements Controller<Pane> {
 
     modService.getFeaturedMods().thenAccept(featuredModBeans -> JavaFxUtil.runLater(() -> {
       featuredModListView.setItems(FXCollections.observableList(featuredModBeans).filtered(FeaturedMod::isVisible));
-      featuredModListView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> JavaFxUtil.runLater(() -> {
-        setAvailableMapPools(newValue.getTechnicalName());
-        setAvailableMaps(newValue.getTechnicalName());
-        Path installedExePath = preferencesService.getTotalAnnihilation(newValue.getTechnicalName()).getInstalledExePath();
-        setGamePathButton.setStyle(installedExePath == null || !Files.isExecutable(installedExePath)
-            ? "-fx-background-color: -fx-accent"
-            : "-fx-background-color: -fx-background");
-        selectAppropriateMap();
-        preferencesService.getPreferences().getLastGame().setLastGameType(newValue.getTechnicalName());
-        preferencesService.storeInBackground();
-      }));
+      featuredModListView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) ->
+          JavaFxUtil.runLater(() -> setButtonStatesForFeaturedMod(newValue)));
       selectLastOrDefaultGameType();
     }));
+  }
+
+  private void setButtonStatesForFeaturedMod(FeaturedMod featuredMod) {
+    setAvailableMapPools(featuredMod.getTechnicalName());
+    setAvailableMaps(featuredMod.getTechnicalName());
+    Path installedExePath = preferencesService.getTotalAnnihilation(featuredMod.getTechnicalName()).getInstalledExePath();
+    installGameButton.setStyle(installedExePath == null || !Files.isExecutable(installedExePath)
+        ? "-fx-background-color: -fx-accent"
+        : "-fx-background-color: -fx-background");
+    installGameButton.setText(i18n.get("game.create.download", featuredMod.getDisplayName()));
+    openGameFolderButton.setVisible(installedExePath != null && Files.exists(installedExePath));
+    openGameFolderButton.setText(i18n.get("game.create.openModFolder", featuredMod.getDisplayName()));
+    selectAppropriateMap();
+    preferencesService.getPreferences().getLastGame().setLastGameType(featuredMod.getTechnicalName());
+    preferencesService.storeInBackground();
   }
 
   private void initMapPoolList() {
@@ -699,6 +718,7 @@ public class CreateGameController implements Controller<Pane> {
         titleTextField.getText(),
         Strings.emptyToNull(passwordTextField.getText()),
         featuredModListView.getSelectionModel().getSelectedItem(),
+        featuredModListView.getSelectionModel().getSelectedItem().getGitBranch(),
         map.getMapName(),
         emptySet(),
         onlyForFriendsCheckBox.isSelected() ? GameVisibility.PRIVATE : GameVisibility.PUBLIC,
@@ -753,14 +773,6 @@ public class CreateGameController implements Controller<Pane> {
     this.onCloseButtonClickedListener = onCloseButtonClickedListener;
   }
 
-  public void onSetGamePathClicked(ActionEvent actionEvent) {
-    String modTechnicalName = KnownFeaturedMod.DEFAULT.getTechnicalName();
-    if (featuredModListView.getSelectionModel().getSelectedItem() != null) {
-      modTechnicalName = featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName();
-    }
-    eventBus.post(new GameDirectoryChooseEvent(modTechnicalName));
-  }
-
   public void onMapAPreviewPaneClicked(MouseEvent mouseEvent) {
     ContextMenu contextMenu = new ContextMenu();
     MenuItem menuItem = new MenuItem();
@@ -774,5 +786,31 @@ public class CreateGameController implements Controller<Pane> {
     });
     contextMenu.getItems().add(menuItem);
     contextMenu.show(this.getRoot().getScene().getWindow(), mouseEvent.getScreenX(), mouseEvent.getScreenY());
+  }
+
+  public void onInstallSelectedModClicked(ActionEvent actionEvent) {
+    FeaturedMod fm = null;
+    if (featuredModListView.getSelectionModel().getSelectedItem() != null) {
+      fm = featuredModListView.getSelectionModel().getSelectedItem();
+    }
+    if (fm != null) {
+      CompletableFuture<Path> future = new CompletableFuture();
+      eventBus.post(new GameDirectoryChooseEvent(fm.getTechnicalName(), future));
+      future.thenRun(() -> Platform.runLater(() -> setButtonStatesForFeaturedMod(
+          featuredModListView.getSelectionModel().getSelectedItem())));
+    }
+  }
+
+  public void onOpenGameFolderClicked(ActionEvent actionEvent) {
+    FeaturedMod fm = null;
+    if (featuredModListView.getSelectionModel().getSelectedItem() != null) {
+      fm = featuredModListView.getSelectionModel().getSelectedItem();
+    }
+    if (fm != null) {
+      TotalAnnihilationPrefs taPrefs = preferencesService.getTotalAnnihilation(fm.getTechnicalName());
+      if (Files.exists(taPrefs.getInstalledPath())) {
+        platformService.reveal(taPrefs.getInstalledPath());
+      }
+    }
   }
 }

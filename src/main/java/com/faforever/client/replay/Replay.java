@@ -4,12 +4,17 @@ import com.faforever.client.api.dto.Game;
 import com.faforever.client.api.dto.GamePlayerStats;
 import com.faforever.client.api.dto.LeaderboardRatingJournal;
 import com.faforever.client.api.dto.Validity;
+import com.faforever.client.fa.DemoFileInfo;
 import com.faforever.client.game.Faction;
 import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.vault.review.Review;
 import com.faforever.client.vault.review.ReviewsSummary;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
 import javafx.beans.Observable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
@@ -53,6 +58,7 @@ public class Replay {
   private final ObjectProperty<OffsetDateTime> startTime;
   private final ObjectProperty<OffsetDateTime> endTime;
   private final ObjectProperty<FeaturedMod> featuredMod;
+  private final ObjectProperty<DemoFileInfo> demoFileInfo;
   private final ObjectProperty<MapBean> map;
   private final ObjectProperty<Path> replayFile;
   private final ObjectProperty<Integer> replayTicks;
@@ -78,6 +84,7 @@ public class Replay {
     startTime = new SimpleObjectProperty<>();
     endTime = new SimpleObjectProperty<>();
     featuredMod = new SimpleObjectProperty<>();
+    demoFileInfo = new SimpleObjectProperty();
     map = new SimpleObjectProperty<>();
     replayFile = new SimpleObjectProperty<>();
     replayTicks = new SimpleObjectProperty<>();
@@ -121,6 +128,11 @@ public class Replay {
     replay.getReviews().setAll(reviews(dto));
     replay.setValidity(dto.getValidity());
     replay.setReviewsSummary(ReviewsSummary.fromDto(dto.getGameReviewsSummary()));
+
+    if (dto.getReplayMeta() != null) {
+      replay.setDemoFileInfo(new Gson().fromJson(dto.getReplayMeta(), DemoFileInfo.class));
+    }
+
     return replay;
   }
 
@@ -290,6 +302,18 @@ public class Replay {
 
   public ObjectProperty<FeaturedMod> featuredModProperty() {
     return featuredMod;
+  }
+
+  public DemoFileInfo getDemoFileInfo() {
+    return demoFileInfo.get();
+  }
+
+  public void setDemoFileInfo(DemoFileInfo demoFileInfo) {
+    this.demoFileInfo.set(demoFileInfo);
+  }
+
+  public ObjectProperty<DemoFileInfo> demoFileInfoProperty() {
+    return demoFileInfo;
   }
 
   @Nullable

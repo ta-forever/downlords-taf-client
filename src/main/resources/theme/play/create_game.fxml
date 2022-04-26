@@ -19,7 +19,8 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Tooltip?>
-<GridPane xmlns:fx="http://javafx.com/fxml/1" fx:id="createGameRoot" hgap="10.0" styleClass="create-game-root" vgap="10.0" xmlns="http://javafx.com/javafx/8.0.141" fx:controller="com.faforever.client.game.CreateGameController">
+<StackPane xmlns:fx="http://javafx.com/fxml/1" fx:id="createGameRoot" styleClass="create-game-root" xmlns="http://javafx.com/javafx/8.0.141" fx:controller="com.faforever.client.game.CreateGameController">
+<GridPane hgap="10.0" styleClass="create-game-root" vgap="10.0">
     <columnConstraints>
         <ColumnConstraints hgrow="NEVER" minWidth="10.0" prefWidth="256.0"/>
         <ColumnConstraints hgrow="NEVER" minWidth="10.0" prefWidth="256.0"/>
@@ -99,8 +100,13 @@
                     <Tooltip text="%games.create.rankedEnabled.tooltip"/>
                 </tooltip>
             </ListView>
-            <Button fx:id="setGamePathButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onSetGamePathClicked"
-                    styleClass="more-button-padding" text="%game.create.install" GridPane.halignment="LEFT">
+            <Button fx:id="openGameFolderButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false"
+                    onAction="#onOpenGameFolderClicked" styleClass="more-button-padding"
+                    text="%game.create.openModFolder" GridPane.halignment="LEFT">
+            </Button>
+            <Button fx:id="installGameButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false"
+                    onAction="#onInstallSelectedModClicked" styleClass="more-button-padding"
+                    text="%game.create.download" GridPane.halignment="LEFT">
             </Button>
         </VBox>
 
@@ -174,3 +180,4 @@
         <Insets left="20.0" right="20.0" />
     </padding>
 </GridPane>
+</StackPane>

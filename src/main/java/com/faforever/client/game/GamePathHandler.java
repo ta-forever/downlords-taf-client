@@ -2,6 +2,7 @@ package com.faforever.client.game;
 
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.notification.NotificationService;
+import com.faforever.client.preferences.AskAlwaysOrNever;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.event.MissingGamePathEvent;
 import com.faforever.client.ui.preferences.event.GameDirectoryChosenEvent;
@@ -91,7 +92,7 @@ public class GamePathHandler implements InitializingBean {
     }
 
     logger.info("Found game at {}", gameExecutablePath);
-    preferencesService.setTotalAnnihilation(modTechnical, gameExecutablePath, commandLineOptions);
+    preferencesService.setTotalAnnihilation(modTechnical, gameExecutablePath, commandLineOptions, AskAlwaysOrNever.ASK);
     preferencesService.storeInBackground();
     future.ifPresent(pathCompletableFuture -> pathCompletableFuture.complete(gameExecutablePath));
   }

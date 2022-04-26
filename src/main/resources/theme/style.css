@@ -1206,3 +1206,15 @@
   -fx-border-color: null;
   -fx-border-width: 0;
 }
+
+/************** Dialog ***********/
+
+.dialog-framed {
+  -fx-background-color: -fx-background;
+  -fx-text-background-color: -fx-light-text-color;
+  -fx-background-insets: 0 0 0 0;
+  -fx-border-width: 1;
+  -fx-background-radius: 1;
+  -fx-border-radius: 1;
+  -fx-border-color: #636363;
+}

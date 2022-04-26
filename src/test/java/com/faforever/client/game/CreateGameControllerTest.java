@@ -1,5 +1,6 @@
 package com.faforever.client.game;
 
+import com.faforever.client.fx.PlatformService;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapBuilder;
@@ -10,6 +11,7 @@ import com.faforever.client.mod.ModService;
 import com.faforever.client.mod.ModVersion;
 import com.faforever.client.net.ConnectionState;
 import com.faforever.client.notification.NotificationService;
+import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.Preferences;
 import com.faforever.client.preferences.PreferencesBuilder;
 import com.faforever.client.preferences.PreferencesService;
@@ -18,6 +20,7 @@ import com.faforever.client.reporting.ReportingService;
 import com.faforever.client.test.AbstractPlainJavaFxTest;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.dialog.Dialog;
+import com.google.common.eventbus.EventBus;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -84,6 +87,12 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
   private FafService fafService;
   @Mock
   private ModManagerController modManagerController;
+  @Mock
+  private PlatformService platformService;
+  @Mock
+  private PlayerService playerService;
+  @Mock
+  EventBus eventBus;
 
   private Preferences preferences;
   private CreateGameController instance;
@@ -91,16 +100,16 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
 
   @Before
   public void setUp() throws Exception {
-    instance = new CreateGameController(mapService, modService, gameService, preferencesService, i18n, notificationService, reportingService, fafService, uiService);
+    instance = new CreateGameController(mapService, modService, gameService, playerService, preferencesService, i18n, notificationService, fafService, uiService, eventBus, platformService);
 
     mapList = FXCollections.observableArrayList();
 
     preferences = new Preferences();
     preferences.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).setInstalledExePath(Paths.get("."));
     when(preferencesService.getPreferences()).thenReturn(preferences);
-    when(mapService.getInstalledMaps()).thenReturn(mapList);
+    when(mapService.getInstalledMaps(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(mapList);
     when(modService.getFeaturedMods()).thenReturn(completedFuture(emptyList()));
-    when(mapService.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), anyString(), any())).thenReturn(new Image("/theme/images/default_achievement.png"));
+    when(mapService.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), anyString(), any(), any())).thenReturn(new Image("/theme/images/default_achievement.png"));
     when(i18n.get(any(), any())).then(invocation -> invocation.getArgument(0));
     when(i18n.number(anyInt())).then(invocation -> invocation.getArgument(0).toString());
     when(fafService.connectionStateProperty()).thenReturn(new SimpleObjectProperty<>(ConnectionState.CONNECTED));
@@ -258,8 +267,8 @@ public class CreateGameControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testInitGameTypeComboBoxEmpty() throws Exception {
-    instance = new CreateGameController(mapService, modService, gameService, preferencesService, i18n, notificationService,
-        reportingService, fafService, uiService);
+    instance = new CreateGameController(mapService, modService, gameService, playerService, preferencesService, i18n, notificationService,
+        fafService, uiService, eventBus, platformService);
 
     loadFxml("theme/play/create_game.fxml", clazz -> {
       if (clazz.equals(ModManagerController.class)) {

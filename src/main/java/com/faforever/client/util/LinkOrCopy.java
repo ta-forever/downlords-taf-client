@@ -3,6 +3,7 @@ package com.faforever.client.util;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 public class LinkOrCopy {
 
@@ -18,7 +19,7 @@ public class LinkOrCopy {
         backupMade = true;
       }
 
-      linkOrCopy(source, dest);
+      anyLinkOrCopy(source, dest);
     }
 
     catch (Exception e) {
@@ -32,7 +33,7 @@ public class LinkOrCopy {
     }
   }
 
-  static public void linkOrCopy(Path source, Path dest) throws IOException {
+  static public void anyLinkOrCopy(Path source, Path dest) throws IOException {
     if (Files.exists(dest)) {
       Files.delete(dest);
     }
@@ -44,6 +45,23 @@ public class LinkOrCopy {
       } catch (UnsupportedOperationException | IOException ex2) {
         Files.copy(source, dest);
       }
+    }
+  }
+
+  static public void hardLinkOrCopy(Path source, Path dest) throws IOException {
+    if (Files.exists(dest)) {
+      Files.delete(dest);
+    }
+    try {
+      Files.createLink(dest, source);
+    } catch (UnsupportedOperationException | IOException ex2) {
+      Files.copy(source, dest);
+    }
+  }
+
+  static public void hardLinkOrCopyContents(Path source, Path dest) throws IOException {
+    for (String file : List.of(source.toFile().list())) {
+      hardLinkOrCopy(source.resolve(file), dest.resolve(file));
     }
   }
 }

@@ -8,7 +8,7 @@ import com.faforever.client.preferences.PreferencesService;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import static com.faforever.client.util.LinkOrCopy.linkOrCopy;
+import static com.faforever.client.util.LinkOrCopy.anyLinkOrCopy;
 
 public class StubDownloadMapTask extends DownloadMapTask {
 
@@ -34,7 +34,7 @@ public class StubDownloadMapTask extends DownloadMapTask {
 
   private void imitateMapDownload() throws Exception {
     String hpiArchiveName = mapToDownload.getHpiArchiveName();
-    linkOrCopy(
+    anyLinkOrCopy(
           Paths.get(getClass().getResource("/maps/" + hpiArchiveName).toURI()),
           mapsCacheDirectory.resolve(hpiArchiveName)
       );

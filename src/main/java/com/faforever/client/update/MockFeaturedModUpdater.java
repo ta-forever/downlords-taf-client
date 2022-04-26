@@ -3,7 +3,6 @@ package com.faforever.client.update;
 import com.faforever.client.FafClientApplication;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.patch.FeaturedModUpdater;
-import com.faforever.client.patch.PatchResult;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Profile;
@@ -18,7 +17,7 @@ import java.util.concurrent.CompletableFuture;
 public class MockFeaturedModUpdater implements FeaturedModUpdater {
 
   @Override
-  public CompletableFuture<PatchResult> updateMod(FeaturedMod featuredMod, @Nullable Integer version) {
+  public CompletableFuture<String> updateMod(FeaturedMod featuredMod, @Nullable String version) {
     return CompletableFuture.completedFuture(null);
   }
 

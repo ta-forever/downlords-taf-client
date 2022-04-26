@@ -23,6 +23,7 @@ import com.faforever.client.preferences.NotificationsPrefs;
 import com.faforever.client.preferences.Preferences;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TadaIntegrationOption;
+import com.faforever.client.preferences.AskAlwaysOrNever;
 import com.faforever.client.preferences.TimeInfo;
 import com.faforever.client.preferences.ToastPosition;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
@@ -153,6 +154,7 @@ public class SettingsController implements Controller<Node> {
   public CheckBox prereleaseToggle;
   public Region settingsHeader;
   public ComboBox<TadaIntegrationOption> tadaIntegrationComboBox;
+  public ComboBox<AskAlwaysOrNever> featuredModRevertOptionComboBox;
   public ComboBox<AutoUploadLogsOption> autoUploadLogsOptionComboBox;
   public Label notifyAtMentionTitle;
   public Label notifyAtMentionDescription;
@@ -301,6 +303,7 @@ public class SettingsController implements Controller<Node> {
     configureThemeSelection();
     configureToastScreen(preferences);
     configureTadaIntegration(preferences);
+    configureFeaturedModRevertOption(preferences);
     configureAutoUploadLogs(preferences);
 
     displayFriendOnlineToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendOnlineToastEnabledProperty());
@@ -418,6 +421,23 @@ public class SettingsController implements Controller<Node> {
     });
     tadaIntegrationComboBox.setValue(preferences.getTadaIntegrationOption());
     preferences.tadaIntegrationOptionProperty().bindBidirectional(tadaIntegrationComboBox.valueProperty());
+  }
+
+  private void configureFeaturedModRevertOption(Preferences preferences) {
+    featuredModRevertOptionComboBox.setItems(FXCollections.observableArrayList(AskAlwaysOrNever.values()));
+    featuredModRevertOptionComboBox.setConverter(new StringConverter<>() {
+      @Override
+      public String toString(AskAlwaysOrNever option) {
+        return i18n.get(option.getI18nKey());
+      }
+
+      @Override
+      public AskAlwaysOrNever fromString(String s) {
+        throw new UnsupportedOperationException("Not needed");
+      }
+    });
+    featuredModRevertOptionComboBox.setValue(preferences.getFeaturedModRevertOption());
+    preferences.featuredModRevertOptionProperty().bindBidirectional(featuredModRevertOptionComboBox.valueProperty());
   }
 
   public void onTadaIntegrationSelected(ActionEvent actionEvent) {

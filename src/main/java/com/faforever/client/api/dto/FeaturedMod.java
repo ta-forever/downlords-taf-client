@@ -18,13 +18,14 @@ public class FeaturedMod {
   private String id;
   private String description;
   private String displayName;
+  private String website;
   private int order;
   private String gitBranch;
   private String gitUrl;
-  private String bireusUrl;
+  private String installPackage;
   private String technicalName;
   private boolean visible;
 
-  @Relationship("version")
+  @Relationship("versions")
   private List<FeaturedModVersion> versions;
 }

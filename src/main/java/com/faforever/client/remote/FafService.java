@@ -25,6 +25,7 @@ import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.leaderboard.LeaderboardEntry;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.mod.FeaturedMod;
+import com.faforever.client.mod.FeaturedModVersion;
 import com.faforever.client.mod.ModVersion;
 import com.faforever.client.net.ConnectionState;
 import com.faforever.client.player.Player;
@@ -48,6 +49,7 @@ import com.faforever.commons.io.ByteCountListener;
 import com.google.common.eventbus.EventBus;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.annotation.Lazy;
@@ -72,6 +74,7 @@ import static java.util.stream.Collectors.toList;
 @Lazy
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class FafService {
 
   private final FafServerAccessor fafServerAccessor;
@@ -281,17 +284,28 @@ public class FafService {
 
   @Async
   public CompletableFuture<List<FeaturedMod>> getFeaturedMods() {
-    return CompletableFuture.completedFuture(fafApiAccessor.getFeaturedMods().stream()
+    List<com.faforever.client.api.dto.FeaturedMod> dtos = fafApiAccessor.getFeaturedMods();
+    List<com.faforever.client.mod.FeaturedMod> mods = dtos.stream()
         .sorted(Comparator.comparingInt(com.faforever.client.api.dto.FeaturedMod::getOrder))
         .map(FeaturedMod::fromFeaturedMod)
-        .collect(Collectors.toList()));
+        .collect(Collectors.toList());
+    return CompletableFuture.completedFuture(mods);
   }
 
   @Async
-  public CompletableFuture<List<FeaturedMod>> findFeaturedModByTaDemoModHash(String taDemoModHash) {
-    return CompletableFuture.completedFuture(fafApiAccessor.findFeaturedModByTaDemoModHash(taDemoModHash).stream()
-        .map(FeaturedMod::fromFeaturedMod)
-        .collect(Collectors.toList()));
+  public CompletableFuture<FeaturedMod> findFeaturedModByTaDemoModHash(String taDemoModHash) {
+    return getFeaturedMods().thenApply(featuredMods -> {
+      for (FeaturedMod featuredMod : featuredMods) {
+        for (FeaturedModVersion featuredModVersion : featuredMod.getVersions()) {
+          if (featuredModVersion.getTaHash().equals(taDemoModHash)) {
+            featuredMod.getVersions().clear();
+            featuredMod.getVersions().add(featuredModVersion);
+            return featuredMod;
+          }
+        }
+      }
+      return null;
+    });
   }
 
   @Async

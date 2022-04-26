@@ -2,10 +2,11 @@ package com.faforever.client.patch;
 
 import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.mod.FeaturedMod;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.StringProperty;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -22,13 +23,9 @@ public interface GameUpdater {
   /**
    * @param featuredMod the featured "base" mod is the one onto which other mods base on (usually {@link
    * KnownFeaturedMod#DEFAULT}).
-   * @param featuredModVersions a map of indices ("1","2","3","4"...) to version numbers. The indices represent the ID
-   * of the featured mod as stored in the server's database.
-   * @param simModUids a list of sim mod UIDs to update
-   * @return a completion stage that, when completed, is called with a `mountpoint -> path` which can be used to
-   * generate the FA ini file.
+   * @return version that was finally updated to (for GitLfsFeaturedModUpdater, a git commit hash)
    */
-  CompletableFuture<Void> update(FeaturedMod featuredMod, Integer version, Map<String, Integer> featuredModVersions, Set<String> simModUids);
+  CompletableFuture<String> update(FeaturedMod featuredMod, String version);
 
   CompletableFuture<List<FeaturedMod>> getFeaturedMods();
 }

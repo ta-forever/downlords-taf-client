@@ -15,6 +15,7 @@ import com.faforever.client.theme.UiService;
 import com.faforever.client.util.Tuple;
 import com.faforever.client.vault.search.SearchController;
 import com.faforever.client.vault.search.SearchController.SearchConfig;
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.ObjectProperty;
@@ -40,6 +41,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -167,7 +169,8 @@ public abstract class VaultEntityController<T> extends AbstractViewController<No
 
     taInstallationComboBox.setCellFactory(param -> new StringListCell<>(prefs -> String.format("%s [%s]", prefs.getInstalledPath().toString(), modService.getFeaturedModDisplayName(prefs.getModNameProperty().get()))));
     taInstallationComboBox.setButtonCell(new StringListCell<>(prefs -> String.format("Install Maps Into Folder: %s [%s]", prefs.getInstalledPath().toString(), modService.getFeaturedModDisplayName(prefs.getModNameProperty().get()))));
-    ListChangeListener<TotalAnnihilationPrefs> taInstallationsListener = change -> setTaInstallations(change.getList().stream().collect(Collectors.toList()));
+    ListChangeListener<TotalAnnihilationPrefs> taInstallationsListener = change -> Platform.runLater(
+        () -> setTaInstallations(new ArrayList<>(change.getList())));
     preferencesService.getTotalAnnihilationAllMods().addListener(taInstallationsListener);
 
     setTaInstallations(preferencesService.getTotalAnnihilationAllMods());

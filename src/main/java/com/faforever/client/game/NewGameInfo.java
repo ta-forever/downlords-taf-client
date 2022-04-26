@@ -14,6 +14,7 @@ public class NewGameInfo {
   private String title;
   private String password;
   private FeaturedMod featuredMod;
+  private String featuredModVersionKey; // git branch name when using GitLfsFeaturedModUpdater
   private String map;
   private Set<String> simMods;
   private GameVisibility gameVisibility;

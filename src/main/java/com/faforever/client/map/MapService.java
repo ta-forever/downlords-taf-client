@@ -299,20 +299,38 @@ public class MapService implements InitializingBean, DisposableBean {
     loadInstalledMaps(installation);
   }
 
-  private Boolean enableLoadInstalledMapsOnDirectoryUpdate = true;
+  private final Integer lockInstalledMapsUpdateMutex = 0;
+  private Integer lockInstalledMapsUpdate = 0;
+  public void addInstalledMapsUpdateLock() {
+      synchronized(lockInstalledMapsUpdateMutex) {
+        lockInstalledMapsUpdate += 1;
+      }
+  }
+
+  public void releaseInstalledMapsUpdateLock() {
+    synchronized(lockInstalledMapsUpdateMutex) {
+      lockInstalledMapsUpdate = Math.max(0, lockInstalledMapsUpdate - 1);
+    }
+  }
+
+  private boolean isInstalledMapsUpdateLocked() {
+    synchronized(lockInstalledMapsUpdateMutex) {
+      return lockInstalledMapsUpdate > 0;
+    }
+  }
+
   private Thread startDirectoryWatcher(Installation installation, Path mapsDirectory) {
     Thread thread = new Thread(() -> noCatch(() -> {
       try (WatchService watcher = mapsDirectory.getFileSystem().newWatchService()) {
         // beware potential bug: this used to register with forgedAlliancePreferences.getCustomMapsDirectory() ...
-        mapsDirectory.register(watcher, new WatchEvent.Kind[]{ENTRY_DELETE, ENTRY_MODIFY, ENTRY_CREATE});
+        mapsDirectory.register(watcher, ENTRY_DELETE, ENTRY_MODIFY, ENTRY_CREATE);
         PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:*.{ufo,hpi,ccx}");
         while (!Thread.interrupted()) {
           WatchKey key = watcher.take();
           List<WatchEvent<?>> events = key.pollEvents();
           if (events.stream()
-              .filter(event -> matcher.matches((Path)event.context()) )
-              .findAny().isPresent()) {
-            Platform.runLater(() -> { if (enableLoadInstalledMapsOnDirectoryUpdate) loadInstalledMaps(installation); });
+              .anyMatch(event -> matcher.matches((Path)event.context()) )) {
+            Platform.runLater(() -> { if (!isInstalledMapsUpdateLocked()) loadInstalledMaps(installation); });
           }
           key.reset();
         }
@@ -595,7 +613,7 @@ public class MapService implements InitializingBean, DisposableBean {
       downloadList.add(HPI_ARCHIVE_TA_FEATURES_2013);
     }
 
-    enableLoadInstalledMapsOnDirectoryUpdate = false;
+    addInstalledMapsUpdateLock();
 
     // make a copy of this list before we do anything to the installation
     HashMap<String,MapBean> alreadyInstalledForModAllMaps = new HashMap<>();
@@ -670,7 +688,7 @@ public class MapService implements InitializingBean, DisposableBean {
     }
 
     if (downloadList.isEmpty()) {
-      enableLoadInstalledMapsOnDirectoryUpdate = true;
+      releaseInstalledMapsUpdateLock();
       return CompletableFuture.completedFuture(null);
     }
 
@@ -706,7 +724,7 @@ public class MapService implements InitializingBean, DisposableBean {
       });
     }
 
-    return future.thenRun(() -> enableLoadInstalledMapsOnDirectoryUpdate = true);
+    return future.thenRun(() -> releaseInstalledMapsUpdateLock());
   }
 
   public CompletableFuture<Void> downloadAndInstallArchive(String modTechnical, String hpiArchiveName) {

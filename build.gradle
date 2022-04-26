@@ -350,6 +350,9 @@ repositories {
 }
 
 dependencies {
+  implementation 'net.sf.sevenzipjbinding:sevenzipjbinding:16.02-2.01'
+  implementation 'net.sf.sevenzipjbinding:sevenzipjbinding-all-platforms:16.02-2.01'
+
   implementation("org.springframework.boot:spring-boot-starter")
   implementation("org.springframework.boot:spring-boot-starter-cache")
   implementation("org.springframework.boot:spring-boot-starter-logging")
@@ -366,7 +369,9 @@ dependencies {
   implementation("org.apache.commons:commons-compress:1.21")
   implementation("net.java.dev.jna:jna:5.10.0")
   implementation("net.java.dev.jna:jna-platform:5.10.0")
-  implementation("org.eclipse.jgit:org.eclipse.jgit:6.0.0.202111291000-r")
+  implementation("org.eclipse.jgit:org.eclipse.jgit:6.1.0.202203080745-r")
+  implementation("org.eclipse.jgit:org.eclipse.jgit.lfs:6.1.0.202203080745-r")
+  implementation("org.eclipse.jgit:org.eclipse.jgit.ssh.jsch:6.1.0.202203080745-r")
   implementation("org.jetbrains:annotations:23.0.0")
   implementation("com.neovisionaries:nv-i18n:1.29")
   implementation("com.rometools:rome:1.16.0")

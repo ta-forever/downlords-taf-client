@@ -37,4 +37,8 @@ public class PatchResult {
   public static PatchResult withLegacyInitFile(ComparableVersion version, Path legacyInitFile) {
     return new PatchResult(version, null, null, legacyInitFile);
   }
+
+  public static PatchResult dummy() {
+    return new PatchResult(null, null, null, null);
+  }
 }

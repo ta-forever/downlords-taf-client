@@ -16,7 +16,7 @@ public class HostGameMessage extends ClientMessage {
   private String mod;
   private boolean[] options;
   private GameAccess access;
-  private Integer version;
+  private String modVersion;
   private String password;
   private GameVisibility visibility;
   private Integer ratingMin;
@@ -26,7 +26,7 @@ public class HostGameMessage extends ClientMessage {
   private String ratingType;
 
   public HostGameMessage(GameAccess gameAccess, String mapName, String title, boolean[] options, String mod,
-                         String password, Integer version, GameVisibility gameVisibility, Integer ratingMin,
+                         String password, String modVersion, GameVisibility gameVisibility, Integer ratingMin,
                          Integer ratingMax, Boolean enforceRatingRange, Integer replayDelaySeconds, String ratingType) {
     super(ClientMessageType.HOST_GAME);
     access = gameAccess;
@@ -35,7 +35,7 @@ public class HostGameMessage extends ClientMessage {
     this.options = options;
     this.mod = mod;
     this.password = password;
-    this.version = version;
+    this.modVersion = modVersion;
     this.visibility = gameVisibility;
     this.ratingMin = ratingMin;
     this.ratingMax = ratingMax;

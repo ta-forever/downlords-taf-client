@@ -16,6 +16,8 @@ public class FeaturedModVersion {
   private String id;
   private String version;
   private String taHash;
+  private String gitBranch;
+  private String displayName;
 
   @Relationship("featuredMod")
   private FeaturedMod featuredMod;

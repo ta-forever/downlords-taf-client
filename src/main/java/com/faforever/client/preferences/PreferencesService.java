@@ -500,8 +500,9 @@ public class PreferencesService implements InitializingBean {
     return preferences.getTotalAnnihilation(modTechnical);
   }
 
-  public TotalAnnihilationPrefs setTotalAnnihilation(String modTechnical, Path installedExePath, String commandLineOptions) {
-    return preferences.setTotalAnnihilation(modTechnical, installedExePath, commandLineOptions);
+  public TotalAnnihilationPrefs setTotalAnnihilation(String modTechnical, Path installedExePath,
+                                                     String commandLineOptions, AskAlwaysOrNever autoUpdateEnable) {
+    return preferences.setTotalAnnihilation(modTechnical, installedExePath, commandLineOptions, autoUpdateEnable);
   }
 
   public ObservableList<TotalAnnihilationPrefs> getTotalAnnihilationAllMods() {

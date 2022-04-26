@@ -2,7 +2,10 @@ package com.faforever.client.ui.preferences;
 
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.mod.FeaturedModInstallController;
 import com.faforever.client.mod.ModService;
+import com.faforever.client.remote.FafService;
+import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.StageHolder;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.faforever.client.ui.preferences.event.GameDirectoryChosenEvent;
@@ -26,11 +29,10 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class GameDirectoryRequiredHandler implements InitializingBean {
 
-  private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-
   private final EventBus eventBus;
   private final ModService modService;
-  private final I18n i18n;
+  private final UiService uiService;
+  private  FeaturedModInstallController featuredModInstallController;
 
   @Override
   public void afterPropertiesSet() {
@@ -40,34 +42,15 @@ public class GameDirectoryRequiredHandler implements InitializingBean {
   @Subscribe
   public void onChooseGameDirectory(GameDirectoryChooseEvent event) {
     JavaFxUtil.runLater(() -> {
-      final String modTechnicalName = event.getModTechnicalName();
-      String displayName = modService.getFeaturedModDisplayName(modTechnicalName);
-      Path path;
-      {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle(i18n.get("missingGamePath.chooserTitle", displayName));
-        File result = fileChooser.showOpenDialog(StageHolder.getStage().getScene().getWindow());
-
-        logger.info("User selected game path: {}", result);
-        path = Optional.ofNullable(result).map(File::toPath).orElse(null);
-      }
-
-      final String[] commandLineOptions = new String[1];
-      if (path != null)
-      {
-        TextInputDialog cmdLineOptionsInputDialog = new TextInputDialog("");
-        cmdLineOptionsInputDialog.setTitle(String.format("Total Annihilation: %s", displayName));
-        cmdLineOptionsInputDialog.setHeaderText(
-            String.format("Executable for %s: %s\n\n", displayName, path.toString()) +
-                i18n.get("settings.fa.executableDecorator.description"));
-        cmdLineOptionsInputDialog.setContentText(i18n.get("settings.fa.executableDecorator"));
-
-        Optional<String> result = cmdLineOptionsInputDialog.showAndWait();
-        result.ifPresent(options -> { commandLineOptions[0] = options; });
-      }
-
-      eventBus.post(new GameDirectoryChosenEvent(path, commandLineOptions[0], event.getFuture(), modTechnicalName));
-
+      modService.getFeaturedMod(event.getModTechnicalName())
+          .thenAccept(fm -> JavaFxUtil.runLater(() -> {
+            if (featuredModInstallController == null) {
+              featuredModInstallController = uiService.loadFxml("theme/featured_mod_install.fxml");
+            }
+            featuredModInstallController.setFeaturedMod(fm);
+            featuredModInstallController.setInstalledPathFuture(event.getFuture());
+            featuredModInstallController.show(StageHolder.getStage());
+          }));
     });
   }
 
