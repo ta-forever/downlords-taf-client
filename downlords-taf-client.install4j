@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install4j version="8.0.8" transformSequenceNumber="8">
   <directoryPresets config="./README_INSTALL.TXT" />
-  <application name="TA Forever Client" applicationId="1364-9624-6962-8970" mediaDir="./build/install4j" lzmaCompression="true" pack200Compression="true" shortName="tafclient" publisher="TA Forever" publisherWeb="http://www.taforever.com" version="0.13.1" allPathsRelative="true" autoSave="true" macVolumeId="e230e730a6fc064c" javaMinVersion="15" javaMaxVersion="15" allowBetaVM="true" jdkMode="jdk">
+  <application name="TA Forever Client" applicationId="1364-9624-6962-8970" mediaDir="./build/install4j" lzmaCompression="true" pack200Compression="true" shortName="tafclient" publisher="TA Forever" publisherWeb="http://www.taforever.com" version="0.13.1" allPathsRelative="true" autoSave="true" macVolumeId="e230e730a6fc064c" javaMinVersion="15" allowBetaVM="true" jdkMode="jdk">
     <searchSequence>
       <registry />
       <directory location="jre" />
