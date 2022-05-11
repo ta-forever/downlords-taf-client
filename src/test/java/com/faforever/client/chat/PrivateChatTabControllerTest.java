@@ -37,7 +37,7 @@ import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -138,7 +138,7 @@ public class PrivateChatTabControllerTest extends AbstractPlainJavaFxTest {
   @Test
   public void testOnChatMessageFocusedDoesntTriggersNotification() {
     instance.onChatMessage(new ChatMessage(playerName, Instant.now(), playerName, "Test message"));
-    verifyZeroInteractions(notificationService);
+    verifyNoInteractions(notificationService);
   }
 
   @Test
