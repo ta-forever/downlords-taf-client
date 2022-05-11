@@ -36,7 +36,7 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 public class LoginControllerTest extends AbstractPlainJavaFxTest {
@@ -112,7 +112,7 @@ public class LoginControllerTest extends AbstractPlainJavaFxTest {
     instance.passwordInput.setText("foo");
     instance.loginButton.fire();
     verify(i18n).get(LOGIN_WITH_EMAIL_WARNING_KEY);
-    verifyZeroInteractions(userService);
+    verifyNoInteractions(userService);
     assertThat(instance.loginErrorLabel.isVisible(), is(true));
     assertThat(instance.loginErrorLabel.getText(), is(LOGIN_WITH_EMAIL_WARNING_KEY));
   }
@@ -225,7 +225,7 @@ public class LoginControllerTest extends AbstractPlainJavaFxTest {
     instance.onLoginButtonClicked();
     WaitForAsyncUtils.waitForFxEvents();
 
-    verifyZeroInteractions(userService);
+    verifyNoInteractions(userService);
     verify(i18n).get("login.withEmailWarning");
     assertTrue(instance.loginErrorLabel.isVisible());
   }

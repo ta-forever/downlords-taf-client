@@ -44,7 +44,7 @@ public class FriendOnlineNotifierTest {
 
     instance.onUserOnline(new PlayerOnlineEvent(new Player("axel12")));
 
-    Mockito.verifyZeroInteractions(notificationService, audioService);
+    Mockito.verifyNoInteractions(notificationService, audioService);
   }
 
 }
