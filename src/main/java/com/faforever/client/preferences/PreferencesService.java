@@ -10,6 +10,7 @@ import com.faforever.client.preferences.gson.ExcludeFieldsWithExcludeAnnotationS
 import com.faforever.client.preferences.gson.PathTypeAdapter;
 import com.faforever.client.preferences.gson.PropertyTypeAdapter;
 import com.faforever.client.remote.gson.FactionTypeAdapter;
+import com.faforever.client.remote.gson.HttpCookieTypeAdapter;
 import com.faforever.client.update.ClientConfiguration;
 import com.faforever.client.util.Assert;
 import com.github.nocatch.NoCatch.NoCatchRunnable;
@@ -149,6 +150,7 @@ public class PreferencesService implements InitializingBean {
         .registerTypeAdapter(Color.class, new ColorTypeAdapter())
         .registerTypeAdapter(Faction.class, FactionTypeAdapter.INSTANCE)
         .registerTypeAdapter(ObservableMap.class, FactionTypeAdapter.INSTANCE)
+        .registerTypeAdapter(java.net.HttpCookie.class, HttpCookieTypeAdapter.INSTANCE)
         .create();
   }
 
