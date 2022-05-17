@@ -62,7 +62,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 public class ReplayServiceTest {
@@ -295,7 +295,7 @@ public class ReplayServiceTest {
     instance.runReplay(replay);
 
     verify(gameService).runWithReplay(any(), eq(123), eq("faf"), eq(3599), eq(emptyMap()), eq(emptySet()), eq(TEST_MAP_NAME));
-    verifyZeroInteractions(notificationService);
+    verifyNoInteractions(notificationService);
   }
 
   @Test
@@ -319,7 +319,7 @@ public class ReplayServiceTest {
     instance.runReplay(replay);
 
     verify(gameService).runWithReplay(any(), eq(123), eq("faf"), eq(3599), eq(emptyMap()), eq(emptySet()), eq(TEST_MAP_NAME_GENERATED));
-    verifyZeroInteractions(notificationService);
+    verifyNoInteractions(notificationService);
   }
 
   @Test
@@ -334,7 +334,7 @@ public class ReplayServiceTest {
     instance.runReplay(replay);
 
     verify(gameService).runWithReplay(any(), eq(null), eq("faf"), eq(3599), eq(emptyMap()), eq(emptySet()), eq(TEST_MAP_NAME));
-    verifyZeroInteractions(notificationService);
+    verifyNoInteractions(notificationService);
   }
 
   @Test
@@ -404,7 +404,7 @@ public class ReplayServiceTest {
 
     verify(taskService).submitTask(replayDownloadTask);
     verify(gameService).runWithReplay(any(), eq(123), eq("faf"), eq(3599), eq(emptyMap()), eq(emptySet()), eq(TEST_MAP_NAME));
-    verifyZeroInteractions(notificationService);
+    verifyNoInteractions(notificationService);
   }
 
   @Test
@@ -423,7 +423,7 @@ public class ReplayServiceTest {
 
     verify(taskService).submitTask(replayDownloadTask);
     verify(gameService).runWithReplay(replayFile, null, "faf", 3599, emptyMap(), emptySet(), TEST_MAP_NAME);
-    verifyZeroInteractions(notificationService);
+    verifyNoInteractions(notificationService);
   }
 
   @Test
