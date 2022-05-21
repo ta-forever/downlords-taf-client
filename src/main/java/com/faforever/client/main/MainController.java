@@ -9,14 +9,11 @@ import com.faforever.client.fx.AbstractViewController;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
-import com.faforever.client.game.GamePathHandler;
-import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.login.LoginController;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.main.event.NavigationItem;
 import com.faforever.client.news.UnreadNewsEvent;
-import com.faforever.client.notification.Action;
 import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.ImmediateNotificationController;
 import com.faforever.client.notification.NotificationService;
@@ -114,7 +111,6 @@ public class MainController implements Controller<Node> {
   private final NotificationService notificationService;
   private final UiService uiService;
   private final EventBus eventBus;
-  private final GamePathHandler gamePathHandler;
   private final PlatformService platformService;
   private final ApplicationEventPublisher applicationEventPublisher;
   private final String mainWindowTitle;
@@ -156,7 +152,7 @@ public class MainController implements Controller<Node> {
   public MainController(PreferencesService preferencesService, I18n i18n,
                         NotificationService notificationService,
                         UiService uiService, EventBus eventBus,
-                        GamePathHandler gamePathHandler, PlatformService platformService,
+                        PlatformService platformService,
                         ClientProperties clientProperties,
                         ApplicationEventPublisher applicationEventPublisher,
                         Environment environment,
@@ -166,7 +162,6 @@ public class MainController implements Controller<Node> {
     this.notificationService = notificationService;
     this.uiService = uiService;
     this.eventBus = eventBus;
-    this.gamePathHandler = gamePathHandler;
     this.platformService = platformService;
     this.applicationEventPublisher = applicationEventPublisher;
     this.viewCache = CacheBuilder.newBuilder().build();
@@ -471,9 +466,6 @@ public class MainController implements Controller<Node> {
     fxStage.setTitleBar(mainHeaderPane);
 
     applicationEventPublisher.publishEvent(new LoggedInEvent());
-
-
-    gamePathHandler.detectAndUpdateGamePath(KnownFeaturedMod.DEFAULT.getTechnicalName(), KnownFeaturedMod.DEFAULT.getExecutableFileName());
     openStartTab();
   }
 

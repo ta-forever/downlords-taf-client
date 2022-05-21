@@ -204,13 +204,6 @@ public class CustomGamesController extends AbstractViewController<Node> {
   }
 
   private void onCreateGame(@Nullable String mapFolderName, @Nullable Game contextGame) {
-    if (!preferencesService.isGameExeValid(KnownFeaturedMod.DEFAULT.getTechnicalName())) {
-      CompletableFuture<Path> gameDirectoryFuture = new CompletableFuture<>();
-      eventBus.post(new GameDirectoryChooseEvent(KnownFeaturedMod.DEFAULT.getTechnicalName(), gameDirectoryFuture));
-      gameDirectoryFuture.thenAccept(path -> Optional.ofNullable(path).ifPresent(path1 -> onCreateGame(mapFolderName, contextGame)));
-      return;
-    }
-
     if (createGameController == null) {
       createGameController = uiService.loadFxml("theme/play/create_game.fxml");
     }

@@ -266,17 +266,7 @@ public class CreateGameController implements Controller<Pane> {
       activeMod = featuredModListView.getFocusModel().getFocusedItem().getTechnicalName();
     }
 
-    if (preferencesService.getTotalAnnihilation(activeMod).getInstalledPath() == null) {
-      preferenceUpdateListener = preferences -> {
-        if (!initialized && preferencesService.getTotalAnnihilation(activeMod).getInstalledPath() != null ) {
-          initialized = true;
-          JavaFxUtil.runLater(this::init);
-        }
-      };
-      preferencesService.addUpdateListener(new WeakReference<>(preferenceUpdateListener));
-    } else {
-      init();
-    }
+    init();
   }
 
   public void onCloseButtonClicked() {
