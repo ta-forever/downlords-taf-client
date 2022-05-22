@@ -798,6 +798,10 @@ public class GameService implements InitializingBean {
     return gameUpdater.update(featuredMod, version);
   }
 
+  public CompletableFuture<Void> proactiveUpdateCurrentVersions() {
+    return gameUpdater.proactiveUpdateCurrentVersions();
+  }
+
   public Integer getRunningGameUid() {
     return runningGameUidProperty.getValue();
   }

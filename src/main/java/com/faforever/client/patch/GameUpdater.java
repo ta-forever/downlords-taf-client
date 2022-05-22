@@ -27,5 +27,11 @@ public interface GameUpdater {
    */
   CompletableFuture<String> update(FeaturedMod featuredMod, String version);
 
+  /**
+   * @brief check server for updates to the currently-checked-out version.  Updates aren't excpected very often
+   * so we don't want to check on every host/join/watch.  Better to check like maybe once per session
+   */
+  CompletableFuture<Void> proactiveUpdateCurrentVersions();
+
   CompletableFuture<List<FeaturedMod>> getFeaturedMods();
 }

@@ -50,6 +50,7 @@ public class GameUpdaterImpl implements GameUpdater {
     return fafService.getFeaturedMods();
   }
 
+  @Override
   public CompletableFuture<Void> proactiveUpdateCurrentVersions() {
     return fafService.getFeaturedMods()
         .thenCompose(fms -> {

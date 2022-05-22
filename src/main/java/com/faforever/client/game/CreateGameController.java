@@ -145,6 +145,7 @@ public class CreateGameController implements Controller<Pane> {
   private PreferenceUpdateListener preferenceUpdateListener;
 
   private BooleanProperty validatedButtonsDisableProperty;
+  private BooleanProperty proactiveModVersionUpdateCompletedProperty;
   private StringProperty interactionLevelProperty; // "CREATE", "UPDATE", "BROWSE"
 
   private ObjectProperty<Game> contextGameProperty; // is player actually creating a new game (contextGame==null), or inspecting settings for an existing game?
@@ -170,6 +171,7 @@ public class CreateGameController implements Controller<Pane> {
 
   public void initialize() {
     validatedButtonsDisableProperty = new SimpleBooleanProperty();
+    proactiveModVersionUpdateCompletedProperty = new SimpleBooleanProperty(false);
     interactionLevelProperty = new SimpleStringProperty();
     contextGameProperty = new SimpleObjectProperty<>();
 //    featuredModInstallController = uiService.loadFxml("theme/featured_mod_install.fxml");
@@ -267,6 +269,7 @@ public class CreateGameController implements Controller<Pane> {
     }
 
     init();
+    gameService.proactiveUpdateCurrentVersions().thenRun(() -> proactiveModVersionUpdateCompletedProperty.set(true));
   }
 
   public void onCloseButtonClicked() {
@@ -335,6 +338,7 @@ public class CreateGameController implements Controller<Pane> {
             .or(featuredModListView.getSelectionModel().selectedItemProperty().isNull())
             .or(fafService.connectionStateProperty().isNotEqualTo(CONNECTED))
             .or(mapListView.getSelectionModel().selectedItemProperty().isNull())
+            .or(proactiveModVersionUpdateCompletedProperty.not())
     );
     interactionLevelProperty.bind(Bindings.createStringBinding(() -> calcInteractionLevel(), gameService.getCurrentGameStatusProperty(), contextGameProperty));
 
