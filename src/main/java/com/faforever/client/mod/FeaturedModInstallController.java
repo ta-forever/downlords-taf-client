@@ -50,6 +50,7 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
@@ -135,8 +136,10 @@ public class FeaturedModInstallController implements Controller<Node> {
           .findAny()
           .ifPresentOrElse(
               path -> installPathTextField.setText(path.getParent().resolve("TAF-" + fm.getDisplayName()).toString()),
-              () -> installPathTextField.setText(String.format("c:\\games\\TAF-%s", fm.getDisplayName()))
+              () -> installPathTextField.setText(Paths.get(System.getProperty("user.home"),
+                  "games", String.format("TAF-%s", fm.getDisplayName())).toString())
           );
+
     }
   }
 
