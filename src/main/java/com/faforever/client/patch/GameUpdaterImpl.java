@@ -76,6 +76,7 @@ public class GameUpdaterImpl implements GameUpdater {
         return featuredModUpdater.updateMod(featuredMod, version)
             .thenApply(modVersionKey -> {
               mapService.releaseInstalledMapsUpdateLock();
+              mapService.loadInstalledMaps(featuredMod.getTechnicalName());
               return modVersionKey;
             });
       }

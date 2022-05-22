@@ -71,7 +71,6 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import java.lang.ref.WeakReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -145,7 +144,7 @@ public class CreateGameController implements Controller<Pane> {
   private PreferenceUpdateListener preferenceUpdateListener;
 
   private BooleanProperty validatedButtonsDisableProperty;
-  private BooleanProperty proactiveModVersionUpdateCompletedProperty;
+  private BooleanProperty modVersionUpdateCompletedProperty;
   private StringProperty interactionLevelProperty; // "CREATE", "UPDATE", "BROWSE"
 
   private ObjectProperty<Game> contextGameProperty; // is player actually creating a new game (contextGame==null), or inspecting settings for an existing game?
@@ -171,7 +170,7 @@ public class CreateGameController implements Controller<Pane> {
 
   public void initialize() {
     validatedButtonsDisableProperty = new SimpleBooleanProperty();
-    proactiveModVersionUpdateCompletedProperty = new SimpleBooleanProperty(false);
+    modVersionUpdateCompletedProperty = new SimpleBooleanProperty(false);
     interactionLevelProperty = new SimpleStringProperty();
     contextGameProperty = new SimpleObjectProperty<>();
 //    featuredModInstallController = uiService.loadFxml("theme/featured_mod_install.fxml");
@@ -269,7 +268,7 @@ public class CreateGameController implements Controller<Pane> {
     }
 
     init();
-    gameService.proactiveUpdateCurrentVersions().thenRun(() -> proactiveModVersionUpdateCompletedProperty.set(true));
+    gameService.proactiveUpdateCurrentVersions().thenRun(() -> modVersionUpdateCompletedProperty.set(true));
   }
 
   public void onCloseButtonClicked() {
@@ -338,7 +337,7 @@ public class CreateGameController implements Controller<Pane> {
             .or(featuredModListView.getSelectionModel().selectedItemProperty().isNull())
             .or(fafService.connectionStateProperty().isNotEqualTo(CONNECTED))
             .or(mapListView.getSelectionModel().selectedItemProperty().isNull())
-            .or(proactiveModVersionUpdateCompletedProperty.not())
+            .or(modVersionUpdateCompletedProperty.not())
     );
     interactionLevelProperty.bind(Bindings.createStringBinding(() -> calcInteractionLevel(), gameService.getCurrentGameStatusProperty(), contextGameProperty));
 
