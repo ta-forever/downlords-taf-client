@@ -27,7 +27,10 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -124,7 +127,7 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
             ).getFuture();
           }
           else {
-            return doUpdate(git, gitCommit,hasUncommittedChanges && okToReset[0], featuredMod, version);
+            return doUpdate(git, gitCommit, hasUncommittedChanges, okToReset[0], featuredMod, version);
           }
         })
         .exceptionally((throwable) -> {
@@ -154,12 +157,50 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
     }
   }
 
-  private CompletableFuture<Void> doUpdate(Git git, String gitCommit, boolean doReset,
+  private void resetExceptUserIniFiles(Git git) throws GitAPIException, IOException {
+    final String[] userIniFiles = { "TA.ini" };
+    List<String> foundUserIniFiles = new ArrayList<>();
+    for (String userIniFile: userIniFiles) {
+      Path src = Path.of(git.getRepository().getDirectory().getParent()).resolve(userIniFile);
+      Path dest = preferencesService.getCacheDirectory().resolve(userIniFile);
+      if (Files.exists(src)) {
+        Files.copy(src, dest, StandardCopyOption.REPLACE_EXISTING);
+        foundUserIniFiles.add(userIniFile);
+      }
+    }
+
+    git.reset().setMode(ResetType.HARD).call();
+
+    for (String userIniFile: foundUserIniFiles) {
+      Path src = preferencesService.getCacheDirectory().resolve(userIniFile);
+      Path dest = Path.of(git.getRepository().getDirectory().getParent()).resolve(userIniFile);
+      if (Files.exists(src)) {
+        Files.move(src, dest, StandardCopyOption.REPLACE_EXISTING);
+      }
+    }
+  }
+
+  private CompletableFuture<Void> doUpdate(Git git, String gitCommit, boolean hasUncommitedChanges, boolean okToReset,
                                            FeaturedMod featuredMod, String version) {
     try {
-      if (doReset) {
-        log.info("Git reset HARD {}", git.getRepository().getDirectory());
-        git.reset().setMode(ResetType.HARD).call();
+      if (hasUncommitedChanges && okToReset) {
+        // unfortunately files like TA.ini contain both options that should be under version control
+        // (eg PlayerNDotColors) and options that user may need to tweak for their specific system
+        // (eg UseVideoMemory).  So we only want to reset the non-TA.ini-like files
+        log.info("[doUpdate] Git reset HARD {}", git.getRepository().getDirectory());
+        resetExceptUserIniFiles(git);
+      }
+      hasUncommitedChanges &= git.status().call().hasUncommittedChanges();
+      if (hasUncommitedChanges) {
+        // and we're going to stash the TA.ini-like files
+        try {
+          if (git.status().call().hasUncommittedChanges()) {
+            log.info("[doUpdate] Git stash {}", git.getRepository().getDirectory());
+            git.stashCreate().call();
+          }
+        } catch (GitAPIException e) {
+          log.warn("[doUpdate] Git stash failed: {}", e.getMessage());
+        }
       }
 
       CompletableFuture<Void> future;
@@ -183,6 +224,26 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
             .setProgressTitle(i18n.get("checkoutFeaturedMod.progress.title", featuredMod.getDisplayName()))
             .setDoPull(true)
         ).getFuture();
+      }
+
+      if (hasUncommitedChanges) {
+        // stash-pop the TA.ini-like files
+        future.thenRun(() -> {
+          try {
+            git.stashApply().call();
+            git.stashDrop().call();
+
+          } catch (GitAPIException e) {
+            log.warn("[doUpdate] Git stash pop failed: {}", e.getMessage());
+            log.warn("[doUpdate] Doing HARD reset");
+            try {
+              git.reset().setMode(ResetType.HARD).call();
+              git.stashDrop().call();
+            }
+            catch (GitAPIException ignored) {
+            }
+          }
+        });
       }
       return future;
 
