@@ -11,6 +11,7 @@ import com.faforever.client.map.management.MapsManagementController;
 import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.query.SearchablePropertyMappings;
 import com.faforever.client.reporting.ReportingService;
 import com.faforever.client.teammatchmaking.MatchmakingQueue;
@@ -104,8 +105,11 @@ public class MapVaultController extends VaultEntityController<MapBean> {
     searchController.addRangeFilter("latestVersion.maxPlayers", i18n.get("map.maxPlayers"), 0, 16, 1);
     searchController.addToggleFilter("latestVersion.ranked", i18n.get("map.onlyRanked"), "true");
 
-    Path defaultTaPath = preferencesService.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).getInstalledExePath();
-    if (eventBus != null && (defaultTaPath == null || !Files.exists(defaultTaPath)))
+    Optional<Path> defaultTaPath = preferencesService.getTotalAnnihilationAllMods().stream()
+        .map(TotalAnnihilationPrefs::getInstalledExePath)
+        .filter((exePath) -> exePath != null && Files.exists(exePath))
+        .findAny();
+    if (eventBus != null && defaultTaPath.isEmpty())
     {
       JavaFxUtil.runLater(() -> {
         CompletableFuture<Path> gameDirectoryFuture = new CompletableFuture<>();
