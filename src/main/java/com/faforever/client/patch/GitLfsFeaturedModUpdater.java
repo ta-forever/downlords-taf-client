@@ -115,7 +115,7 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
           return null;
         })
         .thenCompose((aVoid) -> {
-          if (!okToUpdate[0]) {
+          if (!okToUpdate[0] || hasUncommittedChanges && !okToReset[0]) {
             return CompletableFuture.completedFuture(null);
           }
           else if (git == null) {
@@ -127,7 +127,7 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
             ).getFuture();
           }
           else {
-            return doUpdate(git, gitCommit, hasUncommittedChanges, okToReset[0], featuredMod, version);
+            return doUpdate(git, gitCommit, hasUncommittedChanges, featuredMod, version);
           }
         })
         .exceptionally((throwable) -> {
@@ -180,23 +180,26 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
     }
   }
 
-  private CompletableFuture<Void> doUpdate(Git git, String gitCommit, boolean hasUncommitedChanges, boolean okToReset,
+  private CompletableFuture<Void> doUpdate(Git git, String gitCommit, boolean hasUncommitedChanges,
                                            FeaturedMod featuredMod, String version) {
     try {
-      if (hasUncommitedChanges && okToReset) {
+      if (hasUncommitedChanges) {
         // unfortunately files like TA.ini contain both options that should be under version control
         // (eg PlayerNDotColors) and options that user may need to tweak for their specific system
         // (eg UseVideoMemory).  So we only want to reset the non-TA.ini-like files
         log.info("[doUpdate] Git reset HARD {}", git.getRepository().getDirectory());
         resetExceptUserIniFiles(git);
+        hasUncommitedChanges = git.status().call().hasUncommittedChanges();
       }
-      hasUncommitedChanges &= git.status().call().hasUncommittedChanges();
+
+      boolean stashCreated = false;
       if (hasUncommitedChanges) {
         // and we're going to stash the TA.ini-like files
         try {
           if (git.status().call().hasUncommittedChanges()) {
             log.info("[doUpdate] Git stash {}", git.getRepository().getDirectory());
             git.stashCreate().call();
+            stashCreated = true;
           }
         } catch (GitAPIException e) {
           log.warn("[doUpdate] Git stash failed: {}", e.getMessage());
@@ -226,9 +229,9 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
         ).getFuture();
       }
 
-      if (hasUncommitedChanges) {
+      if (stashCreated) {
         // stash-pop the TA.ini-like files
-        future.thenRun(() -> {
+        future = future.thenRun(() -> {
           try {
             git.stashApply().call();
             git.stashDrop().call();
