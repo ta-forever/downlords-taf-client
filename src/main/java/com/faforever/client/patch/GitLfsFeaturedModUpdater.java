@@ -31,7 +31,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 @Lazy
@@ -85,7 +87,6 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
         CompletableFuture<String> future = CompletableFuture.completedFuture(null);
         future.completeExceptionally(e);
         return future;
-
       }
     } else if (featuredMod.getGitBranch() != null) {
       _gitCommit = featuredMod.getGitBranch();
@@ -94,6 +95,20 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
       return CompletableFuture.completedFuture(null);
     }
     String gitCommit = _gitCommit;
+
+    try {
+      if (git != null) {
+        if (git.getRepository().getBranch().equals(gitCommit) ||
+            git.getRepository().resolve(Constants.HEAD).getName().equals(gitCommit)) {
+          if (version != null && isVersionAlreadyPulled(version)) {
+            log.info("[updateMod] no need to update because correct branch is checked out already and upstream branch has already been checked this session");
+            return CompletableFuture.completedFuture(null);
+          }
+        }
+      }
+    } catch (IOException e) {
+      log.warn("[updateMod] while checking whether to update: {}", e.getMessage());
+    }
 
     final boolean[] okToUpdate = {true};
     final boolean[] okToReset = {true};
@@ -180,6 +195,23 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
     }
   }
 
+  private final Set<String> versionsAlreadyPulled = new HashSet<>();
+  private boolean isVersionAlreadyPulled(String version) {
+    synchronized(versionsAlreadyPulled) {
+      return versionsAlreadyPulled.contains(version);
+    }
+  }
+  private boolean setVersionAlreadyPulled(String version) {
+    if (version == null) {
+      return false;
+    }
+    synchronized(versionsAlreadyPulled) {
+      boolean oldValue = versionsAlreadyPulled.contains(version);
+      versionsAlreadyPulled.add(version);
+      return oldValue;
+    }
+  }
+
   private CompletableFuture<Void> doUpdate(Git git, String gitCommit, boolean hasUncommitedChanges,
                                            FeaturedMod featuredMod, String version) {
     try {
@@ -206,21 +238,26 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
         }
       }
 
+      boolean versionAlreadyPulled = setVersionAlreadyPulled(version);
       CompletableFuture<Void> future;
       if (git.getRepository().getBranch().equals(gitCommit) ||
           git.getRepository().resolve(Constants.HEAD).getName().equals(gitCommit)) {
-        if (version == null) {
-          // this is a proactive check for updates
+        if (version == null || !versionAlreadyPulled) {
+          // version == null is a proactive request to check for updates
+          log.info("[doUpdate] checking for branch updates. version={}, gitCommit={}", version, gitCommit);
           future = taskService.submitTask(new GitUpdateTask().setGit(git)
               .setProgressTitle(i18n.get("checkoutFeaturedMod.progress.title", featuredMod.getDisplayName()))
           ).getFuture();
         }
         else {
           // this is a request to switch branches, but we're already on the correct branch
+          // (and we already checked the server for updates on a previous invocation)
+          log.info("[doUpdate] nothing to do. version={}, gitCommit={}", version, gitCommit);
           future = CompletableFuture.completedFuture(null);
         }
       }
       else {
+        log.info("[doUpdate] switching branches. version={}, gitCommit={}", version, gitCommit);
         future = taskService.submitTask(new GitCheckoutTask()
             .setGit(git)
             .setBranchName(gitCommit)

@@ -268,7 +268,7 @@ public class CreateGameController implements Controller<Pane> {
     }
 
     init();
-    gameService.proactiveUpdateCurrentVersions().thenRun(() -> modVersionUpdateCompletedProperty.set(true));
+    modVersionUpdateCompletedProperty.set(true);
   }
 
   public void onCloseButtonClicked() {
