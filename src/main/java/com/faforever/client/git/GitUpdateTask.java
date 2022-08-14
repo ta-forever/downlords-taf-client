@@ -3,7 +3,13 @@ package com.faforever.client.git;
 import com.faforever.client.task.CompletableTask;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.lfs.BuiltinLFS;
+import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ProgressMonitor;
+import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.revwalk.RevTree;
+import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.treewalk.TreeWalk;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -12,7 +18,12 @@ import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
 import java.io.File;
+import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 
@@ -67,9 +78,28 @@ public class GitUpdateTask extends CompletableTask<Void> implements ProgressMoni
       updateTitle(progressTitle);
     }
 
-    git.pull()
-        .setProgressMonitor(this)
-        .call();
+    try {
+      git.pull()
+          .setProgressMonitor(this)
+          .call();
+    }
+    catch (org.eclipse.jgit.api.errors.CheckoutConflictException e) {
+      logger.info("git pull {} had conflicts", branchName);
+      e.getConflictingPaths().forEach((path) -> {
+        Path fullPath = git.getRepository().getDirectory().toPath().getParent().resolve(path);
+        try {
+          Files.delete(fullPath);
+          logger.info("{}: local removed to make way for versioned upstream", fullPath);
+        } catch (IOException ioException) {
+          logger.warn("{}: unable to remove!", fullPath);
+        }
+      });
+
+      logger.info("Updating after removal of conflicts {}", branchName);
+      git.pull()
+          .setProgressMonitor(this)
+          .call();
+    }
 
     return null;
   }
@@ -98,5 +128,22 @@ public class GitUpdateTask extends CompletableTask<Void> implements ProgressMoni
 
   public boolean isCancelled() {
     return false;
+  }
+
+  private List<String> getFileList(Repository repository, String ref) throws IOException {
+    RevWalk walk = new RevWalk(repository);
+    RevCommit commit = walk.parseCommit(repository.resolve(ref));
+    RevTree tree = commit.getTree();
+    logger.info("Having tree: " + tree);
+
+    TreeWalk treeWalk = new TreeWalk(repository);
+    treeWalk.addTree(tree);
+    treeWalk.setRecursive(true);
+    List<String> result = new ArrayList<>();
+    while (treeWalk.next()) {
+      logger.info("found: " + treeWalk.getPathString());
+      result.add(treeWalk.getPathString());
+    }
+    return result;
   }
 }
