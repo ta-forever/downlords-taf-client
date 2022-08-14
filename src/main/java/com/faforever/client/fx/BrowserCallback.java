@@ -70,7 +70,7 @@ public class BrowserCallback {
 
   public void addShowTadaReplayDispatcher() {
     Pattern tadaReplayDownloadUrlPattern = Pattern.compile(clientProperties.getTada().getDownloadReplayUrlRegex());
-    this.addDispatcher(tadaReplayDownloadUrlPattern, (url, matcher) -> eventBus.post(new ShowTadaReplayEvent(matcher.group(3))));
+    this.addDispatcher(tadaReplayDownloadUrlPattern, (url, matcher) -> eventBus.post(new ShowTadaReplayEvent(matcher.group(3), matcher.group(4), matcher.group(5))));
   }
 
   public void addShowTafReplayDispatcher() {

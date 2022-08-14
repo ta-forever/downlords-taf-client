@@ -162,6 +162,7 @@ public class GameService implements InitializingBean {
   String matchedQueueRatingType;
   private Process process;
   private Optional<Game> rehostRequested;
+  private NewGameInfo recentHostGameRequest;  // rehostRequest is  missing a few bits of information (like password)
 
   @Inject
   public GameService(ClientProperties clientProperties,
@@ -379,6 +380,7 @@ public class GameService implements InitializingBean {
     boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchOnHostEnabled();
 
     autoJoinRequestedGameProperty.set(null);
+    recentHostGameRequest = newGameInfo;
     return updateGameIfNecessary(newGameInfo.getFeaturedMod(), newGameInfo.getFeaturedModVersionKey())
         .thenCompose(modVersionKey -> {
           newGameInfo.setFeaturedModVersionKey(modVersionKey);
@@ -537,9 +539,17 @@ public class GameService implements InitializingBean {
 //  }
 
   public CompletableFuture<Void> runWithReplay(String replayFileOrUrl, Game game) {
-    return runWithReplay(
-        replayFileOrUrl, game.getId(), game.getFeaturedMod(), game.getFeaturedModVersion(), game.getMapName(),
-        game.getMapCrc(), game.getMapArchiveName());
+    if (game.getFeaturedModVersion() != null) {
+      return runWithReplay(
+          replayFileOrUrl, game.getId(), game.getFeaturedMod(), game.getFeaturedModVersion(),
+          game.getMapName(), game.getMapCrc(), game.getMapArchiveName());
+    }
+    else {
+      return modService.getFeaturedMod(game.getFeaturedMod())
+          .thenCompose(featuredModBean -> runWithReplay(
+              replayFileOrUrl, game.getId(), game.getFeaturedMod(), featuredModBean.getGitBranch(),
+              game.getMapName(), game.getMapCrc(), game.getMapArchiveName()));
+    }
   }
 
   /**
@@ -1081,7 +1091,6 @@ public class GameService implements InitializingBean {
         getRunningGameUid() == 0 &&       // local instance not running.  yeah its zero, not null :/
         currentGame == null          // server doesn't think we should be in a game
     ) {
-      log.info("[checkRehost] rehosting ...");
       Game prototype = rehostRequested.get();
       rehostRequested = Optional.ofNullable(null);
       JavaFxUtil.runLater(() -> rehost(prototype));
@@ -1093,10 +1102,14 @@ public class GameService implements InitializingBean {
   }
 
   private void rehost(Game prototype) {
+    final String password = prototype.isPasswordProtected() && recentHostGameRequest != null
+        ? recentHostGameRequest.getPassword()
+        : null;
+
     modService.getFeaturedMod(prototype.getFeaturedMod())
         .thenAccept(featuredModBean -> hostGame(new NewGameInfo(
             prototype.getTitle(),
-            prototype.getPassword(),
+            password,
             featuredModBean,
             prototype.getFeaturedModVersion(),
             prototype.getMapName(),

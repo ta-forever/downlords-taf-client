@@ -77,7 +77,7 @@ public class WebViewConfigurer {
     engine.setUserAgent("downlords-faf-client"); // removes faforever.com header and footer
     uiService.registerWebView(webView);
     JavaFxUtil.addListener(engine.getLoadWorker().stateProperty(), (observable, oldValue, newValue) -> {
-      if (newValue != State.SUCCEEDED) {
+      if (newValue != State.SUCCEEDED && newValue != State.CANCELLED) {
         return;
       }
       uiService.registerWebView(webView);

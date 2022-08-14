@@ -1,7 +1,6 @@
 package com.faforever.client.tada;
 
 import com.faforever.client.config.ClientProperties;
-import com.faforever.client.config.ClientProperties.Tada;
 import com.faforever.client.fx.AbstractViewController;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
@@ -21,10 +20,9 @@ import com.faforever.client.preferences.TadaIntegrationOption;
 import com.faforever.client.util.ClipboardUtil;
 import com.google.common.eventbus.EventBus;
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.ObjectProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Worker;
+import javafx.concurrent.Worker.State;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
@@ -41,7 +39,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.web.WebView;
 import lombok.extern.slf4j.Slf4j;
 import netscape.javascript.JSObject;
-import org.apache.commons.compress.utils.FileNameUtils;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -49,10 +46,9 @@ import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -133,7 +129,10 @@ public class TadaController extends AbstractViewController<Node> {
     loadingIndicator.getParent().getChildrenUnmodifiable()
         .forEach(node -> node.managedProperty().bind(node.visibleProperty()));
     webView.getEngine().getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
-      if (newState == Worker.State.SUCCEEDED) {
+      if (newState == State.SCHEDULED) {
+        onLoadingStart();
+      }
+      else if (newState == Worker.State.SUCCEEDED) {
         onLoadingStop();
       }
     });
@@ -161,7 +160,7 @@ public class TadaController extends AbstractViewController<Node> {
     integratedBrowseControls.managedProperty().bind(integratedBrowseControls.visibleProperty());
     externalBrowseControls.visibleProperty().bind(integratedBrowseControls.visibleProperty().not());
     externalBrowseControls.managedProperty().bind(externalBrowseControls.visibleProperty());
-    webView.visibleProperty().bind(integratedBrowseControls.visibleProperty());
+    webView.visibleProperty().bind(integratedBrowseControls.visibleProperty().and(loadingIndicator.visibleProperty().not()));
 
     webView.getEngine().documentProperty().addListener((obs,oldValue,newValue) -> {
       if (newValue != null) {
@@ -175,11 +174,14 @@ public class TadaController extends AbstractViewController<Node> {
   }
 
   private String substituteHrefs(String href) {
-    if (href.equals("/upload")) {
+    if (href.equals("/demos/new")) {
       return String.format("javascript:java.openUrl('%s%s');", clientProperties.getTada().getRootUrl(), href);
     }
     else if (href.equals("#download")) {
       return String.format("javascript:java.openUrl('%s%s');", webView.getEngine().getLocation(), href);
+    }
+    else if (href.startsWith("/rails/active_storage/blobs/redirect")) {
+      return String.format("javascript:java.openUrl('%s%s');", clientProperties.getTada().getRootUrl(), href);
     }
     else if (href.startsWith("/")) {
       return href;
@@ -254,7 +256,6 @@ public class TadaController extends AbstractViewController<Node> {
   private void onDisplayEvent() {
     if (getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED &&
         webView.getEngine().getHistory().getEntries().size() == 0) {
-      onLoadingStart();
       doLoadInWebView(clientProperties.getTada().getRootUrl());
     }
     else {
@@ -300,14 +301,19 @@ public class TadaController extends AbstractViewController<Node> {
   public void onPlayButton() {
     String url = this.urlTextField.getText();
 
-    if (Files.exists(Path.of(url))) {
-      doStartLocalReplay(url);
-      return;
+    try {
+      if (Files.exists(Path.of(url))) {
+        doStartLocalReplay(url);
+        return;
+      }
     }
-    else if (getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED) {
+    catch (InvalidPathException e)
+    { }
+
+    if (getTadaIntegrationOption() == TadaIntegrationOption.INTEGRATED) {
       Matcher matcher = this.replayUrlPattern.matcher(url);
       if (matcher.matches() && url.equals(webView.getEngine().getLocation())) {
-        doStartReplay(matcher.group(3));
+        doStartReplay(matcher.group(3), matcher.group(4), matcher.group(5));
         return;
       }
       matcher = this.tadaUrlPattern.matcher(url);
@@ -319,7 +325,7 @@ public class TadaController extends AbstractViewController<Node> {
     else {
       Matcher matcher = this.replayUrlPattern.matcher(url);
       if (matcher.matches()) {
-        doStartReplay(matcher.group(3));
+        doStartReplay(matcher.group(3), matcher.group(4), matcher.group(5));
         return;
       }
       matcher = this.tadaUrlPattern.matcher(url);
@@ -412,12 +418,12 @@ public class TadaController extends AbstractViewController<Node> {
     }
   }
 
-  private void doStartReplay(String replayId) {
-    this.eventBus.post(new ShowTadaReplayEvent(replayId));
+  private void doStartReplay(String key, String replayId, String filename) {
+    this.eventBus.post(new ShowTadaReplayEvent(key, replayId, filename));
   }
 
   private void doStartLocalReplay(String filename) {
-    this.eventBus.post(new ShowTadaReplayEvent(filename));
+    this.eventBus.post(new ShowTadaReplayEvent(null, null, filename));
   }
 
   private void doSetUrlTextField(String url) {

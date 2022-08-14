@@ -3,7 +3,6 @@ package com.faforever.client.replay;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.discord.DiscordSpectateEvent;
 import com.faforever.client.fa.DemoFile;
-import com.faforever.client.fa.DemoFileInfo;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.game.Game;
 import com.faforever.client.game.GameService;
@@ -25,8 +24,6 @@ import com.faforever.client.notification.PersistentNotification;
 import com.faforever.client.notification.Severity;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
-import com.faforever.client.remote.domain.NewTadaReplayMessage;
-import com.faforever.client.remote.domain.ServerMessage;
 import com.faforever.client.reporting.ReportingService;
 import com.faforever.client.tada.event.UploadToTadaEvent;
 import com.faforever.client.task.CompletableTask;
@@ -34,6 +31,7 @@ import com.faforever.client.task.CompletableTask.Priority;
 import com.faforever.client.task.TaskService;
 import com.faforever.client.user.UserService;
 import com.faforever.client.util.Tuple;
+import com.faforever.client.util.ZipUtil;
 import com.faforever.client.vault.search.SearchController.SortConfig;
 import com.faforever.client.vault.search.SearchController.SortOrder;
 import com.github.rutledgepaulv.qbuilders.conditions.Condition;
@@ -42,7 +40,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.primitives.Bytes;
-import javafx.beans.property.BooleanProperty;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -56,13 +53,15 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.lang.invoke.MethodHandles;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -382,36 +381,32 @@ public class ReplayService implements InitializingBean {
   @Data class SignedUrl { private String signedUrl; };
 
   @Subscribe
-  public void startReplay(ShowTadaReplayEvent event) throws MalformedURLException {
+  public void startReplay(ShowTadaReplayEvent event) throws MalformedURLException, UnsupportedEncodingException {
 
-    Path downloadPath = preferencesService.getCacheDirectory().resolve("replays").resolve(
-        String.format("%s.tad", event.getTadaReplayId()));
+    Path downloadPath = preferencesService.getCacheDirectory().resolve("replays").resolve(event.getFilename());
 
     CompletableFuture<Path> downloadedReplayPathFuture;
-    if (Files.exists(Path.of(event.getTadaReplayId()))) {
+    if (Files.exists(Path.of(event.getFilename()))) {
       logger.info("Local replay file: {}", event.getTadaReplayId());
-      downloadedReplayPathFuture = CompletableFuture.completedFuture(Path.of(event.getTadaReplayId()));
+      downloadedReplayPathFuture = CompletableFuture.completedFuture(Path.of(event.getFilename()));
     }
     else if (downloadPath.toFile().exists()) {
-      logger.info("Replay {} already exists at {}", event.getTadaReplayId(), downloadPath);
+      logger.info("Replay {} already exists at {}", event.getFilename(), downloadPath);
       downloadedReplayPathFuture = CompletableFuture.completedFuture(downloadPath);
     }
     else {
-      CompletableFuture<URL> signedUrlFuture = taskService.submitTask(
-          new CompletableTask<URL>(Priority.HIGH) {
-            @Override
-            protected URL call() throws Exception {
-              URL tadaDownloadEndpoint = new URL(String.format(
-                  clientProperties.getTada().getReplayDownloadEndpointFormat(), event.getTadaReplayId()));
-              SignedUrl signedUrl = downloadService.downloadJson(tadaDownloadEndpoint, SignedUrl.class);
-              return new URL(signedUrl.signedUrl);
-            }}).getFuture();
+      URL tadaDownloadEndpoint = new URL(String.format(
+          clientProperties.getTada().getReplayDownloadEndpointFormat(),
+          event.getKey(),
+          event.getTadaReplayId(),
+          URLEncoder.encode(event.getFilename(), StandardCharsets.UTF_8.toString())
+      ));
 
-      downloadedReplayPathFuture = signedUrlFuture.thenCompose(signedUrl ->
-              taskService.submitTask(applicationContext.getBean(ReplayDownloadTask.class)
-                      .setReplayId(event.getTadaReplayId()).setReplayUrl(signedUrl)
-                      .setDownloadPath(downloadPath))
-                  .getFuture());
+      downloadedReplayPathFuture = taskService.submitTask(applicationContext.getBean(ReplayDownloadTask.class)
+          .setReplayId(event.getTadaReplayId())
+          .setReplayUrl(tadaDownloadEndpoint)
+          .setDownloadPath(downloadPath))
+          .getFuture();
     }
 
     downloadedReplayPathFuture

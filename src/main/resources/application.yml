@@ -9,7 +9,7 @@ faf-client:
   links:
     linksHomepage: https://www.taforever.com
     linksTecHelpDiscord: https://discord.gg/hTRDqn3mkX
-    linksTada: https://www.tada.tauniverse.com
+    linksTada: https://www.tademos.xyz
     linksTecHelpForum: https://www.tauniverse.com/forum/forumdisplay.php?f=41
 
   vault:
@@ -34,12 +34,12 @@ faf-client:
     rackOversUrl: https://unitdb.faforever.com?settings64=eyJwcmV2aWV3Q29ybmVyIjoiTm9uZSJ9
 
   tada:
-    rootUrl: http://www.tada.tauniverse.com
-    downloadReplayUrlRegex: ^(http.?://)?(www\.)?tada\.tauniverse\.com/games/([0-9a-f]+)#download$
-    browseReplayUrlRegex: ^(http.?://)?(www\.)?tada\.tauniverse\.com/games/([0-9a-f]+)$
-    replayUrlRegex: ^(http.?://)?(www\.)?tada\.tauniverse\.com/games/([0-9a-f]+)(#download)?$
-    tadaUrlRegex: ^(http.?://)?(www\.)?tada\.tauniverse\.com.*
-    replayDownloadEndpointFormat: https://z151e60yl7.execute-api.us-east-2.amazonaws.com/staging/download?id=%s
+    rootUrl: https://www.tademos.xyz
+    downloadReplayUrlRegex: ^(http.?://)?(www\.)?tademos\.xyz/rails/active_storage/blobs/redirect/([0-9a-zA-Z]+)--([0-9a-f]+)/(.*)$
+    browseReplayUrlRegex: ^(http.?://)?(www\.)?tademos\.xyz/demos/([0-9]+)$
+    replayUrlRegex: ^(http.?://)?(www\.)?tademos\.xyz/rails/active_storage/blobs/redirect/([0-9a-zA-Z]+)--([0-9a-f]+)/(.*)$
+    tadaUrlRegex: ^(http.?://)?(www\.)?tademos\.xyz.*
+    replayDownloadEndpointFormat: https://www.tademos.xyz/rails/active_storage/blobs/redirect/%s--%s/%s
 
   map-generator:
     repoAndOwnerName: FAForever/Neroxis-Map-Generator
@@ -65,7 +65,7 @@ faf-client:
       - title: TA Forever
         url: https://discord.gg/hTRDqn3mkX
       - title: TA Twilight
-        url: https://discord.gg/V9fmjnbV6e
+        url: https://discord.gg/xWE8kjutJD
       - title: TA Universe
         url: https://discord.gg/Z4hJpVbmyW
       - title: TA Mayhem
