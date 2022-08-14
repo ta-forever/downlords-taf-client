@@ -93,7 +93,7 @@ public class ReviewController implements Controller<Pane> {
     displayStarsController.setValue(rating);
     usernameLabel.setText(definiteReview.getPlayer().getUsername());
     reviewTextLabel.setText(definiteReview.getText());
-    if (!definiteReview.getVersion().toString().isBlank()) {
+    if (definiteReview.getVersion() != null && !definiteReview.getVersion().toString().isBlank()) {
       if (definiteReview.getVersion() == definiteReview.getLatestVersion()) {
         versionLabel.setText(i18n.get("review.currentVersion"));
       } else {
