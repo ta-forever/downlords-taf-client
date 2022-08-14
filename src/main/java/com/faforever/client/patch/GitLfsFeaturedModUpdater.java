@@ -31,8 +31,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -62,16 +64,18 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
     Path deployPath = taPrefs.getInstalledPath();
     String repoUrl = featuredMod.getGitUrl();
 
-    Git _git;
-    boolean _hasUncommittedChanges;
-    try {
-      log.info("[updateMod] git open");
-      _git = Git.open(deployPath.toFile());
-      log.info("[updateMod] git status");
-      _hasUncommittedChanges = _git.status().call().hasUncommittedChanges();
-    } catch (IOException | GitAPIException e1) {
-      _git = null;
-      _hasUncommittedChanges = false;
+    Git _git = null;
+    boolean _hasUncommittedChanges = false;
+    if (taPrefs.getAutoUpdateEnable() != AskAlwaysOrNever.NEVER) {
+      try {
+        _git = Git.open(deployPath.toFile());
+        log.info("[updateMod] git status");
+        _hasUncommittedChanges = _git.status().call().hasUncommittedChanges();
+      } catch (IOException | GitAPIException e1) {
+        log.info("[updateMod] Exception in git status: {}", e1.getMessage());
+        _git = null;
+        _hasUncommittedChanges = false;
+      }
     }
     final Git git = _git;
     boolean hasUncommittedChanges = _hasUncommittedChanges;
@@ -84,6 +88,7 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
         _gitCommit = git.getRepository().getBranch();
       }
       catch (IOException e) {
+        log.info("[updateMod] Exception in git.getRepository().getBranch(): {}", e.getMessage());
         CompletableFuture<String> future = CompletableFuture.completedFuture(null);
         future.completeExceptionally(e);
         return future;
@@ -299,6 +304,7 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
     return true;
   }
 
+  private final Map<String, CompletableFuture<Boolean> > promptOkToUpdateFutures = new HashMap<>();
   private CompletableFuture<Boolean> promptOkToUpdate(FeaturedMod featuredMod) {
     TotalAnnihilationPrefs taPrefs = preferencesService.getTotalAnnihilation(featuredMod.getTechnicalName());
     if (taPrefs.getAutoUpdateEnable() == AskAlwaysOrNever.ALWAYS) {
@@ -308,7 +314,19 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
       return CompletableFuture.completedFuture(false);
     }
 
-    CompletableFuture<Boolean> future = new CompletableFuture<>();
+    CompletableFuture<Boolean> future;
+    if (promptOkToUpdateFutures.containsKey(featuredMod.getTechnicalName())) {
+      future = promptOkToUpdateFutures.get(featuredMod.getTechnicalName());
+    }
+    else {
+      future = new CompletableFuture<>();
+      promptOkToUpdateFutures.put(featuredMod.getTechnicalName(), future);
+    }
+
+    if (future.isDone()) {
+      return future;
+    }
+
     List<Action> actions = List.of(
         new Action(i18n.get("yesOnce"), Action.Type.OK_DONE, (a) -> future.complete(true)),
         new Action(i18n.get("noOnce"), Action.Type.OK_DONE, (a) -> future.complete(false)),
@@ -333,17 +351,19 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
     return future;
   }
 
+  private final CompletableFuture<Boolean> promptOkToResetFuture = new CompletableFuture<>();
   private CompletableFuture<Boolean> promptOkToReset(Path folder) {
-    CompletableFuture<Boolean> future = new CompletableFuture<>();
-
     if (preferencesService.getPreferences().getFeaturedModRevertOption() == AskAlwaysOrNever.ALWAYS) {
-      future.complete(true);
-      return future;
+      return CompletableFuture.completedFuture(true);
     }
     else if (preferencesService.getPreferences().getFeaturedModRevertOption() == AskAlwaysOrNever.NEVER) {
-      future.complete(false);
-      return future;
+      return CompletableFuture.completedFuture(false);
     }
+
+    if (promptOkToResetFuture.isDone()) {
+      return promptOkToResetFuture;
+    }
+    CompletableFuture<Boolean> future = promptOkToResetFuture;
 
     List<Action> actions = List.of(
         new Action(i18n.get("yesOnce"), Action.Type.OK_DONE, (a) -> future.complete(true)),
