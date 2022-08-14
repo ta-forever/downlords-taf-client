@@ -171,7 +171,7 @@ public class ReplayDetailController implements Controller<Node> {
     this.replay = replay;
     replayAvailableContainer.setDisable(false);
     downloadMoreInfoButton.setDisable(false);
-    tadaUploadButton .setVisible(replayService.uploadReplayToTadaPermitted(replay));
+    tadaUploadButton.setVisible(replayService.uploadReplayToTadaPermitted(replay));
 
     replayIdField.setText(i18n.get("game.idFormat", replay.getId()));
     titleLabel.setText(replay.getTitle());
@@ -185,6 +185,7 @@ public class ReplayDetailController implements Controller<Node> {
       mapThumbnailImageView.setImage(image);
       onMapLabel.setText(i18n.get("game.onMapFormat", map.getMapName()));
     } else {
+      mapThumbnailImageView.setImage(null);
       onMapLabel.setText(i18n.get("game.onUnknownMap"));
     }
 
