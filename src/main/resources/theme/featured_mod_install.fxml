@@ -14,6 +14,7 @@
 <?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.HBox?>
 <StackPane xmlns:fx="http://javafx.com/fxml/1" fx:id="featuredModInstallControllerRoot" styleClass="dialog-framed"
            xmlns="http://javafx.com/javafx/8.0.111" fx:controller="com.faforever.client.mod.FeaturedModInstallController">
     <VBox spacing="10">
@@ -85,9 +86,13 @@
               <rowConstraints>
                 <RowConstraints vgrow="NEVER"/>
               </rowConstraints>
-              <Label maxHeight="1.7976931348623157E308"
-                   maxWidth="1.7976931348623157E308" prefHeight="22.0" prefWidth="225.0"
-                   text="%installFeaturedMod.installPathLabel" wrapText="true"
+              <Label fx:id="installPathCopyToLabel" maxHeight="1.7976931348623157E308"
+                   maxWidth="1.7976931348623157E308" prefHeight="44.0" prefWidth="225.0"
+                   text="%installFeaturedMod.installPathCopyToLabel" wrapText="true"
+                   GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+              <Label fx:id="installPathExistingLabel" maxHeight="1.7976931348623157E308"
+                   maxWidth="1.7976931348623157E308" prefHeight="44.0" prefWidth="225.0"
+                   text="%installFeaturedMod.installPathExistingLabel" wrapText="true"
                    GridPane.rowIndex="0" GridPane.columnIndex="0"/>
               <TextField fx:id="installPathTextField" maxWidth="1.7976931348623157E308"
                        promptText="%installFeaturedMod.installPathTextField"
@@ -108,11 +113,11 @@
               </TextField>
 
               <Label maxHeight="1.7976931348623157E308"
-                   maxWidth="1.7976931348623157E308" prefHeight="22.0" prefWidth="225.0"
+                   maxWidth="1.7976931348623157E308" prefHeight="44.0" prefWidth="225.0"
                    text="%installFeaturedMod.autoUpdateComboBox" wrapText="true"
                    GridPane.rowIndex="2" GridPane.columnIndex="0"/>
               <ComboBox fx:id="autoUpdateComboBox" GridPane.rowIndex="2" GridPane.columnIndex="1">
-                <tooltip><Tooltip text="%installFeaturedMod.autoUpdateComboBox.tooltip"/></tooltip>
+                <tooltip><Tooltip text="%installFeaturedMod.autoUpdateComboBox.tooltip" wrapText="true"/></tooltip>
               </ComboBox>
             </GridPane>
         </VBox>

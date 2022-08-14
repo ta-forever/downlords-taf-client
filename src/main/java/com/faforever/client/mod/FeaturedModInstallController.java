@@ -55,6 +55,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
@@ -73,6 +75,8 @@ public class FeaturedModInstallController implements Controller<Node> {
   public ComboBox<AskAlwaysOrNever> autoUpdateComboBox;
   public Pane featuredModInstallControllerRoot;
   public Label titleLabel;
+  public Label installPathCopyToLabel;
+  public Label installPathExistingLabel;
   public GridPane settingsGridPane;
   public TextField originalTaPathTextField;
   public TextField installPackageUrlTextField;
@@ -104,6 +108,8 @@ public class FeaturedModInstallController implements Controller<Node> {
     }
 
     newInstallParamsGridPane.disableProperty().bind(useExistingCheckBox.selectedProperty());
+    installPathCopyToLabel.visibleProperty().bind(useExistingCheckBox.selectedProperty().not());
+    installPathExistingLabel.visibleProperty().bind(useExistingCheckBox.selectedProperty());
 
     stage = new Stage(StageStyle.TRANSPARENT);
     stage.initModality(Modality.NONE);
@@ -185,18 +191,38 @@ public class FeaturedModInstallController implements Controller<Node> {
         new CancellationException("User cancelled")));
   }
 
+  private boolean validateTotalAExe(Path installExe) {
+    return Files.exists(installExe);
+  }
+
+  private final String[] requiredFilesForExistingInstallation = { ".playx\\.dll", ".draw\\.dll", ".musi\\.dll" };
+  private boolean validateRequiredForExistingInstallation(Path installFolder) {
+    final File[] files = installFolder.toFile().listFiles();
+    for (String requiredFile:  requiredFilesForExistingInstallation) {
+      if (Stream.of(files)
+          .filter(file -> Pattern.compile(requiredFile, Pattern.CASE_INSENSITIVE).matcher(file.getName()).find())
+          .findAny().isEmpty()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   public void onConfirmButton(ActionEvent actionEvent) {
     Path installFolder = Path.of(installPathTextField.getText());
     Path installExe = installFolder.resolve("TotalA.exe");
-    if (useExistingCheckBox.isSelected() && installExe.toFile().exists()) {
+    if (useExistingCheckBox.isSelected() && !validateTotalAExe(installExe)) {
+      notificationService.addImmediateWarnNotification("gameChosen.noValidExe");
+    }
+    else if (useExistingCheckBox.isSelected() && !validateRequiredForExistingInstallation(installFolder)) {
+      notificationService.addImmediateWarnNotification("gameChosen.missingDlls");
+    }
+    else if (useExistingCheckBox.isSelected()) {
       preferencesService.setTotalAnnihilation(
           featuredMod.getTechnicalName(), installExe, commandLineTextField.getText(), autoUpdateComboBox.getValue());
       stage.hide();
       preferencesService.storeInBackground();
       installedPathFuture.ifPresent(future -> future.complete(installExe));
-    }
-    else if (useExistingCheckBox.isSelected()) {
-      notificationService.addImmediateWarnNotification("gameChosen.noValidExe");
     }
     else {
       // we'll only set installedExePath once we're sure installation was successful
