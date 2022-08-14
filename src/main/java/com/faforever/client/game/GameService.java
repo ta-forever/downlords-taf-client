@@ -21,6 +21,7 @@ import com.faforever.client.mod.FeaturedModVersion;
 import com.faforever.client.mod.ModService;
 import com.faforever.client.net.ConnectionState;
 import com.faforever.client.notification.Action;
+import com.faforever.client.notification.DismissAction;
 import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.PersistentNotification;
@@ -603,10 +604,10 @@ public class GameService implements InitializingBean {
   }
 
   private BooleanProperty openProcessRunningDialog(Process process, String title, String text) {
-    ImmediateNotification notification = new ImmediateNotification(
-        title, text, Severity.INFO,
-        asList(
-            new Action(i18n.get("replay.running.terminate"), ev -> process.destroy())
+    ImmediateNotification notification = new ImmediateNotification(title, text, Severity.INFO, new ArrayList<>());
+    notification.getActions().addAll(asList(
+        new Action(i18n.get("replay.running.terminate"), ev -> process.destroy()),
+        new DismissAction(i18n)
         ));
     notification.setOverlayClose(false);
     notificationService.addNotification(notification);
