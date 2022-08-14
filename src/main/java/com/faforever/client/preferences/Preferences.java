@@ -278,7 +278,7 @@ public class Preferences {
       }
     }
     TotalAnnihilationPrefs pref = new TotalAnnihilationPrefs(baseGameName, installedExePath, commandLineOptions,
-        AskAlwaysOrNever.ASK);
+        AskAlwaysOrNever.NEVER);
     totalAnnihilation.add(pref);
     return pref;
   }

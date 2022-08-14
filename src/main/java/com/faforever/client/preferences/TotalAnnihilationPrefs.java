@@ -41,7 +41,7 @@ public class TotalAnnihilationPrefs {
     this.baseGameName = new SimpleStringProperty();
     this.installedExePath = new SimpleObjectProperty<>();
     this.commandLineOptions = new SimpleStringProperty();
-    this.autoUpdateEnable = new SimpleObjectProperty<>(AskAlwaysOrNever.ASK);
+    this.autoUpdateEnable = new SimpleObjectProperty<>(AskAlwaysOrNever.NEVER);
   }
 
   public StringProperty getModNameProperty() { return baseGameName; }
