@@ -205,21 +205,29 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
   }
 
   private void onNotice(NoticeMessage noticeMessage) {
+    log.info("NoticeMessage: style={}, text={}", noticeMessage.getStyle(), noticeMessage.getText());
+
     if (Objects.equals(noticeMessage.getStyle(), "kill")) {
-      log.warn("Game close requested by server...");
       notificationService.addNotification(new ImmediateNotification(i18n.get("game.kicked.title"), i18n.get("game.kicked.message", clientProperties.getLinks().get("linksRules")), Severity.WARN, Collections.singletonList(new DismissAction(i18n))));
       eventBus.post(new CloseGameEvent());
     }
 
     if (Objects.equals(noticeMessage.getStyle(), "kick")) {
-      log.warn("Kicked from lobby, client closing after delay...");
       notificationService.addNotification(new ImmediateNotification(i18n.get("server.kicked.title"), i18n.get("server.kicked.message", clientProperties.getLinks().get("linksRules")), Severity.WARN, Collections.singletonList(new DismissAction(i18n))));
       taskScheduler.scheduleWithFixedDelay(Platform::exit, Duration.ofSeconds(10));
+    }
+
+    if (Objects.equals(noticeMessage.getStyle(), "game_join_fail")) {
+      if (gameLaunchFuture != null) {
+        gameLaunchFuture.complete(null);
+        gameLaunchFuture = null;
+      }
     }
 
     if (noticeMessage.getText() == null) {
       return;
     }
+
     notificationService.addServerNotification(new ImmediateNotification(
         i18n.get("messageFromServer"),
         noticeMessage.getI18nKey() == null ? noticeMessage.getText() : i18n.get(noticeMessage.getI18nKey()),

@@ -427,18 +427,18 @@ public class GameService implements InitializingBean {
           notificationService.addImmediateErrorNotification(throwable, "games.errorInPreparing");
           return null;
         })
-        .thenCompose(aVoid -> {
-          if (game.isPasswordProtected()) {
-            setRunningGameUid(null);  // we don't get an exception or anything if password is wrong
-          }
-          return fafService.requestJoinGame(game.getId(), password);
-          })
+        .thenCompose(aVoid -> fafService.requestJoinGame(game.getId(), password))
         .thenAccept(gameLaunchMessage -> {
+          if (gameLaunchMessage != null) {
             // Store password in case we rehost
             game.setPassword(password);
             setRunningGameUid(game.getId());
             boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchOnJoinEnabled() && game.getStatus() == GameStatus.BATTLEROOM;
             startGame(gameLaunchMessage, inGameIrcUrl, autoLaunch, playerService.getCurrentPlayer().get().getUsername());
+          }
+          else {
+            setRunningGameUid(null);
+          }
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be joined", throwable);
