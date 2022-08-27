@@ -17,7 +17,6 @@ import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.LastGamePrefs;
-import com.faforever.client.preferences.PreferenceUpdateListener;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.remote.FafService;
@@ -39,9 +38,6 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
-import javafx.collections.WeakListChangeListener;
 import javafx.collections.transformation.FilteredList;
 import javafx.css.PseudoClass;
 import javafx.event.ActionEvent;
@@ -73,12 +69,11 @@ import org.springframework.stereotype.Component;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -141,7 +136,6 @@ public class CreateGameController implements Controller<Pane> {
   @VisibleForTesting
   FilteredList<MapBean> filteredMapBeans;
   private Runnable onCloseButtonClickedListener;
-  private PreferenceUpdateListener preferenceUpdateListener;
 
   private BooleanProperty validatedButtonsDisableProperty;
   private BooleanProperty modVersionUpdateCompletedProperty;
@@ -317,10 +311,8 @@ public class CreateGameController implements Controller<Pane> {
     initFeaturedModList();
     initMapPoolList();
     initRatingBoundaries();
-    selectAppropriateMap();
     setLastGameTitle();
     initPassword();
-    initMapListListeners();
 
     titleTextField.textProperty().addListener((observable, oldValue, newValue) -> {
       preferencesService.getPreferences().getLastGame().setLastGameTitle(newValue);
@@ -412,63 +404,56 @@ public class CreateGameController implements Controller<Pane> {
     selectedMapChangeListener.changed(null, null, mapListView.getSelectionModel().selectedItemProperty().getValue());
   }
 
-  private final List<ListChangeListener<MapBean>> installedMapsChangeListeners = new ArrayList<>();
-  protected void initMapListListeners() {
-    try {
-      fafService.getFeaturedMods().get().stream().forEach(mod -> {
-        ListChangeListener<MapBean> changeListener = ch -> JavaFxUtil.runLater(() -> {
-          String activeMod = featuredModListView.getFocusModel().getFocusedItem().getTechnicalName();
-          if (activeMod.equals(mod.getTechnicalName())) {
-            setAvailableMaps(activeMod);
-            selectAppropriateMap();
-          }
-        });
-        installedMapsChangeListeners.add(changeListener);
-        mapService.getInstalledMaps(mod.getTechnicalName()).addListener(new WeakListChangeListener<>(changeListener));
-      });
-    } catch (InterruptedException e) {
-      notificationService.addImmediateErrorNotification(e, "[initMapListListeners] InterruptedException", e.getLocalizedMessage());
-      log.error("[initMapListListeners] InterruptedException: {}", e.getMessage());
-    } catch (ExecutionException e) {
-      notificationService.addImmediateErrorNotification(e, "[initMapListListeners] ExecutionException", e.getLocalizedMessage());
-      log.error("[initMapListListeners] ExecutionException: {}", e.getMessage());
-    }
-  }
-
+  final Map<String, FilteredList<MapBean> > filteredMapBeansByMod = new HashMap();
+  final Map<String, FilteredList<MapBean> > filteredMapBeansByQueue = new HashMap();
   protected void setAvailableMaps(String modTechnical) {
 
     if (rankedEnabledCheckBox.isSelected() && mapPoolListView.getSelectionModel().getSelectedItem() != null &&
         !mapService.getInstalledMaps(modTechnical).isEmpty()) {
       try {
         MatchmakingQueue q = mapPoolListView.getSelectionModel().getSelectedItem();
-        filteredMapBeans = new FilteredList<>(FXCollections.observableArrayList(mapService.getMatchmakerMaps(q).get())
-            .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())));
-        doSetAvailableMaps(modTechnical, filteredMapBeans);
+        if (filteredMapBeansByQueue.containsKey(q.getQueueName())) {
+          doSetAvailableMaps(modTechnical, filteredMapBeansByQueue.get(q.getQueueName()));
+        }
+        else {
+          mapListView.setDisable(true);
+          mapService.getMatchmakerMaps(q)
+              .thenAccept((mapList) -> {
+                FilteredList<MapBean> fl = new FilteredList<>(FXCollections.observableArrayList(mapList)
+                    .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())));
+                filteredMapBeansByQueue.put(q.getQueueName(), fl);
+                doSetAvailableMaps(modTechnical, fl);
+                mapListView.setDisable(false);
+              });
+        }
+        return;
 
       } catch (Exception e) {
         log.error("[setAvailableMaps] {}", e.getMessage());
-        filteredMapBeans = new FilteredList<>(mapService.getInstalledMaps(modTechnical)
-            .filtered(mapBean -> mapBean.getType() == Type.SKIRMISH)
-            .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())));
-        doSetAvailableMaps(modTechnical, filteredMapBeans);
       }
     }
-    else {
-      filteredMapBeans = new FilteredList<>(mapService.getInstalledMaps(modTechnical)
-          .filtered(mapBean -> mapBean.getType() == Type.SKIRMISH)
-          .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())));
-      doSetAvailableMaps(modTechnical, filteredMapBeans);
+
+    if (!filteredMapBeansByMod.containsKey(modTechnical)) {
+      filteredMapBeansByMod.put(
+          modTechnical,
+          new FilteredList<>(mapService.getInstalledMaps(modTechnical)
+              .filtered(mapBean -> mapBean.getType() == Type.SKIRMISH)
+              .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())))
+      );
     }
+    doSetAvailableMaps(modTechnical, filteredMapBeansByMod.get(modTechnical));
   }
 
-  protected void doSetAvailableMaps(String modTechnical, ObservableList<MapBean> items) {
+  protected void doSetAvailableMaps(String modTechnical, FilteredList<MapBean> items) {
     JavaFxUtil.runLater(() -> {
+      filteredMapBeans = items;
       Path installedExePath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledExePath();
-      if (filteredMapBeans.isEmpty() && installedExePath != null && Files.isExecutable(installedExePath)) {
+      if (items.isEmpty() && installedExePath != null && Files.isExecutable(installedExePath)) {
         mapListView.setItems(mapService.getOfficialMaps());
       } else {
         mapListView.setItems(items);
       }
+      selectAppropriateMap();
     });
   }
 
@@ -561,7 +546,6 @@ public class CreateGameController implements Controller<Pane> {
     installGameButton.setText(i18n.get("game.create.download", featuredMod.getDisplayName()));
     openGameFolderButton.setVisible(installedExePath != null && Files.exists(installedExePath));
     openGameFolderButton.setText(i18n.get("game.create.openModFolder", featuredMod.getDisplayName()));
-    selectAppropriateMap();
     preferencesService.getPreferences().getLastGame().setLastGameType(featuredMod.getTechnicalName());
     preferencesService.storeInBackground();
   }
@@ -574,7 +558,6 @@ public class CreateGameController implements Controller<Pane> {
     rankedEnabledCheckBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
       if (featuredModListView.getSelectionModel().getSelectedItem() != null) {
         setAvailableMaps(featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName());
-        selectAppropriateMap();
       }
       preferencesService.getPreferences().getLastGame().setLastGameRankedEnabled(newValue);
       preferencesService.storeInBackground();
@@ -582,7 +565,6 @@ public class CreateGameController implements Controller<Pane> {
 
     mapPoolListView.getSelectionModel().selectedItemProperty().addListener((obs,oldValue,newValue) -> {
       setAvailableMaps(featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName());
-      selectAppropriateMap();
     });
   }
 
