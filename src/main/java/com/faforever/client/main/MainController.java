@@ -604,25 +604,12 @@ public class MainController implements Controller<Node> {
   }
 
   public void onSubmitLogs(ActionEvent actionEvent) {
-    log.info("[onSubmitLogs] submitting logs to TAF on user request");
-    Path logGpgnet4ta = preferencesService.getMostRecentLogFile("game").orElse(Path.of(""));
-    Path logLauncher = preferencesService.getMostRecentLogFile("talauncher").orElse(Path.of(""));
-    Path logClient = preferencesService.getFafLogDirectory().resolve("client.log");
-    Path logIceAdapter = preferencesService.getIceAdapterLogDirectory().resolve("ice-adapter.log");
-    Path targetZipFile = preferencesService.getFafLogDirectory().resolve("logs.zip");
-    try {
-      File files[] = {logIceAdapter.toFile(), logClient.toFile(),logGpgnet4ta.toFile(), logLauncher.toFile()};
-      ZipUtil.zipFile(files, targetZipFile.toFile());
-      ResourceLocks.acquireUploadLock();
-      fafService.uploadGameLogs(targetZipFile, "adhoc", 0, (written, total) -> {});
-      notificationService.addImmediateInfoNotification("menu.submitLogs", "menu.submitLogs.done");
-    } catch (Exception e) {
-      log.error("[submitLogs] unable to submit logs:", e.getMessage());
-      notificationService.addImmediateErrorNotification(new RuntimeException(e.getMessage()),"menu.submitLogs.failed");
-    } finally {
-      ResourceLocks.freeUploadLock();
-      try { Files.delete(targetZipFile); } catch(Exception e) {}
+    String modTechnical = null;
+    if (preferencesService.getPreferences().getLastGame() != null) {
+      modTechnical = preferencesService.getPreferences().getLastGame().getLastGameType();
     }
+    fafService.uploadGameLogs(0, "user", modTechnical);
+    notificationService.addImmediateInfoNotification("menu.submitLogs", "menu.submitLogs.done");
   }
 
   public class ToastDisplayer implements InvalidationListener {

@@ -29,6 +29,7 @@ import com.faforever.client.mod.FeaturedModVersion;
 import com.faforever.client.mod.ModVersion;
 import com.faforever.client.net.ConnectionState;
 import com.faforever.client.player.Player;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.domain.GameEndedMessage;
 import com.faforever.client.remote.domain.GameLaunchMessage;
 import com.faforever.client.remote.domain.IceMessage;
@@ -38,10 +39,12 @@ import com.faforever.client.remote.domain.PeriodType;
 import com.faforever.client.remote.domain.ServerMessage;
 import com.faforever.client.replay.Replay;
 import com.faforever.client.reporting.ModerationReport;
+import com.faforever.client.task.ResourceLocks;
 import com.faforever.client.teammatchmaking.MatchmakingQueue;
 import com.faforever.client.tournament.TournamentBean;
 import com.faforever.client.tutorial.TutorialCategory;
 import com.faforever.client.util.Tuple;
+import com.faforever.client.util.ZipUtil;
 import com.faforever.client.vault.review.Review;
 import com.faforever.client.vault.search.SearchController.SearchConfig;
 import com.faforever.client.vault.search.SearchController.SortConfig;
@@ -57,6 +60,9 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Comparator;
@@ -77,6 +83,7 @@ import static java.util.stream.Collectors.toList;
 @Slf4j
 public class FafService {
 
+  private final PreferencesService preferencesService;
   private final FafServerAccessor fafServerAccessor;
   private final FafApiAccessor fafApiAccessor;
   private final EventBus eventBus;
@@ -335,6 +342,60 @@ public class FafService {
 
   public void uploadMod(Path modFile, ByteCountListener byteListener) {
     fafApiAccessor.uploadMod(modFile, byteListener);
+  }
+
+  public void uploadGameLogs(int gameId, String context, String modTechnical) {
+    log.info("[uploadGameLogs] submitting logs to TAF for game ID={}, mod={}", gameId, modTechnical);
+    File logClient = preferencesService.getFafLogDirectory().resolve("client.log").toFile();
+    File logIceAdapter = preferencesService.getIceAdapterLogDirectory().resolve("ice-adapter.log").toFile();
+    File logLauncher = preferencesService.getMostRecentLogFile("talauncher").orElse(Path.of("")).toFile();
+    File logGpgnet4ta = preferencesService.getMostRecentLogFile("game").orElse(Path.of("")).toFile();
+    File logReplay = preferencesService.getMostRecentLogFile("replay").orElse(Path.of("")).toFile();
+    Path targetZipFile = preferencesService.getFafLogDirectory().resolve(String.format("game_logs_%d.zip", gameId));
+
+    File taErrorLog = null;
+    if (modTechnical != null) {
+      taErrorLog = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath().resolve("ErrorLog.txt").toFile();
+    }
+
+    try {
+      File files[] = {
+          logClient, logIceAdapter, logLauncher,
+          logGpgnet4ta, logReplay, taErrorLog};
+      ZipUtil.zipFile(files, targetZipFile.toFile());
+      ResourceLocks.acquireUploadLock();
+      fafApiAccessor.uploadGameLogs(targetZipFile, context, gameId, (written, total) -> {});
+      if (modTechnical != null) {
+        this.removeErrorLog(modTechnical);
+      }
+    } catch (Exception e) {
+      log.error("[uploadGameLogs] unable to submit logs:{}", e.getMessage());
+    } finally {
+      ResourceLocks.freeUploadLock();
+      try { Files.delete(targetZipFile); } catch(Exception ignored) {}
+    }
+  }
+
+  private void removeErrorLog(String modTechnical) {
+    Path taPath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath();
+    if (taPath == null) {
+      return;
+    }
+    Path errorLogPath = taPath.resolve("ErrorLog.txt");
+
+    if (Files.exists(errorLogPath)) {
+      int i=1;
+      Path backupPath;
+      do {
+        backupPath = taPath.resolve(String.format("ErrorLog.txt(%d)", i++));
+      }
+      while (Files.exists(backupPath));
+      try {
+        Files.move(errorLogPath, backupPath);
+      } catch (IOException e) {
+        log.warn("Unable to move ErrorLog.txt: ", e.getMessage());
+      }
+    }
   }
 
   public void uploadGameLogs(Path gameLogsFile, String context, int id, ByteCountListener byteListener) {

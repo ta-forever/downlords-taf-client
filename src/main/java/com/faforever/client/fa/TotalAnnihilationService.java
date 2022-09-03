@@ -275,7 +275,6 @@ public class TotalAnnihilationService {
 
   public Process startGame(String modTechnical, int uid, @Nullable List<String> additionalArgs, int gpgPort,
                            Player currentPlayer, String demoCompilerUrl, @Nullable String ircUrl, boolean autoLaunch) throws IOException {
-    this.removeErrorLog(modTechnical);
     this.freePort47624();
     this.consolePort = getFreeTcpPort();
 
@@ -339,28 +338,6 @@ public class TotalAnnihilationService {
       logger.warn("InterruptedException shutting process: {}", e.getMessage());
     } catch (IOException e) {
       logger.warn("IOException shutting down process: {}", e.getMessage());
-    }
-  }
-
-  private void removeErrorLog(String modTechnical) {
-    Path taPath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath();
-    if (taPath == null) {
-      return;
-    }
-    Path errorLogPath = taPath.resolve("ErrorLog.txt");
-
-    if (Files.exists(errorLogPath)) {
-      int i=1;
-      Path backupPath;
-      do {
-        backupPath = taPath.resolve(String.format("ErrorLog.txt(%d)", i++));
-      }
-      while (Files.exists(backupPath));
-      try {
-        Files.move(errorLogPath, backupPath);
-      } catch (IOException e) {
-        logger.warn("Unable to move ErrorLog.txt: ", e.getMessage());
-      }
     }
   }
 

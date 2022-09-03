@@ -24,7 +24,7 @@ public class ZipUtil {
     byte[] buffer = new byte[128];
     for (int i = 0; i < files.length; i++) {
       File currentFile = files[i];
-      if (!currentFile.isDirectory() && currentFile.exists()) {
+      if (currentFile != null && !currentFile.isDirectory() && currentFile.exists()) {
         ZipEntry entry = new ZipEntry(currentFile.getName());
         FileInputStream fis = new FileInputStream(currentFile);
         zos.putNextEntry(entry);

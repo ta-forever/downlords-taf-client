@@ -938,7 +938,7 @@ public class GameService implements InitializingBean {
 
   void submitLogs(int gameId, String modTechnical) {
     if (preferencesService.getPreferences().getAutoUploadLogsOption() == AutoUploadLogsOption.ALLOW) {
-      doSubmitLogs(gameId, modTechnical);
+      fafService.uploadGameLogs(gameId, "game", modTechnical);
     }
     else if (preferencesService.getPreferences().getAutoUploadLogsOption() == AutoUploadLogsOption.ASK) {
       notificationService.addNotification(new ImmediateNotification(
@@ -951,38 +951,13 @@ public class GameService implements InitializingBean {
           new Action(i18n.get("settings.autoLogsUpload.allow"), Action.Type.OK_DONE, event -> {
             preferencesService.getPreferences().setAutoUploadLogsOption(AutoUploadLogsOption.ALLOW);
             preferencesService.storeInBackground();
-            doSubmitLogs(gameId, modTechnical);
+            fafService.uploadGameLogs(gameId, "game", modTechnical);
           }),
           new Action(i18n.get("settings.autoLogsUpload.deny"), Action.Type.OK_DONE, event -> {
             preferencesService.getPreferences().setAutoUploadLogsOption(AutoUploadLogsOption.DENY);
             preferencesService.storeInBackground();
           }))
       ));
-    }
-  }
-
-  void doSubmitLogs(int gameId, String modTechnical) {
-    log.info("[submitLogs] submitting logs to TAF for game ID={}", gameId);
-    Path logClient = preferencesService.getFafLogDirectory().resolve("client.log");
-    Path logIceAdapter = preferencesService.getIceAdapterLogDirectory().resolve("ice-adapter.log");
-    Path logLauncher = preferencesService.getMostRecentLogFile("talauncher").orElse(Path.of(""));
-    Path logGpgnet4ta = preferencesService.getMostRecentLogFile("game").orElse(Path.of(""));
-    Path logReplay = preferencesService.getMostRecentLogFile("replay").orElse(Path.of(""));
-    Path taErrorLog = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath().resolve("ErrorLog.txt");
-    Path targetZipFile = preferencesService.getFafLogDirectory().resolve(String.format("game_logs_%d.zip", gameId));
-
-    try {
-      File files[] = {
-          logClient.toFile(), logIceAdapter.toFile(), logLauncher.toFile(),
-          logGpgnet4ta.toFile(), logReplay.toFile(), taErrorLog.toFile()};
-      ZipUtil.zipFile(files, targetZipFile.toFile());
-      ResourceLocks.acquireUploadLock();
-      fafService.uploadGameLogs(targetZipFile, "game", gameId, (written, total) -> {});
-    } catch (Exception e) {
-      log.error("[submitLogs] unable to submit logs:", e.getMessage());
-    } finally {
-      ResourceLocks.freeUploadLock();
-      try { Files.delete(targetZipFile); } catch(Exception e) {}
     }
   }
 
