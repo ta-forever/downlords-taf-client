@@ -565,7 +565,7 @@ public class MapService implements InitializingBean, DisposableBean {
 
     Path cachedArchivePath = preferencesService.getCacheDirectory().resolve("maps").resolve(archivePath.getFileName());
     if (Files.exists(cachedArchivePath) && Files.size(cachedArchivePath) == Files.size(archivePath)) {
-      logger.info("Deleting archive {} (a file of that name and size can be found at {})", archivePath, cachedArchivePath);
+      final Path finalCachedArchivePath1 = cachedArchivePath;
       notificationService.addNotification(new ImmediateNotification(
           i18n.get("mapVault.removingArchive", archivePath),
           i18n.get("mapVault.removingArchiveAlreadyAt", archivePath, cachedArchivePath),
@@ -574,6 +574,7 @@ public class MapService implements InitializingBean, DisposableBean {
           new Action(i18n.get("mapVault.removingArchiveIgnore"), Action.Type.OK_DONE, event -> {}),
           new Action(i18n.get("mapVault.removingArchiveDelete"), Action.Type.OK_DONE, event -> {
             try {
+              logger.info("Deleting archive {} (a file of that name and size can be found at {})", archivePath, finalCachedArchivePath1);
               Files.delete(archivePath);
             } catch (IOException e) {
               logger.error(String.format("[removeArchive] Unable to delete {}", archivePath), e);
@@ -590,7 +591,7 @@ public class MapService implements InitializingBean, DisposableBean {
     }
 
     if (Files.exists(cachedArchivePath)) {
-      logger.info("Deleting archive {} (a file of that name and crc can be found at {})", archivePath, cachedArchivePath);
+      final Path finalCachedArchivePath2 = cachedArchivePath;
       notificationService.addNotification(new ImmediateNotification(
           i18n.get("mapVault.removingArchive", archivePath),
           i18n.get("mapVault.removingArchiveAlreadyAt", cachedArchivePath),
@@ -599,6 +600,7 @@ public class MapService implements InitializingBean, DisposableBean {
           new Action(i18n.get("mapVault.removingArchiveIgnore"), Action.Type.OK_DONE, event -> {}),
           new Action(i18n.get("mapVault.removingArchiveDelete"), Action.Type.OK_DONE, event -> {
             try {
+              logger.info("Deleting archive {} (a file of that name and crc can be found at {})", archivePath, finalCachedArchivePath2);
               Files.delete(archivePath);
             } catch (IOException e) {
               logger.error(String.format("[removeArchive] Unable to delete {}", archivePath), e);
@@ -607,7 +609,6 @@ public class MapService implements InitializingBean, DisposableBean {
       ));
     }
     else {
-      logger.info("Moving archive {} to {})", archivePath, cachedArchivePath);
       final Path finalCachedArchivePath = cachedArchivePath;
       notificationService.addNotification(new ImmediateNotification(
           i18n.get("mapVault.removingArchive", archivePath),
@@ -617,6 +618,7 @@ public class MapService implements InitializingBean, DisposableBean {
           new Action(i18n.get("mapVault.removingArchiveIgnore"), Action.Type.OK_DONE, event -> {}),
           new Action(i18n.get("mapVault.removingArchiveDelete"), Action.Type.OK_DONE, event -> {
             try {
+              logger.info("Moving archive {} to {})", archivePath, finalCachedArchivePath);
               Files.move(archivePath, finalCachedArchivePath);
             } catch (IOException e) {
               logger.error(String.format("[removeArchive] Unable to move {} to {}", archivePath, finalCachedArchivePath), e);
@@ -712,10 +714,6 @@ public class MapService implements InitializingBean, DisposableBean {
           .filter(pair -> pair.getKey().modTechnicalName.equals(modTechnicalName))
           .collect(Collectors.toList());
 
-      List<MapBean> alreadyInstalledForModAnyCrc = getInstalledMaps(modTechnicalName).stream()
-          .filter(mapBean -> mapBean.getMapName().equals(mapName))
-          .collect(Collectors.toList());
-
       if (!alreadyInstalledForMod.isEmpty()) {
         MapBean installedMap = alreadyInstalledForMod.get(0).getValue();
         logger.info("{}/{}/{} already installed",
@@ -729,11 +727,6 @@ public class MapService implements InitializingBean, DisposableBean {
         try {
           logger.info("Installing {}/{}: link/copied {} to {}", mapName, mapCrc, source, dest);
           linkOrCopyWithBackup(source, dest);
-          if (!alreadyInstalledForModAnyCrc.isEmpty()) {
-            // pre-existing, but different crc
-            removeArchive(installationPath.resolve(alreadyInstalledForModAnyCrc.get(0).getHpiArchiveName()));
-          }
-          // the new archive might contain other maps that conflict with existing archives
           removeConflictingArchives(modTechnicalName, alreadyInstalledForModAllMaps, dest);
           if (!preferencesService.getPreferences().isGameDataMapDownloadKeepVersionTag()) {
             removeVersionTag(dest.toFile());
