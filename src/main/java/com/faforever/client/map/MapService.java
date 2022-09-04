@@ -644,6 +644,11 @@ public class MapService implements InitializingBean, DisposableBean {
 
     final MapBean installedVersion = getInstallation(modTechnical).mapsByName.getOrDefault(mapName, null);
 
+    if (mapName != null && isOfficialMap(mapName)) {
+      logger.info("[ensureMap] '{}'/{} is an official cavedog map, so taking no action", mapName, mapCrc);
+      return CompletableFuture.completedFuture(installedVersion);
+    }
+
     if (mapName != null && mapCrc != null && isInstalled(modTechnical, mapName, mapCrc)) {
       logger.info("[ensureMap] '{}'/{} is already installed", mapName, mapCrc);
       return CompletableFuture.completedFuture(installedVersion);
