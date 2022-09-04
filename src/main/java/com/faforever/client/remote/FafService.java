@@ -438,9 +438,30 @@ public class FafService {
   }
 
   @Async
-  public CompletableFuture<Optional<MapBean>> findMapByFolderName(String folderName) {
-    return CompletableFuture.completedFuture(fafApiAccessor.findMapByFolderName(folderName)
-        .map(MapBean::fromMapVersionDto));
+  public CompletableFuture<Optional<MapBean>> findMapByName(String displayName) {
+    return CompletableFuture.completedFuture(
+        fafApiAccessor.findMapsByName(displayName, 1, false).stream()
+            .map(MapBean::fromMapVersionDto)
+            .findAny()
+    );
+  }
+
+  @Async
+  public CompletableFuture<List<MapBean>> findMapsByName(String displayName) {
+    return CompletableFuture.completedFuture(
+        fafApiAccessor.findMapsByName(displayName, 1000, true).stream()
+            .map(MapBean::fromMapVersionDto)
+            .collect(toList()));
+  }
+
+  @Async
+  public CompletableFuture<Optional<MapBean>> findMapVersion(String displayName, String crc) {
+    return CompletableFuture.completedFuture(
+        fafApiAccessor.findMapsByName(displayName, 1000, true).stream()
+            .filter(map -> map.getCrc().equals(crc))
+            .map(MapBean::fromMapVersionDto)
+            .findAny()
+    );
   }
 
   @Async
@@ -450,9 +471,13 @@ public class FafService {
   }
 
   @Async
-  public CompletableFuture<Optional<MapBean>> getMapLatestVersion(String mapFolderName) {
-    return CompletableFuture.completedFuture(fafApiAccessor.getMapLatestVersion(mapFolderName)
-        .map(MapBean::fromMapVersionDto));
+  public CompletableFuture<Optional<MapBean>> getMapLatestVersion(String displayName) {
+    return CompletableFuture.completedFuture(
+        fafApiAccessor.findMapsByName(displayName, 1, false).stream()
+            .map(mapVersion -> mapVersion.getMap().getLatestVersion())
+            .map(MapBean::fromMapVersionDto)
+            .findAny()
+    );
   }
 
   public CompletableFuture<List<Player>> getPlayersByIds(Collection<Integer> playerIds) {

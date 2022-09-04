@@ -253,14 +253,6 @@ public class CreateGameController implements Controller<Pane> {
     JavaFxUtil.makeNumericTextField(minRankingTextField, MAX_RATING_LENGTH, true);
     JavaFxUtil.makeNumericTextField(maxRankingTextField, MAX_RATING_LENGTH, true);
 
-    final String activeMod;
-    if (featuredModListView.getFocusModel().getFocusedItem() == null) {
-      activeMod = KnownFeaturedMod.DEFAULT.getTechnicalName();
-    }
-     else {
-      activeMod = featuredModListView.getFocusModel().getFocusedItem().getTechnicalName();
-    }
-
     init();
     modVersionUpdateCompletedProperty.set(true);
   }
@@ -407,7 +399,6 @@ public class CreateGameController implements Controller<Pane> {
   final Map<String, FilteredList<MapBean> > filteredMapBeansByMod = new HashMap();
   final Map<String, FilteredList<MapBean> > filteredMapBeansByQueue = new HashMap();
   protected void setAvailableMaps(String modTechnical) {
-
     if (rankedEnabledCheckBox.isSelected() && mapPoolListView.getSelectionModel().getSelectedItem() != null &&
         !mapService.getInstalledMaps(modTechnical).isEmpty()) {
       try {
@@ -664,12 +655,12 @@ public class CreateGameController implements Controller<Pane> {
       hostGame(selectedMap);
     } else {
       String modTechnical = featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName();
-      mapService.updateLatestVersionIfNecessary(modTechnical, selectedMap)
+      mapService.ensureMapLatestVersion(modTechnical, selectedMap)
           .exceptionally(throwable -> {
             log.error("error when updating the map", throwable);
-            hostGame(selectedMap);
-            return null;
+            return selectedMap;
           })
+          .thenApply(ensuredMap -> ensuredMap == null ? selectedMap : ensuredMap)
           .thenAccept(this::hostGame);
     }
   }

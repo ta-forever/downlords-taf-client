@@ -427,7 +427,7 @@ public class GameService implements InitializingBean {
           notificationService.addImmediateErrorNotification(throwable, "games.errorInPreparing");
           return null;
         })
-        .thenCompose(aVoid -> fafService.requestJoinGame(game.getId(), password))
+        .thenCompose(ensuredMap -> fafService.requestJoinGame(game.getId(), password))
         .thenAccept(gameLaunchMessage -> {
           if (gameLaunchMessage != null) {
             // Store password in case we rehost
@@ -576,7 +576,7 @@ public class GameService implements InitializingBean {
     return modService.getFeaturedMod(modTechnical)
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, modVersion))
         .thenCompose(aVoid -> mapService.ensureMap(modTechnical, mapName, mapCrc, mapArchive, null, null))
-        .thenAccept((aVoid) -> {
+        .thenAccept((ensuredMap) -> {
           try {
             if (isGameRunning()) {
               return;

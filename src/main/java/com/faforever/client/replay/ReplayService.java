@@ -26,12 +26,9 @@ import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.reporting.ReportingService;
 import com.faforever.client.tada.event.UploadToTadaEvent;
-import com.faforever.client.task.CompletableTask;
-import com.faforever.client.task.CompletableTask.Priority;
 import com.faforever.client.task.TaskService;
 import com.faforever.client.user.UserService;
 import com.faforever.client.util.Tuple;
-import com.faforever.client.util.ZipUtil;
 import com.faforever.client.vault.search.SearchController.SortConfig;
 import com.faforever.client.vault.search.SearchController.SortOrder;
 import com.github.rutledgepaulv.qbuilders.conditions.Condition;
@@ -222,7 +219,7 @@ public class ReplayService implements InitializingBean {
 
       CompletableFuture<FeaturedMod> featuredModFuture = modService.getFeaturedMod(replayInfo.getFeaturedMod());
       FeaturedMod featuredMod = featuredModFuture.join();
-      CompletableFuture<Optional<MapBean>> mapBeanFuture = mapService.findByMapFolderName(featuredMod.getTechnicalName(), replayInfo.getMapname());
+      CompletableFuture<Optional<MapBean>> mapBeanFuture = mapService.findMapByName(featuredMod.getTechnicalName(), replayInfo.getMapname());
 
       return CompletableFuture.allOf(featuredModFuture, mapBeanFuture).thenApply(ignoredVoid -> {
         Optional<MapBean> mapBean = mapBeanFuture.join();

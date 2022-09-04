@@ -99,11 +99,9 @@ public interface FafApiAccessor {
 
   Tuple<List<Game>, java.util.Map<String, ?>> findReplaysByQueryWithMeta(String query, int maxResults, int page, SortConfig sortConfig);
 
-  Optional<MapVersion> findMapByFolderName(String folderName);
-
   Optional<MapVersion> findMapByTaDemoMapHash(String taDemoMapHash);
 
-  Optional<MapVersion> getMapLatestVersion(String mapFolderName);
+  List<MapVersion> findMapsByName(String mapDisplayName, int count, boolean includeHidden);
 
   List<Player> getPlayersByIds(Collection<Integer> playerIds);
 

@@ -5,11 +5,13 @@ import com.faforever.client.config.ClientProperties;
 import com.faforever.client.config.ClientProperties.Vault;
 import com.faforever.client.fa.MapTool;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.fx.PlatformService;
 import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.LeaderboardRating;
 import com.faforever.client.io.FileUtils;
 import com.faforever.client.map.MapBean.Type;
+import com.faforever.client.notification.Action;
 import com.faforever.client.notification.DismissAction;
 import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.NotificationService;
@@ -71,6 +73,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.HashSet;
@@ -110,6 +113,7 @@ public class MapService implements InitializingBean, DisposableBean {
   private final ClientProperties clientProperties;
   private final EventBus eventBus;
   private final PlayerService playerService;
+  private final PlatformService platformService;
 
   private final String mapDownloadUrlFormat;
   private final String mapPreviewUrlFormat;
@@ -176,7 +180,9 @@ public class MapService implements InitializingBean, DisposableBean {
                     I18n i18n,
                     UiService uiService,
                     ClientProperties clientProperties,
-                    EventBus eventBus, PlayerService playerService) {
+                    EventBus eventBus,
+                    PlayerService playerService,
+                    PlatformService platformService) {
     this.preferencesService = preferencesService;
     this.taskService = taskService;
     this.applicationContext = applicationContext;
@@ -188,6 +194,7 @@ public class MapService implements InitializingBean, DisposableBean {
     this.clientProperties = clientProperties;
     this.eventBus = eventBus;
     this.playerService = playerService;
+    this.platformService = platformService;
     Vault vault = clientProperties.getVault();
     this.mapDownloadUrlFormat = vault.getMapDownloadUrlFormat();
     this.mapPreviewUrlFormat = vault.getMapPreviewUrlFormat();
@@ -533,76 +540,150 @@ public class MapService implements InitializingBean, DisposableBean {
       List<String[]> archiveMaps = MapTool.listMapsInArchive(newArchive, null, false);
       archiveMaps.stream()
           .map(mapDetails -> mapDetails[MapTool.MAP_DETAIL_COLUMN_NAME])
-          .filter(mapName -> preExistingMaps.containsKey(mapName))
+          .filter(preExistingMaps::containsKey)
           .map(mapName -> preExistingMaps.get(mapName).getHpiArchiveName())
           .distinct()
           .filter(archive -> !archive.equals(newArchive.getFileName().toString()))
-          .forEach(archive -> removeArchive(installationPath.resolve(archive)));
+          .forEach(archive -> {
+            try {
+              removeArchive(installationPath.resolve(archive));
+            } catch (IOException e) {
+              logger.error(String.format("[removeConflictingArchives] Unable to remove archive '{}'", archive), e);
+            }
+          });
     }
     catch (IOException e) {
       notifyBadMapTool(e);
     }
   }
 
-  private void removeArchive(Path archivePath) {
+  private void removeArchive(Path archivePath) throws IOException {
     if (isOfficialArchive(archivePath)) {
       logger.info("Ignoring attempt to delete official map archive '{}' ...", archivePath);
       return;
     }
 
     Path cachedArchivePath = preferencesService.getCacheDirectory().resolve("maps").resolve(archivePath.getFileName());
-    try {
-      if (Files.exists(cachedArchivePath) && Files.size(cachedArchivePath) == Files.size(archivePath)) {
-        logger.info("Deleting archive {} (a file of that name and size can be found at {})", archivePath, cachedArchivePath);
-        Files.delete(archivePath);
-        notificationService.addNotification(new ImmediateNotification(
-            i18n.get("mapVault.removingArchive", archivePath),
-            i18n.get("mapVault.removingArchiveAlreadyAt", cachedArchivePath),
-            Severity.INFO, Collections.singletonList(new DismissAction(i18n))));
-        return;
-      }
-    } catch (IOException e) {
-      logger.warn("Deleting archive {} failed", archivePath);
+    if (Files.exists(cachedArchivePath) && Files.size(cachedArchivePath) == Files.size(archivePath)) {
+      logger.info("Deleting archive {} (a file of that name and size can be found at {})", archivePath, cachedArchivePath);
+      notificationService.addNotification(new ImmediateNotification(
+          i18n.get("mapVault.removingArchive", archivePath),
+          i18n.get("mapVault.removingArchiveAlreadyAt", archivePath, cachedArchivePath),
+          Severity.INFO, Arrays.asList(
+          new Action(i18n.get("mapVault.removingArchiveShow"), Action.Type.OK_STAY, event -> this.platformService.reveal(archivePath)),
+          new Action(i18n.get("mapVault.removingArchiveIgnore"), Action.Type.OK_DONE, event -> {}),
+          new Action(i18n.get("mapVault.removingArchiveDelete"), Action.Type.OK_DONE, event -> {
+            try {
+              Files.delete(archivePath);
+            } catch (IOException e) {
+              logger.error(String.format("[removeArchive] Unable to delete {}", archivePath), e);
+            }
+          }))
+      ));
+      return;
     }
 
-    try {
-      if (Files.exists(cachedArchivePath)) {
-        // cached file exists but is of different size.  lets append crc and (attempt to) move to cache
-        long archiveCrc = FileUtils.getCRC(archivePath.toFile());
-        cachedArchivePath = preferencesService.getCacheDirectory().resolve("maps").resolve(archivePath.getFileName() + "." + Long.toHexString(archiveCrc));
-      }
-    } catch (IOException e) { }
+    if (Files.exists(cachedArchivePath)) {
+      // cached file exists but is of different size.  lets append crc and (attempt to) move to cache
+      long archiveCrc = FileUtils.getCRC(archivePath.toFile());
+      cachedArchivePath = preferencesService.getCacheDirectory().resolve("maps").resolve(archivePath.getFileName() + "." + Long.toHexString(archiveCrc));
+    }
 
-    try {
-      if (Files.exists(cachedArchivePath)) {
-        logger.info("Deleting archive {} (a file of that name and crc can be found at {})", archivePath, cachedArchivePath);
-        Files.delete(archivePath);
-        notificationService.addNotification(new ImmediateNotification(
-            i18n.get("mapVault.removingArchive", archivePath),
-            i18n.get("mapVault.removingArchiveAlreadyAt", cachedArchivePath),
-            Severity.INFO, Collections.singletonList(new DismissAction(i18n))));
-        return;
-      }
-      else {
-        logger.info("Moving archive {} to {})", archivePath, cachedArchivePath);
-        Files.move(archivePath, cachedArchivePath);
-        notificationService.addNotification(new ImmediateNotification(
-            i18n.get("mapVault.removingArchive", archivePath),
-            i18n.get("mapVault.removingArchiveMoveTo", cachedArchivePath),
-            Severity.INFO, Collections.singletonList(new DismissAction(i18n))));
-        return;
-      }
-    } catch (IOException e) {
-      logger.warn("Unable to remove archive {}!", archivePath);
+    if (Files.exists(cachedArchivePath)) {
+      logger.info("Deleting archive {} (a file of that name and crc can be found at {})", archivePath, cachedArchivePath);
+      notificationService.addNotification(new ImmediateNotification(
+          i18n.get("mapVault.removingArchive", archivePath),
+          i18n.get("mapVault.removingArchiveAlreadyAt", cachedArchivePath),
+          Severity.INFO, Arrays.asList(
+          new Action(i18n.get("mapVault.removingArchiveShow"), Action.Type.OK_STAY, event -> this.platformService.reveal(archivePath)),
+          new Action(i18n.get("mapVault.removingArchiveIgnore"), Action.Type.OK_DONE, event -> {}),
+          new Action(i18n.get("mapVault.removingArchiveDelete"), Action.Type.OK_DONE, event -> {
+            try {
+              Files.delete(archivePath);
+            } catch (IOException e) {
+              logger.error(String.format("[removeArchive] Unable to delete {}", archivePath), e);
+            }
+          }))
+      ));
+    }
+    else {
+      logger.info("Moving archive {} to {})", archivePath, cachedArchivePath);
+      final Path finalCachedArchivePath = cachedArchivePath;
+      notificationService.addNotification(new ImmediateNotification(
+          i18n.get("mapVault.removingArchive", archivePath),
+          i18n.get("mapVault.removingArchiveMoveTo", cachedArchivePath),
+          Severity.INFO, Arrays.asList(
+          new Action(i18n.get("mapVault.removingArchiveShow"), Action.Type.OK_STAY, event -> this.platformService.reveal(archivePath)),
+          new Action(i18n.get("mapVault.removingArchiveIgnore"), Action.Type.OK_DONE, event -> {}),
+          new Action(i18n.get("mapVault.removingArchiveDelete"), Action.Type.OK_DONE, event -> {
+            try {
+              Files.move(archivePath, finalCachedArchivePath);
+            } catch (IOException e) {
+              logger.error(String.format("[removeArchive] Unable to move {} to {}", archivePath, finalCachedArchivePath), e);
+            }
+          }))
+      ));
     }
   }
 
-  public CompletableFuture<Void> ensureMap(String modTechnicalName, MapBean map, @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
+  public CompletableFuture<MapBean> ensureMapLatestVersion(String modTechnical, MapBean map) {
+    return ensureMap(modTechnical, map.getMapName(), null, null, null, null);
+  }
+
+  public CompletableFuture<MapBean> ensureMap(String modTechnicalName, MapBean map, @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
     return ensureMap(modTechnicalName, map.getMapName(), map.getCrc(), map.getHpiArchiveName(), progressProperty, titleProperty);
   }
 
+  /// Set mapCrc to null to ensure the most recent version
+  public CompletableFuture<MapBean> ensureMap(
+      String modTechnical,
+      @Nullable String mapName, @Nullable String mapCrc, @Nullable String downloadHpiArchiveName,
+      @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
+
+    final MapBean installedVersion = getInstallation(modTechnical).mapsByName.getOrDefault(mapName, null);
+
+    if (mapName != null && mapCrc != null && isInstalled(modTechnical, mapName, mapCrc)) {
+      logger.info("[ensureMap] '{}'/{} is already installed", mapName, mapCrc);
+      return CompletableFuture.completedFuture(installedVersion);
+    }
+
+    if (mapName == null) {
+      return _ensureMap(modTechnical, mapName, mapCrc, downloadHpiArchiveName, progressProperty, titleProperty)
+          .thenApply(aVoid -> null);
+    }
+
+    return findMapsByName(mapName)
+        .thenCompose(knownVersions -> {
+          boolean installedVersionIsKnown = installedVersion != null && knownVersions.stream()
+              .anyMatch(map -> map.getCrc().equals(installedVersion.getCrc()));
+          MapBean latestVersion = knownVersions.stream()
+              .filter(map -> !map.isHidden())
+              .sorted((a, b) -> Objects.requireNonNull(a.getVersion()).compareTo(b.getVersion()))
+              .reduce((a, b) -> b)
+              .orElse(null);
+
+          if (installedVersion != null && !installedVersionIsKnown) {
+            logger.info("[ensureMap] Leaving '{}' in place as installed '{}'/{} is not known to server", installedVersion.getHpiArchiveName(), installedVersion.getMapName(), installedVersion.getCrc());
+            return CompletableFuture.completedFuture(installedVersion);
+          }
+
+          if (mapCrc == null && latestVersion != null) {
+            if (isInstalled(modTechnical, latestVersion.getMapName(), latestVersion.getCrc())) {
+              logger.info("[ensureMap] '{}'/{} is the latest known version and is already installed", latestVersion.getMapName(), latestVersion.getCrc());
+              return CompletableFuture.completedFuture(latestVersion);
+            }
+            else {
+              return _ensureMap(modTechnical, latestVersion.getMapName(), latestVersion.getCrc(), latestVersion.getHpiArchiveName(), progressProperty, titleProperty)
+                  .thenApply(aVoid -> latestVersion);
+            }
+          }
+          return _ensureMap(modTechnical, mapName, mapCrc, downloadHpiArchiveName, progressProperty, titleProperty)
+              .thenApply(aVoid -> null);
+        });
+  }
+
   /// @note even if mapName etc are null, will still check for TA_features_2013.ccx
-  public CompletableFuture<Void> ensureMap(
+  private CompletableFuture<Void> _ensureMap(
       String modTechnicalName,
       @Nullable String mapName, @Nullable String mapCrc, @Nullable String downloadHpiArchiveName,
       @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
@@ -616,8 +697,7 @@ public class MapService implements InitializingBean, DisposableBean {
     addInstalledMapsUpdateLock();
 
     // make a copy of this list before we do anything to the installation
-    HashMap<String,MapBean> alreadyInstalledForModAllMaps = new HashMap<>();
-    alreadyInstalledForModAllMaps.putAll(getInstallation(modTechnicalName).mapsByName);
+    HashMap<String, MapBean> alreadyInstalledForModAllMaps = new HashMap<>(getInstallation(modTechnicalName).mapsByName);
 
     if (mapName != null && mapCrc != null && downloadHpiArchiveName != null) {
       List<Pair<Installation,MapBean>> alreadyInstalledAnywhere = installations.values().stream()
@@ -668,22 +748,7 @@ public class MapService implements InitializingBean, DisposableBean {
         }
       }
       else {
-        try {
-          getDownloadUrl(downloadHpiArchiveName, mapDownloadUrlFormat).openStream().close();
-          // no exception ... download should work
-          downloadList.add(downloadHpiArchiveName);
-          if (!alreadyInstalledForModAnyCrc.isEmpty()) {
-            // pre-existing, but different crc
-            removeArchive(installationPath.resolve(alreadyInstalledForModAnyCrc.get(0).getHpiArchiveName()));
-          }
-        }
-        catch (IOException e) {
-          logger.info("Unable to download {}: {}", downloadHpiArchiveName, e.getMessage());
-          notificationService.addNotification(new ImmediateNotification(
-              i18n.get("mapDownloadTask.title", downloadHpiArchiveName, "?"),
-              i18n.get("mapDownloadTask.notFound", downloadHpiArchiveName),
-              Severity.WARN, Collections.singletonList(new DismissAction(i18n))));
-        }
+        downloadList.add(downloadHpiArchiveName);
       }
     }
 
@@ -699,6 +764,7 @@ public class MapService implements InitializingBean, DisposableBean {
 
     if (downloadList.isEmpty()) {
       logger.info("[ensureMap] Dude, hold up! {} is already downloading", downloadHpiArchiveName);
+      releaseInstalledMapsUpdateLock();
       return CompletableFuture.completedFuture(null);
     }
 
@@ -710,8 +776,6 @@ public class MapService implements InitializingBean, DisposableBean {
     }
 
     if (downloadList.stream().anyMatch(archiveName -> archiveName.equals(downloadHpiArchiveName))) {
-      // we already removed any pre-existing archive containing mapName,
-      // but the new archive might contain other maps that conflict with existing archives
       future = future.thenRun(() -> {
         removeConflictingArchives(
             modTechnicalName, alreadyInstalledForModAllMaps, installationPath.resolve(downloadHpiArchiveName));
@@ -724,7 +788,8 @@ public class MapService implements InitializingBean, DisposableBean {
       });
     }
 
-    return future.thenRun(() -> releaseInstalledMapsUpdateLock());
+    return future
+        .thenRun(this::releaseInstalledMapsUpdateLock);
   }
 
   public CompletableFuture<Void> downloadAndInstallArchive(String modTechnical, String hpiArchiveName) {
@@ -895,38 +960,24 @@ public class MapService implements InitializingBean, DisposableBean {
   /**
    * Tries to find a map by its folder name, first locally then on the server.
    */
-  public CompletableFuture<Optional<MapBean>> findByMapFolderName(String modTechnical, String folderName) {
-    Optional<MapBean> installed = getMapLocallyFromName(modTechnical, folderName);
+  public CompletableFuture<Optional<MapBean>> findMapByName(String modTechnical, String displayName) {
+    Optional<MapBean> installed = getMapLocallyFromName(modTechnical, displayName);
     if (installed.isPresent()) {
       return CompletableFuture.completedFuture(installed);
     }
-    return fafService.findMapByFolderName(folderName);
+    return fafService.findMapByName(displayName);
   }
 
-  public CompletableFuture<MapBean> getMapLatestVersion(MapBean map) {
-    String folderName = map.getMapName();
-    return fafService.getMapLatestVersion(folderName).thenApply(latestMap -> latestMap.orElse(map));
-    //return CompletableFuture.completedFuture(map);
+  public CompletableFuture<List<MapBean>> findMapsByName(String displayName) {
+    return fafService.findMapsByName(displayName);
   }
 
-  public CompletableFuture<MapBean> updateLatestVersionIfNecessary(String modTechnical, MapBean map) {
-    return getMapLatestVersion(map).thenCompose(latestMap -> {
-      CompletableFuture<Void> downloadFuture;
-      if (!isInstalled(modTechnical, latestMap.getMapName(), latestMap.getCrc())) {
-        downloadFuture = ensureMap(modTechnical, latestMap, null, null);
-      } else {
-        downloadFuture = CompletableFuture.completedFuture(null);
-      }
-      return downloadFuture.thenApply(aVoid -> latestMap);
-    }).thenCompose(latestMap -> {
-      CompletableFuture<Void> uninstallFuture;
-      if (!latestMap.getMapName().equals(map.getMapName())) {
-        uninstallFuture = uninstallMap(modTechnical, map.getMapName(), map.getCrc());
-      } else {
-        uninstallFuture = CompletableFuture.completedFuture(null);
-      }
-      return uninstallFuture.thenApply(aVoid -> latestMap);
-    });
+  public CompletableFuture<Optional<MapBean>> getMapLatestVersion(String mapDisplayName) {
+    return fafService.getMapLatestVersion(mapDisplayName);
+  }
+
+  public CompletableFuture<Optional<MapBean>> findMapVersion(String displayName, String crc) {
+    return fafService.findMapVersion(displayName, crc);
   }
 
   public CompletableFuture<Boolean> hasPlayedMap(int playerId, String mapVersionId) {

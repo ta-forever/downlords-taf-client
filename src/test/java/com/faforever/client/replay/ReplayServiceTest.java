@@ -265,7 +265,7 @@ public class ReplayServiceTest {
 
     when(replayFileReader.parseMetaData(file1)).thenReturn(localReplayInfo);
     when(modService.getFeaturedMod(any())).thenReturn(CompletableFuture.completedFuture(null));
-    when(mapService.findByMapFolderName(any())).thenReturn(CompletableFuture.completedFuture(Optional.of(MapBeanBuilder.create().defaultValues().get())));
+    when(mapService.findMapByName(any())).thenReturn(CompletableFuture.completedFuture(Optional.of(MapBeanBuilder.create().defaultValues().get())));
 
     Collection<Replay> localReplays = instance.loadLocalReplayPage(1, 1).get().getFirst();
 

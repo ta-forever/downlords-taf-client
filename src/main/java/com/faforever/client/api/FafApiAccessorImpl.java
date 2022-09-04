@@ -401,17 +401,6 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   }
 
   @Override
-  public Optional<MapVersion> findMapByFolderName(String folderName) {
-    List<MapVersion> maps = getMany(MAP_VERSION_ENDPOINT, 1, java.util.Map.of(
-        FILTER, rsql(qBuilder().string("map.displayName").eq(folderName)),
-        INCLUDE, MAP_VERSION_INCLUDES));
-    if (maps.isEmpty()) {
-      return Optional.empty();
-    }
-    return Optional.ofNullable(maps.get(0));
-  }
-
-  @Override
   @Cacheable(value = CacheNames.TADEMO_MAP_HASH, sync = true)
   public Optional<MapVersion> findMapByTaDemoMapHash(String taDemoMapHash) {
     List<MapVersion> maps = getMany(MAP_VERSION_ENDPOINT, 1, java.util.Map.of(
@@ -424,16 +413,18 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   }
 
   @Override
-  public Optional<MapVersion> getMapLatestVersion(String mapFolderName) {
-    String queryFilter = rsql(qBuilder()
-        .string("map.displayName").eq(mapFolderName)
-        .and()
-        .string("map.latestVersion.hidden").eq("false"));
-    List<MapVersion> currentVersionMap = getMany(MAP_VERSION_ENDPOINT, 1, java.util.Map.of(
+  public List<MapVersion> findMapsByName(String mapDisplayName, int count, boolean includeHidden) {
+    Condition<?> builder = qBuilder()
+        .string("map.displayName").eq(mapDisplayName);
+    if (!includeHidden) {
+      builder = builder.and().string("map.latestVersion.hidden").eq("false");
+    }
+    String queryFilter = rsql(builder);
+    List<MapVersion> maps = getMany(MAP_VERSION_ENDPOINT, count, java.util.Map.of(
         FILTER, queryFilter,
         INCLUDE, MAP_VERSION_INCLUDES
     ));
-    return Optional.ofNullable(currentVersionMap.isEmpty() ? null : currentVersionMap.get(0).getMap().getLatestVersion());
+    return maps;
   }
 
   @Override

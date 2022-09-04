@@ -213,17 +213,10 @@ public class MockFafApiAccessor implements FafApiAccessor {
   }
 
   @Override
-  public Optional<MapVersion> findMapByFolderName(String folderName) {
-    return Optional.empty();
-  }
+  public List<MapVersion> findMapsByName(String mapDisplayName, int count, boolean includeHidden) { return List.of(); }
 
   @Override
   public Optional<MapVersion> findMapByTaDemoMapHash(String taDemoMapHash) { return Optional.empty(); }
-
-  @Override
-  public Optional<MapVersion> getMapLatestVersion(String mapFolderName) {
-    return Optional.empty();
-  }
 
   @Override
   public List<com.faforever.client.api.dto.Player> getPlayersByIds(Collection<Integer> playerIds) {
