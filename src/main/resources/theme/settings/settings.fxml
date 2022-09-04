@@ -1100,6 +1100,26 @@
                                             </rowConstraints>
                                             <children>
                                                 <Label contentDisplay="RIGHT" styleClass="setting-title"
+                                                       text="%settings.data.mapManagement"/>
+                                                <Label styleClass="setting-description"
+                                                       text="%settings.data.mapManagement.description"
+                                                       GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS"
+                                                       GridPane.rowIndex="1"/>
+                                                <CheckBox fx:id="gameDataMapManagementCheckBox" contentDisplay="RIGHT"
+                                                          mnemonicParsing="false" GridPane.columnIndex="1"/>
+                                            </children>
+                                        </GridPane>
+                                        <GridPane styleClass="setting-container">
+                                            <columnConstraints>
+                                                <ColumnConstraints hgrow="ALWAYS" minWidth="10.0"/>
+                                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0"/>
+                                            </columnConstraints>
+                                            <rowConstraints>
+                                                <RowConstraints minHeight="10.0" valignment="TOP" vgrow="SOMETIMES"/>
+                                                <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
+                                            </rowConstraints>
+                                            <children>
+                                                <Label contentDisplay="RIGHT" styleClass="setting-title"
                                                        text="%settings.data.promptMapDownload"/>
                                                 <Label styleClass="setting-description"
                                                        text="%settings.data.promptMapDownload.description"

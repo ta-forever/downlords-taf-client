@@ -163,6 +163,7 @@ public class SettingsController implements Controller<Node> {
   public ListView<String> autoChannelListView;
   public Button clearCacheButton;
   public CheckBox gameDataCacheCheckBox;
+  public CheckBox gameDataMapManagementCheckBox;
   public CheckBox gameDataPromptDownloadCheckBox;
   public CheckBox gameDataMapDownloadKeepVersionTagCheckBox;
   public Spinner<Integer> gameDataCacheTimeSpinner;
@@ -387,6 +388,7 @@ public class SettingsController implements Controller<Node> {
 
   private void initGameDataCache() {
     gameDataCacheCheckBox.selectedProperty().bindBidirectional(preferencesService.getPreferences().gameDataCacheActivatedProperty());
+    gameDataMapManagementCheckBox.selectedProperty().bindBidirectional(preferencesService.getPreferences().gameDataMapManagementEnabledProperty());
     gameDataPromptDownloadCheckBox.selectedProperty().bindBidirectional(preferencesService.getPreferences().gameDataPromptDownloadActivatedProperty());
     gameDataMapDownloadKeepVersionTagCheckBox.selectedProperty().bindBidirectional(preferencesService.getPreferences().gameDataMapDownloadKeepVersionTagProperty());
     //Binding for CacheLifeTimeInDays does not work because of some java fx bug

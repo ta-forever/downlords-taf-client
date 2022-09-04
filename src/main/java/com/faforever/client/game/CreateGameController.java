@@ -157,7 +157,7 @@ public class CreateGameController implements Controller<Pane> {
             .findAny()
             .ifPresent(mod -> this.featuredModListView.getSelectionModel().select(mod));
       }
-      mapService.ensureMap(this.featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null);
+      mapService.optionalEnsureMap(this.featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null);
     }
     this.contextGameProperty.set(game);
   }
@@ -655,13 +655,13 @@ public class CreateGameController implements Controller<Pane> {
       hostGame(selectedMap);
     } else {
       String modTechnical = featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName();
-      mapService.ensureMapLatestVersion(modTechnical, selectedMap)
-          .exceptionally(throwable -> {
-            log.error("error when updating the map", throwable);
-            return selectedMap;
-          })
-          .thenApply(ensuredMap -> ensuredMap == null ? selectedMap : ensuredMap)
-          .thenAccept(this::hostGame);
+      mapService.optionalEnsureMapLatestVersion(modTechnical, selectedMap)
+            .exceptionally(throwable -> {
+              log.error("error when updating the map", throwable);
+              return selectedMap;
+            })
+            .thenApply(ensuredMap -> ensuredMap == null ? selectedMap : ensuredMap)
+            .thenAccept(this::hostGame);
     }
   }
 
@@ -704,14 +704,14 @@ public class CreateGameController implements Controller<Pane> {
   }
 
   public void onUpdateButtonClicked() {
-    mapService.ensureMap(
-        featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(),
-        mapListView.getSelectionModel().getSelectedItem(), null, null)
-        .thenRun(() -> gameService.updateSettingsForStagingGame(
-          mapListView.getSelectionModel().getSelectedItem().getMapName(),
-          rankedEnabledCheckBox.isSelected()
-              ? mapPoolListView.getSelectionModel().getSelectedItem().getLeaderboard().getTechnicalName()
-              : DEFAULT_RATING_TYPE));
+      mapService.optionalEnsureMap(
+          featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(),
+          mapListView.getSelectionModel().getSelectedItem(), null, null)
+          .thenRun(() -> gameService.updateSettingsForStagingGame(
+              mapListView.getSelectionModel().getSelectedItem().getMapName(),
+              rankedEnabledCheckBox.isSelected()
+                  ? mapPoolListView.getSelectionModel().getSelectedItem().getLeaderboard().getTechnicalName()
+                  : DEFAULT_RATING_TYPE));
   }
 
   public Pane getRoot() {

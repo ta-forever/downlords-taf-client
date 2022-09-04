@@ -658,16 +658,17 @@ public class MapService implements InitializingBean, DisposableBean {
         .thenCompose(knownVersions -> {
           boolean installedVersionIsKnown = installedVersion != null && knownVersions.stream()
               .anyMatch(map -> map.getCrc().equals(installedVersion.getCrc()));
-          MapBean latestVersion = knownVersions.stream()
-              .filter(map -> !map.isHidden())
-              .sorted((a, b) -> Objects.requireNonNull(a.getVersion()).compareTo(b.getVersion()))
-              .reduce((a, b) -> b)
-              .orElse(null);
 
           if (installedVersion != null && !installedVersionIsKnown) {
             logger.info("[ensureMap] Leaving '{}' in place as installed '{}'/{} is not known to server", installedVersion.getHpiArchiveName(), installedVersion.getMapName(), installedVersion.getCrc());
             return CompletableFuture.completedFuture(installedVersion);
           }
+
+          MapBean latestVersion = knownVersions.stream()
+              .filter(map -> !map.isHidden())
+              .sorted((a, b) -> Objects.requireNonNull(a.getVersion()).compareTo(b.getVersion()))
+              .reduce((a, b) -> b)
+              .orElse(null);
 
           if (mapCrc == null && latestVersion != null) {
             if (isInstalled(modTechnical, latestVersion.getMapName(), latestVersion.getCrc())) {
@@ -783,6 +784,36 @@ public class MapService implements InitializingBean, DisposableBean {
 
     return future
         .thenRun(this::releaseInstalledMapsUpdateLock);
+  }
+
+  public CompletableFuture<MapBean> optionalEnsureMapLatestVersion(String modTechnical, MapBean map) {
+    if (preferencesService.getPreferences().isGameDataMapManagementEnabled()) {
+      return ensureMapLatestVersion(modTechnical, map);
+    }
+    else {
+      return CompletableFuture.completedFuture(map);
+    }
+  }
+
+  public CompletableFuture<MapBean> optionalEnsureMap(String modTechnicalName, MapBean map, @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
+    if (preferencesService.getPreferences().isGameDataMapManagementEnabled()) {
+      return ensureMap(modTechnicalName, map, progressProperty, titleProperty);
+    }
+    else {
+      return CompletableFuture.completedFuture(map);
+    }
+  }
+
+  public CompletableFuture<MapBean> optionalEnsureMap(
+      String modTechnical,
+      @Nullable String mapName, @Nullable String mapCrc, @Nullable String downloadHpiArchiveName,
+      @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
+    if (preferencesService.getPreferences().isGameDataMapManagementEnabled()) {
+      return ensureMap(modTechnical, mapName, mapCrc, downloadHpiArchiveName, progressProperty, titleProperty);
+    }
+    else {
+      return CompletableFuture.completedFuture(null);
+    }
   }
 
   public CompletableFuture<Void> downloadAndInstallArchive(String modTechnical, String hpiArchiveName) {

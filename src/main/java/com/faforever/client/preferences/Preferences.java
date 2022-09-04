@@ -71,6 +71,7 @@ public class Preferences {
   private final BooleanProperty advancedIceLogEnabled;
   private final IntegerProperty cacheLifeTimeInDays;
   private final BooleanProperty gameDataCacheActivated;
+  private final BooleanProperty gameDataMapManagementEnabled;
   private final BooleanProperty gameDataPromptDownloadActivated;
   private final BooleanProperty gameDataMapDownloadKeepVersionTag;
   private final BooleanProperty debugLogEnabled;
@@ -120,6 +121,7 @@ public class Preferences {
     preReleaseCheckEnabled = new SimpleBooleanProperty(false);
     cacheLifeTimeInDays = new SimpleIntegerProperty(30);
     gameDataCacheActivated = new SimpleBooleanProperty(false);
+    gameDataMapManagementEnabled = new SimpleBooleanProperty(true);
     gameDataPromptDownloadActivated = new SimpleBooleanProperty(true);
     gameDataMapDownloadKeepVersionTag = new SimpleBooleanProperty(false);
     debugLogEnabled = new SimpleBooleanProperty(false);
@@ -457,6 +459,18 @@ public class Preferences {
 
   public BooleanProperty gameDataCacheActivatedProperty() {
     return gameDataCacheActivated;
+  }
+
+  public boolean isGameDataMapManagementEnabled() {
+    return gameDataMapManagementEnabled.get();
+  }
+
+  public void setGameDataMapManagementEnabled(boolean gameDataMapManagementEnabled) {
+    this.gameDataMapManagementEnabled.set(gameDataMapManagementEnabled);
+  }
+
+  public BooleanProperty gameDataMapManagementEnabledProperty() {
+    return gameDataMapManagementEnabled;
   }
 
   public boolean isGameDataPromptDownloadActivated() {

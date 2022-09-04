@@ -421,7 +421,7 @@ public class GameService implements InitializingBean {
         modService.getFeaturedMod(game.getFeaturedMod())
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, game.getFeaturedModVersion() != null
             ? game.getFeaturedModVersion() : featuredModBean.getGitBranch()))
-        .thenCompose(aVoid -> mapService.ensureMap(game.getFeaturedMod(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null))
+        .thenCompose(aVoid -> mapService.optionalEnsureMap(game.getFeaturedMod(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null))
         .exceptionally(throwable -> {
           log.warn("Exception preparing to join game", throwable);
           notificationService.addImmediateErrorNotification(throwable, "games.errorInPreparing");
@@ -575,7 +575,7 @@ public class GameService implements InitializingBean {
 
     return modService.getFeaturedMod(modTechnical)
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, modVersion))
-        .thenCompose(aVoid -> mapService.ensureMap(modTechnical, mapName, mapCrc, mapArchive, null, null))
+        .thenCompose(aVoid -> mapService.optionalEnsureMap(modTechnical, mapName, mapCrc, mapArchive, null, null))
         .thenAccept((ensuredMap) -> {
           try {
             if (isGameRunning()) {
@@ -743,7 +743,7 @@ public class GameService implements InitializingBean {
         .thenAccept(featuredModBean -> updateGameIfNecessary(featuredModBean, null))
         .thenCompose(aVoid -> fafService.startSearchMatchmaker())
         .thenAccept((gameLaunchMessage) ->
-            mapService.ensureMap(gameLaunchMessage.getMod(), gameLaunchMessage.getMapname(), gameLaunchMessage.getMapCrc(), gameLaunchMessage.getMapArchive(), null, null)
+            mapService.optionalEnsureMap(gameLaunchMessage.getMod(), gameLaunchMessage.getMapname(), gameLaunchMessage.getMapCrc(), gameLaunchMessage.getMapArchive(), null, null)
             .thenRun(() -> {
               gameLaunchMessage.setArgs(new ArrayList<>(gameLaunchMessage.getArgs()));
               gameLaunchMessage.getArgs().add("/team " + gameLaunchMessage.getTeam());
@@ -829,7 +829,7 @@ public class GameService implements InitializingBean {
   public void startBattleRoom() {
     if (isGameRunning()) {
       Game game = getCurrentGame();
-      mapService.ensureMap(game.getFeaturedMod(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null)
+      mapService.optionalEnsureMap(game.getFeaturedMod(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null)
           .thenRun(() -> this.totalAnnihilationService.sendToConsole("/launch"));
     }
   }
