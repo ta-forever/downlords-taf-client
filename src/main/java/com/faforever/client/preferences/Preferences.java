@@ -51,6 +51,7 @@ public class Preferences {
   // TA options @todo they need to be in TotalAnnilationPreferences()
   private final BooleanProperty forceRelayEnabled;
   private final BooleanProperty proactiveResendEnabled;
+  private final ObjectProperty<MaxPacketSizeOption> maxPacketSizeOption;
   private final BooleanProperty suppressReplayChatEnabled;
   private final BooleanProperty ircIntegrationEnabled;
   private final BooleanProperty autoLaunchOnHostEnabled;
@@ -108,6 +109,7 @@ public class Preferences {
     showModdedGames = new SimpleBooleanProperty(true);
     forceRelayEnabled = new SimpleBooleanProperty(false);
     proactiveResendEnabled = new SimpleBooleanProperty(false);
+    maxPacketSizeOption = new SimpleObjectProperty<>(MaxPacketSizeOption.NORMAL);
     suppressReplayChatEnabled = new SimpleBooleanProperty(false);
     ircIntegrationEnabled = new SimpleBooleanProperty(true);
     autoLaunchOnHostEnabled = new SimpleBooleanProperty(false);
@@ -197,6 +199,14 @@ public class Preferences {
 
   public BooleanProperty getProactiveResendEnabledProperty() {
     return proactiveResendEnabled;
+  }
+
+  public MaxPacketSizeOption getMaxPacketSizeOption() {
+    return maxPacketSizeOption.get();
+  }
+  public void setMaxPacketSizeOption(MaxPacketSizeOption option) { this.maxPacketSizeOption.set(option); }
+  public ObjectProperty<MaxPacketSizeOption> maxPacketSizeOptionProperty() {
+    return maxPacketSizeOption;
   }
 
   public BooleanProperty getSuppressReplayChatEnabledProperty() {

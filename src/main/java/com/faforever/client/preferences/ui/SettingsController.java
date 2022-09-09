@@ -19,6 +19,7 @@ import com.faforever.client.notification.TransientNotification;
 import com.faforever.client.preferences.AutoUploadLogsOption;
 import com.faforever.client.preferences.DateInfo;
 import com.faforever.client.preferences.LocalizationPrefs;
+import com.faforever.client.preferences.MaxPacketSizeOption;
 import com.faforever.client.preferences.NotificationsPrefs;
 import com.faforever.client.preferences.Preferences;
 import com.faforever.client.preferences.PreferencesService;
@@ -105,6 +106,7 @@ public class SettingsController implements Controller<Node> {
   public CheckBox hideFoeToggle;
   public CheckBox forceRelayToggle;
   public CheckBox proactiveResendToggle;
+  public ComboBox<MaxPacketSizeOption> maxPacketSizeOptionComboBox;
   public CheckBox suppressReplayChatToggle;
   public CheckBox enableIrcIntegrationToggle;
   public CheckBox enableAutoLaunchOnHostToggle;
@@ -306,6 +308,7 @@ public class SettingsController implements Controller<Node> {
     configureTadaIntegration(preferences);
     configureFeaturedModRevertOption(preferences);
     configureAutoUploadLogs(preferences);
+    configureMaxPacketSizeOption(preferences);
 
     displayFriendOnlineToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendOnlineToastEnabledProperty());
     displayFriendOfflineToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendOfflineToastEnabledProperty());
@@ -406,6 +409,23 @@ public class SettingsController implements Controller<Node> {
   public void updateGameLocationTable()
   {
     gameLocationTableView.setItems(preferencesService.getTotalAnnihilationAllMods());
+  }
+
+  private void configureMaxPacketSizeOption(Preferences preferences) {
+    maxPacketSizeOptionComboBox.setItems(FXCollections.observableArrayList(MaxPacketSizeOption.TINY, MaxPacketSizeOption.NORMAL));
+    maxPacketSizeOptionComboBox.setConverter(new StringConverter<>() {
+      @Override
+      public String toString(MaxPacketSizeOption option) {
+        return i18n.get(option.getI18nKey());
+      }
+
+      @Override
+      public MaxPacketSizeOption fromString(String s) {
+        throw new UnsupportedOperationException("Not needed");
+      }
+    });
+    maxPacketSizeOptionComboBox.setValue(preferences.getMaxPacketSizeOption());
+    preferences.maxPacketSizeOptionProperty().bindBidirectional(maxPacketSizeOptionComboBox.valueProperty());
   }
 
   private void configureTadaIntegration(Preferences preferences) {

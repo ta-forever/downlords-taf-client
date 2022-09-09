@@ -1,6 +1,7 @@
 package com.faforever.client.fa;
 
 import com.faforever.client.player.Player;
+import com.faforever.client.preferences.MaxPacketSizeOption;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +17,6 @@ import java.lang.invoke.MethodHandles;
 import java.net.Inet4Address;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -101,7 +101,7 @@ public class TotalAnnihilationService {
 
   private List<String> getGpgNet4TaCommand(
       String bindAddress, int consolePort, String gameMod, Path gamePath, boolean autoLaunch, boolean lockOptions,
-      int players, boolean proactiveResend, String gpgNetUrl, String demoCompilerUrl, @Nullable String ircUrl,
+      int players, boolean proactiveResend, int maxPacketSize, String gpgNetUrl, String demoCompilerUrl, @Nullable String ircUrl,
       Path logFile, int launchServerPort
   ) {
     Path exePath = getNativeGpgnet4taDir().resolve(org.bridj.Platform.isLinux() ? "gpgnet4ta" : "gpgnet4ta.exe");
@@ -117,7 +117,8 @@ public class TotalAnnihilationService {
         "--gpgnet", gpgNetUrl,
         "--logfile", logFile.toString(),
         "--launchserverport", String.valueOf(launchServerPort),
-        "--democompilerurl", demoCompilerUrl
+        "--democompilerurl", demoCompilerUrl,
+        "--maxpacketsize", String.valueOf(maxPacketSize)
     ));
 
     if (autoLaunch) {
@@ -290,9 +291,17 @@ public class TotalAnnihilationService {
     boolean proactiveResend = preferencesService.getPreferences().getProactiveResendEnabled();
     String gpgNetUrl = String.format("%s:%d", loopbackAddress, gpgPort);
 
+    int maxPacketSize = 1500;
+    if (preferencesService.getPreferences().getMaxPacketSizeOption() == MaxPacketSizeOption.JUMBO) {
+      maxPacketSize = 5561;
+    }
+    else if (preferencesService.getPreferences().getMaxPacketSizeOption() == MaxPacketSizeOption.TINY) {
+      maxPacketSize = 498;
+    }
+
     List<String> gpgnet4taCommand = getGpgNet4TaCommand(
         loopbackAddress, this.consolePort, prefs.getBaseGameName(), prefs.getInstalledPath(), autoLaunch,
-        false, 10, proactiveResend, gpgNetUrl, demoCompilerUrl, ircUrl,
+        false, 10, proactiveResend, maxPacketSize, gpgNetUrl, demoCompilerUrl, ircUrl,
         preferencesService.getNewLogFile("game", uid), this.launchServerPort);
 
     return launch(getNativeGpgnet4taDir(), gpgnet4taCommand);
