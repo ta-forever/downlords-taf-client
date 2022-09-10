@@ -32,6 +32,7 @@ import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -44,6 +45,8 @@ import static com.faforever.client.util.LinkOrCopy.hardLinkOrCopy;
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class InstallFeaturedModTask extends CompletableTask<Path> {
+
+  static String TA_EXECUTABLE_FILE = "TotalA.exe";
 
   static String[] REQUIRED_BASE_FILES = {
       "TotalA.exe",
@@ -125,6 +128,14 @@ public class InstallFeaturedModTask extends CompletableTask<Path> {
     int n = 0;
     for (String url: installPackagePathOrUrls) {
       installIteration(url, ++n, installPackagePathOrUrls.size());
+    }
+
+    if (Files.exists(targetPath.resolve(TA_EXECUTABLE_FILE))) {
+      try {
+        Files.setPosixFilePermissions(targetPath.resolve(TA_EXECUTABLE_FILE), PosixFilePermissions.fromString("rwxr-xr-x"));
+      }
+      catch (UnsupportedOperationException ignored)
+      { }
     }
 
     return targetPath;
