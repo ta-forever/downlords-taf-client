@@ -118,6 +118,10 @@ public class InstallFeaturedModTask extends CompletableTask<Path> {
   protected Path call() throws Exception {
     validate();
 
+    targetPath.toFile().mkdirs();
+    this.updateTitle("Copying base files ...");
+    copyOriginalTaFiles();
+
     int n = 0;
     for (String url: installPackagePathOrUrls) {
       installIteration(url, ++n, installPackagePathOrUrls.size());
@@ -154,10 +158,6 @@ public class InstallFeaturedModTask extends CompletableTask<Path> {
           featuredMod.getDisplayName(), iterationNumber, iterationsTotal));
       downloadService.downloadFile(new URL(installPackagePathOrUrl), downloadTarget, this::updateProgress);
     }
-
-    targetPath.toFile().mkdirs();
-    this.updateTitle("Copying base files ...");
-    copyOriginalTaFiles();
 
     this.updateTitle(String.format("Extracting %s install package (%d/%d) ...",
         featuredMod.getDisplayName(), iterationNumber, iterationsTotal));
@@ -246,8 +246,8 @@ public class InstallFeaturedModTask extends CompletableTask<Path> {
       if (!item.isFolder()) {
         Matcher matcher = pattern.matcher(item.getPath().replace('\\', '/'));
         if (matcher.find()) {
-          logger.info("[extractFeaturedModFiles] extracting {}", item.getPath());
           Path dest = targetPath.resolve(matcher.group(1));
+          logger.info("[extractFeaturedModFiles] extracting {}:{} to {}", archive, item.getPath(), dest);
           if (dest.getParent() != null && !Files.exists(dest.getParent())) {
             dest.getParent().toFile().mkdirs();
           }
