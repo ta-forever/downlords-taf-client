@@ -30,6 +30,7 @@ import com.faforever.client.patch.GameUpdater;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.UserOfflineEvent;
+import com.faforever.client.preferences.AskAlwaysOrNever;
 import com.faforever.client.preferences.AutoUploadLogsOption;
 import com.faforever.client.preferences.NotificationsPrefs;
 import com.faforever.client.preferences.PreferencesService;
@@ -468,12 +469,16 @@ public class GameService implements InitializingBean {
                 .thenCompose(featuredMods -> promptMod(featuredMods, demoFileInfo))
                 .thenCompose(fm -> {
                   mod[0] = fm;
-                  return promptModVersion(fm, demoFileInfo);
+                  if (preferencesService.getTotalAnnihilation(fm.getTechnicalName()).getAutoUpdateEnable() == AskAlwaysOrNever.NEVER) {
+                    return CompletableFuture.completedFuture(fm.getGitBranch());
+                  }
+                  else {
+                    return promptModVersion(fm, demoFileInfo).thenApply(FeaturedModVersion::getGitBranch);
+                  }
                 })
                 .thenCompose(userSelectedVersion ->
                     runWithReplay(demoFileInfo.getFilePath(), 0, mod[0].getTechnicalName(),
-                        userSelectedVersion.getGitBranch(),
-                        mapName[0], mapCrc[0], mapArchive[0]));
+                        userSelectedVersion, mapName[0], mapCrc[0], mapArchive[0]));
           }
           else {
             return runWithReplay(demoFileInfo.getFilePath(), 0, mod[0].getTechnicalName(),
