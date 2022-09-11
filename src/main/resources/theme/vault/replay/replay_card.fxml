@@ -62,12 +62,6 @@
             <Region styleClass="icon, duration-icon"/>
         </graphic>
     </Label>
-    <Label fx:id="playerCountLabel" graphicTextGap="10.0" text="&lt;PlayerCount&gt;" GridPane.columnIndex="0"
-           GridPane.rowIndex="8">
-        <graphic>
-            <Region styleClass="icon, players-icon"/>
-        </graphic>
-    </Label>
     <Label fx:id="modLabel" graphicTextGap="10.0" text="&lt;Mod&gt;" GridPane.columnIndex="1" GridPane.rowIndex="5">
         <graphic>
             <Region styleClass="icon, mods-icon"/>

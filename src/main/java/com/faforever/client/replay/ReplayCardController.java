@@ -50,7 +50,6 @@ public class ReplayCardController implements Controller<Node> {
   public Label timeLabel;
   public Label modLabel;
   public Label durationLabel;
-  public Label playerCountLabel;
   public Label ratingLabel;
   public Label ratingTypeLabel;
   public Label qualityLabel;
@@ -84,7 +83,6 @@ public class ReplayCardController implements Controller<Node> {
     dateLabel.setText(timeService.asDate(replay.getStartTime()));
     timeLabel.setText(timeService.asShortTime(replay.getStartTime()));
     modLabel.setText(replay.getFeaturedMod().getDisplayName());
-    playerCountLabel.setText(i18n.number(replay.getTeams().values().stream().mapToInt(List::size).sum()));
     double gameQuality = ratingService.calculateQuality(replay);
     if (!Double.isNaN(gameQuality)) {
       qualityLabel.setText(i18n.get("percentage", Math.round(gameQuality * 100)));

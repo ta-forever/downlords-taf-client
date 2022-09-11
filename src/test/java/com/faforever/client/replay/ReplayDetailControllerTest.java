@@ -192,9 +192,8 @@ public class ReplayDetailControllerTest extends AbstractPlainJavaFxTest {
     assertEquals(String.valueOf(onlineReplay.getId()), instance.replayIdField.getText());
     assertEquals("unknown", instance.modLabel.getText());
     assertEquals("test", instance.titleLabel.getText());
-    assertEquals("1234", instance.playerCountLabel.getText());
     assertEquals("42", instance.qualityLabel.getText());
-    assertEquals(mapBean.getDisplayName(), instance.onMapLabel.getText());
+    assertEquals(mapBean.getMapName(), instance.onMapLabel.getText());
   }
 
   @Test

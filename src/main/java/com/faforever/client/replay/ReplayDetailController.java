@@ -89,7 +89,6 @@ public class ReplayDetailController implements Controller<Node> {
   public Label timeLabel;
   public Label modLabel;
   public Label durationLabel;
-  public Label playerCountLabel;
   public Label ratingLabel;
   public Label qualityLabel;
   public Label onMapLabel;
@@ -159,7 +158,6 @@ public class ReplayDetailController implements Controller<Node> {
     timeLabel.setTooltip(new Tooltip(i18n.get("replay.timeTooltip")));
     modLabel.setTooltip(new Tooltip(i18n.get("replay.modTooltip")));
     durationLabel.setTooltip(new Tooltip(i18n.get("replay.durationTooltip")));
-    playerCountLabel.setTooltip(new Tooltip(i18n.get("replay.playerCountTooltip")));
     ratingLabel.setTooltip(new Tooltip(i18n.get("replay.ratingTooltip")));
     ratingTypeLabel.setTooltip(new Tooltip(i18n.get("leaderboard.displayName")));
     qualityLabel.setTooltip(new Tooltip(i18n.get("replay.qualityTooltip")));
@@ -201,7 +199,6 @@ public class ReplayDetailController implements Controller<Node> {
             .map(FeaturedMod::getDisplayName)
             .orElseGet(() -> i18n.get("unknown"))
     );
-    playerCountLabel.setText(i18n.number(replay.getTeams().values().stream().mapToInt(List::size).sum()));
 
     double gameQuality = ratingService.calculateQuality(replay);
     if (!Double.isNaN(gameQuality)) {
