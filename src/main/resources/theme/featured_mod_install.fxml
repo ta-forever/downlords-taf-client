@@ -33,7 +33,7 @@
                 <tooltip><Tooltip text="%installFeaturedMod.website"/></tooltip>
             </Button>
         </GridPane>
-        <Label text="%installFeaturedMod.description" wrapText="true" prefWidth="520"/>
+        <Label fx:id="descriptionLabel" text="%installFeaturedMod.description" wrapText="true" prefWidth="520"/>
         <Separator/>
         <VBox fx:id="containerLayout" spacing="10">
             <CheckBox fx:id="useExistingCheckBox" mnemonicParsing="false" text="%installFeaturedMod.useExistingCheckBox"
@@ -97,7 +97,6 @@
               <TextField fx:id="installPathTextField" maxWidth="1.7976931348623157E308"
                        promptText="%installFeaturedMod.installPathTextField"
                        GridPane.rowIndex="0" GridPane.columnIndex="1">
-                <tooltip><Tooltip text="%installFeaturedMod.installPathTextField"/></tooltip>
               </TextField>
               <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onInstallPathButton" text="..."
                     GridPane.rowIndex="0" GridPane.columnIndex="2"/>

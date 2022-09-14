@@ -16,7 +16,9 @@ import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.StageHolder;
 import com.google.gson.Gson;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
@@ -75,6 +77,7 @@ public class FeaturedModInstallController implements Controller<Node> {
   public ComboBox<AskAlwaysOrNever> autoUpdateComboBox;
   public Pane featuredModInstallControllerRoot;
   public Label titleLabel;
+  public Label descriptionLabel;
   public Label installPathCopyToLabel;
   public Label installPathExistingLabel;
   public GridPane settingsGridPane;
@@ -124,6 +127,15 @@ public class FeaturedModInstallController implements Controller<Node> {
     this.featuredMod = fm;
 
     titleLabel.setText(i18n.get("installFeaturedMod.title", fm.getDisplayName()));
+    descriptionLabel.setText(i18n.get("installFeaturedMod.description", fm.getDisplayName()));
+    useExistingCheckBox.setText(i18n.get("installFeaturedMod.useExistingCheckBox", fm.getDisplayName()));
+    installPathExistingLabel.setText(i18n.get("installFeaturedMod.installPathExistingLabel", fm.getDisplayName()));
+    installPathTextField.setPromptText(i18n.get("installFeaturedMod.installPathTextField", fm.getDisplayName()));
+    installPathTextField.promptTextProperty().bind(Bindings.createStringBinding(() -> useExistingCheckBox.isSelected()
+        ? i18n.get("installFeaturedMod.installPathTextFieldExisting", fm.getDisplayName())
+        : i18n.get("installFeaturedMod.installPathTextField", fm.getDisplayName()),
+        useExistingCheckBox.selectedProperty()));
+
     FeaturedModInstallSpecs specs = new Gson().fromJson(fm.getInstallPackage(), FeaturedModInstallSpecs.class);
     installPackageUrlTextField.setText(specs.getUrl());
 
