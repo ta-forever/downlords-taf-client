@@ -742,7 +742,7 @@ public class CreateGameController implements Controller<Pane> {
   public void onMapAPreviewPaneClicked(MouseEvent mouseEvent) {
     ContextMenu contextMenu = new ContextMenu();
     MenuItem menuItem = new MenuItem();
-    menuItem.setText("Update preview");
+    menuItem.setText(i18n.get("map.preview.update"));
     menuItem.setOnAction((param) -> {
       mapService.resetPreviews(mapListView.getSelectionModel().getSelectedItem().getMapName());
       setSelectedMap(
@@ -751,6 +751,16 @@ public class CreateGameController implements Controller<Pane> {
           mapPreviewMaxPositionsComboBox.getSelectionModel().getSelectedItem());
     });
     contextMenu.getItems().add(menuItem);
+
+    menuItem = new MenuItem();
+    menuItem.setText(i18n.get("map.preview.download"));
+    menuItem.setOnAction((param) -> {
+      mapService.ensureMapLatestVersion(
+          featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(),
+          mapListView.getSelectionModel().getSelectedItem());
+    });
+    contextMenu.getItems().add(menuItem);
+
     contextMenu.show(this.getRoot().getScene().getWindow(), mouseEvent.getScreenX(), mouseEvent.getScreenY());
   }
 
