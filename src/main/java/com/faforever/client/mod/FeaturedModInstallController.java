@@ -130,7 +130,6 @@ public class FeaturedModInstallController implements Controller<Node> {
     descriptionLabel.setText(i18n.get("installFeaturedMod.description", fm.getDisplayName()));
     useExistingCheckBox.setText(i18n.get("installFeaturedMod.useExistingCheckBox", fm.getDisplayName()));
     installPathExistingLabel.setText(i18n.get("installFeaturedMod.installPathExistingLabel", fm.getDisplayName()));
-    installPathTextField.setPromptText(i18n.get("installFeaturedMod.installPathTextField", fm.getDisplayName()));
     installPathTextField.promptTextProperty().bind(Bindings.createStringBinding(() -> useExistingCheckBox.isSelected()
         ? i18n.get("installFeaturedMod.installPathTextFieldExisting", fm.getDisplayName())
         : i18n.get("installFeaturedMod.installPathTextField", fm.getDisplayName()),
