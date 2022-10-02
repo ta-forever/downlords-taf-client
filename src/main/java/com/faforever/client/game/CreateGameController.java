@@ -162,6 +162,17 @@ public class CreateGameController implements Controller<Pane> {
     this.contextGameProperty.set(game);
   }
 
+  private void setFilteredMapBeansPredicate(String filter) {
+    if (filter.isEmpty()) {
+      filteredMapBeans.setPredicate(null);
+    } else {
+      filteredMapBeans.setPredicate(mapInfoBean -> mapInfoBean.getMapName().toLowerCase().contains(filter.toLowerCase()));
+    }
+    if (!filteredMapBeans.isEmpty() && mapListView.getSelectionModel().getSelectedItem() == null) {
+      mapListView.getSelectionModel().select(0);
+    }
+  }
+
   public void initialize() {
     validatedButtonsDisableProperty = new SimpleBooleanProperty();
     modVersionUpdateCompletedProperty = new SimpleBooleanProperty(false);
@@ -221,16 +232,8 @@ public class CreateGameController implements Controller<Pane> {
     mapPreviewMaxPositionsComboBox.getSelectionModel().selectedItemProperty().addListener(
         (observable, oldValue, newValue) -> setSelectedMap(mapListView.getSelectionModel().getSelectedItem(), mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(), newValue));
 
-    mapSearchTextField.textProperty().addListener((observable, oldValue, newValue) -> {
-      if (newValue.isEmpty()) {
-        filteredMapBeans.setPredicate(null);
-      } else {
-        filteredMapBeans.setPredicate(mapInfoBean -> mapInfoBean.getMapName().toLowerCase().contains(newValue.toLowerCase()));
-      }
-      if (!filteredMapBeans.isEmpty()) {
-        mapListView.getSelectionModel().select(0);
-      }
-    });
+    mapSearchTextField.textProperty().addListener(
+        (observable, oldValue, newValue) -> setFilteredMapBeansPredicate(newValue));
     mapSearchTextField.setOnKeyPressed(event -> {
       MultipleSelectionModel<MapBean> selectionModel = mapListView.getSelectionModel();
       int currentMapIndex = selectionModel.getSelectedIndex();
@@ -438,6 +441,8 @@ public class CreateGameController implements Controller<Pane> {
   protected void doSetAvailableMaps(String modTechnical, FilteredList<MapBean> items) {
     JavaFxUtil.runLater(() -> {
       filteredMapBeans = items;
+      setFilteredMapBeansPredicate(mapSearchTextField.getText());
+
       Path installedExePath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledExePath();
       if (items.isEmpty() && installedExePath != null && Files.isExecutable(installedExePath)) {
         mapListView.setItems(mapService.getOfficialMaps());
