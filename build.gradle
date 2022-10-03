@@ -270,7 +270,7 @@ task downloadWindowsUid(type: Download) {
 
 task downloadUnixGpgnet4Ta(type: Download) {
   group "native dependencies"
-  src "https://content.taforever.com/gpgnet4ta/v${gpgnet4ta_version}/gpgnet4ta-ubuntu-focal-x64.tar.gz"
+  src "https://content.taforever.com/gpgnet4ta/${gpgnet4ta_version}/gpgnet4ta-ubuntu-focal-x64.tar.gz"
   dest file("${buildDir}/resources/native/gpgnet4ta-ubuntu-focal-x64.tar.gz")
   onlyIfNewer true
 }
@@ -285,7 +285,7 @@ task extractUnixGpgnet4Ta(type: Copy, dependsOn: [downloadUnixGpgnet4Ta]) {
 
 task downloadWindowsGpgnet4Ta(type: Download) {
   group "native dependencies"
-  src "https://content.taforever.com/gpgnet4ta/v${gpgnet4ta_version}/gpgnet4ta-win-x86.zip"
+  src "https://content.taforever.com/gpgnet4ta/${gpgnet4ta_version}/gpgnet4ta-win-x86.zip"
   dest file("${buildDir}/resources/native/gpgnet4ta-win-x86.zip")
   onlyIfNewer true
 }
