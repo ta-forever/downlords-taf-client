@@ -118,6 +118,8 @@
             <children>
                 <ListView fx:id="mapListView" maxHeight="1.7976931348623157E308" VBox.vgrow="ALWAYS"/>
                 <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false"
+                        onAction="#onDownloadMapButtonClicked" text="%map.preview.download"/>
+                <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false"
                         onAction="#onRandomMapButtonClicked" text="%game.create.randomMap"/>
             </children>
         </VBox>

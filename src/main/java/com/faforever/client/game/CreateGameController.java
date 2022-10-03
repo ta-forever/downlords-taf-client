@@ -759,14 +759,23 @@ public class CreateGameController implements Controller<Pane> {
 
     menuItem = new MenuItem();
     menuItem.setText(i18n.get("map.preview.download"));
-    menuItem.setOnAction((param) -> {
-      mapService.ensureMapLatestVersion(
-          featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(),
-          mapListView.getSelectionModel().getSelectedItem());
-    });
+    menuItem.setOnAction((param) -> onDownloadMapButtonClicked(null));
     contextMenu.getItems().add(menuItem);
 
     contextMenu.show(this.getRoot().getScene().getWindow(), mouseEvent.getScreenX(), mouseEvent.getScreenY());
+  }
+
+  public void onDownloadMapButtonClicked(ActionEvent actionEvent) {
+    mapService.ensureMapLatestVersion(
+        featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(),
+        mapListView.getSelectionModel().getSelectedItem())
+        .thenRun(() -> {
+          mapService.resetPreviews(mapListView.getSelectionModel().getSelectedItem().getMapName());
+          JavaFxUtil.runLater(() -> setSelectedMap(
+              mapListView.getSelectionModel().getSelectedItem(),
+              mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(),
+              mapPreviewMaxPositionsComboBox.getSelectionModel().getSelectedItem()));
+        });
   }
 
   public void onInstallSelectedModClicked(ActionEvent actionEvent) {
