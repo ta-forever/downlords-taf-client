@@ -157,7 +157,10 @@ public class CreateGameController implements Controller<Pane> {
             .findAny()
             .ifPresent(mod -> this.featuredModListView.getSelectionModel().select(mod));
       }
-      mapService.optionalEnsureMap(this.featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null);
+      if (this.featuredModListView.getSelectionModel().getSelectedItem() != null) {
+        mapService.optionalEnsureMap(this.featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null);
+      }
+      JavaFxUtil.runLater(() -> rankedEnabledCheckBox.setSelected(!DEFAULT_RATING_TYPE.equals(game.getRatingType())));
     }
     this.contextGameProperty.set(game);
   }
