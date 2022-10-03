@@ -69,8 +69,10 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -197,7 +199,6 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   public ChatChannelUser getOrCreateChatUser(String username, String channelName) {
     Channel channel = client.getChannel(channelName).orElseThrow(() -> new IllegalArgumentException("Channel '" + channelName + "' is unknown"));
     User user = channel.getUser(username).orElseThrow(() -> new IllegalArgumentException("Chat user '" + username + "' is unknown for channel '" + channelName + "'"));
-
     return getOrCreateChatUser(user, channel);
   }
 
@@ -269,16 +270,13 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   @Handler
   private void onPartEvent(ChannelPartEvent event) {
     User user = event.getActor();
-    log.debug("User joined channel: {}", user);
     onChatUserLeftChannel(event.getChannel().getName(), user.getNick());
   }
 
   @Handler
   private void onChatUserQuit(UserQuitEvent event) {
     User user = event.getUser();
-    synchronized (channels) {
-      channels.values().forEach(channel -> onChatUserLeftChannel(channel.getName(), user.getNick()));
-    }
+    new ArrayList<>(channels.values()).forEach(channel -> onChatUserLeftChannel(channel.getName(), user.getNick()));
   }
 
   @Handler
@@ -389,7 +387,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   }
 
   private void onChatUserLeftChannel(String channelName, String username) {
-    if (getOrCreateChannel(channelName).removeUser(username) == null) {
+    if (!channels.containsKey(channelName) || channels.get(channelName).removeUser(username) == null) {
       return;
     }
     if (userService.getUsername().equalsIgnoreCase(username)) {
@@ -529,7 +527,9 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Override
   public void removeUsersListener(String channelName, MapChangeListener<String, ChatChannelUser> listener) {
-    getOrCreateChannel(channelName).removeUserListener(listener);
+    if (channels.containsKey(channelName)) {
+      channels.get(channelName).removeUserListener(listener);
+    }
   }
 
   @Override
@@ -547,7 +547,6 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Override
   public void joinChannel(String channelName) {
-    log.debug("Joining channel: {}", channelName);
     client.addChannel(channelName);
   }
 

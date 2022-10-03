@@ -93,6 +93,7 @@ public class ChatController extends AbstractViewController<Node> {
         onUserJoinedChannel(change.getValueAdded(), channelName);
       }
     });
+    JavaFxUtil.runLater(() -> getOrCreateChannelTab(channelName));
   }
 
   private void onDisconnected() {
@@ -334,6 +335,7 @@ public class ChatController extends AbstractViewController<Node> {
 
   private void joinChannel(String channelName) {
     chatService.joinChannel(channelName);
+    chatService.getOrCreateChannel(channelName);
   }
 
   private void onChatUserLeftChannel(ChatChannelUser chatUser, String channelName) {
