@@ -13,7 +13,7 @@ public final class Version {
   private static String currentVersion;
 
   private static final String SNAPSHOT_VERSION = "snapshot";
-  private static final Pattern SEMVER_PATTERN = Pattern.compile("v?\\d+(\\.\\d+)*-taf-\\d+(\\.\\d+)*[^\\.]*");
+  private static final Pattern SEMVER_PATTERN = Pattern.compile("v?\\d+(\\.\\d+)*(-taf-\\d+)?(\\.\\d+)*[^\\.]*");
   private static final String UNSPECIFIED_VERSION = "unspecified";
 
   static {
