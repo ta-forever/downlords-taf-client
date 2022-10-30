@@ -225,7 +225,7 @@ public class GameDetailController implements Controller<Pane> {
   private void updateButtonsVisibility(Game currentGame, Game autoJoinPrototype, Player currentPlayer) {
     JavaFxUtil.assertApplicationThread();
     Game thisGame = this.game.get();
-    boolean isCurrentGame = thisGame != null && currentGame != null && Objects.equals(thisGame, currentGame);
+    boolean isCurrentGame = thisGame != null && thisGame.getId() == gameService.getRunningGameUid();
     boolean isOwnGame = thisGame != null && currentPlayer != null && currentPlayer.getUsername().equals(thisGame.getHost());
     boolean isGameProcessRunning = gameService.isGameRunning() || gameService.getRunningGameUid() != 0;
     boolean isPlayerIdle = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.IDLE;
@@ -243,7 +243,7 @@ public class GameDetailController implements Controller<Pane> {
 
     final String activatedStyleClass = "autojoin-game-button-active";
     if (autoJoinPrototype != null && this.game.get() != null && autoJoinPrototype.getId() == this.game.get().getId()) {
-      if ((Boolean)autoJoinButton.getUserData() == false) {
+      if (!((Boolean) autoJoinButton.getUserData())) {
         autoJoinButton.setUserData(Boolean.TRUE);
         autoJoinButton.getStyleClass().add(activatedStyleClass);
       }
@@ -358,10 +358,7 @@ public class GameDetailController implements Controller<Pane> {
   private void createTeams() {
     JavaFxUtil.assertApplicationThread();
     teamListPane.getChildren().clear();
-    ObservableMap<String, List<String>> teams = game.get().getTeams();
-    synchronized (teams) {
-      TeamCardController.createAndAdd(teams, game.get().getRatingType(), playerService, uiService, teamListPane);
-    }
+    TeamCardController.createAndAdd(game.get().getTeams(), game.get().getRatingType(), playerService, uiService, teamListPane);
   }
 
   @Override

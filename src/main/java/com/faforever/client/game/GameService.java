@@ -43,11 +43,9 @@ import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.remote.domain.LoginMessage;
 import com.faforever.client.replay.ReplayServer;
 import com.faforever.client.tada.event.UploadToTadaEvent;
-import com.faforever.client.task.ResourceLocks;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.faforever.client.util.RatingUtil;
 import com.faforever.client.util.TimeUtil;
-import com.faforever.client.util.ZipUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -418,6 +416,7 @@ public class GameService implements InitializingBean {
     String inGameIrcUrl = getInGameIrcUrl(inGameIrcChannel);
     autoJoinRequestedGameProperty.set(null);
     setRunningGameUid(game.getId());  // set it early so create-game button disabled during setup
+
     return
         modService.getFeaturedMod(game.getFeaturedMod())
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, game.getFeaturedModVersion() != null
@@ -839,15 +838,17 @@ public class GameService implements InitializingBean {
     }
   }
 
-  public void updateSettingsForStagingGame(String mapName, String ratingType) {
+  public void updateSettingsForStagingGame(String title, String mapName, String ratingType, LiveReplayOption liveReplayOption) {
     Game currentGame = getCurrentGame();
     if (isGameRunning() && currentGame != null && currentGame.getStatus()==GameStatus.STAGING) {
       try {
         List<String[]> mapsDetails = MapTool.listMap(preferencesService.getTotalAnnihilation(currentGame.getFeaturedMod()).getInstalledPath(), mapName);
         final String UNIT_SEPARATOR = Character.toString((char)0x1f);
         String mapDetails = String.join(UNIT_SEPARATOR, mapsDetails.get(0));
+        this.totalAnnihilationService.sendToConsole(String.format("/title %s", title));
         this.totalAnnihilationService.sendToConsole(String.format("/map %s", mapDetails));
         this.totalAnnihilationService.sendToConsole(String.format("/rating_type %s", ratingType));
+        this.totalAnnihilationService.sendToConsole(String.format("/replay_delay_seconds %s", liveReplayOption.getDelaySeconds()));
       }
       catch (IOException e) {
         log.info("[setMapForStagingGame] unable to get details for map {}", mapName);
@@ -1098,7 +1099,8 @@ public class GameService implements InitializingBean {
             prototype.getVisibility(),
             prototype.getMinRating(), prototype.getMaxRating(),
             prototype.getEnforceRating(), prototype.getReplayDelaySeconds(),
-            prototype.getRatingType())));
+            prototype.getRatingType(),
+            prototype.getGalacticWarPlanetName())));
   }
 
   private ObjectProperty<Game> autoJoinRequestedGameProperty = new SimpleObjectProperty<>();
@@ -1262,6 +1264,7 @@ public class GameService implements InitializingBean {
     game.setTitle(StringEscapeUtils.unescapeHtml4(gameInfoMessage.getTitle()));
     game.setMapName(gameInfoMessage.getMapName());
     game.setFeaturedMod(gameInfoMessage.getFeaturedMod());
+    game.setGalacticWarPlanetName(gameInfoMessage.getGalacticWarPlanetName());
     game.setNumPlayers(gameInfoMessage.getNumPlayers());
     game.setMaxPlayers(gameInfoMessage.getMaxPlayers());
     Optional.ofNullable(gameInfoMessage.getLaunchedAt()).ifPresent(aDouble -> game.setStartTime(

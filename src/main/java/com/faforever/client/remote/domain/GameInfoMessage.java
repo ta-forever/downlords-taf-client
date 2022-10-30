@@ -34,6 +34,7 @@ public class GameInfoMessage extends FafServerMessage {
   private Boolean enforceRatingRange;
   private Integer replayDelaySeconds;
   private GameType gameType;
+  private String galacticWarPlanetName;
   /**
    * The server may either send a single game or a list of games in the same message... *cringe*.
    */

@@ -19,6 +19,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.AnchorPane?>
 <StackPane xmlns:fx="http://javafx.com/fxml/1" fx:id="createGameRoot" styleClass="create-game-root" xmlns="http://javafx.com/javafx/8.0.141" fx:controller="com.faforever.client.game.CreateGameController">
 <GridPane hgap="10.0" styleClass="create-game-root" vgap="10.0">
     <columnConstraints>
@@ -119,7 +120,7 @@
                 <ListView fx:id="mapListView" maxHeight="1.7976931348623157E308" VBox.vgrow="ALWAYS"/>
                 <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false"
                         onAction="#onDownloadMapButtonClicked" text="%map.preview.download"/>
-                <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false"
+                <Button fx:id="randomMapButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false"
                         onAction="#onRandomMapButtonClicked" text="%game.create.randomMap"/>
             </children>
         </VBox>
@@ -138,8 +139,11 @@
 
             <Separator GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS"/>
             <StackPane>
-                <Pane fx:id="mapPreviewPane" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" onMouseClicked="#onMapAPreviewPaneClicked"
+                <Pane fx:id="mapPreviewPane" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
                       styleClass="map-preview" prefHeight="360"/>
+                <AnchorPane>
+                    <Button text="..." onMouseClicked="#onMapAPreviewPaneClicked" AnchorPane.topAnchor="10.0" AnchorPane.rightAnchor="10.0"/>
+                </AnchorPane>
             </StackPane>
             <HBox alignment="CENTER" spacing="10.0">
                 <Label fx:id="hpiArchiveLabel" text="&lt;archive.ufo&gt;"/>

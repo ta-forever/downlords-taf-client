@@ -46,6 +46,7 @@ public class Game {
   private final BooleanProperty enforceRating;
   private final ObjectProperty<GameType> gameType;
   private final IntegerProperty replayDelaySecondsProperty;
+  private final StringProperty galacticWarPlanetNameProperty;
   /**
    * Maps a sim mod's UID to its name.
    */
@@ -83,6 +84,7 @@ public class Game {
     enforceRating = new SimpleBooleanProperty(false);
     gameType = new SimpleObjectProperty<>();
     replayDelaySecondsProperty = new SimpleIntegerProperty(300);
+    galacticWarPlanetNameProperty = new SimpleStringProperty(null);
   }
 
   public String getHost() {
@@ -262,6 +264,18 @@ public class Game {
   public Integer getReplayDelaySeconds() {  return replayDelaySecondsProperty.getValue(); }
 
   public IntegerProperty replayDelaySecondsProperty() { return this.replayDelaySecondsProperty; }
+
+  public void setGalacticWarPlanetName(String galacticWarPlanetName) {
+    galacticWarPlanetNameProperty.set(galacticWarPlanetName);
+  }
+
+  public String getGalacticWarPlanetName() {
+    return galacticWarPlanetNameProperty.get();
+  }
+
+  public StringProperty galacticWarPlanetName() {
+    return galacticWarPlanetNameProperty;
+  }
 
   public GameStatus getStatus() {
     return status.get();

@@ -80,15 +80,17 @@
                                   <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                                   <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                                   <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                  <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                               </rowConstraints>
                               <children>
                                   <TextField fx:id="serverHostField" promptText="%login.serverHost" />
                                   <TextField fx:id="serverPortField" prefColumnCount="6" promptText="%port" GridPane.columnIndex="1" />
                                   <TextField fx:id="replayServerHostField" layoutX="10.0" layoutY="7.0" promptText="%login.replayServerHost" GridPane.rowIndex="1" />
                                   <TextField fx:id="replayServerPortField" layoutX="310.0" layoutY="7.0" prefColumnCount="6" promptText="%port" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-                                  <TextField fx:id="apiBaseUrlField" prefColumnCount="6" promptText="%login.apiBaseUrl" GridPane.columnSpan="2147483647" GridPane.rowIndex="3" />
                                   <TextField fx:id="ircServerHostField" promptText="%login.ircServerHost" GridPane.rowIndex="2" />
                                   <TextField fx:id="ircServerPortField" promptText="%port" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                                  <TextField fx:id="apiBaseUrlField" prefColumnCount="6" promptText="%login.apiBaseUrl" GridPane.columnSpan="2147483647" GridPane.rowIndex="3" />
+                                  <TextField fx:id="galacticWarUrlField" prefColumnCount="6" promptText="%login.galacticWarUrl" GridPane.columnSpan="2147483647" GridPane.rowIndex="4" />
                               </children>
                               <VBox.margin>
                                   <Insets top="20.0" />

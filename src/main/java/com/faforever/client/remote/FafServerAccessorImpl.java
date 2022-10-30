@@ -373,7 +373,8 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
         newGameInfo.getRatingMax(),
         newGameInfo.getEnforceRatingRange(),
         newGameInfo.getReplayDelaySeconds(),
-        newGameInfo.getRatingType()
+        newGameInfo.getRatingType(),
+        newGameInfo.getGalacticWarPlanetName()
     );
 
     gameLaunchFuture = new CompletableFuture<>();

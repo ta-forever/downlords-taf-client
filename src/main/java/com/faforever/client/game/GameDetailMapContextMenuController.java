@@ -12,12 +12,14 @@ import javafx.beans.value.WeakChangeListener;
 import javafx.event.ActionEvent;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @Component
+@Slf4j
 public class GameDetailMapContextMenuController implements Controller<ContextMenu> {
 
   private final GameService gameService;
@@ -54,7 +56,7 @@ public class GameDetailMapContextMenuController implements Controller<ContextMen
   }
 
   private void updateMenuItemStatus() {
-    if (gameService.getCurrentGame() == null || !playerService.getCurrentPlayer().isPresent() || this.game == null) {
+    if (gameService.getCurrentGame() == null || playerService.getCurrentPlayer().isEmpty() || this.game == null) {
       createMenuItem.setVisible(true);
       changeMenuItem.setVisible(false);
       browseMenuItem.setVisible(false);
@@ -63,17 +65,13 @@ public class GameDetailMapContextMenuController implements Controller<ContextMen
 
     final String currentPlayer = playerService.getCurrentPlayer().get().getUsername();
     final boolean isPlayerInGame = gameService.getCurrentGame().getId() == game.getId();  // but is in another game
-    final boolean isGameStaging = gameService.getCurrentGame().getStatus() == GameStatus.STAGING;
     final boolean isPlayerHost = gameService.getCurrentGame().getHost().equals(currentPlayer);
+    final boolean isGameStaging = gameService.getCurrentGame().getStatus() == GameStatus.STAGING;
+
     if (isPlayerInGame && isPlayerHost && isGameStaging) {
       createMenuItem.setVisible(false);
       changeMenuItem.setVisible(true);
       browseMenuItem.setVisible(false);
-    }
-    else if (isPlayerInGame && !isPlayerHost) {
-      createMenuItem.setVisible(false);
-      changeMenuItem.setVisible(false);
-      browseMenuItem.setVisible(true);
     }
     else {
       createMenuItem.setVisible(false);

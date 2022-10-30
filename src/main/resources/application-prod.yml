@@ -23,6 +23,9 @@ faf-client:
     client-id: 3bc8282c-7730-11e5-8bcf-feff819cdc9f
     client-secret: 6035bd78-7730-11e5-8bcf-feff819cdc9f
 
+  galactic-war:
+    url: https://content.taforever.com/galactic_war/galactic_war.json
+
   status-page-url: https://statuspage.taforever.com
 
   forged-alliance:

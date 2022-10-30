@@ -1,5 +1,7 @@
 package com.faforever.client.game;
 
+import com.google.gson.annotations.SerializedName;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
@@ -10,11 +12,14 @@ public enum Faction {
   // Order is crucial
   // Same order as the info from the server (1=CORE, 6=ARM)
   ZERO_FACTION("Zero"),
+  @SerializedName(value="Core", alternate={"core", "CORE"})
   CORE("Core"),
+  @SerializedName(value="GoK", alternate={"gok", "GOK"})
   GOK("GoK"),
   THREE_FACTION("Three"),
   FOUR_FACTION("Four"),
   FIVE_FACTION("Five"),
+  @SerializedName(value="Arm", alternate={"arm", "ARM"})
   ARM("Arm"),
   RANDOM("random");
 
@@ -23,14 +28,14 @@ public enum Faction {
   static {
     fromString = new HashMap<>();
     for (Faction faction : values()) {
-      fromString.put(faction.string, faction);
+      fromString.put(faction.string.toLowerCase(), faction);
     }
   }
 
   private final String string;
 
   Faction(String string) {
-    this.string = string;
+        this.string = string;
   }
 
   @JsonCreator
@@ -40,7 +45,7 @@ public enum Faction {
   }
 
   public static Faction fromString(String string) {
-    return fromString.get(string);
+    return fromString.get(string.toLowerCase());
   }
 
   /**

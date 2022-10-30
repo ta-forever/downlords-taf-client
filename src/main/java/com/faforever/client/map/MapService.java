@@ -57,8 +57,10 @@ import org.springframework.stereotype.Service;
 import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.lang.invoke.MethodHandles;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -737,6 +739,7 @@ public class MapService implements InitializingBean, DisposableBean {
           if (!preferencesService.getPreferences().isGameDataMapDownloadKeepVersionTag()) {
             removeVersionTag(dest.toFile());
           }
+          resetPreviews(mapName);
           loadInstalledMaps(modTechnicalName);
         } catch (IOException ex) {
           logger.info("Unable to link/copy {} to {}: {}", source, dest, ex.getMessage());
@@ -783,6 +786,7 @@ public class MapService implements InitializingBean, DisposableBean {
         if (!preferencesService.getPreferences().isGameDataMapDownloadKeepVersionTag()) {
           removeVersionTag(installationPath.resolve(downloadHpiArchiveName).toFile());
         }
+        resetPreviews(mapName);
         loadInstalledMaps(modTechnicalName);
       });
     }
@@ -940,6 +944,10 @@ public class MapService implements InitializingBean, DisposableBean {
 
   private void resetPreview(URL url, PreviewType previewType, int maxPositions) {
     String urlString = url.toString();
+    try {
+      urlString = java.net.URLDecoder.decode(url.toString(), StandardCharsets.UTF_8.name());
+    } catch (UnsupportedEncodingException ignored) { }
+
     String cachedFilename = urlString.substring(urlString.lastIndexOf('/') + 1);
     Path cacheSubFolder = Paths.get("maps").resolve(previewType.getFolderName(maxPositions));
     Path cachedFile = preferencesService.getCacheDirectory().resolve(cacheSubFolder).resolve(cachedFilename);

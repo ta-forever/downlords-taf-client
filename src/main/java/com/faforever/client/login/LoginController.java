@@ -79,6 +79,7 @@ public class LoginController implements Controller<Pane> {
   public TextField ircServerHostField;
   public TextField ircServerPortField;
   public TextField apiBaseUrlField;
+  public TextField galacticWarUrlField;
   public Button serverStatusButton;
 
   @VisibleForTesting
@@ -126,7 +127,8 @@ public class LoginController implements Controller<Pane> {
         clientProperties.getReplay().getRemotePort(),
         clientProperties.getIrc().getHost(),
         clientProperties.getIrc().getPort(),
-        clientProperties.getApi().getBaseUrl()
+        clientProperties.getApi().getBaseUrl(),
+        clientProperties.getGalacticWar().getUrl()
     );
 
     environmentComboBox.setConverter(new StringConverter<>() {
@@ -160,6 +162,10 @@ public class LoginController implements Controller<Pane> {
       ircServerPortField.setText(String.valueOf(endpoints.getIrc().getPort()));
 
       apiBaseUrlField.setText(endpoints.getApi().getUrl());
+      galacticWarUrlField.setText(endpoints.getGalacticWar().getUrl());
+
+      clientProperties.getApi().setBaseUrl(endpoints.getApi().getUrl());
+      clientProperties.getGalacticWar().setUrl(endpoints.getGalacticWar().getUrl());
     });
 
 
@@ -213,7 +219,8 @@ public class LoginController implements Controller<Pane> {
       int replayServerPort,
       String ircServerHost,
       int ircServerPort,
-      String apiBaseUrl
+      String apiBaseUrl,
+      String galacticWarUrl
   ) {
     JavaFxUtil.runLater(() -> {
       serverHostField.setText(serverHost);
@@ -223,6 +230,7 @@ public class LoginController implements Controller<Pane> {
       ircServerHostField.setText(ircServerHost);
       ircServerPortField.setText(String.valueOf(ircServerPort));
       apiBaseUrlField.setText(apiBaseUrl);
+      galacticWarUrlField.setText(galacticWarUrl);
     });
   }
 
@@ -319,6 +327,7 @@ public class LoginController implements Controller<Pane> {
     irc.setPort(Integer.parseInt(ircServerPortField.getText()));
 
     clientProperties.getApi().setBaseUrl(apiBaseUrlField.getText());
+    clientProperties.getGalacticWar().setUrl(galacticWarUrlField.getText());
 
     login(username, password, autoLogin);
   }

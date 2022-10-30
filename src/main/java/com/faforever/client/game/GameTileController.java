@@ -186,7 +186,7 @@ public class GameTileController implements Controller<Node> {
 
   private void updateButtonsVisibility(Game currentGame, Game autoJoinPrototype, Player currentPlayer) {
     JavaFxUtil.assertApplicationThread();
-    boolean isCurrentGame = game != null && currentGame != null && Objects.equals(game, currentGame);
+    boolean isCurrentGame = game != null && game.getId() == gameService.getRunningGameUid();
     boolean isOwnGame = game != null && currentPlayer != null && currentPlayer.getUsername().equals(game.getHost());
     boolean isGameProcessRunning = gameService.isGameRunning() || gameService.getRunningGameUid() != 0;
     boolean isPlayerIdle = currentPlayer != null && currentPlayer.getStatus() == PlayerStatus.IDLE;

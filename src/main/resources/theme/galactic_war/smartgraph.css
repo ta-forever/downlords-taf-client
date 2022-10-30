@@ -1,0 +1,71 @@
+.graph {
+    -fx-background-color: -fx-background;
+}
+
+.vertex-label {
+    -fx-font: normal 8pt "sans-serif";
+    -fx-fill: -fx-text-color;
+}
+
+.edge {
+    -fx-stroke-width: 2;
+    -fx-stroke: gray;
+    -fx-stroke-dash-array: 2 5 2 5; /* remove for clean edges */  
+    -fx-fill: transparent; /*important for curved edges. do not remove */
+    -fx-stroke-line-cap: round;
+    -fx-opacity: 0.8;
+}
+
+.edge-label {
+    -fx-font: normal 5pt "sans-serif";
+}
+
+.arrow {
+    -fx-stroke-width: 2;
+    -fx-stroke: -fx-box-border;
+    -fx-opacity: 0.8;
+}
+
+.vertex {
+    -fx-stroke-width: 1;
+    -fx-stroke: -fx-box-border;
+    -fx-stroke-type: inside; /* you should keep this for vertex.radius to hold */
+    -fx-fill: yellow;
+}
+
+.contestedVertex {
+    -fx-stroke: -fx-box-border;
+    -fx-fill: yellow;
+}
+
+.selectedVertex {
+    -fx-stroke: -fx-accent;
+    -fx-stroke-type: outside;
+    -fx-stroke-width: 3;
+}
+
+.contestedEdge {
+    -fx-stroke: yellow;
+}
+
+.armVertex {
+    -fx-fill: derive(ARM_COLOR, -50%);
+}
+
+.coreVertex {
+    -fx-fill: derive(CORE_COLOR, -50%);
+}
+
+.gokVertex {
+    -fx-fill: derive(GOK_COLOR, -50%);
+}
+
+.armCapitalVertex {
+
+}
+
+.coreCapitalVertex {
+}
+
+.gokCapitalVertex {
+}

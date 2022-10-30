@@ -10,6 +10,7 @@ import java.util.HashMap;
 public enum NavigationItem {
   NEWS("theme/news.fxml", "main.news"),
   PLAY("theme/play/play.fxml", "main.play"),
+  GALACTICWAR("theme/galactic_war/galactic_war.fxml", "main.galacticwar"),
   MATCHMAKER("theme/play/team_matchmaking.fxml", "main.matchmaker"),
   REPLAY("theme/vault/replay.fxml", "main.replay"),
   MAP("theme/vault/map.fxml", "main.maps"),

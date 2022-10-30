@@ -23,4 +23,5 @@ public class NewGameInfo {
   private Boolean enforceRatingRange;
   private Integer replayDelaySeconds; // or -ve to disable
   private String ratingType;
+  private String galacticWarPlanetName; // or null
 }

@@ -24,10 +24,12 @@ public class HostGameMessage extends ClientMessage {
   private Boolean enforceRatingRange;
   private Integer replayDelaySeconds;
   private String ratingType;
+  private String galacticWarPlanetName;
 
   public HostGameMessage(GameAccess gameAccess, String mapName, String title, boolean[] options, String mod,
                          String password, String modVersion, GameVisibility gameVisibility, Integer ratingMin,
-                         Integer ratingMax, Boolean enforceRatingRange, Integer replayDelaySeconds, String ratingType) {
+                         Integer ratingMax, Boolean enforceRatingRange, Integer replayDelaySeconds, String ratingType,
+                         String galacticWarPlanetName) {
     super(ClientMessageType.HOST_GAME);
     access = gameAccess;
     this.mapname = mapName;
@@ -42,5 +44,6 @@ public class HostGameMessage extends ClientMessage {
     this.enforceRatingRange = enforceRatingRange;
     this.replayDelaySeconds = replayDelaySeconds;
     this.ratingType = ratingType;
+    this.galacticWarPlanetName = galacticWarPlanetName;
   }
 }

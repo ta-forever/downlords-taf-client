@@ -220,19 +220,20 @@ public class CustomGamesController extends AbstractViewController<Node> {
     Pane root = createGameController.getRoot();
 
     String title = i18n.get("games.create");
-    switch(createGameController.calcInteractionLevel()) {
+    switch(createGameController.getInteractionLevel()) {
       case "UPDATE":
-        title = i18n.get("games.changeMap");
+        title = i18n.get("games.changeSettings");
+        break;
+      case "UPDATE_GW":
+        title = i18n.get("games.changeSettings");
         break;
       case "BROWSE":
         title = i18n.get("games.browseMaps");
         break;
     }
     createGameDialog = uiService.showInDialog(createGameDialogRoot, root, title);
-    createGameController.setOnCloseButtonClickedListener(() -> {
-      createGameDialog.close();
-    });
-
+    createGameController.setOnCloseButtonClickedListener(() -> createGameDialog.close());
+    createGameController.setGameTitle();
     root.requestFocus();
   }
 

@@ -121,6 +121,7 @@ public class MainController implements Controller<Node> {
   public Pane contentPane;
   public ToggleButton newsButton;
   public ToggleButton playButton;
+  public ToggleButton galacticWarButton;
   public ToggleButton matchmakerButton;
   public ToggleButton replayButton;
   public ToggleButton tutorialsButton;
@@ -192,6 +193,7 @@ public class MainController implements Controller<Node> {
   public void initialize() {
     newsButton.setUserData(NavigationItem.NEWS);
     playButton.setUserData(NavigationItem.PLAY);
+    galacticWarButton.setUserData(NavigationItem.GALACTICWAR);
     matchmakerButton.setUserData(NavigationItem.MATCHMAKER);
     replayButton.setUserData(NavigationItem.REPLAY);
     mapButton.setUserData(NavigationItem.MAP);
@@ -553,6 +555,11 @@ public class MainController implements Controller<Node> {
 
   public void onPlay(ActionEvent actionEvent) {
     playButton.pseudoClassStateChanged(HIGHLIGHTED, false);
+    onNavigateButtonClicked(actionEvent);
+  }
+
+  public void onGalacticWar(ActionEvent actionEvent) {
+    galacticWarButton.pseudoClassStateChanged(HIGHLIGHTED, false);
     onNavigateButtonClicked(actionEvent);
   }
 

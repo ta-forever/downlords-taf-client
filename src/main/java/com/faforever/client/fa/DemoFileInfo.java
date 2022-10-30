@@ -4,10 +4,10 @@ import lombok.Value;
 
 @Value
 public class DemoFileInfo {
-  private String filePath;
-  private String mapName;
-  private String mapHash;
-  private String modHash;
-  private Integer taVersionMajor;
-  private Integer taVersionMinor;
+  String filePath;
+  String mapName;
+  String mapHash;
+  String modHash;
+  Integer taVersionMajor;
+  Integer taVersionMinor;
 }

@@ -13,6 +13,7 @@
 <?import javafx.scene.layout.HBox?>
 
 <?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.StackPane?>
 <GridPane fx:id="gameDetailRoot" maxHeight="1.7976931348623157E308" maxWidth="-Infinity" minWidth="50.0" styleClass="game-detail" vgap="10.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.faforever.client.game.GameDetailController">
     <columnConstraints>
         <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" />
@@ -30,13 +31,16 @@
         <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
     </rowConstraints>
     <children>
-        <AnchorPane GridPane.columnSpan="2147483647" GridPane.halignment="CENTER">
-            <ImageView fx:id="mapImageView" onMouseClicked="#onClickedMap" fitWidth="230.0" fitHeight="320.0" pickOnBounds="true" preserveRatio="true" styleClass="map-preview"/>
-            <VBox alignment="BOTTOM_LEFT" styleClass="image-dimmer" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
-                <Label fx:id="mapLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map&gt;" wrapText="true"/>
-                <Label fx:id="mapDescription" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map Description&gt;" wrapText="false"/>
-            </VBox>
-        </AnchorPane>
+        <StackPane GridPane.columnSpan="2147483647" GridPane.halignment="CENTER">
+            <ImageView fx:id="mapImageView" fitWidth="230.0" fitHeight="320.0" pickOnBounds="true" preserveRatio="true" styleClass="map-preview"/>
+            <AnchorPane>
+                <Button text="..." onMouseClicked="#onClickedMap" AnchorPane.topAnchor="5.0" AnchorPane.rightAnchor="5.0"/>
+                <VBox alignment="BOTTOM_LEFT" styleClass="image-dimmer" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
+                    <Label fx:id="mapLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map&gt;" wrapText="true"/>
+                    <Label fx:id="mapDescription" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map Description&gt;"/>
+                </VBox>
+            </AnchorPane>
+        </StackPane>
         <Label fx:id="gameTitleLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" styleClass="game-title" text="&lt;A pretty long game title&gt;" wrapText="true" GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" />
         <Label fx:id="gameTypeLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Game type&gt;" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
         <Label fx:id="gameRatingTypeLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Rating Type&gt;" GridPane.rowIndex="2" GridPane.columnIndex="0">

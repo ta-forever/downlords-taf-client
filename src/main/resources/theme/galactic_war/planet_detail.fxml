@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.control.Label?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.Separator?>
+<StackPane fx:id="planetDetailRoot"
+           xmlns="http://javafx.com/javafx/11.0.1"
+           xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="com.faforever.client.galacticwar.PlanetDetailController"
+           minWidth="240" prefWidth="240" maxWidth="240" VBox.Vgrow="ALWAYS" styleClass="game-detail-framed">
+    <ScrollPane fx:id="planetSelectedContainer" fitToWidth="TRUE" fitToHeight="TRUE">
+        <VBox AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.topAnchor="0" spacing="5">
+            <padding>
+                <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+            </padding>
+            <Label fx:id="planetTitleLabel" styleClass="h2" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Planet&gt;" wrapText="true" alignment="CENTER"/>
+            <Label fx:id="mapLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map&gt;" wrapText="true" alignment="CENTER"/>
+            <Label fx:id="modLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;mod&gt;" wrapText="true" alignment="CENTER">
+                <graphic>
+                    <Region styleClass="icon,mods-icon"/>
+                </graphic>
+            </Label>
+            <StackPane GridPane.rowIndex="3">
+                <ImageView fx:id="mapImage" fitWidth="230" fitHeight="230" preserveRatio="true"/>
+                <ImageView fx:id="factionImage" fitWidth="230" fitHeight="230" preserveRatio="true"/>
+            </StackPane>
+            <Label fx:id="mapDescription" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map Description&gt;" alignment="CENTER" wrapText="true"/>
+            <HBox fx:id="scoresContainer" alignment="CENTER" minHeight="100" prefHeight="100" maxHeight="100"/>
+            <HBox alignment="CENTER">
+                <Button fx:id="createGameButton" mnemonicParsing="false" onAction="#onCreateGameButtonPressed"
+                        text="%planet_detail.create_game" styleClass="start-game-button" alignment="CENTER">
+                    <tooltip>
+                        <Tooltip text="%planet_detail.create_game.tooltip"/>
+                    </tooltip>
+                </Button>
+            </HBox>
+            <Separator/>
+            <HBox alignment="CENTER">
+                <TableView fx:id="belligerentsTableView" minHeight="100">
+                    <columnResizePolicy>
+                        <TableView fx:constant="UNCONSTRAINED_RESIZE_POLICY"/>
+                    </columnResizePolicy>
+                </TableView>
+            </HBox>
+        </VBox>
+    </ScrollPane>
+    <AnchorPane fx:id="planetNotSelectedContainer">
+        <Label text="%galactic_war.planet_detail.none_selected" alignment="CENTER"
+              AnchorPane.rightAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.topAnchor="0"/>
+    </AnchorPane>
+</StackPane>

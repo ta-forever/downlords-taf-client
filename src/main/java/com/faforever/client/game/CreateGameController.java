@@ -133,6 +133,7 @@ public class CreateGameController implements Controller<Pane> {
   public CheckBox rankedEnabledCheckBox;
   public Label rankedEnabledLabel;
   public Button openGameFolderButton;
+  public Button randomMapButton;
   @VisibleForTesting
   FilteredList<MapBean> filteredMapBeans;
   private Runnable onCloseButtonClickedListener;
@@ -140,6 +141,7 @@ public class CreateGameController implements Controller<Pane> {
   private BooleanProperty validatedButtonsDisableProperty;
   private BooleanProperty modVersionUpdateCompletedProperty;
   private StringProperty interactionLevelProperty; // "CREATE", "UPDATE", "BROWSE"
+  private BooleanProperty loadingMapsProperty;
 
   private ObjectProperty<Game> contextGameProperty; // is player actually creating a new game (contextGame==null), or inspecting settings for an existing game?
 
@@ -165,6 +167,19 @@ public class CreateGameController implements Controller<Pane> {
     this.contextGameProperty.set(game);
   }
 
+  String getInteractionLevel() {
+    if (interactionLevelProperty.get() == null) {
+      return "CREATE";
+    }
+    else {
+      return interactionLevelProperty.get();
+    }
+  }
+
+  StringProperty getInteractionLevelProperty() {
+    return interactionLevelProperty;
+  }
+
   private void setFilteredMapBeansPredicate(String filter) {
     if (filter.isEmpty()) {
       filteredMapBeans.setPredicate(null);
@@ -181,8 +196,7 @@ public class CreateGameController implements Controller<Pane> {
     modVersionUpdateCompletedProperty = new SimpleBooleanProperty(false);
     interactionLevelProperty = new SimpleStringProperty();
     contextGameProperty = new SimpleObjectProperty<>();
-//    featuredModInstallController = uiService.loadFxml("theme/featured_mod_install.fxml");
-//    featuredModInstallController.attachToOwner(createGameRoot);
+    loadingMapsProperty = new SimpleBooleanProperty();
 
     JavaFxUtil.addLabelContextMenus(uiService, hpiArchiveLabel, mapDescriptionLabel);
     versionLabel.managedProperty().bind(versionLabel.visibleProperty());
@@ -279,23 +293,47 @@ public class CreateGameController implements Controller<Pane> {
       }
       if (Strings.isNullOrEmpty(titleTextField.getText())) {
         return i18n.get("game.create.titleMissing");
+      } else if (!validateTitle(titleTextField.getText())) {
+        return i18n.get("game.create.titleIllegal");
       } else if (featuredModListView.getSelectionModel().getSelectedItem() == null) {
         return i18n.get("game.create.featuredModMissing");
+      } else if (mapListView.getSelectionModel().getSelectedItem() == null) {
+        return i18n.get("game.create.mapMissing");
       }
       return nominalText;
     }, titleTextField.textProperty(), featuredModListView.getSelectionModel().selectedItemProperty(), fafService.connectionStateProperty());
   }
 
   String calcInteractionLevel() {
-    if (gameService.getCurrentGame() == null || !playerService.getCurrentPlayer().isPresent() || contextGameProperty.get() == null) {
-      return "CREATE";
+    final String currentPlayer = playerService.getCurrentPlayer().isPresent()
+        ? playerService.getCurrentPlayer().get().getUsername()
+        : "";
+
+    final boolean isCurrentGameSameAsContextGame = contextGameProperty.get() != null &&
+            gameService.getCurrentGame() != null &&
+            contextGameProperty.get().getId() == gameService.getCurrentGame().getId();
+
+    final boolean isPlayerHost = gameService.getCurrentGame() != null &&
+            gameService.getCurrentGame().getHost().equals(currentPlayer);
+
+    boolean isGameStaging = gameService.getCurrentGame() != null &&
+            gameService.getCurrentGame().getStatus() == GameStatus.STAGING;
+
+    final boolean isCurrentGameGalacticWar = gameService.getCurrentGame() != null &&
+            gameService.getCurrentGame().getGalacticWarPlanetName() != null;
+
+    if (gameService.getCurrentGame() == null || playerService.getCurrentPlayer().isEmpty() || contextGameProperty.get() == null) {
+      if (!isCurrentGameGalacticWar) {
+        return "CREATE";
+      }
     }
-    final String currentPlayer = playerService.getCurrentPlayer().get().getUsername();
-    final boolean isCurrentGameSameAsContextGame = contextGameProperty.get().getId() == gameService.getCurrentGame().getId();
-    final boolean isPlayerHost = gameService.getCurrentGame().getHost().equals(currentPlayer);
-    final boolean isGameStaging = gameService.getCurrentGame().getStatus() == GameStatus.STAGING;
+
     if (isCurrentGameSameAsContextGame && isPlayerHost && isGameStaging) {
-      return "UPDATE";
+      if (isCurrentGameGalacticWar) {
+        return "UPDATE_GW";
+      } else {
+        return "UPDATE";
+      }
     }
     else {
       return "BROWSE";
@@ -309,41 +347,48 @@ public class CreateGameController implements Controller<Pane> {
     initFeaturedModList();
     initMapPoolList();
     initRatingBoundaries();
-    setLastGameTitle();
+    setGameTitle();
     initPassword();
 
     titleTextField.textProperty().addListener((observable, oldValue, newValue) -> {
-      preferencesService.getPreferences().getLastGame().setLastGameTitle(newValue);
-      preferencesService.storeInBackground();
       validateTitle(newValue);
+      if (!getInteractionLevel().equals("UPDATE_GW")) {
+        preferencesService.getPreferences().getLastGame().setLastGameTitle(newValue);
+        preferencesService.storeInBackground();
+      }
     });
-    validateTitle(titleTextField.getText());
 
     createGameButton.textProperty().bind(createValidatedButtonTextBinding(i18n.get("game.create.create")));
     updateGameButton.textProperty().bind(createValidatedButtonTextBinding(i18n.get("game.create.update")));
 
     validatedButtonsDisableProperty.bind(
-        titleTextField.textProperty().isEmpty()
+        Bindings.createBooleanBinding(() -> !validateTitle(titleTextField.getText()), titleTextField.textProperty())
             .or(featuredModListView.getSelectionModel().selectedItemProperty().isNull())
             .or(fafService.connectionStateProperty().isNotEqualTo(CONNECTED))
             .or(mapListView.getSelectionModel().selectedItemProperty().isNull())
             .or(modVersionUpdateCompletedProperty.not())
     );
-    interactionLevelProperty.bind(Bindings.createStringBinding(() -> calcInteractionLevel(), gameService.getCurrentGameStatusProperty(), contextGameProperty));
+    interactionLevelProperty.bind(Bindings.createStringBinding(
+        this::calcInteractionLevel, gameService.getCurrentGameStatusProperty(), contextGameProperty));
 
     createGameButton.disableProperty().bind(validatedButtonsDisableProperty);
     updateGameButton.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
     mapPoolListView.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
+    liveReplayOptionComboBox.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
+    mapListView.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE")
+            .or(interactionLevelProperty.isEqualTo("UPDATE_GW")).or(loadingMapsProperty));
+    randomMapButton.disableProperty().bind(mapListView.disabledProperty());
+    mapSearchTextField.disableProperty().bind(mapListView.disabledProperty());
 
-    rankedEnabledCheckBox.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
     rankedEnabledCheckBox.setSelected(preferencesService.getPreferences().getLastGame().getLastGameRankedEnabled());
-    rankedEnabledLabel.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
+    rankedEnabledCheckBox.disableProperty().bind(
+        interactionLevelProperty.isEqualTo("BROWSE").or(interactionLevelProperty.isEqualTo("UPDATE_GW")));
+    rankedEnabledLabel.disableProperty().bind(rankedEnabledCheckBox.disabledProperty());
 
     createGameButton.visibleProperty().bind(interactionLevelProperty.isEqualTo("CREATE"));
     updateGameButton.visibleProperty().bind(createGameButton.visibleProperty().not());
     titleTextField.disableProperty().bind(updateGameButton.visibleProperty());
     onlyForFriendsCheckBox.disableProperty().bind(updateGameButton.visibleProperty());
-    liveReplayOptionComboBox.disableProperty().bind(updateGameButton.visibleProperty());
     featuredModListView.disableProperty().bind(updateGameButton.visibleProperty());
     installGameButton.disableProperty().bind(updateGameButton.visibleProperty());
     openGameFolderButton.disableProperty().bind(updateGameButton.visibleProperty());
@@ -361,8 +406,12 @@ public class CreateGameController implements Controller<Pane> {
     enforceRankingCheckBox.selectedProperty().unbind();
   }
 
-  private void validateTitle(String gameTitle) {
-    titleTextField.pseudoClassStateChanged(PSEUDO_CLASS_INVALID, Strings.isNullOrEmpty(gameTitle));
+  private boolean validateTitle(String gameTitle) {
+    boolean invalid = Strings.isNullOrEmpty(gameTitle) ||
+        gameTitle.toLowerCase().contains("galactic war") &&
+            !getInteractionLevel().equals("UPDATE_GW");
+    titleTextField.pseudoClassStateChanged(PSEUDO_CLASS_INVALID, invalid);
+    return !invalid;
   }
 
   private void initPassword() {
@@ -402,8 +451,8 @@ public class CreateGameController implements Controller<Pane> {
     selectedMapChangeListener.changed(null, null, mapListView.getSelectionModel().selectedItemProperty().getValue());
   }
 
-  final Map<String, FilteredList<MapBean> > filteredMapBeansByMod = new HashMap();
-  final Map<String, FilteredList<MapBean> > filteredMapBeansByQueue = new HashMap();
+  final Map<String, FilteredList<MapBean> > filteredMapBeansByMod = new HashMap<>();
+  final Map<String, FilteredList<MapBean> > filteredMapBeansByQueue = new HashMap<>();
   protected void setAvailableMaps(String modTechnical) {
     if (rankedEnabledCheckBox.isSelected() && mapPoolListView.getSelectionModel().getSelectedItem() != null &&
         !mapService.getInstalledMaps(modTechnical).isEmpty()) {
@@ -413,14 +462,14 @@ public class CreateGameController implements Controller<Pane> {
           doSetAvailableMaps(modTechnical, filteredMapBeansByQueue.get(q.getQueueName()));
         }
         else {
-          mapListView.setDisable(true);
+          loadingMapsProperty.set(true);
           mapService.getMatchmakerMaps(q)
               .thenAccept((mapList) -> {
                 FilteredList<MapBean> fl = new FilteredList<>(FXCollections.observableArrayList(mapList)
                     .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())));
                 filteredMapBeansByQueue.put(q.getQueueName(), fl);
                 doSetAvailableMaps(modTechnical, fl);
-                mapListView.setDisable(false);
+                loadingMapsProperty.set(false);
               });
         }
         return;
@@ -627,8 +676,14 @@ public class CreateGameController implements Controller<Pane> {
     }
   }
 
-  private void setLastGameTitle() {
-    titleTextField.setText(Strings.nullToEmpty(preferencesService.getPreferences().getLastGame().getLastGameTitle()));
+  public void setGameTitle() {
+    if ("UPDATE_GW".equals(getInteractionLevel()) && gameService.getCurrentGame() != null) {
+      titleTextField.setText(gameService.getCurrentGame().getTitle());
+    }
+    else {
+      titleTextField.setText(Strings.nullToEmpty(preferencesService.getPreferences().getLastGame().getLastGameTitle()));
+    }
+    validateTitle(titleTextField.getText());
   }
 
   private void selectLastOrDefaultGameType() {
@@ -702,7 +757,8 @@ public class CreateGameController implements Controller<Pane> {
         liveReplayOptionComboBox.getSelectionModel().getSelectedItem().getDelaySeconds(),
         rankedEnabledCheckBox.isSelected()
             ? mapPoolListView.getSelectionModel().getSelectedItem().getLeaderboard().getTechnicalName()
-            : DEFAULT_RATING_TYPE);
+            : DEFAULT_RATING_TYPE,
+        null);
 
     gameService.hostGame(newGameInfo).exceptionally(throwable -> {
       log.warn("Game could not be hosted", throwable);
@@ -716,10 +772,12 @@ public class CreateGameController implements Controller<Pane> {
           featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(),
           mapListView.getSelectionModel().getSelectedItem(), null, null)
           .thenRun(() -> gameService.updateSettingsForStagingGame(
+              titleTextField.getText(),
               mapListView.getSelectionModel().getSelectedItem().getMapName(),
               rankedEnabledCheckBox.isSelected()
                   ? mapPoolListView.getSelectionModel().getSelectedItem().getLeaderboard().getTechnicalName()
-                  : DEFAULT_RATING_TYPE));
+                  : DEFAULT_RATING_TYPE,
+              liveReplayOptionComboBox.getSelectionModel().getSelectedItem()));
   }
 
   public Pane getRoot() {

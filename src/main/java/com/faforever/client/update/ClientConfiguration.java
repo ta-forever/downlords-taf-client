@@ -31,6 +31,7 @@ public class ClientConfiguration {
     SocketEndpoint irc;
     SocketEndpoint liveReplay;
     UrlEndpoint api;
+    UrlEndpoint galacticWar;
   }
 
   @Data

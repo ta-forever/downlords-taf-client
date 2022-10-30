@@ -114,6 +114,12 @@ public class UiService implements InitializingBean, DisposableBean {
   public static final String CORE_STYLE_CLASS = "core-icon";
   public static final String GOK_STYLE_CLASS = "gok-icon";
   public static final String ARM_STYLE_CLASS = "arm-icon";
+  public static final String ARM_ICON_IMAGE_SMALL = "images/factions/arm-dark-small.png";
+  public static final String CORE_ICON_IMAGE_SMALL = "images/factions/core-dark-small.png";
+  public static final String GOK_ICON_IMAGE_SMALL = "images/factions/random.png";
+  public static final String ARM_ICON_IMAGE_LARGE = "images/factions/arm-dark.png";
+  public static final String CORE_ICON_IMAGE_LARGE = "images/factions/core-dark.png";
+  public static final String GOK_ICON_IMAGE_LARGE = "images/factions/random.png";
 
   public static Theme DEFAULT_THEME = new Theme("Default", "Downlord", 1, "1");
 
@@ -310,7 +316,6 @@ public class UiService implements InitializingBean, DisposableBean {
   public Image getThemeImage(String relativeImage) {
     return new Image(getThemeFile(relativeImage), true);
   }
-
 
   public URL getThemeFileUrl(String relativeFile) {
     String themeFile = getThemeFile(relativeFile);

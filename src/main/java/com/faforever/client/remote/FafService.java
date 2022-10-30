@@ -359,7 +359,7 @@ public class FafService {
     }
 
     try {
-      File files[] = {
+      File[] files = {
           logClient, logIceAdapter, logLauncher,
           logGpgnet4ta, logReplay, taErrorLog};
       ZipUtil.zipFile(files, targetZipFile.toFile());
@@ -369,7 +369,7 @@ public class FafService {
         this.removeErrorLog(modTechnical);
       }
     } catch (Exception e) {
-      log.error("[uploadGameLogs] unable to submit logs:{}", e.getMessage());
+      log.error("[uploadGameLogs] unable to submit logs", e);
     } finally {
       ResourceLocks.freeUploadLock();
       try { Files.delete(targetZipFile); } catch(Exception ignored) {}
@@ -473,7 +473,7 @@ public class FafService {
   @Async
   public CompletableFuture<Optional<MapBean>> getMapLatestVersion(String displayName) {
     return CompletableFuture.completedFuture(
-        fafApiAccessor.findMapsByName(displayName, 1, false).stream()
+        fafApiAccessor.findMapsByName(displayName, 1, true).stream()
             .map(mapVersion -> mapVersion.getMap().getLatestVersion())
             .map(MapBean::fromMapVersionDto)
             .findAny()

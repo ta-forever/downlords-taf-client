@@ -34,6 +34,7 @@ public class ClientProperties {
   private boolean showIceAdapterDebugWindow;
   private String statusPageUrl;
   private Map<String, String> links = new HashMap<>();
+  private GalacticWar galacticWar = new GalacticWar();
 
   @Data
   public static class News {
@@ -186,6 +187,14 @@ public class ClientProperties {
   @Data
   public static class DiscordServer {
     private String title;
+    private String url;
+  }
+
+  @Data
+  public static class GalacticWar {
+    /**
+     * URL to fetch the latest GW state from
+     */
     private String url;
   }
 }
