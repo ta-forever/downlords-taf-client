@@ -95,9 +95,8 @@ public class GalacticWarController extends AbstractViewController<Node> {
       }
     }).getFuture().thenRun(() -> {
       try {
-        final String propertiesFile = uiService.getThemeFile("theme/galactic_war/smartgraph.properties").substring(6);
         final String styleSheetFile = uiService.getThemeFile("theme/galactic_war/smartgraph.css");
-        galacticMapView = GalacticMapView.fromFile(targetPath.toString(), propertiesFile, styleSheetFile, uiService);
+        galacticMapView = GalacticMapView.fromFile(targetPath.toString(), styleSheetFile, uiService);
 
         JavaFxUtil.runLater(() -> {
           galacticMapView.setMousePressedConsumer(optional -> optional.ifPresent(planet -> {

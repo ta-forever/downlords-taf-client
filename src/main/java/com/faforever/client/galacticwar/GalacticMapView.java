@@ -19,8 +19,9 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.layout.Pane;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.FileInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -38,6 +39,18 @@ public class GalacticMapView {
   private static final double CAPITAL_PLANET_RADIUS = 30.0;
   private static final double PLANET_RADIUS = 20.0;
   private static final double ZOOM_CHANGE_MULTIPLIER = 1.05;
+  private static final String smartGraphProperties = """
+    vertex.allow-user-move = false
+    vertex.radius = 15
+    vertex.tooltip = true
+    vertex.label = true
+    edge.tooltip = true
+    edge.label = false
+    edge.arrow = false
+    layout.repulsive-force = 10000
+    layout.attraction-force = 30
+    layout.attraction-scale = 10""";
+
 
   private final UiService uiService;
   private final com.brunomnsilva.smartgraph.graph.Graph<Planet, String> theGraph;
@@ -169,10 +182,12 @@ public class GalacticMapView {
     return smartGraphPanel;
   }
 
-  public static GalacticMapView fromFile(String path, String propertiesFile, String styleSheetFile, UiService uiService) throws IOException, URISyntaxException {
+  public static GalacticMapView fromFile(String path, String styleSheetFile, UiService uiService) throws IOException, URISyntaxException {
     Scenario scenario = Scenario.fromFile(Path.of(path));
     com.brunomnsilva.smartgraph.graph.Graph<Planet, String> theGraph = toSmartGraph(scenario);
-    SmartGraphProperties properties = new SmartGraphProperties(new FileInputStream(propertiesFile));
+
+    InputStream propertiesInputStream = new ByteArrayInputStream(smartGraphProperties.getBytes());
+    SmartGraphProperties properties = new SmartGraphProperties(propertiesInputStream);
     URI styleSheetUri = new URI(styleSheetFile);
     return new GalacticMapView(theGraph, properties, styleSheetUri, uiService);
   }
