@@ -3,6 +3,7 @@ package com.faforever.client.replay;
 import com.faforever.client.api.dto.Game;
 import com.faforever.client.api.dto.GamePlayerStats;
 import com.faforever.client.api.dto.LeaderboardRatingJournal;
+import com.faforever.client.api.dto.ReplayMeta;
 import com.faforever.client.api.dto.Validity;
 import com.faforever.client.fa.DemoFileInfo;
 import com.faforever.client.game.Faction;
@@ -130,7 +131,9 @@ public class Replay {
     replay.setReviewsSummary(ReviewsSummary.fromDto(dto.getGameReviewsSummary()));
 
     if (dto.getReplayMeta() != null) {
-      replay.setDemoFileInfo(new Gson().fromJson(dto.getReplayMeta(), DemoFileInfo.class));
+      ReplayMeta replayMeta = new Gson().fromJson(dto.getReplayMeta(), ReplayMeta.class);
+      replay.setDemoFileInfo(new DemoFileInfo(null, replayMeta.getMapName(), replayMeta.getTaMapHash(),
+          replayMeta.getUnitsHash(), replayMeta.getTaVersionMajor(), replayMeta.getTaVersionMinor()));
     }
 
     return replay;

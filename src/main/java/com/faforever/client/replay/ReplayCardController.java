@@ -1,5 +1,7 @@
 package com.faforever.client.replay;
 
+import com.faforever.client.fa.DemoFileInfo;
+import com.faforever.client.fx.DefaultImageView;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.game.KnownFeaturedMod;
@@ -8,6 +10,7 @@ import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.rating.RatingService;
+import com.faforever.client.theme.UiService;
 import com.faforever.client.util.RatingUtil;
 import com.faforever.client.util.TimeService;
 import com.faforever.client.vault.review.Review;
@@ -20,7 +23,6 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +31,6 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -42,9 +43,10 @@ public class ReplayCardController implements Controller<Node> {
   private final TimeService timeService;
   private final MapService mapService;
   private final RatingService ratingService;
+  private final UiService uiService;
   private final I18n i18n;
   public Label dateLabel;
-  public ImageView mapThumbnailImageView;
+  public DefaultImageView mapThumbnailImageView;
   public Label gameTitleLabel;
   public Node replayTileRoot;
   public Label timeLabel;
@@ -67,13 +69,21 @@ public class ReplayCardController implements Controller<Node> {
   public void setReplay(Replay replay) {
     this.replay = replay;
 
+    mapThumbnailImageView.setDefaultImage(uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
     Optional<MapBean> optionalMap = Optional.ofNullable(replay.getMap());
+    Optional<DemoFileInfo> optionalDemoFileInfo = Optional.ofNullable(replay.getDemoFileInfo());
+    String mapName = null;
     if (optionalMap.isPresent()) {
-      MapBean map = optionalMap.get();
-      Image image = mapService.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), map.getMapName(), PreviewType.MINI, 10);
-      mapThumbnailImageView.setImage(image);
-      onMapLabel.setText(i18n.get("game.onMapFormat", map.getMapName()));
-    } else {
+      mapName = optionalMap.get().getMapName();
+    } else if (optionalDemoFileInfo.isPresent()) {
+      mapName = optionalDemoFileInfo.get().getMapName();
+    }
+    if (mapName != null) {
+      Image image = mapService.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), mapName, PreviewType.MINI, 10);
+      mapThumbnailImageView.setBackgroundLoadingImage(image);
+      onMapLabel.setText(i18n.get("game.onMapFormat", mapName));
+    }
+    else {
       onMapLabel.setText(i18n.get("game.onUnknownMap"));
     }
 

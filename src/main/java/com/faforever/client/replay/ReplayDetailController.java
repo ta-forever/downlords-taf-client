@@ -2,6 +2,8 @@ package com.faforever.client.replay;
 
 import com.faforever.client.api.dto.Validity;
 import com.faforever.client.config.ClientProperties;
+import com.faforever.client.fa.DemoFileInfo;
+import com.faforever.client.fx.DefaultImageView;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.StringCell;
@@ -43,7 +45,6 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
@@ -107,7 +108,7 @@ public class ReplayDetailController implements Controller<Node> {
   public TableColumn<GameOption, String> optionValueColumn;
   public Button downloadMoreInfoButton;
   public Pane moreInformationPane;
-  public ImageView mapThumbnailImageView;
+  public DefaultImageView mapThumbnailImageView;
   public Node replayAvailableContainer;
   public Button watchButton;
   public Button tadaUploadButton;
@@ -123,6 +124,8 @@ public class ReplayDetailController implements Controller<Node> {
   public void initialize() {
     JavaFxUtil.addLabelContextMenus(uiService, onMapLabel, titleLabel);
     JavaFxUtil.fixScrollSpeed(scrollPane);
+
+    mapThumbnailImageView.setDefaultImage(uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
 
     chatGameTimeColumn.setCellValueFactory(param -> param.getValue().timeProperty());
     chatGameTimeColumn.setCellFactory(param -> new StringCell<>(timeService::asHms));
@@ -177,13 +180,18 @@ public class ReplayDetailController implements Controller<Node> {
     timeLabel.setText(timeService.asShortTime(replay.getStartTime()));
 
     Optional<MapBean> optionalMap = Optional.ofNullable(replay.getMap());
+    Optional<DemoFileInfo> optionalDemoFileInfo = Optional.ofNullable(replay.getDemoFileInfo());
     if (optionalMap.isPresent()) {
       MapBean map = optionalMap.get();
       Image image = mapService.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), map.getMapName(), PreviewType.MINI, 10);
-      mapThumbnailImageView.setImage(image);
+      mapThumbnailImageView.setBackgroundLoadingImage(image);
       onMapLabel.setText(i18n.get("game.onMapFormat", map.getMapName()));
+    } else if (optionalDemoFileInfo.isPresent() ) {
+      Image image = mapService.loadPreview(KnownFeaturedMod.DEFAULT.getTechnicalName(), replay.getDemoFileInfo().getMapName(), PreviewType.MINI, 10);
+      mapThumbnailImageView.setBackgroundLoadingImage(image);
+      onMapLabel.setText(i18n.get("game.onMapFormat", replay.getDemoFileInfo().getMapName()));
     } else {
-      mapThumbnailImageView.setImage(null);
+      mapThumbnailImageView.setBackgroundLoadingImage(null);
       onMapLabel.setText(i18n.get("game.onUnknownMap"));
     }
 
