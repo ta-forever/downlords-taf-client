@@ -18,6 +18,7 @@ import com.google.common.eventbus.EventBus;
 import javafx.beans.property.SimpleFloatProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Node;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
@@ -71,6 +72,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   public TextField searchTextField;
   public Pane connectionProgressPane;
   public Pane contentPane;
+  public CheckBox friendsOnlyCheckBox;
 
   @VisibleForTesting
   protected AutoCompletionBinding<String> usernamesAutoCompletion;
@@ -78,6 +80,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   @Override
   public void initialize() {
     super.initialize();
+    friendsOnlyCheckBox.setSelected(preferencesService.getPreferences().getLastLeaderboardFriendsOnlySelection());
     leaderboardService.getLeaderboards().thenApply(leaderboards -> {
       JavaFxUtil.runLater(() -> {
         leaderboardComboBox.getItems().clear();
@@ -179,10 +182,16 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     }
 
     preferencesService.getPreferences().setLastLeaderboardSelection(leaderboardComboBox.getValue().getTechnicalName());
+    preferencesService.getPreferences().setLastLeaderboardFriendsOnlySelection(friendsOnlyCheckBox.isSelected());
     preferencesService.storeInBackground();
 
     leaderboardService.getEntries(leaderboardComboBox.getValue()).thenAccept(leaderboardEntryBeans -> {
       ratingTable.getItems().clear();
+      if (friendsOnlyCheckBox.isSelected()) {
+        leaderboardEntryBeans = leaderboardEntryBeans.stream()
+            .filter(leaderboardEntry -> playerService.isFriend(leaderboardEntry.getUserId()))
+            .collect(Collectors.toList());
+      }
       ratingTable.setItems(observableList(leaderboardEntryBeans));
       usernamesAutoCompletion = TextFields.bindAutoCompletion(searchTextField,
           leaderboardEntryBeans.stream().map(LeaderboardEntry::getUsername).collect(Collectors.toList()));

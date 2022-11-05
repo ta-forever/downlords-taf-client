@@ -405,4 +405,8 @@ public class PlayerService implements InitializingBean {
       }
     }
   }
+
+  public boolean isFriend(Integer pid) {
+    return friendList.contains(pid);
+  }
 }

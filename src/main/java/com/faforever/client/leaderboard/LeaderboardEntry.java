@@ -13,6 +13,7 @@ import javafx.beans.property.StringProperty;
 
 public class LeaderboardEntry {
 
+  private final IntegerProperty userId;
   private final StringProperty username;
   private final DoubleProperty rating;
   private final IntegerProperty totalGames;
@@ -28,6 +29,7 @@ public class LeaderboardEntry {
   private final ObjectProperty<Leaderboard> leaderboard;
 
   public LeaderboardEntry() {
+    userId = new SimpleIntegerProperty();
     username = new SimpleStringProperty();
     rating = new SimpleDoubleProperty();
     totalGames = new SimpleIntegerProperty();
@@ -46,6 +48,7 @@ public class LeaderboardEntry {
   public static LeaderboardEntry fromDto(com.faforever.client.api.dto.LeaderboardEntry entry) {
     LeaderboardEntry leaderboardEntry = new LeaderboardEntry();
     leaderboardEntry.setLeaderboard(Leaderboard.fromDto(entry.getLeaderboard()));
+    leaderboardEntry.setUserId(Integer.parseInt(entry.getPlayer().getId()));
     leaderboardEntry.setUsername(entry.getPlayer().getLogin());
     leaderboardEntry.setRating(entry.getRating());
     leaderboardEntry.setStreak(entry.getStreak());
@@ -69,6 +72,16 @@ public class LeaderboardEntry {
 
     return leaderboardEntry;
   }
+
+  public int getUserId() {
+    return userId.get();
+  }
+
+  public void setUserId(int id) {
+    this.userId.set(id);
+  }
+
+  public IntegerProperty getUserIdProperty() { return userId; }
 
   public String getUsername() {
     return username.get();

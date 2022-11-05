@@ -81,6 +81,7 @@ public class Preferences {
   private final ObjectProperty<RatingMetric> userInfoRatingMetric;
   private final ObjectProperty<AutoUploadLogsOption> autoUploadLogsOption;
   private final StringProperty lastLeaderboardSelection;
+  private final BooleanProperty lastLeaderboardFriendsOnlySelection;
   private final BooleanProperty gameRoomPopout;
 
   public Preferences() {
@@ -132,6 +133,7 @@ public class Preferences {
     featuredModRevertOption = new SimpleObjectProperty<>(AskAlwaysOrNever.ASK);
     userInfoRatingMetric = new SimpleObjectProperty<>(RatingMetric.TRUESKILL);
     lastLeaderboardSelection = new SimpleStringProperty("global");
+    lastLeaderboardFriendsOnlySelection = new SimpleBooleanProperty(false);
     gameRoomPopout = new SimpleBooleanProperty(true);
   }
 
@@ -566,6 +568,14 @@ public class Preferences {
   public StringProperty lastLeaderboardSelectionProperty() {
     return lastLeaderboardSelection;
   }
+
+  public Boolean getLastLeaderboardFriendsOnlySelection() {
+    return lastLeaderboardFriendsOnlySelection.get();
+  }
+
+  public void setLastLeaderboardFriendsOnlySelection(boolean selected) { this.lastLeaderboardFriendsOnlySelection.set(selected); }
+
+  public BooleanProperty lastLeaderboardFriendsOnlySelection() { return lastLeaderboardFriendsOnlySelection; }
 
   public boolean getGameRoomPopout() {
     return gameRoomPopout.get();

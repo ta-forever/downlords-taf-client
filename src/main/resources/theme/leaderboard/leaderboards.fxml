@@ -12,12 +12,14 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
 <VBox xmlns:fx="http://javafx.com/fxml/1" fx:id="leaderboardRoot" alignment="CENTER" maxHeight="1.7976931348623157E308"
       maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" xmlns="http://javafx.com/javafx/8.0.60"
       fx:controller="com.faforever.client.leaderboard.LeaderboardsController">
     <Separator minHeight="10.0"/>
     <HBox alignment="CENTER_LEFT" spacing="10.0">
         <ComboBox fx:id="leaderboardComboBox" onAction="#onLeaderboardSelected"/>
+        <CheckBox fx:id="friendsOnlyCheckBox" text="%leaderboard.friendsOnlyOption" onAction="#onLeaderboardSelected"/>
         <Button text="%refresh" onAction="#onLeaderboardSelected"/>
         <Label contentDisplay="RIGHT" graphicTextGap="10.0" maxWidth="1.7976931348623157E308">
             <graphic>
