@@ -10,6 +10,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.Separator?>
+<?import com.faforever.client.fx.DefaultImageView?>
 <StackPane fx:id="planetDetailRoot"
            xmlns="http://javafx.com/javafx/11.0.1"
            xmlns:fx="http://javafx.com/fxml/1"
@@ -28,7 +29,7 @@
                 </graphic>
             </Label>
             <StackPane GridPane.rowIndex="3">
-                <ImageView fx:id="mapImage" fitWidth="230" fitHeight="230" preserveRatio="true"/>
+                <DefaultImageView fx:id="mapImage" fitWidth="230" fitHeight="230" preserveRatio="true"/>
                 <ImageView fx:id="factionImage" fitWidth="230" fitHeight="230" preserveRatio="true"/>
             </StackPane>
             <Label fx:id="mapDescription" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map Description&gt;" alignment="CENTER" wrapText="true"/>

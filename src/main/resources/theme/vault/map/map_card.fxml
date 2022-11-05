@@ -10,6 +10,7 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
+<?import com.faforever.client.fx.DefaultImageView?>
 <GridPane xmlns:fx="http://javafx.com/fxml/1" fx:id="mapTileRoot" hgap="10.0" onMouseClicked="#onShowMapDetail"
           prefWidth="224.0" styleClass="card, pointable, hoverable" vgap="10.0" xmlns="http://javafx.com/javafx/8.0.141"
           fx:controller="com.faforever.client.map.MapCardController">
@@ -25,8 +26,8 @@
       <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
   </rowConstraints>
   <children>
-      <ImageView fx:id="thumbnailImageView" fitHeight="224.0" fitWidth="224.0" pickOnBounds="true" preserveRatio="true"
-                 GridPane.columnSpan="2147483647" GridPane.halignment="CENTER"/>
+      <DefaultImageView fx:id="thumbnailImageView" fitHeight="224.0" fitWidth="224.0" pickOnBounds="true" preserveRatio="true"
+                        GridPane.columnSpan="2147483647" GridPane.halignment="CENTER"/>
       <VBox alignment="TOP_RIGHT" spacing="10.0" GridPane.columnSpan="2147483647" GridPane.valignment="TOP" GridPane.vgrow="NEVER"
             GridPane.hgrow="NEVER">
           <children>

@@ -929,9 +929,30 @@ public class MapService implements InitializingBean, DisposableBean {
     Path cacheDir = preferencesService.getCacheDirectory().resolve("maps").resolve(previewType.getFolderName(maxPositions));
     Path cachedFile = cacheDir.resolve(mapName+".png");
     generatePreview(modTechnical, mapName, cachedFile, previewType, maxPositions);
-    Image im = assetService.loadAndCacheImage(url, cacheDir, () -> uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
-    return im;
+    return assetService.loadAndCacheImage(url, cacheDir, null);
   }
+
+  private CompletableFuture<Image> loadPreviewFuture(String modTechnical, String mapName, URL url, PreviewType previewType, int maxPositions) {
+    CompletableFuture<Image> f = new CompletableFuture<Image>();
+    Path cacheDir = preferencesService.getCacheDirectory().resolve("maps").resolve(previewType.getFolderName(maxPositions));
+    Path cachedFile = cacheDir.resolve(mapName+".png");
+    generatePreview(modTechnical, mapName, cachedFile, previewType, maxPositions);
+    Image im = assetService.loadAndCacheImage(url, cacheDir, null);
+    if (im == null) {
+      f.complete(null);
+      return f;
+    }
+
+    im.errorProperty().addListener((obs, oldValue, newValue) -> f.complete(uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE)));
+    im.progressProperty().addListener((obs, oldValue, newValue) -> {
+      if (newValue.intValue() >= 1 && !f.isDone()) {
+        f.complete(im);
+      }
+    });
+
+    return f;
+  }
+
 
   @CacheEvict(value = CacheNames.MAP_PREVIEW, allEntries = true)
   public void resetPreviews(String mapName) {

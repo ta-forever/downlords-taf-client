@@ -2,6 +2,7 @@ package com.faforever.client.game;
 
 import com.faforever.client.chat.ChatService;
 import com.faforever.client.fa.relay.event.AutoJoinRequestEvent;
+import com.faforever.client.fx.DefaultImageView;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
@@ -22,7 +23,6 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ObservableMap;
@@ -79,7 +79,7 @@ public class GameTileController implements Controller<Node> {
   public Label hostLabel;
   public Label modsLabel;
   public Label liveReplayDelayLabel;
-  public ImageView mapImageView;
+  public DefaultImageView mapImageView;
   public Label gameRatingTypeLabel;
   public Label gameRatingTypeGlobalLabel;
   private Consumer<Game> onSelectedListener;
@@ -115,6 +115,7 @@ public class GameTileController implements Controller<Node> {
 
   public void initialize() {
     watchButton = watchButtonController.getRoot();
+    mapImageView.setDefaultImage(uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
 
     modsLabel.managedProperty().bind(modsLabel.visibleProperty());
     modsLabel.visibleProperty().bind(modsLabel.textProperty().isNotEmpty());
@@ -279,8 +280,7 @@ public class GameTileController implements Controller<Node> {
     ObservableMap<String, String> simMods = game.getSimMods();
     modsLabel.textProperty().bind(createStringBinding(() -> getSimModsLabelContent(simMods), simMods));
 
-    // TODO display "unknown map" image first since loading may take a while
-    mapImageView.imageProperty().bind(createObjectBinding(
+    mapImageView.backgroundLoadingImageProperty().bind(createObjectBinding(
         () -> mapService.loadPreview(game.getFeaturedMod(), game.getMapName(), PreviewType.MINI, 10),
         game.mapNameProperty()
     ));

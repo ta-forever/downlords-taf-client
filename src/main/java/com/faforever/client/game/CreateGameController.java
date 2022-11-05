@@ -301,7 +301,8 @@ public class CreateGameController implements Controller<Pane> {
         return i18n.get("game.create.mapMissing");
       }
       return nominalText;
-    }, titleTextField.textProperty(), featuredModListView.getSelectionModel().selectedItemProperty(), fafService.connectionStateProperty());
+    }, titleTextField.textProperty(), featuredModListView.getSelectionModel().selectedItemProperty(),
+        fafService.connectionStateProperty(), mapListView.getSelectionModel().selectedItemProperty());
   }
 
   String calcInteractionLevel() {

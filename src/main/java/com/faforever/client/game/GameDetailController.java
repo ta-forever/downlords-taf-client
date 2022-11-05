@@ -2,6 +2,7 @@ package com.faforever.client.game;
 
 import com.faforever.client.chat.ChatService;
 import com.faforever.client.fa.relay.event.AutoJoinRequestEvent;
+import com.faforever.client.fx.DefaultImageView;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
@@ -25,7 +26,6 @@ import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
-import javafx.collections.ObservableMap;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -42,8 +42,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -75,7 +73,7 @@ public class GameDetailController implements Controller<Pane> {
   public Label hostLabel;
   public Label liveReplayDelayLabel;
   public VBox teamListPane;
-  public ImageView mapImageView;
+  public DefaultImageView mapImageView;
   public Label gameTitleLabel;
   public Button joinButton;
   public Button autoJoinButton;
@@ -148,7 +146,7 @@ public class GameDetailController implements Controller<Pane> {
   }
 
   public void initialize() {
-
+    mapImageView.setDefaultImage(uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
     mapContextMenuController = uiService.loadFxml("theme/play/game_detail_map_context_menu.fxml");
 
     JavaFxUtil.addLabelContextMenus(uiService, gameTitleLabel, hostLabel);
@@ -317,7 +315,8 @@ public class GameDetailController implements Controller<Pane> {
         return i18n.get("liveReplay.disabled");
       }}, game.replayDelaySecondsProperty()
     ));
-    mapImageView.imageProperty().bind(createObjectBinding(
+
+    mapImageView.backgroundLoadingImageProperty().bind(createObjectBinding(
         () -> mapService.loadPreview(game.getFeaturedMod(), game.getMapName(), PreviewType.MINI, 10),
         game.mapNameProperty()
     ));

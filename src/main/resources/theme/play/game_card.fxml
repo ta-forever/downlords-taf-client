@@ -13,6 +13,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.HBox?>
 
+<?import com.faforever.client.fx.DefaultImageView?>
 <GridPane xmlns:fx="http://javafx.com/fxml/1" fx:id="gameCardRoot" hgap="10.0" onMousePressed="#onMousePressed" onMouseReleased="#onMouseReleased"
           styleClass="card, game-card, pointable, hoverable" vgap="5.0" xmlns="http://javafx.com/javafx/11.0.1"
           fx:controller="com.faforever.client.game.GameTileController">
@@ -32,7 +33,7 @@
         <AnchorPane GridPane.rowSpan="2147483647" GridPane.valignment="TOP" GridPane.fillHeight="true">
             <children>
                 <HBox alignment="CENTER" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.topAnchor="0.0">
-                    <ImageView fx:id="mapImageView" fitHeight="140.0" fitWidth="140.0" preserveRatio="true"/>
+                    <DefaultImageView fx:id="mapImageView" fitHeight="140.0" fitWidth="140.0" preserveRatio="true"/>
                 </HBox>
                 <Region fx:id="lockIconLabel" layoutX="10.0" layoutY="10.0" styleClass="lock-icon,icon" AnchorPane.leftAnchor="10.0" AnchorPane.topAnchor="10.0" />
                 <VBox alignment="BOTTOM_LEFT" styleClass="image-dimmer" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">

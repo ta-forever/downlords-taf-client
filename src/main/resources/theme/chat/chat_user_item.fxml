@@ -4,6 +4,7 @@
 <?import javafx.scene.control.MenuButton?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.HBox?>
+<?import com.faforever.client.fx.DefaultImageView?>
 <HBox fx:id="chatUserItemRoot" alignment="CENTER_LEFT" spacing="3.0" xmlns="http://javafx.com/javafx/11.0.1"
       onContextMenuRequested="#onContextMenuRequested" onMouseClicked="#onItemClicked" styleClass="chat-user-item"
       xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.faforever.client.chat.ChatUserItemController">
@@ -17,6 +18,6 @@
                styleClass="chat-user-item-username" text="&lt;Username&gt;" HBox.hgrow="ALWAYS"/>
         <ImageView fx:id="playerAfkImage" fitHeight="16.0" fitWidth="16.0"/>
         <ImageView fx:id="playerStatusIndicator" fitHeight="16.0" fitWidth="16.0"/>
-        <ImageView fx:id="playerMapImage" fitHeight="16.0" fitWidth="16.0"/>
+        <DefaultImageView fx:id="playerMapImage" fitHeight="16.0" fitWidth="16.0"/>
     </children>
 </HBox>

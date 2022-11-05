@@ -11,6 +11,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Tooltip?>
+<?import com.faforever.client.fx.DefaultImageView?>
 <GridPane xmlns:fx="http://javafx.com/fxml/1" fx:id="replayTileRoot" hgap="20.0" prefWidth="480"
           onMouseClicked="#onShowReplayDetail" styleClass="card, pointable, hoverable" vgap="10.0"
           xmlns="http://javafx.com/javafx/8.0.141" fx:controller="com.faforever.client.replay.ReplayCardController">
@@ -28,7 +29,7 @@
         <Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/>
     </padding>
     <VBox GridPane.halignment="CENTER" GridPane.rowIndex="0" GridPane.columnIndex="0" GridPane.rowSpan="4" GridPane.columnSpan="1">
-        <ImageView fx:id="mapThumbnailImageView" fitHeight="128.0" fitWidth="128.0" pickOnBounds="true" preserveRatio="true"/>
+        <DefaultImageView fx:id="mapThumbnailImageView" fitHeight="128.0" fitWidth="128.0" pickOnBounds="true" preserveRatio="true"/>
         <Label fx:id="numberOfReviewsLabel" text="(33)">
             <graphic>
                 <HBox styleClass="small-stars">

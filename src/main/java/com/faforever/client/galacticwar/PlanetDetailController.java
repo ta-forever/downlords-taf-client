@@ -1,5 +1,6 @@
 package com.faforever.client.galacticwar;
 
+import com.faforever.client.fx.DefaultImageView;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.game.Faction;
@@ -74,7 +75,7 @@ public class PlanetDetailController implements Controller<Node> {
 
   public StackPane planetDetailRoot;
   public ImageView factionImage;
-  public ImageView mapImage;
+  public DefaultImageView mapImage;
   public Button createGameButton;
   public Label mapLabel;
   public Label mapDescription;
@@ -96,14 +97,13 @@ public class PlanetDetailController implements Controller<Node> {
     this.mapBean = new SimpleObjectProperty<>();
     this.featuredMod = new SimpleObjectProperty<>();
     this.leaderboard = new SimpleObjectProperty<>();
+    this.mapImage.setDefaultImage(uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
 
     planetSelectedContainer.setVisible(false);
     planetNotSelectedContainer.visibleProperty().bind(planetSelectedContainer.visibleProperty().not());
 
     createGameButton.disableProperty().bind(
         mapBean.isNull().or(featuredMod.isNull().or(leaderboard.isNull().or(gameService.getCurrentGameProperty().isNotNull()))));
-    mapLabel.textProperty().bind(Bindings.createStringBinding(
-        () -> mapBean.getValue() == null ? "" : mapBean.getValue().getMapName(), mapBean));
     mapDescription.textProperty().bind(Bindings.createStringBinding(
         () -> mapBean.getValue() == null ? "" : mapBean.getValue().getDescription(), mapBean));
     modLabel.textProperty().bind(Bindings.createStringBinding(
@@ -124,6 +124,7 @@ public class PlanetDetailController implements Controller<Node> {
 
     createGameButton.setVisible(planet.getControlledBy() == null);
     planetTitleLabel.setText(planet.getName());
+    mapLabel.setText(planet.getMapName());
 
     this.mapBean.set(null);
     mapService.getMapLatestVersion(planet.getMapName())
@@ -143,7 +144,7 @@ public class PlanetDetailController implements Controller<Node> {
         .thenAccept(queues -> queues.stream().findFirst().ifPresent(q ->
             this.leaderboard.set(q.getLeaderboard())));
 
-    mapImage.setImage(mapService.loadPreview(
+    mapImage.setBackgroundLoadingImage(mapService.loadPreview(
         planet.getModTechnical(), planet.getMapName(), PreviewType.MINI, 10));
     mapImage.fitWidthProperty().bind(planetDetailRoot.widthProperty().subtract(20));
     mapImage.setVisible(true);

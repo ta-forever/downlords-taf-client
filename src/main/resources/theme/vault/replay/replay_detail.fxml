@@ -18,6 +18,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import java.lang.String?>
 <?import javafx.scene.control.Tooltip?>
+<?import com.faforever.client.fx.DefaultImageView?>
 <AnchorPane xmlns:fx="http://javafx.com/fxml/1" fx:id="replayDetailRoot" onMouseClicked="#onDimmerClicked"
             styleClass="dimmer" xmlns="http://javafx.com/javafx/8.0.121"
             fx:controller="com.faforever.client.replay.ReplayDetailController">
@@ -49,9 +50,9 @@
                                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
                            </rowConstraints>
                            <children>
-                               <ImageView fx:id="mapThumbnailImageView" fitHeight="128.0" fitWidth="128.0"
-                                          pickOnBounds="true" preserveRatio="true" GridPane.rowSpan="2147483647"
-                                          GridPane.valignment="TOP"/>
+                               <DefaultImageView fx:id="mapThumbnailImageView" fitHeight="128.0" fitWidth="128.0"
+                                                 pickOnBounds="true" preserveRatio="true" GridPane.rowSpan="2147483647"
+                                                 GridPane.valignment="TOP"/>
                                <Label fx:id="titleLabel" maxWidth="1.7976931348623157E308" styleClass="h1"
                                       text="&lt;Title&gt;" GridPane.columnIndex="1" GridPane.columnSpan="2147483647"
                                       GridPane.valignment="TOP"/>

@@ -47,7 +47,8 @@ public class AssetService {
     String urlString = url.toString();
     try {
       urlString = java.net.URLDecoder.decode(urlString, StandardCharsets.UTF_8.name());
-    } catch (UnsupportedEncodingException e) { }
+    } catch (UnsupportedEncodingException ignored) {
+    }
 
     String filename = urlString.substring(urlString.lastIndexOf('/') + 1);
     Path cachePath = preferencesService.getCacheDirectory().resolve(cacheSubFolder).resolve(filename);

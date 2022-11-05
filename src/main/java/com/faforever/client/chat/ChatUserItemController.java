@@ -1,19 +1,17 @@
 package com.faforever.client.chat;
 
 import com.faforever.client.clan.Clan;
+import com.faforever.client.fx.DefaultImageView;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.game.Game;
 import com.faforever.client.game.GameTooltipController;
 import com.faforever.client.i18n.I18n;
-import com.faforever.client.map.MapService;
-import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.ChatPrefs;
 import com.faforever.client.preferences.PreferencesService;
-import com.faforever.client.remote.domain.PlayerStatus;
 import com.faforever.client.theme.UiService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
@@ -61,7 +59,7 @@ public class ChatUserItemController implements Controller<Node> {
   private final InvalidationListener formatChangeListener;
   private final WeakInvalidationListener weakFormatInvalidationListener;
 
-  public ImageView playerMapImage;
+  public DefaultImageView playerMapImage;
   public ImageView playerAfkImage;
   public ImageView playerStatusIndicator;
   public Pane chatUserItemRoot;
@@ -258,7 +256,7 @@ public class ChatUserItemController implements Controller<Node> {
     JavaFxUtil.unbind(clanMenu.textProperty());
     JavaFxUtil.unbind(clanMenu.styleProperty());
     JavaFxUtil.unbind(countryImageView.imageProperty());
-    JavaFxUtil.unbind(playerMapImage.imageProperty());
+    JavaFxUtil.unbind(playerMapImage.backgroundLoadingImageProperty());
     JavaFxUtil.unbind(playerAfkImage.imageProperty());
     JavaFxUtil.unbind(playerStatusIndicator.imageProperty());
     JavaFxUtil.unbind(avatarTooltip.textProperty());
@@ -281,7 +279,7 @@ public class ChatUserItemController implements Controller<Node> {
       JavaFxUtil.bind(clanMenu.textProperty(), this.chatUser.clanTagProperty());
       JavaFxUtil.bind(countryImageView.imageProperty(), this.chatUser.countryFlagProperty());
       JavaFxUtil.bind(countryTooltip.textProperty(), this.chatUser.countryNameProperty());
-      JavaFxUtil.bind(playerMapImage.imageProperty(), this.chatUser.mapImageProperty());
+      JavaFxUtil.bind(playerMapImage.backgroundLoadingImageProperty(), this.chatUser.mapImageProperty());
       JavaFxUtil.bind(playerAfkImage.imageProperty(), this.chatUser.afkImageProperty());
       JavaFxUtil.bind(playerStatusIndicator.imageProperty(), this.chatUser.gameStatusImageProperty());
       JavaFxUtil.bind(statusGameTooltip.textProperty(), this.chatUser.statusTooltipTextProperty());

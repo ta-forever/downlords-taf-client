@@ -1,11 +1,13 @@
 package com.faforever.client.map;
 
+import com.faforever.client.fx.DefaultImageView;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.theme.UiService;
 import com.faforever.client.util.IdenticonUtil;
 import com.faforever.client.vault.review.Review;
 import com.faforever.client.vault.review.StarsController;
@@ -18,7 +20,6 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -37,9 +38,10 @@ public class MapCardController implements Controller<Node> {
   private final MapService mapService;
   private final NotificationService notificationService;
   private final PreferencesService preferencesService;
+  private final UiService uiService;
   private final I18n i18n;
 
-  public ImageView thumbnailImageView;
+  public DefaultImageView thumbnailImageView;
   public Label nameLabel;
   public Node mapTileRoot;
   public Label mapVersionLabel;
@@ -58,6 +60,7 @@ public class MapCardController implements Controller<Node> {
   private final InvalidationListener reviewsChangedListener = observable -> populateReviews();
 
   public void initialize() {
+    thumbnailImageView.setDefaultImage(uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
     installButton.managedProperty().bind(installButton.visibleProperty());
     uninstallButton.managedProperty().bind(uninstallButton.visibleProperty());
     installStatusChangeListener = change -> {
@@ -87,7 +90,7 @@ public class MapCardController implements Controller<Node> {
     } else {
       image = IdenticonUtil.createIdenticon(map.getId());
     }
-    thumbnailImageView.setImage(image);
+    thumbnailImageView.setBackgroundLoadingImage(image);
     nameLabel.setText(map.getMapName());
     mapHpiArchiveNameLabel.setText(Optional.ofNullable(map.getHpiArchiveName()).orElse("<unknown archive>"));
     numberOfPlaysLabel.setText(i18n.number(map.getNumberOfPlays()));

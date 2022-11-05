@@ -14,6 +14,7 @@
 
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.StackPane?>
+<?import com.faforever.client.fx.DefaultImageView?>
 <GridPane fx:id="gameDetailRoot" maxHeight="1.7976931348623157E308" maxWidth="-Infinity" minWidth="50.0" styleClass="game-detail" vgap="10.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.faforever.client.game.GameDetailController">
     <columnConstraints>
         <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" />
@@ -32,7 +33,7 @@
     </rowConstraints>
     <children>
         <StackPane GridPane.columnSpan="2147483647" GridPane.halignment="CENTER">
-            <ImageView fx:id="mapImageView" fitWidth="230.0" fitHeight="320.0" pickOnBounds="true" preserveRatio="true" styleClass="map-preview"/>
+            <DefaultImageView fx:id="mapImageView" fitWidth="230.0" fitHeight="320.0" pickOnBounds="true" preserveRatio="true" styleClass="map-preview"/>
             <AnchorPane>
                 <Button text="..." onMouseClicked="#onClickedMap" AnchorPane.topAnchor="5.0" AnchorPane.rightAnchor="5.0"/>
                 <VBox alignment="BOTTOM_LEFT" styleClass="image-dimmer" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
