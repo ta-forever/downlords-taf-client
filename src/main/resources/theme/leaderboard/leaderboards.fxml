@@ -13,6 +13,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.CheckBox?>
+<?import org.controlsfx.control.CheckComboBox?>
 <VBox xmlns:fx="http://javafx.com/fxml/1" fx:id="leaderboardRoot" alignment="CENTER" maxHeight="1.7976931348623157E308"
       maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" xmlns="http://javafx.com/javafx/8.0.60"
       fx:controller="com.faforever.client.leaderboard.LeaderboardsController">
@@ -28,6 +29,7 @@
         </Label>
         <TextField fx:id="searchTextField" maxWidth="1.7976931348623157E308"
                    promptText="%ladder.searchPrompt" HBox.hgrow="ALWAYS"/>
+        <CheckComboBox fx:id="leaderboardsSelectionFilterCheckComboBox"/>
     </HBox>
     <VBox fx:id="contentPane" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" spacing="10.0"
           VBox.vgrow="ALWAYS" visible="false">

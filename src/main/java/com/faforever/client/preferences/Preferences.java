@@ -82,6 +82,7 @@ public class Preferences {
   private final ObjectProperty<AutoUploadLogsOption> autoUploadLogsOption;
   private final StringProperty lastLeaderboardSelection;
   private final BooleanProperty lastLeaderboardFriendsOnlySelection;
+  private final ListProperty<String> LeaderBoardsSelectionFilter;
   private final BooleanProperty gameRoomPopout;
 
   public Preferences() {
@@ -134,6 +135,7 @@ public class Preferences {
     userInfoRatingMetric = new SimpleObjectProperty<>(RatingMetric.TRUESKILL);
     lastLeaderboardSelection = new SimpleStringProperty("global");
     lastLeaderboardFriendsOnlySelection = new SimpleBooleanProperty(false);
+    LeaderBoardsSelectionFilter = new SimpleListProperty<>(observableArrayList());
     gameRoomPopout = new SimpleBooleanProperty(true);
   }
 
@@ -585,5 +587,17 @@ public class Preferences {
 
   public BooleanProperty gameRoomPopoutProperty() {
     return gameRoomPopout;
+  }
+
+  public ObservableList<String> getLeaderBoardsSelectionFilter() {
+    return LeaderBoardsSelectionFilter.get();
+  }
+
+  public void setLeaderBoardsSelectionFilter(ObservableList<String> technicalNames) {
+    this.LeaderBoardsSelectionFilter.set(technicalNames);
+  }
+
+  public ListProperty<String> leaderBoardsSelectionFilterProperty() {
+    return LeaderBoardsSelectionFilter;
   }
 }

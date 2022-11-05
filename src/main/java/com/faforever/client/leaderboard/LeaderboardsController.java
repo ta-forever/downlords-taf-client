@@ -17,6 +17,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
 import javafx.beans.property.SimpleFloatProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
@@ -30,6 +32,7 @@ import javafx.scene.layout.Pane;
 import javafx.util.StringConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.controlsfx.control.CheckComboBox;
 import org.controlsfx.control.textfield.AutoCompletionBinding;
 import org.controlsfx.control.textfield.TextFields;
 import org.jetbrains.annotations.NotNull;
@@ -37,6 +40,7 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static javafx.collections.FXCollections.observableList;
@@ -73,6 +77,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   public Pane connectionProgressPane;
   public Pane contentPane;
   public CheckBox friendsOnlyCheckBox;
+  public CheckComboBox<Leaderboard> leaderboardsSelectionFilterCheckComboBox;
 
   @VisibleForTesting
   protected AutoCompletionBinding<String> usernamesAutoCompletion;
@@ -81,17 +86,11 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   public void initialize() {
     super.initialize();
     friendsOnlyCheckBox.setSelected(preferencesService.getPreferences().getLastLeaderboardFriendsOnlySelection());
+
     leaderboardService.getLeaderboards().thenApply(leaderboards -> {
       JavaFxUtil.runLater(() -> {
-        leaderboardComboBox.getItems().clear();
-        leaderboardComboBox.setConverter(leaderboardStringConverter());
-        leaderboardComboBox.getItems().addAll(leaderboards);
-        leaderboards.stream()
-            .filter(lbe -> lbe.getTechnicalName().equals(preferencesService.getPreferences().getLastLeaderboardSelection()))
-            .findAny()
-            .ifPresentOrElse(
-                lbe -> leaderboardComboBox.getSelectionModel().select(lbe),
-                () -> leaderboardComboBox.getSelectionModel().selectFirst());
+        initialiseLeaderboardsEnableCheckComboBox(leaderboards);
+        initialiseLeaderboardComboBox();
       });
       return null;
     });
@@ -159,12 +158,64 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     });
   }
 
+  private void initialiseLeaderboardsEnableCheckComboBox(List<Leaderboard> leaderboards) {
+    leaderboardsSelectionFilterCheckComboBox.getItems().clear();
+    leaderboardsSelectionFilterCheckComboBox.setConverter(leaderboardStringConverter());
+    leaderboardsSelectionFilterCheckComboBox.getItems().addAll(leaderboards);
+    leaderboardsSelectionFilterCheckComboBox.setTitle(i18n.get("leaderboards.selectionFilter"));
+
+    if (preferencesService.getPreferences().getLeaderBoardsSelectionFilter().isEmpty()) {
+      preferencesService.getPreferences().setLeaderBoardsSelectionFilter(leaderboards.stream()
+          .map(Leaderboard::getTechnicalName)
+          .collect(Collectors.toCollection(FXCollections::observableArrayList)));
+    }
+
+    leaderboardsSelectionFilterCheckComboBox.getItems().forEach(leaderboard -> {
+      if (preferencesService.getPreferences().getLeaderBoardsSelectionFilter().contains(leaderboard.getTechnicalName())) {
+        leaderboardsSelectionFilterCheckComboBox.getCheckModel().check(leaderboard);
+      } else {
+        leaderboardsSelectionFilterCheckComboBox.getCheckModel().clearCheck(leaderboard);
+      }
+    });
+
+    leaderboardsSelectionFilterCheckComboBox.getCheckModel().getCheckedItems().addListener((ListChangeListener<Leaderboard>) change -> {
+      preferencesService.getPreferences().setLeaderBoardsSelectionFilter(
+          change.getList().stream()
+              .map(Leaderboard::getTechnicalName)
+              .collect(Collectors.toCollection(FXCollections::observableArrayList)));
+
+      preferencesService.storeInBackground();
+    });
+  }
+
+  private void initialiseLeaderboardComboBox() {
+    leaderboardComboBox.setConverter(leaderboardStringConverter());
+    leaderboardComboBox.setItems(leaderboardsSelectionFilterCheckComboBox.getCheckModel().getCheckedItems());
+    leaderboardComboBox.getItems().addListener((ListChangeListener<Leaderboard>) change -> {
+      selectAppropriateLeaderboard();
+    });
+    selectAppropriateLeaderboard();
+  }
+
+  private void selectAppropriateLeaderboard() {
+    leaderboardComboBox.getItems().stream()
+        .filter(lbe -> lbe.getTechnicalName().equals(preferencesService.getPreferences().getLastLeaderboardSelection()))
+        .findAny()
+        .ifPresentOrElse(
+            lbe -> leaderboardComboBox.getSelectionModel().select(lbe),
+            () -> leaderboardComboBox.getSelectionModel().selectFirst());
+  }
+
   @NotNull
   private StringConverter<Leaderboard> leaderboardStringConverter() {
     return new StringConverter<>() {
       @Override
       public String toString(Leaderboard leaderboard) {
-        return i18n.get(leaderboard.getNameKey());
+        if (leaderboard != null) {
+          return i18n.get(leaderboard.getNameKey());
+        } else {
+          return "<none>";
+        }
       }
 
       @Override
