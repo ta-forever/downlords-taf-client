@@ -212,10 +212,11 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
               }, newValue.gameProperty())
           ));
       watchGameItem.visibleProperty().bind(newValue.statusProperty().isEqualTo(PlayerStatus.PLAYING));
-      inviteItem.visibleProperty().bind(Bindings.createBooleanBinding(() ->
-              newValue.socialStatusProperty().get() != SELF &&
-              newValue.statusProperty().get() == PlayerStatus.IDLE,
-          newValue.statusProperty()));
+      inviteItem.visibleProperty().bind(Bindings.createBooleanBinding(() -> false));
+      // TODO invite player to stealth game:
+//              newValue.socialStatusProperty().get() != SELF &&
+//              newValue.statusProperty().get() == PlayerStatus.IDLE,
+//          newValue.statusProperty()));
 
     };
     JavaFxUtil.addListener(chatUser.playerProperty(), new WeakChangeListener<>(playerChangeListener));
