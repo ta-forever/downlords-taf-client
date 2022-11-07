@@ -367,6 +367,7 @@ public class FafService {
       fafApiAccessor.uploadGameLogs(targetZipFile, context, gameId, (written, total) -> {});
       if (modTechnical != null) {
         this.removeErrorLog(modTechnical);
+        this.removeReplay0Log();
       }
     } catch (Exception e) {
       log.error("[uploadGameLogs] unable to submit logs", e);
@@ -393,8 +394,17 @@ public class FafService {
       try {
         Files.move(errorLogPath, backupPath);
       } catch (IOException e) {
-        log.warn("Unable to move ErrorLog.txt: ", e.getMessage());
+        log.warn("Unable to move ErrorLog.txt: {}", e.getMessage());
       }
+    }
+  }
+
+  private void removeReplay0Log() {
+    Path path = preferencesService.getFafLogDirectory().resolve("replay_0.log");
+    try {
+      Files.deleteIfExists(path);
+    } catch (IOException e) {
+      log.warn("Unable to move replay_0.log: {}", e.getMessage());
     }
   }
 
