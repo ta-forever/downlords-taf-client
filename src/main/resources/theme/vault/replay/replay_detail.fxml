@@ -8,7 +8,6 @@
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
-<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
@@ -98,23 +97,28 @@
                                      <Region styleClass="icon,balance-icon"/>
                                  </graphic>
                               </Label>
-                               <HBox fx:id="replayAvailableContainer" spacing="10"
+                               <HBox spacing="10"
                                      GridPane.fillWidth="false"
                                      GridPane.halignment="RIGHT" GridPane.columnSpan="2147483647"
                                      GridPane.rowIndex="4" GridPane.columnIndex="5">
-                                   <Button fx:id="tadaUploadButton" mnemonicParsing="false"
-                                           onAction="#onTadaUploadButtonClicked" text="TADA">
-                                       <tooltip><Tooltip text="%tada.upload.tooltip" /></tooltip>
-                                       <graphic>
-                                           <Region styleClass="icon,upload-icon"/>
-                                       </graphic>
+                                   <Button fx:id="unhideButton" onAction="#onUnhideButton" text="%replay.unhide">
+                                       <graphic><Region styleClass="icon,visibility-on-icon"/></graphic>
                                    </Button>
-                                   <Button fx:id="watchButton" defaultButton="true" mnemonicParsing="false"
-                                           onAction="#onWatchButtonClicked" text="%game.watchButtonFormat">
-                                       <graphic>
-                                           <Region styleClass="icon,play-icon"/>
-                                       </graphic>
-                                   </Button>
+                                   <HBox fx:id="replayAvailableContainer" spacing="10">
+                                       <Button fx:id="tadaUploadButton" mnemonicParsing="false"
+                                               onAction="#onTadaUploadButtonClicked" text="TADA">
+                                           <tooltip><Tooltip text="%tada.upload.tooltip" /></tooltip>
+                                           <graphic>
+                                               <Region styleClass="icon,upload-icon"/>
+                                           </graphic>
+                                       </Button>
+                                       <Button fx:id="watchButton" defaultButton="true" mnemonicParsing="false"
+                                               onAction="#onWatchButtonClicked" text="%game.watchButtonFormat">
+                                           <graphic>
+                                               <Region styleClass="icon,play-icon"/>
+                                           </graphic>
+                                       </Button>
+                                   </HBox>
                                </HBox>
                                <Label fx:id="onMapLabel" styleClass="secondary" text="&lt;OnMap&gt;"
                                       GridPane.columnIndex="1" GridPane.columnSpan="2147483647" GridPane.rowIndex="1"
@@ -122,8 +126,11 @@
                                <HBox alignment="TOP_RIGHT" prefWidth="100.0" GridPane.columnIndex="1" spacing="10"
                                      GridPane.columnSpan="2147483647">
                                    <children>
+                                       <Label fx:id="visibilityLabel">
+                                           <graphic><Region styleClass="icon,visibility-off-icon"/></graphic>
+                                       </Label>
                                        <TextField fx:id="replayIdField" alignment="CENTER_RIGHT" editable="false"
-                                                     maxWidth="100.0" promptText="&lt;ReplayID&gt;" text="#123456789"/>
+                                                  maxWidth="100.0" promptText="&lt;ReplayID&gt;" text="#123456789"/>
                                        <Button fx:id="copyButton" onAction="#copyLink"
                                                prefHeight="25.0" text="Copy link for chat"/>
                                    </children>

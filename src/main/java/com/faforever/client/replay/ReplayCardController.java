@@ -11,13 +11,16 @@ import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.rating.RatingService;
 import com.faforever.client.theme.UiService;
+import com.faforever.client.user.UserService;
 import com.faforever.client.util.RatingUtil;
 import com.faforever.client.util.TimeService;
 import com.faforever.client.vault.review.Review;
 import com.faforever.client.vault.review.StarsController;
 import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
+import javafx.beans.binding.Bindings;
 import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -44,6 +47,7 @@ public class ReplayCardController implements Controller<Node> {
   private final MapService mapService;
   private final RatingService ratingService;
   private final UiService uiService;
+  private final UserService userService;
   private final I18n i18n;
   public Label dateLabel;
   public DefaultImageView mapThumbnailImageView;
@@ -58,10 +62,11 @@ public class ReplayCardController implements Controller<Node> {
   public Label numberOfReviewsLabel;
   public HBox teamsContainer;
   public Label onMapLabel;
-  public Node replayAvailableContainer;
   public Button tadaUploadButton;
   public Button watchButton;
   public StarsController starsController;
+  public Button unhideButton;
+  public Label visibilityLabel;
   private Replay replay;
   private final InvalidationListener reviewsChangedListener = observable -> populateReviews();
   private Consumer<Replay> onOpenDetailListener;
@@ -87,8 +92,21 @@ public class ReplayCardController implements Controller<Node> {
       onMapLabel.setText(i18n.get("game.onUnknownMap"));
     }
 
-    replayAvailableContainer.setDisable(!replay.getReplayAvailable());
-    tadaUploadButton.setVisible(replayService.uploadReplayToTadaPermitted(replay));
+    visibilityLabel.visibleProperty().bind(replay.replayHiddenProperty());
+    visibilityLabel.managedProperty().bind(visibilityLabel.visibleProperty());
+
+    unhideButton.visibleProperty().bind(replay.replayHiddenProperty()
+        .and(replay.hostIdProperty().isEqualTo(userService.getUserId())));
+    unhideButton.managedProperty().bind(unhideButton.visibleProperty());
+
+    watchButton.disableProperty().bind(replay.replayAvailableProperty().not());
+
+    tadaUploadButton.disableProperty().bind(replay.replayAvailableProperty().not());
+    tadaUploadButton.visibleProperty().bind(Bindings.createBooleanBinding(
+        () -> replayService.uploadReplayToTadaPermitted(replay) && !replay.getReplayHidden(),
+        replay.replayHiddenProperty()));
+    tadaUploadButton.managedProperty().bind(tadaUploadButton.visibleProperty());
+
     gameTitleLabel.setText(replay.getTitle());
     dateLabel.setText(timeService.asDate(replay.getStartTime()));
     timeLabel.setText(timeService.asShortTime(replay.getStartTime()));
@@ -107,15 +125,18 @@ public class ReplayCardController implements Controller<Node> {
         .ifPresentOrElse(averageRating -> ratingLabel.setText(i18n.number((int) averageRating)),
             () -> ratingLabel.setText("-"));
 
-    ratingTypeLabel.setText("-");
-    replay.getTeamPlayerStats().values().stream().findAny()
-        .ifPresent(playerStatsList -> playerStatsList.stream().findAny()
-            .ifPresent(playerStats -> Optional.ofNullable(playerStats.getLeaderboard())
-                .ifPresent(leaderboard -> {
-                  ratingTypeLabel.setText(i18n.get(leaderboard.getNameKey()));
-                  ratingTypeLabel.setVisible(!"global".equals(leaderboard.getTechnicalName()));
-                })
-            ));
+    ratingTypeLabel.setVisible(false);
+    ratingTypeLabel.managedProperty().bind(ratingTypeLabel.visibleProperty());
+    modLabel.managedProperty().bind(modLabel.visibleProperty());
+    modLabel.visibleProperty().bind(ratingTypeLabel.visibleProperty().not());
+    replay.getTeamPlayerStats().values().stream()
+        .findAny()
+        .flatMap(playerStatsList -> playerStatsList.stream().findAny())
+        .flatMap(playerStats -> Optional.ofNullable(playerStats.getLeaderboard()))
+        .ifPresent(leaderboard -> {
+          ratingTypeLabel.setText(i18n.get(leaderboard.getNameKey()));
+          ratingTypeLabel.setVisible(!"global".equals(leaderboard.getTechnicalName()));
+        });
 
     Integer replayTicks = replay.getReplayTicks();
     if (replayTicks != null) {
@@ -151,7 +172,12 @@ public class ReplayCardController implements Controller<Node> {
   private void populateReviews() {
     ObservableList<Review> reviews = replay.getReviews();
     JavaFxUtil.runLater(() -> {
-      numberOfReviewsLabel.setText(i18n.number(reviews.size()));
+      if (reviews.size() > 0) {
+        numberOfReviewsLabel.setText(i18n.number(reviews.size()));
+      } else {
+        numberOfReviewsLabel.setText("");
+      }
+
       starsController.setValue((float) reviews.stream().mapToInt(Review::getScore).average().orElse(0d));
     });
   }
@@ -173,4 +199,9 @@ public class ReplayCardController implements Controller<Node> {
   }
 
   public void onTadaUploadButtonClicked() { replayService.uploadReplayToTada(replay.getId()); }
+
+  public void onUnhideButtonClicked(ActionEvent actionEvent) {
+    replayService.unhideReplay(this.replay.getId());
+    this.replay.setReplayHidden(false);
+  }
 }

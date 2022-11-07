@@ -27,6 +27,7 @@ public class Game {
   private Integer replayTicks;
   private Validity validity;
   private VictoryCondition victoryCondition;
+  private Boolean replayHidden;
 
   @Relationship("reviews")
   private List<GameReview> reviews;

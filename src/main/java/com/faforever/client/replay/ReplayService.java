@@ -426,10 +426,6 @@ public class ReplayService implements InitializingBean {
       return false;
     }
 
-    if (replay.getId() > 6000 && replay.getId() < 9340) {
-      return false;
-    }
-
     if (replay.getTadaAvailable()) {
       return false;
     }
@@ -440,16 +436,24 @@ public class ReplayService implements InitializingBean {
           return a;
         });
 
-    boolean result = players.contains(userService.getUsername());
-    return result;
+    return players.contains(userService.getUsername());
   }
 
   public void uploadReplayToTada(Integer replayId) {
     this.fafService.uploadReplayToTada(replayId);
   }
 
+  public CompletableFuture<Void> unhideReplay(Integer gameId) {
+    return fafService.unhideReplay(gameId);
+  }
+
   @Subscribe
   public void onUploadToTadaEvent(UploadToTadaEvent event) {
     uploadReplayToTada(event.getReplayId());
+  }
+
+  @Subscribe
+  public void onUnhideReplayEvent(UnhideReplayEvent event) {
+    unhideReplay(event.getGameId());
   }
 }

@@ -25,6 +25,7 @@ import com.faforever.client.replay.Replay.GameOption;
 import com.faforever.client.replay.Replay.PlayerStats;
 import com.faforever.client.reporting.ReportDialogController;
 import com.faforever.client.theme.UiService;
+import com.faforever.client.user.UserService;
 import com.faforever.client.util.ClipboardUtil;
 import com.faforever.client.util.RatingUtil;
 import com.faforever.client.util.TimeService;
@@ -33,7 +34,9 @@ import com.faforever.client.vault.review.ReviewService;
 import com.faforever.client.vault.review.ReviewsController;
 import com.faforever.commons.io.Bytes;
 import com.google.common.annotations.VisibleForTesting;
+import javafx.beans.binding.Bindings;
 import javafx.collections.ObservableMap;
+import javafx.event.ActionEvent;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -82,6 +85,7 @@ public class ReplayDetailController implements Controller<Node> {
   private final ClientProperties clientProperties;
   private final NotificationService notificationService;
   private final ReviewService reviewService;
+  private final UserService userService;
   private final ArrayList<TeamCardController> teamCardControllers = new ArrayList<>();
   public Pane replayDetailRoot;
   public Label titleLabel;
@@ -118,6 +122,8 @@ public class ReplayDetailController implements Controller<Node> {
   public Button reportButton;
   public Label notRatedReasonLabel;
   public Label ratingTypeLabel;
+  public Label visibilityLabel;
+  public Button unhideButton;
   private Replay replay;
   private ObservableMap<String, List<PlayerStats>> teams;
 
@@ -172,12 +178,29 @@ public class ReplayDetailController implements Controller<Node> {
     this.replay = replay;
     replayAvailableContainer.setDisable(false);
     downloadMoreInfoButton.setDisable(false);
-    tadaUploadButton.setVisible(replayService.uploadReplayToTadaPermitted(replay));
 
     replayIdField.setText(i18n.get("game.idFormat", replay.getId()));
     titleLabel.setText(replay.getTitle());
     dateLabel.setText(timeService.asDate(replay.getStartTime()));
     timeLabel.setText(timeService.asShortTime(replay.getStartTime()));
+
+    visibilityLabel.visibleProperty().bind(replay.replayHiddenProperty());
+    visibilityLabel.managedProperty().bind(visibilityLabel.visibleProperty());
+
+    unhideButton.visibleProperty().bind(replay.replayHiddenProperty().and(
+        replay.hostIdProperty().isEqualTo(userService.getUserId())));
+    unhideButton.managedProperty().bind(unhideButton.visibleProperty());
+
+    replayIdField.visibleProperty().bind(replay.replayHiddenProperty().not());
+    replayIdField.managedProperty().bind(replayIdField.visibleProperty());
+
+    copyButton.visibleProperty().bind(replay.replayHiddenProperty().not());
+    copyButton.managedProperty().bind(copyButton.visibleProperty());
+
+    tadaUploadButton.visibleProperty().bind(Bindings.createBooleanBinding(
+        () -> replayService.uploadReplayToTadaPermitted(replay) && !replay.getReplayHidden(),
+        replay.replayHiddenProperty()));
+    tadaUploadButton.managedProperty().bind(tadaUploadButton.visibleProperty());
 
     Optional<MapBean> optionalMap = Optional.ofNullable(replay.getMap());
     Optional<DemoFileInfo> optionalDemoFileInfo = Optional.ofNullable(replay.getDemoFileInfo());
@@ -224,13 +247,12 @@ public class ReplayDetailController implements Controller<Node> {
 
     ratingTypeLabel.setText("-");
     replay.getTeamPlayerStats().values().stream().findAny()
-        .ifPresent(playerStatsList -> playerStatsList.stream().findAny()
-            .ifPresent(playerStats -> Optional.ofNullable(playerStats.getLeaderboard())
-                .ifPresent(leaderboard -> {
-                  ratingTypeLabel.setText(i18n.get(leaderboard.getNameKey()));
-                  ratingTypeLabel.setVisible(!"global".equals(leaderboard.getTechnicalName()));
-                })
-            ));
+        .flatMap(playerStatsList -> playerStatsList.stream().findAny())
+        .flatMap(playerStats -> Optional.ofNullable(playerStats.getLeaderboard()))
+        .ifPresent(leaderboard -> {
+          ratingTypeLabel.setText(i18n.get(leaderboard.getNameKey()));
+          ratingTypeLabel.setVisible(!"global".equals(leaderboard.getTechnicalName()));
+        });
     
     if (replay.getReplayFile() == null) {
       if (replay.getReplayAvailable()) {
@@ -444,5 +466,10 @@ public class ReplayDetailController implements Controller<Node> {
   public void showRatingChange() {
     teamCardControllers.forEach(teamCardController -> teamCardController.showRatingChange(teams));
     showRatingChangeButton.setDisable(true);
+  }
+
+  public void onUnhideButton(ActionEvent actionEvent) {
+    replayService.unhideReplay(this.replay.getId());
+    this.replay.setReplayHidden(false);
   }
 }

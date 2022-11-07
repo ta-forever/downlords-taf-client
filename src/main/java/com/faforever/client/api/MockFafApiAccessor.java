@@ -269,6 +269,11 @@ public class MockFafApiAccessor implements FafApiAccessor {
   }
 
   @Override
+  public void updateReplay(String id, Game game) {
+
+  }
+
+  @Override
   public Optional<Clan> getClanByTag(String tag) {
     return Optional.empty();
   }

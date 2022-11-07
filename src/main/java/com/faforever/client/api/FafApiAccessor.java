@@ -123,6 +123,8 @@ public interface FafApiAccessor {
 
   List<TutorialCategory> getTutorialCategories();
 
+  void updateReplay(String id, Game game);
+
   Optional<Clan> getClanByTag(String tag);
 
   Tuple<List<Map>, java.util.Map<String, ?>> findMapsByQueryWithMeta(SearchConfig searchConfig, int count, int page);

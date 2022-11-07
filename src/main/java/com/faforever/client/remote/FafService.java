@@ -719,6 +719,16 @@ public class FafService {
   }
 
   @Async
+  public CompletableFuture<Void> unhideReplay(Integer gameId) {
+    String id = String.valueOf(gameId);
+    Game game = new Game();
+    game.setId(id);
+    game.setReplayHidden(false);
+    fafApiAccessor.updateReplay(id, game);
+    return CompletableFuture.completedFuture(null);
+  }
+
+  @Async
   public void uploadReplayToTada(Integer replayId) {
     fafServerAccessor.uploadReplayToTada(replayId);
   }

@@ -43,6 +43,7 @@ import org.springframework.stereotype.Component;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -336,6 +337,7 @@ public abstract class VaultEntityController<T> extends AbstractViewController<No
     ObservableList<Node> children = pane.getChildren();
     List<Node> childrenToAdd = results.parallelStream()
         .map(this::getEntityCard)
+        .filter(Objects::nonNull)
         .collect(Collectors.toList());
 
     JavaFxUtil.runLater(() -> {

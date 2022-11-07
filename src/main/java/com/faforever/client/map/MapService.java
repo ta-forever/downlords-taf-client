@@ -411,14 +411,16 @@ public class MapService implements InitializingBean, DisposableBean {
         catch (IOException e) {
           notifyBadMapTool(e);
         }
-        installation.maps.clear();
-        installation.maps.addAll(mapList);
-        if (installation.maps.isEmpty()) {
-          logger.warn("no maps found for mod={}. inserting OTA maps", installation.modTechnicalName);
-          for (String map : otaMaps) {
-            installation.addMap(map, null);
-          }
-        }
+        JavaFxUtil.runLater(() -> {
+              installation.maps.clear();
+              installation.maps.setAll(mapList);
+              if (installation.maps.isEmpty()) {
+                logger.warn("no maps found for mod={}. inserting OTA maps", installation.modTechnicalName);
+                for (String map : otaMaps) {
+                  installation.addMap(map, null);
+                }
+              }
+            });
         updateProgress(1, 1);
 
         boolean again = false;

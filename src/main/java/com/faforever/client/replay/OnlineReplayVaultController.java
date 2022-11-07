@@ -50,7 +50,10 @@ public class OnlineReplayVaultController extends VaultEntityController<Replay> {
   private int playerId;
   private ReplayDetailController replayDetailController;
 
-  public OnlineReplayVaultController(ModService modService, LeaderboardService leaderboardService, ReplayService replayService, UiService uiService, NotificationService notificationService, I18n i18n, PreferencesService preferencesService, ReportingService reportingService) {
+  public OnlineReplayVaultController(
+      ModService modService, LeaderboardService leaderboardService, ReplayService replayService, UiService uiService,
+      NotificationService notificationService, I18n i18n, PreferencesService preferencesService,
+      ReportingService reportingService) {
     super(uiService, notificationService, i18n, preferencesService, reportingService, modService);
     this.leaderboardService = leaderboardService;
     this.replayService = replayService;

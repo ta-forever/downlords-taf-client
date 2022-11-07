@@ -78,6 +78,10 @@ public class PersistentNotificationController implements Controller<Node> {
         if (action.getType() == Action.Type.OK_DONE) {
           dismiss();
         }
+        else if (action.getType() == Action.Type.OK_ONCE) {
+          actionButtons.remove(button);
+          actionButtonsContainer.getChildren().setAll(actionButtons);
+        }
       });
 
       actionButtons.add(button);

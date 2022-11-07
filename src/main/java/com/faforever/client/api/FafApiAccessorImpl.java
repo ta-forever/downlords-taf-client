@@ -104,7 +104,7 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   private static final String LEADERBOARD_ENTRY_ENDPOINT = "/data/leaderboardRating";
   private static final String REPORT_ENDPOINT = "/data/moderationReport";
   private static final String TOURNAMENT_LIST_ENDPOINT = "/challonge/v1/tournaments.json";
-  private static final String REPLAY_INCLUDES = "featuredMod,playerStats,playerStats.player,playerStats.ratingChanges,reviews," +
+  private static final String REPLAY_INCLUDES = "featuredMod,playerStats,host,playerStats.player,playerStats.ratingChanges,reviews," +
       "reviews.player,mapVersion,mapVersion.map,reviewsSummary,playerStats.ratingChanges.leaderboard";
   private static final String MAP_INCLUDES = "latestVersion,author,statistics,reviewsSummary," +
       "versions.reviews,versions.reviews.player";
@@ -381,7 +381,7 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
         SORT, "-lowerBound",
         // TODO this was done in a rush, check what is actually needed
         INCLUDE, "game,game.featuredMod,game.playerStats,game.playerStats.player,game.playerStats.ratingChanges,game.reviews,game.reviews.player," +
-            "game.mapVersion,game.mapVersion.map",
+            "game.mapVersion,game.mapVersion.map,game.playerStats.ratingChanges.leaderboard",
         FILTER, "game.endTime=isnull=false"
     ));
     return new Tuple<>(pageWithPageCount.get().stream()
@@ -573,6 +573,11 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   @Override
   public void updateMapVersion(String id, MapVersion mapVersion) {
     patch(format("/data/mapVersion/%s", id), mapVersion, Void.class);
+  }
+
+  @Override
+  public void updateReplay(String id, Game game) {
+    patch(format("/data/game/%s", id), game, Void.class);
   }
 
   @Override

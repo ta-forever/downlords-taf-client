@@ -69,6 +69,8 @@ public class Replay {
   private final ListProperty<Review> reviews;
   private final ObjectProperty<Validity> validity;
   private final ObjectProperty<ReviewsSummary> reviewsSummary;
+  private final BooleanProperty replayHidden;
+  private final IntegerProperty hostId;
 
   public Replay(String title) {
     this();
@@ -85,7 +87,7 @@ public class Replay {
     startTime = new SimpleObjectProperty<>();
     endTime = new SimpleObjectProperty<>();
     featuredMod = new SimpleObjectProperty<>();
-    demoFileInfo = new SimpleObjectProperty();
+    demoFileInfo = new SimpleObjectProperty<>();
     map = new SimpleObjectProperty<>();
     replayFile = new SimpleObjectProperty<>();
     replayTicks = new SimpleObjectProperty<>();
@@ -96,6 +98,8 @@ public class Replay {
         -> new Observable[]{param.scoreProperty(), param.textProperty()}));
     validity = new SimpleObjectProperty<>();
     reviewsSummary = new SimpleObjectProperty<>();
+    replayHidden = new SimpleBooleanProperty();
+    hostId = new SimpleIntegerProperty();
   }
 
   public Replay(LocalReplayInfo replayInfo, Path replayFile, FeaturedMod featuredMod, MapBean mapBean) {
@@ -129,6 +133,8 @@ public class Replay {
     replay.getReviews().setAll(reviews(dto));
     replay.setValidity(dto.getValidity());
     replay.setReviewsSummary(ReviewsSummary.fromDto(dto.getGameReviewsSummary()));
+    replay.setReplayHidden(dto.getReplayHidden());
+    replay.setHostId(Integer.parseInt(dto.getHost().getId()));
 
     if (dto.getReplayMeta() != null) {
       ReplayMeta replayMeta = new Gson().fromJson(dto.getReplayMeta(), ReplayMeta.class);
@@ -395,6 +401,24 @@ public class Replay {
   public ObjectProperty<ReviewsSummary> reviewsSummaryProperty() {
     return reviewsSummary;
   }
+
+  public boolean getReplayHidden() {
+    return replayHidden.get();
+  }
+
+  public void setReplayHidden(boolean replayHidden) {
+    this.replayHidden.set(replayHidden);
+  }
+
+  public BooleanProperty replayHiddenProperty() {
+    return this.replayHidden;
+  }
+
+  public int getHostId() { return hostId.get(); }
+
+  public void setHostId(int hostId) { this.hostId.set(hostId); }
+
+  public IntegerProperty hostIdProperty() { return hostId; }
 
   public static class ChatMessage {
     private final ObjectProperty<Duration> time;

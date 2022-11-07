@@ -15,7 +15,8 @@ public class Action {
 
   public enum Type {
     OK_DONE,
-    OK_STAY
+    OK_STAY,
+    OK_ONCE
   }
 
   private final String title;

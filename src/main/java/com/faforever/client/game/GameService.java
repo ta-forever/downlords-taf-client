@@ -42,6 +42,7 @@ import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.remote.domain.LoginMessage;
 import com.faforever.client.replay.ReplayServer;
+import com.faforever.client.replay.UnhideReplayEvent;
 import com.faforever.client.tada.event.UploadToTadaEvent;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.faforever.client.util.RatingUtil;
@@ -902,12 +903,17 @@ public class GameService implements InitializingBean {
   private void notifyRecentlyPlayedGameEnded(Game game) {
     NotificationsPrefs notification = preferencesService.getPreferences().getNotification();
     if (notification.isAfterGameReviewEnabled() && notification.isTransientNotificationsEnabled()) {
-      notificationService.addNotification(new PersistentNotification(i18n.get("game.ended", game.getTitle()),
-          Severity.INFO,
-          List.of(
-              new Action(i18n.get("tada.upload"), actionEvent -> eventBus.post(new UploadToTadaEvent(game.getId()))),
-              new Action(i18n.get("game.rate"), actionEvent -> eventBus.post(new ShowReplayEvent(game.getId())))
-          )));
+      List<Action> actions = new ArrayList<>();
+      if (game.getReplayDelaySeconds() < 0) {
+        actions.add(new Action(i18n.get("replay.unhide"), null, Action.Type.OK_ONCE,
+            actionEvent -> eventBus.post(new UnhideReplayEvent(game.getId()))));
+      }
+      actions.add(new Action(i18n.get("tada.upload"), null, Action.Type.OK_ONCE,
+          actionEvent -> eventBus.post(new UploadToTadaEvent(game.getId()))));
+      actions.add(new Action(i18n.get("game.rate"), null, Action.Type.OK_ONCE,
+          actionEvent -> eventBus.post(new ShowReplayEvent(game.getId()))));
+      notificationService.addNotification(new PersistentNotification(
+          i18n.get("game.ended", game.getTitle()), Severity.INFO, actions));
     }
   }
 
