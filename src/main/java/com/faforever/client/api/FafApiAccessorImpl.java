@@ -428,6 +428,7 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   }
 
   @Override
+  @Cacheable(value = CacheNames.PLAYERS_BY_ID, sync = true)
   public List<Player> getPlayersByIds(Collection<Integer> playerIds) {
     List<String> ids = playerIds.stream().map(String::valueOf).collect(Collectors.toList());
 

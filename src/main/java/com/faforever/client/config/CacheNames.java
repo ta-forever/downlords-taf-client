@@ -31,6 +31,7 @@ public final class CacheNames {
   public static final String MATCHMAKER_POOLS = "matchmakerPools";
   public static final String TADEMO_MAP_HASH = "taDemoMapHash";
   public static final String TADEMO_MOD_HASH = "taDemoModHash";
+  public static final String PLAYERS_BY_ID = "playersById";
 
   private CacheNames() {
     throw new AssertionError("Not instantiatable");
