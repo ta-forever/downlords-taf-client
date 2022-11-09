@@ -174,24 +174,30 @@ public class PlanetDetailController implements Controller<Node> {
   }
 
   public Node createScoresChart(Planet planet) {
-    List<XYChart.Series<String,Number>> seriesList = new ArrayList<>();
+    List<XYChart.Series<Number,String>> seriesList = new ArrayList<>();
     for (Faction faction: planet.getScore().keySet()) {
-      XYChart.Series<String,Number> series = new XYChart.Series<>();
+      XYChart.Series<Number,String> series = new XYChart.Series<>();
       series.setName(faction.getString());
-      XYChart.Data<String,Number> datum = new XYChart.Data<>(
-          planet.getName(), planet.getScore().getOrDefault(faction, 0.0));
+      XYChart.Data<Number,String> datum = new XYChart.Data<>(
+          planet.getScore().getOrDefault(faction, 0.0), faction.getString());
       series.getData().add(datum);
       seriesList.add(series);
     }
 
-    final CategoryAxis xAxis = new CategoryAxis();
-    final NumberAxis yAxis = new NumberAxis();
-    final BarChart<String,Number> bc = new BarChart<>(xAxis,yAxis);
-    bc.setRotate(90.0);
-    bc.setMinSize(100, 230);
-    bc.setPrefSize(100, 230);
-    bc.setMaxSize(100, 230);
+    final CategoryAxis yAxis = new CategoryAxis();
+    final NumberAxis xAxis = new NumberAxis();
+    final BarChart<Number,String> bc = new BarChart<>(xAxis,yAxis);
+    bc.setMinSize(220, 80);
+    bc.setPrefSize(220, 80);
+    bc.setMaxSize(220, 80);
     bc.getData().addAll(seriesList);
+    bc.setLegendVisible(false);
+    yAxis.setStartMargin(0.0);
+    yAxis.setEndMargin(0.0);
+    yAxis.setTickLabelsVisible(false);
+    yAxis.setVisible(false);
+    bc.setBarGap(0.0);
+    bc.setCategoryGap(0.0);
 
     final Map<String,String> factionColours = Map.of(
         "Arm", "ARM_COLOR",
@@ -201,9 +207,9 @@ public class PlanetDetailController implements Controller<Node> {
     for (Faction faction: planet.getScore().keySet()) {
       if (factionColours.containsKey(faction.getString())) {
         String colour = factionColours.get(faction.getString());
-        for (XYChart.Series<String, Number> series : bc.getData()) {
+        for (XYChart.Series<Number,String> series : bc.getData()) {
           if (series.getName().equals(faction.getString())) {
-            for (Data<String, Number> data : series.getData()) {
+            for (Data<Number,String> data : series.getData()) {
               data.getNode().setStyle(String.format("-fx-bar-fill: %s;", colour));
             }
           }
