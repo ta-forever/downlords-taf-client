@@ -13,10 +13,14 @@ import com.faforever.client.game.Faction;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.util.Tuple;
 import javafx.scene.Node;
+import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Region;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayInputStream;
@@ -27,7 +31,11 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -39,6 +47,7 @@ public class GalacticMapView {
   private static final double CAPITAL_PLANET_RADIUS = 30.0;
   private static final double PLANET_RADIUS = 20.0;
   private static final double ZOOM_CHANGE_MULTIPLIER = 1.05;
+  private static final double WARNING_DOMINANCE_RATIO = 3.0;
   private static final String smartGraphProperties = """
     vertex.allow-user-move = false
     vertex.radius = 15
@@ -77,6 +86,7 @@ public class GalacticMapView {
 
     accessVertexNodes();
     addCapitalIcons();
+    addScoreIcons();
     setVertexStyles();
     setPlanetSizes();
     addLayoutListener();
@@ -105,7 +115,7 @@ public class GalacticMapView {
       double dy = (event.getY() - mouseDragXYStart[1]);
       mouseDragXYStart[0] = event.getX();
       mouseDragXYStart[1] = event.getY();
-      if (event.isPrimaryButtonDown()) {
+      if (event.isPrimaryButtonDown() || event.isMiddleButtonDown()) {
         xOffset += dx;
         yOffset += dy;
         setPlanetSizes();
@@ -337,6 +347,45 @@ public class GalacticMapView {
         });
         smartGraphPanel.getStylableVertex(v).addStyleClass(String.format("%sCapitalVertex", faction.toString().toLowerCase()));
         smartGraphPanel.getChildren().add(imv);
+      }
+    }
+  }
+
+  private void addScoreIcons() {
+    for (Vertex<Planet> v: theGraph.vertices()) {
+      if (v.element().getControlledBy() == null) {
+        Faction winning =  Collections.max(v.element().getScore().entrySet(),
+            Comparator.comparingDouble(Map.Entry::getValue)).getKey();
+        Faction losing =  Collections.min(v.element().getScore().entrySet(),
+            Comparator.comparingDouble(Map.Entry::getValue)).getKey();
+        if (v.element().getScore().get(winning) > WARNING_DOMINANCE_RATIO * v.element().getScore().get(losing) ||
+            v.element().getSize() > 10.0 * v.element().getScore().get(losing)) {
+          Label label = new Label("!");
+          label.setStyle("-fx-font: 14 arial;");
+          Region iconRegion = new Region();
+          label.setGraphic(iconRegion);
+          iconRegion.getStyleClass().add(UiService.CSS_CLASS_ICON);
+          switch (winning) {
+            case CORE -> {
+              iconRegion.getStyleClass().add(UiService.CORE_STYLE_CLASS);
+              label.setTextFill(Color.web("red"));
+            }
+            case GOK -> {
+              iconRegion.getStyleClass().add(UiService.GOK_STYLE_CLASS);
+              label.setTextFill(Color.web("green"));
+            }
+            case ARM -> {
+              iconRegion.getStyleClass().add(UiService.ARM_STYLE_CLASS);
+              label.setTextFill(Color.web("blue"));
+            }
+          }
+          vertexNodes.get(v).layoutBoundsProperty().addListener((obs, oldValue, newValue) -> {
+            label.setLayoutX(newValue.getCenterX() - iconRegion.getWidth()/2.0);
+            label.setLayoutY(newValue.getCenterY() - iconRegion.getHeight()/2.0);
+          });
+          label.setMouseTransparent(true);
+          smartGraphPanel.getChildren().add(label);
+        }
       }
     }
   }

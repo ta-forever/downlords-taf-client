@@ -69,3 +69,15 @@
 
 .gokCapitalVertex {
 }
+
+.armWinningLabel {
+    -fx-text-color: ARM_COLOR;
+}
+
+.coreWinningLabel {
+    -fx-text-color: CORE_COLOR;
+}
+
+.coreWinningLabel {
+    -fx-text-color: GOK_COLOR;
+}
