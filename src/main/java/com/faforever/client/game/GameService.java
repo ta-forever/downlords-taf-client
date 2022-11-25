@@ -353,10 +353,6 @@ public class GameService implements InitializingBean {
     };
   }
 
-  public ReadOnlyIntegerProperty runningGameUidProperty() {
-    return runningGameUidProperty;
-  }
-
   public CompletableFuture<Void> hostGame(NewGameInfo newGameInfo) {
     log.info("[hostGame] title={}", newGameInfo.getTitle());
 
@@ -818,10 +814,6 @@ public class GameService implements InitializingBean {
     return gameUpdater.proactiveUpdateCurrentVersions();
   }
 
-  public Integer getRunningGameUid() {
-    return runningGameUidProperty.getValue();
-  }
-
   private void setRunningGameUid(Integer uidOrNull) {
     try {
       noCatch(() -> runningGameUidProperty.setValue(uidOrNull));
@@ -829,6 +821,14 @@ public class GameService implements InitializingBean {
     catch(Exception e) {
       log.warn("[setRunningGameUid] {}", e.getMessage());
     }
+  }
+
+  public Integer getRunningGameUid() {
+    return runningGameUidProperty.getValue();
+  }
+
+  public ReadOnlyIntegerProperty runningGameUidProperty() {
+    return runningGameUidProperty;
   }
 
   public void startBattleRoom() {
