@@ -101,6 +101,8 @@ public class GitCheckoutTask extends CompletableTask<Void> implements ProgressMo
 
     }
     else {
+      git.fetch()
+          .call();
       git.branchCreate()
           .setName(branchName)
           .setStartPoint("origin/"+ branchName)

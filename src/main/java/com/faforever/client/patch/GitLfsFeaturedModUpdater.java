@@ -58,8 +58,8 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
    */
   @Override
   public CompletableFuture<String> updateMod(FeaturedMod featuredMod, @Nullable String version) {
-
     log.info("[updateMod]");
+
     TotalAnnihilationPrefs taPrefs = preferencesService.getTotalAnnihilation(featuredMod.getTechnicalName());
     Path deployPath = taPrefs.getInstalledPath();
     String repoUrl = featuredMod.getGitUrl();
@@ -69,6 +69,8 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
     if (taPrefs.getAutoUpdateEnable() != AskAlwaysOrNever.NEVER) {
       try {
         _git = Git.open(deployPath.toFile());
+        _git.getRepository().getConfig().setString("remote", "origin", "url", repoUrl);
+        _git.getRepository().getConfig().save();
         log.info("[updateMod] git status");
         _hasUncommittedChanges = _git.status().call().hasUncommittedChanges();
       } catch (IOException | GitAPIException e1) {
@@ -77,6 +79,7 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
         _hasUncommittedChanges = false;
       }
     }
+
     final Git git = _git;
     boolean hasUncommittedChanges = _hasUncommittedChanges;
 
@@ -104,7 +107,7 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
     try {
       if (git != null) {
         if (git.getRepository().getBranch().equals(gitCommit) ||
-            git.getRepository().resolve(Constants.HEAD).getName().equals(gitCommit)) {
+            git.getRepository().resolve(Constants.HEAD) != null && git.getRepository().resolve(Constants.HEAD).getName().equals(gitCommit)) {
           if (version != null && isVersionAlreadyPulled(version)) {
             log.info("[updateMod] no need to update because correct branch is checked out already and upstream branch has already been checked this session");
             return CompletableFuture.completedFuture(null);
@@ -167,6 +170,8 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
   String getCheckedOutCommit(Git git, FeaturedMod featuredMod) {
     try {
       if (git == null) {
+        return featuredMod.getGitBranch();
+      } else if (git.getRepository().resolve(Constants.HEAD) == null) {
         return featuredMod.getGitBranch();
       } else {
         return git.getRepository().resolve(Constants.HEAD).getName();
@@ -246,7 +251,7 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
       boolean versionAlreadyPulled = setVersionAlreadyPulled(version);
       CompletableFuture<Void> future;
       if (git.getRepository().getBranch().equals(gitCommit) ||
-          git.getRepository().resolve(Constants.HEAD).getName().equals(gitCommit)) {
+          git.getRepository().resolve(Constants.HEAD) != null && git.getRepository().resolve(Constants.HEAD).getName().equals(gitCommit)) {
         if (version == null || !versionAlreadyPulled) {
           // version == null is a proactive request to check for updates
           log.info("[doUpdate] checking for branch updates. version={}, gitCommit={}", version, gitCommit);

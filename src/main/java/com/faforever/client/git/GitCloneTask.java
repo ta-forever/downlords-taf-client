@@ -132,8 +132,10 @@ public class GitCloneTask extends CompletableTask<Void> implements ProgressMonit
           .setProgressMonitor(this)
           .call();
 
-      String head = git.getRepository().resolve(Constants.HEAD).getName();
-      logger.info("head={}", head);
+      if (git.getRepository().resolve(Constants.HEAD) != null) {
+        String head = git.getRepository().resolve(Constants.HEAD).getName();
+        logger.info("head={}", head);
+      }
 
       return null;
     }
