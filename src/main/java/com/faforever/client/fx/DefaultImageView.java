@@ -18,10 +18,16 @@ public class DefaultImageView extends ImageView {
       if (newImage == null) {
         this.setImage(defaultImage);
       }
-      else if (!newImage.isBackgroundLoading() && !newImage.isError()) {
+      else if (newImage.isError()) {
+        this.setImage(defaultImage);
+      }
+      else if (!newImage.isBackgroundLoading()) {
         this.setImage(newImage);
       }
-      else if (newImage.isBackgroundLoading()) {
+      else if (newImage.getProgress() >= 1) {
+        this.setImage(newImage);
+      }
+      else {
         this.setImage(defaultImage);
 
         final DefaultImageView theImageView = this;
@@ -30,6 +36,7 @@ public class DefaultImageView extends ImageView {
           public void changed(ObservableValue<? extends Number> observable, Number oldProgress, Number newProgress) {
             if (newProgress.intValue() >= 1 && !newImage.isError()) {
               JavaFxUtil.runLater(() -> theImageView.setImage(newImage));
+              newImage.progressProperty().removeListener(this);
             }
             else if (newProgress.intValue() >= 1) {
               newImage.progressProperty().removeListener(this);
