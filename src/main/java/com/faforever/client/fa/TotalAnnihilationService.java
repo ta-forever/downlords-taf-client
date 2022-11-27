@@ -330,14 +330,12 @@ public class TotalAnnihilationService {
     try {
       if (org.bridj.Platform.isLinux()) {
         for (String executable : List.of("dplaysvr.exe", "gpgnet4ta")) {
-          logger.info("Issuing killall {} to free up port 47624 ...", executable);
           ProcessBuilder processBuilder = new ProcessBuilder();
           processBuilder.command(List.of("killall", executable));
           processBuilder.start().waitFor();
         }
       } else if (org.bridj.Platform.isWindows()) {
         for (String executable : List.of("gpgnet4ta.exe")) {
-          logger.info("Issuing taskkill {} to free up port 47624 ...", executable);
           ProcessBuilder processBuilder = new ProcessBuilder();
           processBuilder.command(List.of("taskkill", "/F", "/IM", executable));
           processBuilder.start().waitFor();

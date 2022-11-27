@@ -53,13 +53,11 @@ public class AssetService {
     String filename = urlString.substring(urlString.lastIndexOf('/') + 1);
     Path cachePath = preferencesService.getCacheDirectory().resolve(cacheSubFolder).resolve(filename);
     if (Files.exists(cachePath)) {
-      logger.info("Using cached image: {}", cachePath);
+      logger.debug("Using cached image: {}", cachePath);
       return new Image(noCatch(() -> cachePath.toUri().toURL().toExternalForm()), width, height, true, true);
     }
 
-    logger.info("Cached image not exists: {}", cachePath);
     logger.info("Fetching image from: {}", url);
-
     Image image = new Image(url.toString(), width, height, true, true, true);
     JavaFxUtil.persistImage(image, cachePath, filename.substring(filename.lastIndexOf('.') + 1));
     return image;
