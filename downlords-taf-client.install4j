@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<install4j version="8.0.8" transformSequenceNumber="8">
+<install4j version="10.0.3" transformSequenceNumber="10">
   <directoryPresets config="./README_INSTALL.TXT" />
-  <application name="TA Forever Client" applicationId="1364-9624-6962-8970" mediaDir="./build/install4j" lzmaCompression="true" pack200Compression="true" shortName="tafclient" publisher="TA Forever" publisherWeb="http://www.taforever.com" version="0.13.1" allPathsRelative="true" autoSave="true" macVolumeId="e230e730a6fc064c" javaMinVersion="15" allowBetaVM="true" jdkMode="jdk">
+  <application name="TA Forever Client" applicationId="1364-9624-6962-8970" mediaDir="./build/install4j" lzmaCompression="true" pack200Compression="true" shortName="tafclient" publisher="TA Forever" publisherWeb="http://www.taforever.com" version="0.16.1" allPathsRelative="true" autoSave="true" macVolumeId="e230e730a6fc064c" javaMinVersion="18" allowBetaVM="true" jdkMode="jdk">
     <searchSequence>
       <registry />
       <directory location="jre" />
     </searchSequence>
-    <jreBundles jdkProviderId="AdoptOpenJDK" release="openjdk15/jdk-15.0.2+7" />
+    <jreBundles jdkProviderId="AdoptOpenJDK" release="18/jdk-18.0.2.1+1" />
   </application>
   <files>
     <roots>
@@ -52,7 +52,6 @@
           <directory name="lib" />
         </nativeLibraryDirectories>
       </java>
-      <macStaticAssociationActions mode="selected" />
       <vmOptionsFile mode="content" overwriteMode="3">
         <content># Enter one VM parameter per line
 # Adjust maximum memory usage to 712MiB
@@ -476,11 +475,19 @@ return console.askYesNo(message, true);
           <group id="233" beanClass="com.install4j.runtime.beans.groups.VerticalFormComponentGroup" useExternalParametrization="true" externalParametrizationName="Customize banner image" externalParametrizationMode="include">
             <serializedBean>
               <property name="backgroundColor">
-                <object class="java.awt.Color">
-                  <int>255</int>
-                  <int>255</int>
-                  <int>255</int>
-                  <int>255</int>
+                <object class="com.install4j.runtime.beans.LightOrDarkColor">
+                  <object class="java.awt.Color">
+                    <int>255</int>
+                    <int>255</int>
+                    <int>255</int>
+                    <int>255</int>
+                  </object>
+                  <object class="java.awt.Color">
+                    <int>49</int>
+                    <int>52</int>
+                    <int>53</int>
+                    <int>255</int>
+                  </object>
                 </object>
               </property>
               <property name="borderSides">
@@ -489,11 +496,19 @@ return console.askYesNo(message, true);
                 </object>
               </property>
               <property name="imageEdgeBackgroundColor">
-                <object class="java.awt.Color">
-                  <int>25</int>
-                  <int>143</int>
-                  <int>220</int>
-                  <int>255</int>
+                <object class="com.install4j.runtime.beans.LightOrDarkColor">
+                  <object class="java.awt.Color">
+                    <int>25</int>
+                    <int>143</int>
+                    <int>220</int>
+                    <int>255</int>
+                  </object>
+                  <object class="java.awt.Color">
+                    <int>0</int>
+                    <int>74</int>
+                    <int>151</int>
+                    <int>255</int>
+                  </object>
                 </object>
               </property>
               <property name="imageEdgeBorder" type="boolean" value="true" />
@@ -547,11 +562,19 @@ return console.askYesNo(message, true);
               <group id="240" beanClass="com.install4j.runtime.beans.groups.VerticalFormComponentGroup" useExternalParametrization="true" externalParametrizationName="Customize title bar" externalParametrizationMode="include">
                 <serializedBean>
                   <property name="backgroundColor">
-                    <object class="java.awt.Color">
-                      <int>255</int>
-                      <int>255</int>
-                      <int>255</int>
-                      <int>255</int>
+                    <object class="com.install4j.runtime.beans.LightOrDarkColor">
+                      <object class="java.awt.Color">
+                        <int>255</int>
+                        <int>255</int>
+                        <int>255</int>
+                        <int>255</int>
+                      </object>
+                      <object class="java.awt.Color">
+                        <int>49</int>
+                        <int>52</int>
+                        <int>53</int>
+                        <int>255</int>
+                      </object>
                     </object>
                   </property>
                   <property name="borderSides">
@@ -654,7 +677,7 @@ return console.askYesNo(message, true);
     </styles>
   </installerGui>
   <mediaSets>
-    <windows name="Windows" id="26" installDir="${compiler:sys.fullName}">
+    <windows name="Windows" id="26" installDir="${compiler:sys.fullName}" architecture="64">
       <exclude>
         <entry location="natives/bin/gpgnet4ta" />
         <entry location="natives/bin/libIrcCore.so" />
@@ -672,14 +695,13 @@ return console.askYesNo(message, true);
         <entry location="natives/bin/maptool" />
         <entry location="natives/faf-uid" />
       </exclude>
-      <jreBundle usePack200="false" jreBundleSource="generated" directDownload="true" />
+      <jreBundle usePack200="false" directDownload="true" />
     </windows>
-    <windowsArchive name="Windows Archive" id="330" installDir="downlords-taf-client-${compiler:sys.version}">
+    <windowsArchive name="Windows Archive" id="330" installDir="downlords-taf-client-${compiler:sys.version}" architecture="64">
       <exclude>
         <entry location="lib/faf-ice-adapter" />
         <entry location="lib/faf-uid" />
       </exclude>
-      <jreBundle jreBundleSource="generated" />
     </windowsArchive>
     <unixArchive name="Unix Archive" id="331" installDir="downlords-taf-client-${compiler:sys.version}">
       <exclude>
@@ -692,18 +714,21 @@ return console.askYesNo(message, true);
         <entry location="natives/bin/Qt5Widgets.dll" />
         <entry location="natives/faf-uid.exe" />
       </exclude>
+      <jreBundle jreBundleSource="none" />
     </unixArchive>
     <linuxRPM name="Linux RPM" id="332" installDir="/opt/downlords-taf-client-${compiler:sys.version}">
       <exclude>
         <entry location="lib/faf-ice-adapter.exe" />
         <entry location="lib/faf-uid.exe" />
       </exclude>
+      <jreBundle jreBundleSource="none" />
     </linuxRPM>
     <linuxDeb name="Linux Deb Archive" id="333" installDir="/opt/downlords-taf-client-${compiler:sys.version}" dependencies="oracle-java8-installer" description="Downlord's TAF Client" maintainerEmail="michel.jung89@gmail.com">
       <exclude>
         <entry location="lib/faf-ice-adapter.exe" />
         <entry location="lib/faf-uid.exe" />
       </exclude>
+      <jreBundle jreBundleSource="none" />
     </linuxDeb>
   </mediaSets>
   <buildIds buildAll="false">

@@ -4,7 +4,6 @@ import org.gradle.internal.os.OperatingSystem
 buildscript {
   repositories {
     mavenCentral()
-    maven { url 'https://repo.spring.io/plugins-release' }
   }
 
   dependencies {
@@ -13,7 +12,7 @@ buildscript {
 }
 
 plugins {
-  id "com.install4j.gradle" version "9.0.5"
+  id "com.install4j.gradle" version "10.0.3"
   id "co.riiid.gradle" version "0.4.2"
   id "de.undercouch.download" version "4.1.2"
   id 'jacoco'
@@ -90,9 +89,9 @@ tasks.withType(Test) {
 
 }
 
-//Specify jacoco version to work with java15
+//Specify jacoco version to work with java18
 jacoco {
-  toolVersion = "0.8.6"
+  toolVersion = "0.8.8"
 }
 
 apply plugin: 'java'
@@ -101,8 +100,8 @@ apply plugin: 'io.spring.dependency-management'
 apply plugin: 'distribution'
 
 
-sourceCompatibility = JavaVersion.VERSION_15
-targetCompatibility = JavaVersion.VERSION_15
+sourceCompatibility = JavaVersion.VERSION_18
+targetCompatibility = JavaVersion.VERSION_18
 
 // These are read from gradle.properties
 version "${version}"
@@ -246,7 +245,7 @@ task buildInstall4jMediaFiles(type: Install4jTask) {
 
 task downloadIceAdapter(type: Download) {
   group "native dependencies"
-  src "https://github.com/FAForever/java-ice-adapter/releases/download/v${faf_ice_adapter_version}/faf-ice-adapter.jar"
+  src "https://github.com/FAForever/java-ice-adapter/releases/download/v${faf_ice_adapter_version}/faf-ice-adapter-v${faf_ice_adapter_version}-nojfx.jar"
   dest file("${buildDir}/resources/native/faf-ice-adapter.jar")
   onlyIfNewer true
 }
@@ -396,13 +395,14 @@ dependencies {
   implementation("io.github.micheljung:jfx-waitomo-theme:0.3.0")
   implementation("org.kitteh.irc:client-lib:8.0.0")
 
-  implementation("org.openjfx:javafx-base:15.0.1:${javafxPlatform}")
-  implementation("org.openjfx:javafx-controls:15.0.1:${javafxPlatform}")
-  implementation("org.openjfx:javafx-graphics:15.0.1:${javafxPlatform}")
-  implementation("org.openjfx:javafx-swing:15.0.1:${javafxPlatform}")
-  implementation("org.openjfx:javafx-fxml:15.0.1:${javafxPlatform}")
-  implementation("org.openjfx:javafx-web:15.0.1:${javafxPlatform}")
-  implementation("org.openjfx:javafx-media:15.0.1:${javafxPlatform}")
+  def javafxVersion = "18"
+  implementation("org.openjfx:javafx-base:${javafxVersion}:${javafxPlatform}")
+  implementation("org.openjfx:javafx-controls:${javafxVersion}:${javafxPlatform}")
+  implementation("org.openjfx:javafx-graphics:${javafxVersion}:${javafxPlatform}")
+  implementation("org.openjfx:javafx-swing:${javafxVersion}:${javafxPlatform}")
+  implementation("org.openjfx:javafx-fxml:${javafxVersion}:${javafxPlatform}")
+  implementation("org.openjfx:javafx-web:${javafxVersion}:${javafxPlatform}")
+  implementation("org.openjfx:javafx-media:${javafxVersion}:${javafxPlatform}")
   implementation("com.github.1-alex98:discord-rpc:1.6.2-jna")
   implementation("org.controlsfx:controlsfx:11.1.1")
   implementation("org.fxmisc.flowless:flowless:0.6.7")
@@ -410,7 +410,7 @@ dependencies {
   implementation(project(":webview-patch"))
   implementation("org.javassist:javassist:${project.ext['javassist.version']}")
 
-  implementation("com.install4j:install4j-runtime:9.0.5")
+  implementation("com.install4j:install4j-runtime:10.0.3")
 
   testImplementation("com.squareup.okhttp3:okhttp")
   testImplementation("com.squareup.okhttp3:mockwebserver")
@@ -425,10 +425,12 @@ dependencies {
   testImplementation("org.testfx:openjfx-monocle:jdk-12.0.1+2")
 
   annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
-  annotationProcessor("org.projectlombok:lombok")
-  testAnnotationProcessor("org.projectlombok:lombok")
-  compileOnly("org.projectlombok:lombok")
-  testCompileOnly("org.projectlombok:lombok")
+
+  def lombokVersion = "1.18.24" // version to support Java 18
+  annotationProcessor("org.projectlombok:lombok:${lombokVersion}")
+  testAnnotationProcessor("org.projectlombok:lombok:${lombokVersion}")
+  compileOnly("org.projectlombok:lombok:${lombokVersion}")
+  testCompileOnly("org.projectlombok:lombok:${lombokVersion}")
 
   codacy("com.github.codacy:codacy-coverage-reporter:-SNAPSHOT")
 }

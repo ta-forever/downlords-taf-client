@@ -13,7 +13,7 @@
 The official client for [TA Forever (TAF)](https://www.taforever.com/), forked from [FA Forever (FAF)](https://www.faforever.com/) to support Total Annihilation.
 
 ## How to run
-1. Use [AdoptOpenJDK](https://adoptopenjdk.net/) 15 or Oracle JDK 15 (others might not work)
+1. Use [AdoptOpenJDK](https://adoptopenjdk.net/) 18 or Oracle JDK 18 (others might not work)
 1. Clone the project with Git
     - using SSH: `git clone git@github.com:ta-forever/downlords-faf-client.git`
     - using HTTPS: `https://github.com/ta-forever/downlords-taf-client.git`
