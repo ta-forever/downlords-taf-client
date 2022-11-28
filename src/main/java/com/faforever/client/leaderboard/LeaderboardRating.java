@@ -25,6 +25,13 @@ public class LeaderboardRating {
     numberOfGames = new SimpleIntegerProperty();
   }
 
+  public static LeaderboardRating create(Float defaultMean, Float defaultDeviation) {
+    LeaderboardRating lbr = new LeaderboardRating();
+    lbr.setMean(defaultMean);
+    lbr.setDeviation(defaultDeviation);
+    return lbr;
+  }
+
   public static LeaderboardRating fromDto(com.faforever.client.remote.domain.LeaderboardRating dto) {
     LeaderboardRating leaderboardRating = new LeaderboardRating();
     leaderboardRating.setNumberOfGames(Optional.ofNullable(dto.getNumberOfGames()).orElse(0));

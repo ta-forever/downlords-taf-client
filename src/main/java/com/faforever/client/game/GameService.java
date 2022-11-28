@@ -34,6 +34,7 @@ import com.faforever.client.preferences.AskAlwaysOrNever;
 import com.faforever.client.preferences.AutoUploadLogsOption;
 import com.faforever.client.preferences.NotificationsPrefs;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.rating.RatingService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.ReconnectTimerService;
 import com.faforever.client.remote.domain.GameInfoMessage;
@@ -79,7 +80,6 @@ import org.springframework.stereotype.Service;
 import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -140,6 +140,7 @@ public class GameService implements InitializingBean {
   private final ReplayServer replayServer;
   private final ReconnectTimerService reconnectTimerService;
   private final ChatService chatService;
+  private final RatingService ratingService;
 
   private final ObservableList<Game> games;
   private final String faWindowTitle;
@@ -183,7 +184,8 @@ public class GameService implements InitializingBean {
                      DiscordRichPresenceService discordRichPresenceService,
                      ReplayServer replayServer,
                      ReconnectTimerService reconnectTimerService,
-                     ChatService chatService) {
+                     ChatService chatService,
+                     RatingService ratingService) {
 
     this.clientProperties = clientProperties;
     this.fafService = fafService;
@@ -203,6 +205,7 @@ public class GameService implements InitializingBean {
     this.replayServer = replayServer;
     this.reconnectTimerService = reconnectTimerService;
     this.chatService = chatService;
+    this.ratingService = ratingService;
 
     ircHostAndPort = String.format("%s:%d", clientProperties.getIrc().getHost(), 6667);//clientProperties.getIrc().getPort());
     faWindowTitle = clientProperties.getForgedAlliance().getWindowTitle();
@@ -250,7 +253,7 @@ public class GameService implements InitializingBean {
             }, () -> eventBus.post(new JoinChannelEvent(newGameChannel)));
       }
 
-      InvalidationListener listener = generateNumberOfPlayersChangeListener(newValue);
+      InvalidationListener listener = generateStartBattleRoomListener(newValue);
       JavaFxUtil.addListener(newValue.numPlayersProperty(), listener);
       listener.invalidated(newValue.numPlayersProperty());
 
@@ -285,7 +288,7 @@ public class GameService implements InitializingBean {
   }
 
   @NotNull
-  private InvalidationListener generateNumberOfPlayersChangeListener(Game game) {
+  private InvalidationListener generateStartBattleRoomListener(Game game) {
     return new InvalidationListener() {
       @Override
       public void invalidated(Observable observable) {
@@ -297,7 +300,10 @@ public class GameService implements InitializingBean {
         final Player currentPlayer = playerService.getCurrentPlayer().orElseThrow(() -> new IllegalStateException("Player must be set"));
         discordRichPresenceService.updatePlayedGameTo(currentGame, currentPlayer.getId(), currentPlayer.getUsername());
 
-        if (currentPlayer.getStatus() == PlayerStatus.JOINING && currentGame.getStatus() == GameStatus.BATTLEROOM && preferencesService.getPreferences().getAutoLaunchOnJoinEnabled()) {
+        if (currentPlayer.getStatus() == PlayerStatus.JOINING
+            && currentGame.getStatus() == GameStatus.BATTLEROOM
+            && preferencesService.getPreferences().getAutoLaunchOnJoinEnabled()
+        ) {
           GameService.this.startBattleRoom();
         }
       }
@@ -338,15 +344,18 @@ public class GameService implements InitializingBean {
 
         if (newStatus == GameStatus.BATTLEROOM && Objects.equals(currentGame, game)) {
           discordRichPresenceService.updatePlayedGameTo(currentGame, currentPlayer.getId(), currentPlayer.getUsername());
-          if (currentPlayer.getStatus() == PlayerStatus.JOINING && preferencesService.getPreferences().getAutoLaunchOnJoinEnabled()) {
+          if (currentPlayer.getStatus() == PlayerStatus.JOINING
+              && preferencesService.getPreferences().getAutoLaunchOnJoinEnabled()
+          ) {
             GameService.this.startBattleRoom();
           }
         }
 
-        if (preferencesService.getPreferences().getAutoRehostEnabled() &&
-            newStatus == GameStatus.BATTLEROOM &&
-            game.getGameType() != GameType.MATCHMAKER &&
-            currentPlayer != null && currentPlayer.getUsername().equals(game.getHost())) {
+        if (preferencesService.getPreferences().getAutoRehostEnabled()
+            && newStatus == GameStatus.BATTLEROOM
+            && game.getGameType() != GameType.MATCHMAKER
+            && currentPlayer != null && currentPlayer.getUsername().equals(game.getHost())
+        ) {
           eventBus.post(new RehostRequestEvent(game));
         }
       }
@@ -835,7 +844,15 @@ public class GameService implements InitializingBean {
     if (isGameRunning()) {
       Game game = getCurrentGame();
       mapService.optionalEnsureMap(game.getFeaturedMod(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null)
-          .thenRun(() -> this.totalAnnihilationService.sendToConsole("/launch"));
+          .thenRun(() -> {
+            List<Player> joinOrder = this.ratingService.getBalancedTeams(game);
+            if (joinOrder.size() > 2) {
+              this.totalAnnihilationService.sendToConsole("/launch " +
+                  String.join(",", joinOrder.stream().map(p -> String.valueOf(p.getId())).toList()));
+            } else {
+              this.totalAnnihilationService.sendToConsole("/launch");
+            }
+          });
     }
   }
 
