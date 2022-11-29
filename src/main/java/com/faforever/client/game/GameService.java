@@ -596,7 +596,7 @@ public class GameService implements InitializingBean {
             spawnGenericTerminationListener(launchServerProcess);
 
             this.process = totalAnnihilationService.startReplay(modTechnical, replayFileOrUrl, replayId, getCurrentPlayer().getUsername());
-            setRunningGameUid(replayId);
+            setRunningGameUid(-1);
 
             BooleanProperty dismissTrigger = openProcessRunningDialog(this.process,
                 i18n.get("replay.running.title", replayId, replayFileOrUrl),
