@@ -165,6 +165,7 @@ public class CreateGameController implements Controller<Pane> {
       JavaFxUtil.runLater(() -> rankedEnabledCheckBox.setSelected(!DEFAULT_RATING_TYPE.equals(game.getRatingType())));
     }
     this.contextGameProperty.set(game);
+    selectAppropriateMap();
   }
 
   String getInteractionLevel() {
