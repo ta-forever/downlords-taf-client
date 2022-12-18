@@ -122,9 +122,10 @@ public class GamesTableController implements Controller<Node> {
         uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE)));
 
     mapPreviewColumn.setCellValueFactory(param -> Bindings.createObjectBinding(
-        () -> mapService
-            .loadPreview(param.getValue().getFeaturedMod(), param.getValue().getMapName(), PreviewType.MINI, 10),
-        param.getValue().mapNameProperty()
+        () -> param.getValue().getReplayDelaySeconds() >= 0
+          ? mapService.loadPreview(param.getValue().getFeaturedMod(), param.getValue().getMapName(), PreviewType.MINI, 10)
+          : null,
+        param.getValue().mapNameProperty(), param.getValue().replayDelaySecondsProperty()
     ));
 
     gameTitleColumn.setCellValueFactory(param -> param.getValue().titleProperty());

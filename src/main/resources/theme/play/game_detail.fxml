@@ -32,7 +32,7 @@
         <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
     </rowConstraints>
     <children>
-        <StackPane GridPane.columnSpan="2147483647" GridPane.halignment="CENTER">
+        <StackPane fx:id="mapContainer" GridPane.columnSpan="2147483647" GridPane.halignment="CENTER">
             <DefaultImageView fx:id="mapImageView" fitWidth="230.0" fitHeight="320.0" pickOnBounds="true" preserveRatio="true" styleClass="map-preview"/>
             <AnchorPane>
                 <VBox alignment="BOTTOM_LEFT" styleClass="image-dimmer" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">

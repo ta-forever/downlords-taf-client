@@ -172,7 +172,9 @@ public class ChatUserService implements InitializingBean {
     JavaFxUtil.runLater(() -> {
       chatChannelUser.setStatusTooltipText(i18n.get(status.getI18nKey()));
       chatChannelUser.setGameStatusImage(playerStatusImage);
-      chatChannelUser.setMapImage(mapImage);
+      if (player.getGame() != null && player.getGame().getReplayDelaySeconds() >= 0) {
+        chatChannelUser.setMapImage(mapImage);
+      }
       chatChannelUser.setAfkImage(afkImage);
     });
   }

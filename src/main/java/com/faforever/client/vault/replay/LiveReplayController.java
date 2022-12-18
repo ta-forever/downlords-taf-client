@@ -80,7 +80,9 @@ public class LiveReplayController extends AbstractViewController<Node> {
 
     mapPreviewColumn.setCellFactory(param -> new MapPreviewTableCell(uiService));
     mapPreviewColumn.setCellValueFactory(param -> Bindings.createObjectBinding(
-        () -> mapService.loadPreview(param.getValue().getFeaturedMod(), param.getValue().getMapName(), PreviewType.MINI, 10),
+        () -> param.getValue().getReplayDelaySeconds() >= 0
+          ? mapService.loadPreview(param.getValue().getFeaturedMod(), param.getValue().getMapName(), PreviewType.MINI, 10)
+          : null,
         param.getValue().mapNameProperty()
     ));
 
@@ -110,6 +112,8 @@ public class LiveReplayController extends AbstractViewController<Node> {
   private Node watchReplayButton(Game game) {
     WatchButtonController controller = uiService.loadFxml("theme/vault/replay/watch_button.fxml");
     controller.setGame(game);
+    Node button = controller.getRoot();
+    button.visibleProperty().bind(game.replayDelaySecondsProperty().greaterThanOrEqualTo(0));
     return controller.getRoot();
   }
 

@@ -12,7 +12,6 @@ import com.faforever.client.mod.ModService;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.event.CurrentPlayerInfo;
-import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.vault.replay.WatchButtonController;
@@ -67,7 +66,6 @@ public class GameTileController implements Controller<Node> {
   private final ChatService chatService;
   private final EventBus eventBus;
   private final UiService uiService;
-  private final FafService fafService;
   public Node lockIconLabel;
   public Label gameTypeLabel;
   public Node gameCardRoot;
@@ -245,6 +243,9 @@ public class GameTileController implements Controller<Node> {
     hostLabel.setText(game.getHost());
 
     JavaFxUtil.bind(gameMapLabel.textProperty(), game.mapNameProperty());
+    gameMapLabel.visibleProperty().bind(
+        game.replayDelaySecondsProperty().greaterThanOrEqualTo(0).or(
+            gameService.getCurrentGameProperty().isEqualTo(game)));
 
     numberOfPlayersLabel.textProperty().bind(createStringBinding(
         () -> i18n.get("game.players.format", game.getNumPlayers(), game.getMaxPlayers()),
@@ -284,6 +285,9 @@ public class GameTileController implements Controller<Node> {
         () -> mapService.loadPreview(game.getFeaturedMod(), game.getMapName(), PreviewType.MINI, 10),
         game.mapNameProperty()
     ));
+    mapImageView.visibleProperty().bind(
+        game.replayDelaySecondsProperty().greaterThanOrEqualTo(0).or(
+            gameService.getCurrentGameProperty().isEqualTo(game)));
 
     lockIconLabel.visibleProperty().bind(game.passwordProtectedProperty());
     updateButtonsVisibility(gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(), playerService.getCurrentPlayer().get());

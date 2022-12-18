@@ -33,6 +33,7 @@ import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -90,6 +91,7 @@ public class GameDetailController implements Controller<Pane> {
   public Node watchButton;
   public Label gameRatingTypeLabel;
   public Label gameRatingTypeGlobalLabel;
+  public StackPane mapContainer;
   private Timeline gameTimeSinceStartUpdater;
   public Label gameTimeSinceStartLabel;
   public GameDetailMapContextMenuController mapContextMenuController;
@@ -164,6 +166,7 @@ public class GameDetailController implements Controller<Pane> {
     mapDescription.managedProperty().bind(mapDescription.visibleProperty());
     numberOfPlayersLabel.managedProperty().bind(numberOfPlayersLabel.visibleProperty());
     mapImageView.managedProperty().bind(mapImageView.visibleProperty());
+    mapContainer.managedProperty().bind(mapContainer.visibleProperty());
     gameTypeLabel.managedProperty().bind(gameTypeLabel.visibleProperty());
     watchButton.managedProperty().bind(watchButton.visibleProperty());
 
@@ -320,6 +323,9 @@ public class GameDetailController implements Controller<Pane> {
         () -> mapService.loadPreview(game.getFeaturedMod(), game.getMapName(), PreviewType.MINI, 10),
         game.mapNameProperty()
     ));
+    mapContainer.visibleProperty().bind(
+        game.replayDelaySecondsProperty().greaterThanOrEqualTo(0).or(
+            gameService.getCurrentGameProperty().isEqualTo(game)));
 
     featuredModInvalidationListener = observable -> modService.getFeaturedMod(game.getFeaturedMod())
         .thenAccept(featuredMod -> JavaFxUtil.runLater(() -> {
