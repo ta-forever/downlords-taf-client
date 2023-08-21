@@ -80,6 +80,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -119,6 +120,7 @@ public class MapService implements InitializingBean, DisposableBean {
 
   private final String mapDownloadUrlFormat;
   private final String mapPreviewUrlFormat;
+  private final Object notifiedBadMapToolLock = new Object();
   private Boolean notifiedBadMapTool = false;
 
   private class Installation {
@@ -308,7 +310,7 @@ public class MapService implements InitializingBean, DisposableBean {
     loadInstalledMaps(installation);
   }
 
-  private final Integer lockInstalledMapsUpdateMutex = 0;
+  private final Object lockInstalledMapsUpdateMutex = new Object();
   private Integer lockInstalledMapsUpdate = 0;
   public void addInstalledMapsUpdateLock() {
       synchronized(lockInstalledMapsUpdateMutex) {
@@ -371,7 +373,7 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   private void loadInstalledMaps(Installation installation) {
-    synchronized(installation.enumerationsRequested) {
+    synchronized(installation) {
       ++installation.enumerationsRequested;
       if (installation.enumerationsRequested > 1) {
         return;
@@ -385,7 +387,7 @@ public class MapService implements InitializingBean, DisposableBean {
 
         Path exePath = preferencesService.getTotalAnnihilation(installation.modTechnicalName).getInstalledExePath();
         if (exePath == null || !Files.isExecutable(exePath)) {
-          synchronized(installation.enumerationsRequested) {
+          synchronized(installation) {
             installation.enumerationsRequested = 0;
           }
           return null;
@@ -424,7 +426,7 @@ public class MapService implements InitializingBean, DisposableBean {
         updateProgress(1, 1);
 
         boolean again = false;
-        synchronized(installation.enumerationsRequested) {
+        synchronized(installation) {
           if (installation.enumerationsRequested > 1) {
             installation.enumerationsRequested = 1;
             again = true;
@@ -902,7 +904,7 @@ public class MapService implements InitializingBean, DisposableBean {
 
   private void notifyBadMapTool(Throwable e) {
     logger.error(e.getMessage());
-    synchronized (notifiedBadMapTool) {
+    synchronized (notifiedBadMapToolLock) {
       if (!notifiedBadMapTool) {
         notificationService.addImmediateErrorNotification(e, "maptool.error");
         notifiedBadMapTool = true;
