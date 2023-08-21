@@ -269,7 +269,7 @@ task downloadWindowsUid(type: Download) {
 
 task downloadUnixGpgnet4Ta(type: Download) {
   group "native dependencies"
-  src "https://content.taforever.com/gpgnet4ta/${gpgnet4ta_version}/gpgnet4ta-ubuntu-focal-x64.tar.gz"
+  src "https://github.com/ta-forever/gpgnet4ta/releases/download/${gpgnet4ta_version}/gpgnet4ta-ubuntu-focal-x64.tar.gz"
   dest file("${buildDir}/resources/native/gpgnet4ta-ubuntu-focal-x64.tar.gz")
   onlyIfNewer true
 }
@@ -284,7 +284,7 @@ task extractUnixGpgnet4Ta(type: Copy, dependsOn: [downloadUnixGpgnet4Ta]) {
 
 task downloadWindowsGpgnet4Ta(type: Download) {
   group "native dependencies"
-  src "https://content.taforever.com/gpgnet4ta/${gpgnet4ta_version}/gpgnet4ta-win-x86.zip"
+  src "https://github.com/ta-forever/gpgnet4ta/releases/download/${gpgnet4ta_version}/gpgnet4ta-win-x86.zip"
   dest file("${buildDir}/resources/native/gpgnet4ta-win-x86.zip")
   onlyIfNewer true
 }
@@ -327,7 +327,8 @@ task extractWindowsTafToolbox(type: Copy, dependsOn: [downloadWindowsTafToolbox]
   into outputDir
 }
 
-task downloadNativeDependencies(dependsOn: [downloadUnixUid, downloadWindowsUid, downloadIceAdapter, extractUnixGpgnet4Ta, extractWindowsGpgnet4Ta, extractUnixTafToolbox, extractWindowsTafToolbox]) {
+//task downloadNativeDependencies(dependsOn: [downloadUnixUid, downloadWindowsUid, downloadIceAdapter, extractUnixGpgnet4Ta, extractWindowsGpgnet4Ta, extractUnixTafToolbox, extractWindowsTafToolbox]) {
+task downloadNativeDependencies(dependsOn: [downloadUnixUid, downloadWindowsUid, extractUnixGpgnet4Ta, extractWindowsGpgnet4Ta, extractUnixTafToolbox, extractWindowsTafToolbox]) {
 //task downloadNativeDependencies(dependsOn: [downloadUnixUid, downloadWindowsUid, downloadIceAdapter]) {
 //task downloadNativeDependencies(dependsOn: []) {
   group "native dependencies"
