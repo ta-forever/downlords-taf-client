@@ -2,6 +2,7 @@ package com.faforever.client.discord;
 
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.game.Game;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.domain.GameStatus;
@@ -34,14 +35,17 @@ public class DiscordRichPresenceService implements DisposableBean {
   private final ClientProperties clientProperties;
   private final PlayerService playerService;
   private final PreferencesService preferencesService;
+  private final ModService modService;
   private final Timer timer;
 
 
   public DiscordRichPresenceService(PlayerService playerService, DiscordEventHandler discordEventHandler,
-                                    ClientProperties clientProperties, PreferencesService preferencesService) {
+                                    ClientProperties clientProperties, PreferencesService preferencesService,
+                                    ModService modService) {
     this.playerService = playerService;
     this.clientProperties = clientProperties;
     this.preferencesService = preferencesService;
+    this.modService = modService;
     this.timer = new Timer("Discord RPC", true);
     String applicationId = clientProperties.getDiscord().getApplicationId();
     if (applicationId == null) {
@@ -67,15 +71,13 @@ public class DiscordRichPresenceService implements DisposableBean {
     if (applicationId == null) {
       return;
     }
-    try {
-
-      if (game == null || game.getStatus() == GameStatus.ENDED || game.getTeams() == null) {
-        DiscordRPC.discordClearPresence();
-        return;
-      }
-
+    if (game == null || game.getStatus() == GameStatus.ENDED || game.getTeams() == null) {
+      DiscordRPC.discordClearPresence();
+      return;
+    }
+    this.modService.getFeaturedMod(game.getFeaturedMod()).thenAccept(mod -> {
       DiscordRichPresence.Builder discordRichPresence = new DiscordRichPresence.Builder(getDiscordState(game));
-      discordRichPresence.setDetails(MessageFormat.format("{0} | {1}", game.getFeaturedMod(), game.getTitle()));
+      discordRichPresence.setDetails(MessageFormat.format("{0} | {1}", mod.getDisplayName(), game.getTitle()));
       discordRichPresence.setParty(String.valueOf(game.getId()), game.getNumPlayers(), game.getMaxPlayers());
       discordRichPresence.setSmallImage(clientProperties.getDiscord().getSmallImageKey(), "");
       discordRichPresence.setBigImage(clientProperties.getDiscord().getBigImageKey(), "");
@@ -98,10 +100,11 @@ public class DiscordRichPresenceService implements DisposableBean {
       }
       DiscordRichPresence update = discordRichPresence.build();
       DiscordRPC.discordUpdatePresence(update);
-    } catch (Throwable throwable) {
+    }).exceptionally(throwable -> {
       //TODO: report to bugsnap
       log.error("Error reporting game status to discord", throwable);
-    }
+      return null;
+    });
   }
 
   private String getDiscordState(Game game) {
