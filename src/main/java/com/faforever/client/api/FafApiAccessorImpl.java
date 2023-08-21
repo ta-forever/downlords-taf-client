@@ -69,14 +69,12 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.Serializable;
 import java.nio.file.Path;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -85,6 +83,7 @@ import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
+import static com.faforever.client.game.GameService.DEFAULT_RATING_TYPE;
 import static java.lang.String.format;
 
 @Slf4j
@@ -212,13 +211,17 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   @Override
   @Cacheable(value = CacheNames.LEADERBOARD, sync = true)
   public List<Leaderboard> getLeaderboards() {
-    return getAll(LEADERBOARD_ENDPOINT);
+    return getAll(LEADERBOARD_ENDPOINT, java.util.Map.of(
+        FILTER, rsql(qBuilder().string("technicalName").ne(DEFAULT_RATING_TYPE))));
   }
 
   @Override
   public List<LeaderboardEntry> getLeaderboardEntriesForPlayer(int playerId) {
     return getAll(LEADERBOARD_ENTRY_ENDPOINT, java.util.Map.of(
-        FILTER, rsql(qBuilder().intNum("player.id").eq(playerId)),
+        FILTER, rsql(qBuilder()
+            .intNum("player.id").eq(playerId)
+            .and()
+            .string("leaderboard.technicalName").ne(DEFAULT_RATING_TYPE)),
         INCLUDE, LEADERBOARD_ENTRY_INCLUDES,
         SORT, "-rating"));
   }

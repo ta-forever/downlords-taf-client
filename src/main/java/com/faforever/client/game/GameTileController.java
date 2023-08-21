@@ -119,6 +119,7 @@ public class GameTileController implements Controller<Node> {
     modsLabel.visibleProperty().bind(modsLabel.textProperty().isNotEmpty());
     gameTypeLabel.managedProperty().bind(gameTypeLabel.visibleProperty());
     gameRatingTypeLabel.managedProperty().bind(gameRatingTypeLabel.visibleProperty());
+    avgRatingLabel.visibleProperty().bind(gameRatingTypeLabel.visibleProperty());
     lockIconLabel.managedProperty().bind(lockIconLabel.visibleProperty());
 
     // make a bit more room for the autoJoin button's text

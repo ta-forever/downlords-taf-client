@@ -177,7 +177,7 @@ public class UserInfoWindowController implements Controller<Node> {
     });
 
     ratingTableLeaderboardnameColumn.setCellValueFactory(param -> new SimpleStringProperty(
-        i18n.getWithDefault(param.getValue().getLeaderboard().getTechnicalName(), param.getValue().getLeaderboard().getNameKey())));
+        i18n.get(param.getValue().getLeaderboard().getNameKey())));
     ratingTableLeaderboardnameColumn.setCellFactory(param -> new StringCell<>(name -> name));
 
     ratingTableWinRateColumn.setCellValueFactory(param -> new SimpleFloatProperty(param.getValue().getWinRate()));
@@ -246,7 +246,7 @@ public class UserInfoWindowController implements Controller<Node> {
       leaderboardEntries.forEach(lbe -> {
         if (lbe != null) {
           Leaderboard lb = lbe.getLeaderboard();
-          String leaderboardName = i18n.getWithDefault(lb.getTechnicalName(), lb.getNameKey());
+          String leaderboardName = i18n.get(lb.getNameKey());
           ratingNames.append(i18n.get("leaderboard.rating", leaderboardName)).append("\n");
           ratingNumbers.append(i18n.number((int)lbe.getRating())).append("\n");
         }
@@ -337,7 +337,7 @@ public class UserInfoWindowController implements Controller<Node> {
       updateRatingGrids(sortedEntries);
       sortedEntries.forEach(leaderboardEntry ->
             gamesPlayedByLeaderboardChart.getData().add(new PieChart.Data(
-                i18n.getWithDefault(leaderboardEntry.getLeaderboard().getTechnicalName(), leaderboardEntry.getLeaderboard().getNameKey()),
+                i18n.get(leaderboardEntry.getLeaderboard().getNameKey()),
                 leaderboardEntry.getWonGames())));
 
     })).exceptionally(throwable -> {
@@ -468,7 +468,7 @@ public class UserInfoWindowController implements Controller<Node> {
     return new StringConverter<>() {
       @Override
       public String toString(Leaderboard leaderboard) {
-        return i18n.getWithDefault(leaderboard.getTechnicalName(), leaderboard.getNameKey());
+        return i18n.get(leaderboard.getNameKey());
       }
 
       @Override

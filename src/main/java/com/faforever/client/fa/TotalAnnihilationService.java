@@ -102,7 +102,7 @@ public class TotalAnnihilationService {
   private List<String> getGpgNet4TaCommand(
       String bindAddress, int consolePort, String gameMod, Path gamePath, boolean autoLaunch, boolean lockOptions,
       int players, boolean proactiveResend, int maxPacketSize, String gpgNetUrl, String demoCompilerUrl, @Nullable String ircUrl,
-      Path logFile, int launchServerPort
+      Path logFile, int launchServerPort, boolean isRated
   ) {
     Path exePath = getNativeGpgnet4taDir().resolve(org.bridj.Platform.isLinux() ? "gpgnet4ta" : "gpgnet4ta.exe");
 
@@ -120,6 +120,10 @@ public class TotalAnnihilationService {
         "--democompilerurl", demoCompilerUrl,
         "--maxpacketsize", String.valueOf(maxPacketSize)
     ));
+
+    if (isRated) {
+      command.add("--israted");
+    }
 
     if (autoLaunch) {
       command.add("--autolaunch");
@@ -275,7 +279,8 @@ public class TotalAnnihilationService {
   }
 
   public Process startGame(String modTechnical, int uid, @Nullable List<String> additionalArgs, int gpgPort,
-                           Player currentPlayer, String demoCompilerUrl, @Nullable String ircUrl, boolean autoLaunch) throws IOException {
+                           Player currentPlayer, String demoCompilerUrl, @Nullable String ircUrl, boolean autoLaunch,
+                           boolean isRated) throws IOException {
     this.freePort47624();
     this.consolePort = getFreeTcpPort();
 
@@ -291,7 +296,7 @@ public class TotalAnnihilationService {
     boolean proactiveResend = preferencesService.getPreferences().getProactiveResendEnabled();
     String gpgNetUrl = String.format("%s:%d", loopbackAddress, gpgPort);
 
-    int maxPacketSize = 1500;
+    int maxPacketSize = 992;
     if (preferencesService.getPreferences().getMaxPacketSizeOption() == MaxPacketSizeOption.JUMBO) {
       maxPacketSize = 5561;
     }
@@ -302,7 +307,7 @@ public class TotalAnnihilationService {
     List<String> gpgnet4taCommand = getGpgNet4TaCommand(
         loopbackAddress, this.consolePort, prefs.getBaseGameName(), prefs.getInstalledPath(), autoLaunch,
         false, 10, proactiveResend, maxPacketSize, gpgNetUrl, demoCompilerUrl, ircUrl,
-        preferencesService.getNewLogFile("game", uid), this.launchServerPort);
+        preferencesService.getNewLogFile("game", uid), this.launchServerPort, isRated);
 
     return launch(getNativeGpgnet4taDir(), gpgnet4taCommand);
   }

@@ -26,6 +26,8 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.faforever.client.game.GameService.DEFAULT_RATING_TYPE;
+
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class TeamCardController implements Controller<Node> {
@@ -59,14 +61,17 @@ public class TeamCardController implements Controller<Node> {
           .collect(Collectors.toList());
 
       TeamCardController teamCardController = uiService.loadFxml("theme/team_card.fxml");
-      teamCardController.setPlayersInTeam(entry.getKey(), players,
-          player -> RatingUtil.getLeaderboardRating(player, ratingType), null, RatingPrecision.ROUNDED);
+      teamCardController.setPlayersInTeam(
+          entry.getKey(), players, player -> RatingUtil.getLeaderboardRating(player, ratingType), null,
+          RatingPrecision.ROUNDED, DEFAULT_RATING_TYPE.equals(ratingType));
       teamsPane.getChildren().add(teamCardController.getRoot());
     }
   }
 
-  public void setPlayersInTeam(String team, List<Player> playerList, Function<Player, Integer> ratingProvider, Function<Player, Faction> playerFactionProvider, RatingPrecision ratingPrecision) {
-    int totalRating = 0;
+  public void setPlayersInTeam(
+      String team, List<Player> playerList, Function<Player, Integer> ratingProvider, Function<Player,
+      Faction> playerFactionProvider, RatingPrecision ratingPrecision, Boolean hidePlayerRatings) {
+    Integer totalRating = 0;
     for (Player player : playerList) {
       // If the server wasn't bugged, this would never be the case.
       if (player == null) {
@@ -85,7 +90,7 @@ public class TeamCardController implements Controller<Node> {
       if (playerFactionProvider != null) {
         faction = playerFactionProvider.apply(player);
       }
-      playerCardTooltipController.setPlayer(player, playerRating, faction);
+      playerCardTooltipController.setPlayer(player, hidePlayerRatings ? null : playerRating, faction);
 
       RatingChangeLabelController ratingChangeLabelController = uiService.loadFxml("theme/rating_change_label.fxml");
       ratingChangeControllersByPlayerId.put(player.getId(), ratingChangeLabelController);
@@ -98,6 +103,8 @@ public class TeamCardController implements Controller<Node> {
       teamTitle = i18n.get("game.tooltip.teamTitleNoTeam");
     } else if ("-1".equals(team)) {
       teamTitle = i18n.get("game.tooltip.observers");
+    } else if (hidePlayerRatings){
+      teamTitle = i18n.get("replay.team", Integer.valueOf(team) - 1);
     } else {
       teamTitle = i18n.get("game.tooltip.teamTitle", Integer.valueOf(team) - 1, totalRating);
     }

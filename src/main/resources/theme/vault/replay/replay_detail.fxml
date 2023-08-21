@@ -85,18 +85,18 @@
                                        <Region styleClass="icon, icon-trophy"/>
                                    </graphic>
                                </Label>
-                               <Label fx:id="ratingLabel" graphicTextGap="10.0" text="&lt;AvgRating&gt;"
-                                      GridPane.columnIndex="3" GridPane.rowIndex="3">
-                                 <graphic>
-                                     <Region styleClass="icon,statistics-icon"/>
-                                 </graphic>
-                              </Label>
                                <Label fx:id="qualityLabel" graphicTextGap="10.0" text="&lt;Quality&gt;"
-                                      GridPane.columnIndex="4" GridPane.rowIndex="3">
+                                      GridPane.columnIndex="3" GridPane.rowIndex="3">
                                  <graphic>
                                      <Region styleClass="icon,balance-icon"/>
                                  </graphic>
                               </Label>
+                               <Label fx:id="ratingLabel" graphicTextGap="10.0" text="&lt;AvgRating&gt;"
+                                      GridPane.columnIndex="4" GridPane.rowIndex="3">
+                                   <graphic>
+                                       <Region styleClass="icon,statistics-icon"/>
+                                   </graphic>
+                               </Label>
                                <HBox spacing="10"
                                      GridPane.fillWidth="false"
                                      GridPane.halignment="RIGHT" GridPane.columnSpan="2147483647"

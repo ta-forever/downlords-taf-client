@@ -900,8 +900,10 @@ public class GameService implements InitializingBean {
           String demoCompilerUrl = String.format("%s:%s/%s",
               clientProperties.getReplay().getRemoteHost(), clientProperties.getReplay().getCompilerPort(), uid);
 
+          boolean isRated = !DEFAULT_RATING_TYPE.equals(gameLaunchMessage.getRatingType());
+
           process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, uid, args,
-              adapterPort, getCurrentPlayer(), demoCompilerUrl, ircUrl, autoLaunch));
+              adapterPort, getCurrentPlayer(), demoCompilerUrl, ircUrl, autoLaunch, isRated));
           setRunningGameUid(uid);
           currentGameStatusProperty.set(GameStatus.SPAWNING);
           spawnGameTerminationListener(process, uid,  modTechnical, null);

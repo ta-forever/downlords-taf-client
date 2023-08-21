@@ -72,14 +72,14 @@
                 <Region styleClass="icon, duration-icon"/>
             </graphic>
         </Label>
-        <Label fx:id="ratingLabel" graphicTextGap="10.0" layoutX="134.0" layoutY="68.0" text="&lt;AvgRating&gt;">
-            <graphic>
-                <Region styleClass="icon, statistics-icon"/>
-            </graphic>
-        </Label>
         <Label fx:id="qualityLabel" graphicTextGap="10.0" text="&lt;Quality&gt;">
             <graphic>
                 <Region styleClass="icon, balance-icon"/>
+            </graphic>
+        </Label>
+        <Label fx:id="ratingLabel" graphicTextGap="10.0" layoutX="134.0" layoutY="68.0" text="&lt;AvgRating&gt;">
+            <graphic>
+                <Region styleClass="icon, statistics-icon"/>
             </graphic>
         </Label>
     </HBox>

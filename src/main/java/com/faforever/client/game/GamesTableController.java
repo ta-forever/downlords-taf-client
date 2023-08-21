@@ -15,6 +15,7 @@ import com.faforever.client.remote.domain.RatingRange;
 import com.faforever.client.theme.UiService;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
@@ -147,7 +148,10 @@ public class GamesTableController implements Controller<Node> {
     coopMissionName.setVisible(coopMissionNameProvider != null);
 
     if (averageRatingColumn != null) {
-      averageRatingColumn.setCellValueFactory(param -> param.getValue().averageRatingProperty());
+      averageRatingColumn.setCellValueFactory(param -> Bindings.createDoubleBinding(() -> {
+        boolean isDefaultRatingType = DEFAULT_RATING_TYPE.equals(param.getValue().getRatingType());
+        return isDefaultRatingType ? 0.0 : param.getValue().getAverageRating();
+        }, param.getValue().ratingTypeProperty(), param.getValue().averageRatingProperty()));
       averageRatingColumn.setCellFactory(param -> new DecimalCell<>(
           new DecimalFormat("0"),
           number -> Math.round(number.doubleValue() / 100.0) * 100.0)

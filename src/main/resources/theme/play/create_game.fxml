@@ -42,7 +42,6 @@
 
         <VBox GridPane.columnIndex="0" GridPane.rowIndex="1" spacing="2.0">
             <PasswordField fx:id="passwordTextField" promptText="%game.create.password" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
-            <CheckBox fx:id="onlyForFriendsCheckBox" mnemonicParsing="false" text="%game.create.onlyFriends" />
         </VBox>
 
         <HBox GridPane.columnIndex="1" GridPane.rowIndex="1" alignment="TOP_CENTER" spacing="10.0">
@@ -55,7 +54,11 @@
             </padding>
         </HBox>
 
-        <VBox  GridPane.columnIndex="2" GridPane.columnSpan="2147483647" GridPane.rowIndex="1" spacing="2.0">
+        <VBox GridPane.columnIndex="2" GridPane.rowIndex="1" spacing="2.0">
+            <CheckBox fx:id="onlyForFriendsCheckBox" mnemonicParsing="false" text="%game.create.onlyFriends" />
+        </VBox>
+
+        <VBox visible="false" managed="false" GridPane.columnIndex="2" GridPane.columnSpan="2147483647" GridPane.rowIndex="1" spacing="2.0">
             <HBox alignment="CENTER_RIGHT" maxWidth="1.7976931348623157E308" spacing="10.0">
                 <children>
                     <Label alignment="CENTER_RIGHT" text="%game.create.rating" />

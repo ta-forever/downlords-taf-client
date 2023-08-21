@@ -29,7 +29,6 @@
         </Label>
         <TextField fx:id="searchTextField" maxWidth="1.7976931348623157E308"
                    promptText="%ladder.searchPrompt" HBox.hgrow="ALWAYS"/>
-        <CheckComboBox fx:id="leaderboardsSelectionFilterCheckComboBox"/>
     </HBox>
     <VBox fx:id="contentPane" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" spacing="10.0"
           VBox.vgrow="ALWAYS" visible="false">

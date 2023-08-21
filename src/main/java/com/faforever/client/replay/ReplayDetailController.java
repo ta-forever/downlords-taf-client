@@ -69,6 +69,8 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.faforever.client.game.GameService.DEFAULT_RATING_TYPE;
+
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @Slf4j
@@ -251,9 +253,12 @@ public class ReplayDetailController implements Controller<Node> {
         .flatMap(playerStats -> Optional.ofNullable(playerStats.getLeaderboard()))
         .ifPresent(leaderboard -> {
           ratingTypeLabel.setText(i18n.get(leaderboard.getNameKey()));
-          ratingTypeLabel.setVisible(!"global".equals(leaderboard.getTechnicalName()));
+          ratingTypeLabel.setVisible(!DEFAULT_RATING_TYPE.equals(leaderboard.getTechnicalName()));
         });
-    
+
+    ratingLabel.visibleProperty().bind(ratingTypeLabel.visibleProperty());
+    ratingLabel.managedProperty().bind(ratingLabel.visibleProperty());
+
     if (replay.getReplayFile() == null) {
       if (replay.getReplayAvailable()) {
         replayService.getSize(replay.getId())
@@ -384,9 +389,14 @@ public class ReplayDetailController implements Controller<Node> {
 
       Function<Player, Faction> playerFactionFunction = player -> getPlayerFaction(player, statsByPlayerId);
 
+      Boolean hidePlayerRatings = statsByPlayerId.values().stream()
+          .map(stats -> stats.getLeaderboard())
+          .map(lb -> lb != null ? lb.getTechnicalName() : null)
+          .anyMatch(lbn -> lbn == null || DEFAULT_RATING_TYPE.equals(lbn));
       playerService.getPlayersByIds(playerIds)
           .thenAccept(players ->
-              controller.setPlayersInTeam(team, players, playerRatingFunction, playerFactionFunction, RatingPrecision.EXACT)
+              controller.setPlayersInTeam(team, players, playerRatingFunction, playerFactionFunction, RatingPrecision.EXACT,
+                  hidePlayerRatings)
           );
 
       teamsContainer.getChildren().add(controller.getRoot());
