@@ -94,22 +94,6 @@ public class GamesTableControllerTest extends AbstractPlainJavaFxTest {
   }
 
   @Test
-  public void testModdedGameColumnIsHidden() throws Exception {
-    preferences.setShowModdedGames(false);
-    JavaFxUtil.runLater(() -> {
-      instance.initializeGameTable(FXCollections.observableArrayList(
-          GameBuilder.create().defaultValues().get(),
-          GameBuilder.create().defaultValues().status(GameStatus.ENDED).password("ABC").get()
-      ));
-    });
-    WaitForAsyncUtils.waitForFxEvents();
-    assertFalse(instance.modsColumn.isVisible());
-    preferences.setShowModdedGames(true);
-    WaitForAsyncUtils.waitForFxEvents();
-    assertTrue(instance.modsColumn.isVisible());
-  }
-
-  @Test
   public void testPrivateGameColumnIsShownWithCoop() throws Exception {
     preferences.setShowPasswordProtectedGames(false);
     JavaFxUtil.runLater(() -> {
@@ -120,19 +104,6 @@ public class GamesTableControllerTest extends AbstractPlainJavaFxTest {
     });
     WaitForAsyncUtils.waitForFxEvents();
     assertTrue(instance.passwordProtectionColumn.isVisible());
-  }
-
-  @Test
-  public void testModdedGameColumnIsShownWithCoop() throws Exception {
-    preferences.setShowModdedGames(false);
-    JavaFxUtil.runLater(() -> {
-      instance.initializeGameTable(FXCollections.observableArrayList(
-          GameBuilder.create().defaultValues().get(),
-          GameBuilder.create().defaultValues().status(GameStatus.CLOSED).password("ABC").get()
-      ), string -> string, false);
-    });
-    WaitForAsyncUtils.waitForFxEvents();
-    assertTrue(instance.modsColumn.isVisible());
   }
 
   @Test

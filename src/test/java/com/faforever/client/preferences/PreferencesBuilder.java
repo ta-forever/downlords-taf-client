@@ -55,11 +55,6 @@ public class PreferencesBuilder {
     return this;
   }
 
-  public PreferencesBuilder showModdedGames(boolean showModdedGames) {
-    preferences.setShowModdedGames(showModdedGames);
-    return this;
-  }
-
   public PreferencesBuilder ignoredNotifications(List<String> ignoredNotifications) {
     preferences.setIgnoredNotifications(FXCollections.observableList(ignoredNotifications));
     return this;

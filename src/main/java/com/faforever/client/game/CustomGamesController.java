@@ -6,16 +6,12 @@ import com.faforever.client.game.GamesTilesContainerController.TilesSortingOrder
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.HostGameEvent;
 import com.faforever.client.main.event.NavigateEvent;
-import com.faforever.client.mod.ModService;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.dialog.Dialog;
-import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ObservableList;
@@ -27,7 +23,6 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.util.StringConverter;
@@ -37,9 +32,6 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import java.nio.file.Path;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -56,13 +48,11 @@ public class CustomGamesController extends AbstractViewController<Node> {
   private final UiService uiService;
   private final GameService gameService;
   private final PreferencesService preferencesService;
-  private final ModService modService;
   private final EventBus eventBus;
   private final I18n i18n;
 
   private GamesTableController gamesTableController;
 
-  public GridPane gamesGridPane;
   public ToggleButton tableButton;
   public ToggleButton tilesButton;
   public ToggleGroup viewToggleGroup;
@@ -75,7 +65,6 @@ public class CustomGamesController extends AbstractViewController<Node> {
   @VisibleForTesting
   FilteredList<Game> filteredItems;
 
-  public CheckBox showModdedGamesCheckBox;
   public CheckBox showPasswordProtectedGamesCheckBox;
   private final ChangeListener<Boolean> filterConditionsChangedListener = (observable, oldValue, newValue) -> updateFilteredItems();
   private GamesTilesContainerController gamesTilesContainerController;
@@ -93,12 +82,11 @@ public class CustomGamesController extends AbstractViewController<Node> {
     return (CustomGamesController) controller;
   }
 
-  public CustomGamesController(UiService uiService, GameService gameService, PreferencesService preferencesService, ModService modService,
+  public CustomGamesController(UiService uiService, GameService gameService, PreferencesService preferencesService,
                                EventBus eventBus, I18n i18n) {
     this.uiService = uiService;
     this.gameService = gameService;
     this.preferencesService = preferencesService;
-    this.modService = modService;
     this.eventBus = eventBus;
     this.i18n = i18n;
   }
@@ -107,7 +95,6 @@ public class CustomGamesController extends AbstractViewController<Node> {
     this.createGameDialogRoot = root;
   }
 
-  static private final IntegerProperty nullIntegerProperty = new SimpleIntegerProperty();
   public void initialize() {
     this.createGameDialogRoot = this.gamesRoot;
     gameService.runningGameUidProperty().addListener((obs,oldValue,newValue) -> JavaFxUtil.runLater(() ->
@@ -134,14 +121,12 @@ public class CustomGamesController extends AbstractViewController<Node> {
       }
     });
 
-    JavaFxUtil.bindBidirectional(showModdedGamesCheckBox.selectedProperty(), preferencesService.getPreferences().showModdedGamesProperty());
     JavaFxUtil.bindBidirectional(showPasswordProtectedGamesCheckBox.selectedProperty(), preferencesService.getPreferences().showPasswordProtectedGamesProperty());
 
     ObservableList<Game> games = gameService.getGames();
     filteredItems = new FilteredList<>(games, getGamePredicate());
     updateFilteredItems();
 
-    JavaFxUtil.addListener(preferencesService.getPreferences().showModdedGamesProperty(), new WeakChangeListener<>(filterConditionsChangedListener));
     JavaFxUtil.addListener(preferencesService.getPreferences().showPasswordProtectedGamesProperty(), new WeakChangeListener<>(filterConditionsChangedListener));
 
     if (tilesButton.getId().equals(preferencesService.getPreferences().getGamesViewMode())) {
@@ -193,11 +178,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
 
   private Predicate<Game> getGamePredicate() {
     boolean showPasswordProtectedGames = showPasswordProtectedGamesCheckBox.isSelected();
-    boolean showModdedGames = showModdedGamesCheckBox.isSelected();
-
-    return (CUSTOM_GAMES_PREDICATE.and(gameInfoBean ->
-        (showPasswordProtectedGames || !gameInfoBean.isPasswordProtected())
-            && (showModdedGames || gameInfoBean.getSimMods().isEmpty())));
+    return CUSTOM_GAMES_PREDICATE.and(gameInfoBean -> (showPasswordProtectedGames || !gameInfoBean.isPasswordProtected()));
   }
 
   public void onCreateGameButtonClicked() {

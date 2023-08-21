@@ -47,7 +47,6 @@ public class Preferences {
   private final StringProperty themeName;
   private final BooleanProperty preReleaseCheckEnabled;
   private final BooleanProperty showPasswordProtectedGames;
-  private final BooleanProperty showModdedGames;
   // TA options @todo they need to be in TotalAnnilationPreferences()
   private final BooleanProperty forceRelayEnabled;
   private final BooleanProperty proactiveResendEnabled;
@@ -109,7 +108,6 @@ public class Preferences {
     unitDataBaseType = new SimpleObjectProperty<>(UnitDataBaseType.SPOOKY);
     storedCookies = new SimpleMapProperty<>(FXCollections.observableHashMap());
     showPasswordProtectedGames = new SimpleBooleanProperty(true);
-    showModdedGames = new SimpleBooleanProperty(true);
     forceRelayEnabled = new SimpleBooleanProperty(false);
     proactiveResendEnabled = new SimpleBooleanProperty(false);
     maxPacketSizeOption = new SimpleObjectProperty<>(MaxPacketSizeOption.NORMAL);
@@ -159,10 +157,6 @@ public class Preferences {
 
   public BooleanProperty showPasswordProtectedGamesProperty() {
     return showPasswordProtectedGames;
-  }
-
-  public BooleanProperty showModdedGamesProperty() {
-    return showModdedGames;
   }
 
   public String getGamesViewMode() {
@@ -439,14 +433,6 @@ public class Preferences {
 
   public void setShowPasswordProtectedGames(boolean showPasswordProtectedGames) {
     this.showPasswordProtectedGames.set(showPasswordProtectedGames);
-  }
-
-  public boolean isShowModdedGames() {
-    return showModdedGames.get();
-  }
-
-  public void setShowModdedGames(boolean showModdedGames) {
-    this.showModdedGames.set(showModdedGames);
   }
 
   public GeneratorPrefs getGenerator() {
