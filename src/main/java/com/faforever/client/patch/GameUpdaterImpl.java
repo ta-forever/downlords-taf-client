@@ -72,14 +72,10 @@ public class GameUpdaterImpl implements GameUpdater {
   private CompletableFuture<String> updateFeaturedMod(FeaturedMod featuredMod, String version) {
     for (FeaturedModUpdater featuredModUpdater : featuredModUpdaters) {
       if (featuredModUpdater.canUpdate(featuredMod)) {
-        mapService.addInstalledMapsUpdateLock();
+        mapService.addInstalledMapsUpdateDeferal();
         return featuredModUpdater.updateMod(featuredMod, version)
             .thenApply(modVersionKey -> {
-              mapService.releaseInstalledMapsUpdateLock();
-              if (modVersionKey != null) {
-                // null indicates no action was taken
-                mapService.loadInstalledMaps(featuredMod.getTechnicalName());
-              }
+              mapService.releaseInstalledMapsUpdateDeferal();
               return modVersionKey;
             });
       }

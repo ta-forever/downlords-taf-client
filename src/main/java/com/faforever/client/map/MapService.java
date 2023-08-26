@@ -80,7 +80,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -307,26 +306,37 @@ public class MapService implements InitializingBean, DisposableBean {
       // TODO notify user
     }
 
-    loadInstalledMaps(installation);
+    loadInstalledMaps(installation, false);
   }
 
-  private final Object lockInstalledMapsUpdateMutex = new Object();
-  private Integer lockInstalledMapsUpdate = 0;
-  public void addInstalledMapsUpdateLock() {
-      synchronized(lockInstalledMapsUpdateMutex) {
-        lockInstalledMapsUpdate += 1;
+  private final Object deferInstalledMapsUpdateMutex = new Object();
+  private Integer deferInstalledMapsUpdate = 0;
+  public void addInstalledMapsUpdateDeferal() {
+      synchronized(deferInstalledMapsUpdateMutex) {
+        deferInstalledMapsUpdate += 1;
       }
   }
 
-  public void releaseInstalledMapsUpdateLock() {
-    synchronized(lockInstalledMapsUpdateMutex) {
-      lockInstalledMapsUpdate = Math.max(0, lockInstalledMapsUpdate - 1);
+  public void releaseInstalledMapsUpdateDeferal() {
+    synchronized(deferInstalledMapsUpdateMutex) {
+      deferInstalledMapsUpdate = Math.max(0, deferInstalledMapsUpdate - 1);
+    }
+
+    if (deferInstalledMapsUpdate == 0) {
+      for (Installation installation: installations.values()) {
+        synchronized(installation) {
+          if (installation.enumerationsRequested > 0) {
+            installation.enumerationsRequested = 1; // there may have been multiple load requests while deferred
+            loadInstalledMaps(installation, true);
+          }
+        }
+      }
     }
   }
 
-  private boolean isInstalledMapsUpdateLocked() {
-    synchronized(lockInstalledMapsUpdateMutex) {
-      return lockInstalledMapsUpdate > 0;
+  private boolean isInstalledMapsUpdateDeferred() {
+    synchronized(deferInstalledMapsUpdateMutex) {
+      return deferInstalledMapsUpdate > 0;
     }
   }
 
@@ -341,7 +351,7 @@ public class MapService implements InitializingBean, DisposableBean {
           List<WatchEvent<?>> events = key.pollEvents();
           if (events.stream()
               .anyMatch(event -> matcher.matches((Path)event.context()) )) {
-            Platform.runLater(() -> { if (!isInstalledMapsUpdateLocked()) loadInstalledMaps(installation); });
+            Platform.runLater(() -> loadInstalledMaps(installation, false) );
           }
           key.reset();
         }
@@ -369,15 +379,21 @@ public class MapService implements InitializingBean, DisposableBean {
 
   public void loadInstalledMaps(String modTechnical) {
     Installation installation = getInstallation(modTechnical);
-    loadInstalledMaps(installation);
+    loadInstalledMaps(installation, false);
   }
 
-  private void loadInstalledMaps(Installation installation) {
-    synchronized(installation) {
-      ++installation.enumerationsRequested;
-      if (installation.enumerationsRequested > 1) {
-        return;
+  private void loadInstalledMaps(Installation installation, boolean ignoreEnumerationsRequestedCount) {
+    if (!ignoreEnumerationsRequestedCount) {
+      synchronized (installation) {
+        ++installation.enumerationsRequested;
+        if (installation.enumerationsRequested > 1) {
+          return;
+        }
       }
+    }
+
+    if (isInstalledMapsUpdateDeferred()) {
+      return;
     }
 
     taskService.submitTask(new CompletableTask<Void>(Priority.LOW) {
@@ -708,7 +724,7 @@ public class MapService implements InitializingBean, DisposableBean {
       downloadList.add(HPI_ARCHIVE_TA_FEATURES_2013);
     }
 
-    addInstalledMapsUpdateLock();
+    addInstalledMapsUpdateDeferal();
 
     // make a copy of this list before we do anything to the installation
     HashMap<String, MapBean> alreadyInstalledForModAllMaps = new HashMap<>(getInstallation(modTechnicalName).mapsByName);
@@ -759,7 +775,7 @@ public class MapService implements InitializingBean, DisposableBean {
     }
 
     if (downloadList.isEmpty()) {
-      releaseInstalledMapsUpdateLock();
+      releaseInstalledMapsUpdateDeferal();
       return CompletableFuture.completedFuture(null);
     }
 
@@ -770,7 +786,7 @@ public class MapService implements InitializingBean, DisposableBean {
 
     if (downloadList.isEmpty()) {
       logger.info("[ensureMap] Dude, hold up! {} is already downloading", downloadHpiArchiveName);
-      releaseInstalledMapsUpdateLock();
+      releaseInstalledMapsUpdateDeferal();
       return CompletableFuture.completedFuture(null);
     }
 
@@ -796,7 +812,7 @@ public class MapService implements InitializingBean, DisposableBean {
     }
 
     return future
-        .thenRun(this::releaseInstalledMapsUpdateLock);
+        .thenRun(this::releaseInstalledMapsUpdateDeferal);
   }
 
   public CompletableFuture<MapBean> optionalEnsureMapLatestVersion(String modTechnical, MapBean map) {
