@@ -20,11 +20,11 @@ import org.springframework.stereotype.Component;
 public class TaskBarFlashTask extends CompletableTask<Void> {
 
   ChangeListener<Boolean> onFocusedListener;
-  Integer semaphore;
+  Object semaphore;
 
   TaskBarFlashTask() {
     super(Priority.LOW);
-    semaphore = 0;
+    semaphore = new Object();
     onFocusedListener = (obs, oldValue, newValue) -> {
       if (newValue) {
         synchronized(semaphore) {
