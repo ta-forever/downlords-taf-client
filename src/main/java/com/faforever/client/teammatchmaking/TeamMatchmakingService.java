@@ -369,7 +369,7 @@ public class TeamMatchmakingService {
 
       PartyMember newPartyMember = new PartyMember(currentPlayer);
       party.getMembers().stream()
-          .filter(partyMember -> partyMember.getPlayer().equals(currentPlayer))
+          .filter(partyMember -> partyMember.getPlayer() != null && partyMember.getPlayer().equals(currentPlayer))
           .findFirst().
           ifPresent(partyMember -> {
             newPartyMember.setFactions(partyMember.getFactions());
