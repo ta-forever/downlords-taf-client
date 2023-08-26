@@ -10,7 +10,6 @@ import com.faforever.client.fa.relay.HostGameMessage;
 import com.faforever.client.fa.relay.JoinGameMessage;
 import com.faforever.client.fa.relay.LobbyMode;
 import com.faforever.client.fa.relay.event.GameFullEvent;
-import com.faforever.client.fa.relay.event.RehostRequestEvent;
 import com.faforever.client.fa.relay.ice.event.GpgGameMessageEvent;
 import com.faforever.client.fa.relay.ice.event.IceAdapterStateChanged;
 import com.faforever.client.game.KnownFeaturedMod;
@@ -61,8 +60,8 @@ import static java.util.Arrays.asList;
 @RequiredArgsConstructor
 public class IceAdapterImpl implements IceAdapter, InitializingBean, DisposableBean {
 
-  private static final int CONNECTION_ATTEMPTS = 50;
-  private static final int CONNECTION_ATTEMPT_DELAY_MILLIS = 100;
+  private static final int CONNECTION_ATTEMPTS = 100;
+  private static final int CONNECTION_ATTEMPT_DELAY_MILLIS = 200;
 
   private static final Logger advancedLogger = LoggerFactory.getLogger("faf-ice-adapter-advanced");
 
@@ -176,7 +175,7 @@ public class IceAdapterImpl implements IceAdapter, InitializingBean, DisposableB
 
       if (preferencesService.getPreferences().getForceRelayEnabled()) {
         cmd.add("--force-relay");
-        log.warn("Forcing ice adapter relay connection");
+        log.warn("[start] Forcing ice adapter relay connection");
       }
 
       if (clientProperties.isShowIceAdapterDebugWindow()) {
@@ -190,7 +189,7 @@ public class IceAdapterImpl implements IceAdapter, InitializingBean, DisposableB
         processBuilder.command(cmd);
         processBuilder.environment().put("LOG_DIR", preferencesService.getIceAdapterLogDirectory().toAbsolutePath().toString());
 
-        log.info("Starting ICE adapter with command: {}", cmd);
+        log.info("[start] Starting ICE adapter with command: {}", cmd);
         boolean advancedIceLogEnabled = preferencesService.getPreferences().isAdvancedIceLogEnabled();
         if (advancedIceLogEnabled) {
           advancedLogger.info("\n\n");
@@ -209,33 +208,41 @@ public class IceAdapterImpl implements IceAdapter, InitializingBean, DisposableB
 
         IceAdapterCallbacks iceAdapterCallbacks = applicationContext.getBean(IceAdapterCallbacks.class);
 
-        for (int attempt = 0; attempt < CONNECTION_ATTEMPTS; attempt++) {
+        int attempt;
+        for (attempt = 0; attempt < CONNECTION_ATTEMPTS; attempt++) {
           try {
             TcpClient tcpClient = new TcpClient("localhost", adapterPort, iceAdapterCallbacks);
             peer = tcpClient.getPeer();
+            log.info("[start] Connected to ICE adapter OK after {} attempts", attempt+1);
 
             setIceServers();
             setLobbyInitMode();
             break;
           } catch (ConnectException e) {
-            log.debug("Could not connect to ICE adapter (attempt {}/{})", attempt + 1, CONNECTION_ATTEMPTS);
+            log.debug("[start] Could not connect to ICE adapter (attempt {}/{})", attempt + 1, CONNECTION_ATTEMPTS);
           }
 
           // Wait as the socket fails too fast on unix/linux not giving the adapter enough time to start
           try {
             Thread.sleep(CONNECTION_ATTEMPT_DELAY_MILLIS);
           } catch (InterruptedException e) {
-            log.warn("Error while waiting for ice adapter", e);
+            log.warn("[start] Error while waiting for ice adapter", e);
           }
+        }
+        if (attempt == CONNECTION_ATTEMPTS) {
+          log.error("[start] Unable to connect to ICE adapter after {}*{} ms", attempt, CONNECTION_ATTEMPT_DELAY_MILLIS);
+          iceAdapterClientFuture.completeExceptionally(new ConnectException(
+              String.format("Unable to connect to ICE adapter after %d*%d ms", attempt, CONNECTION_ATTEMPT_DELAY_MILLIS)));
         }
 
         iceAdapterClientFuture.complete(gpgPort);
 
+        log.debug("[start] waiting for ICE adapter to terminate");
         int exitCode = process.waitFor();
         if (exitCode == 0) {
-          log.info("ICE adapter terminated normally");
+          log.info("[start] ICE adapter terminated normally");
         } else {
-          log.warn("ICE adapter terminated with exit code: {}", exitCode);
+          log.warn("[start] ICE adapter terminated with exit code: {}", exitCode);
         }
       } catch (Exception e) {
         iceAdapterClientFuture.completeExceptionally(e);

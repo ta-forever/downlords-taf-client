@@ -80,6 +80,7 @@ import org.springframework.stereotype.Service;
 import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
+import java.net.ConnectException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -910,7 +911,12 @@ public class GameService implements InitializingBean {
         })
         .exceptionally(throwable -> {
           log.warn("Game could not be started", throwable);
-          notificationService.addImmediateErrorNotification(throwable, "game.start.couldNotStart");
+          if (throwable.getCause() instanceof ConnectException) {
+            notificationService.addImmediateErrorNotification(throwable, "game.start.noConnectIce");
+          }
+          else {
+            notificationService.addImmediateErrorNotification(throwable, "game.start.couldNotStart");
+          }
           iceAdapter.stop();
           fafService.notifyGameEnded();
           this.killGame();
