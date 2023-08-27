@@ -72,19 +72,21 @@ public class MapCardController implements Controller<Node> {
     uninstallButton.managedProperty().bind(uninstallButton.visibleProperty());
     installStatusChangeListener = change -> {
       while (change.next()) {
+        for (MapBean unInstalledMapBean : change.getRemoved()) {
+          if (map.getMapName().equals(unInstalledMapBean.getMapName())) {
+            setInstalled(false);
+            return;
+          }
+        }
         for (MapBean installedMapBean : change.getAddedSubList()) {
           if (map.getMapName().equals(installedMapBean.getMapName())) {
             // it's potentially expensive to get the crc for the installed maps
             // so we only query the crc for installed maps if vault is actually being displayed
-            if (getRoot().isVisible() && map.getCrc().equals(installedMapBean.getCrc())) {
-              setInstalled(true);
+            if (getRoot().isVisible()) {
+                String modTechnical = preferencesService.getPreferences().getLastGame().getLastGameType();
+                mapService.isInstalled(modTechnical, map.getMapName(), map.getCrcValue()).thenAccept(
+                    isInstalled -> JavaFxUtil.runLater(() -> setInstalled(isInstalled)));
             }
-            return;
-          }
-        }
-        for (MapBean unInstalledMapBean : change.getRemoved()) {
-          if (map.getMapName().equals(unInstalledMapBean.getMapName())) {
-            setInstalled(false);
             return;
           }
         }
@@ -94,14 +96,9 @@ public class MapCardController implements Controller<Node> {
     // here we query the map's crc when we transition to displayed
     getRoot().visibleProperty().addListener((obs, oldValue, newValue) -> {
       if (newValue) {
-        taskService.submitTask(new CompletableTask<Void>(Priority.LOW) {
-          protected Void call() {
-            String modTechnical = preferencesService.getPreferences().getLastGame().getLastGameType();
-            boolean isInstalled = mapService.isInstalled(modTechnical, map.getMapName(), map.getCrc());
-            JavaFxUtil.runLater(() -> setInstalled(isInstalled));
-            return null;
-          }
-        });
+        String modTechnical = preferencesService.getPreferences().getLastGame().getLastGameType();
+        mapService.isInstalled(modTechnical, map.getMapName(), map.getCrcValue()).thenAccept(
+            isInstalled -> JavaFxUtil.runLater(() -> setInstalled(isInstalled)));
       }
     });
   }
@@ -128,27 +125,20 @@ public class MapCardController implements Controller<Node> {
     JavaFxUtil.addListener(reviews, new WeakInvalidationListener(reviewsChangedListener));
     reviewsChangedListener.invalidated(reviews);
 
-    taskService.submitTask(new CompletableTask<Void>(Priority.LOW) {
-      protected Void call() {
-        String crc = map.getCrc();
-        JavaFxUtil.runLater(() -> {
-          mapVersionLabel.setText(String.format("v%s / CRC32 %s",
-              map.getVersion() != null ? map.getVersion().toString() : "?",
-              crc != null ? crc : "????????"));
-          mapVersionLabel.setVisible(map.getVersion() != null || crc != null);
+    mapVersionLabel.setText(String.format("v%s / CRC32 %s",
+        map.getVersion() != null ? map.getVersion().toString() : "?",
+        map.getCrcValue() != null ? map.getCrcValue() : "????????"));
+    mapVersionLabel.setVisible(map.getVersion() != null || map.getCrcValue() != null);
 
-          if (mapService.isOfficialMap(map.getMapName())) {
-            installButton.setVisible(false);
-            uninstallButton.setVisible(false);
-          } else {
-            ObservableList<MapBean> installedMaps = mapService.getInstalledMaps(modTechnical);
-            JavaFxUtil.addListener(installedMaps, new WeakListChangeListener<>(installStatusChangeListener));
-            setInstalled(mapService.isInstalled(modTechnical, map.getMapName(), crc));
-          }
-        });
-        return null;
-      }
-    });
+    if (mapService.isOfficialMap(map.getMapName())) {
+      installButton.setVisible(false);
+      uninstallButton.setVisible(false);
+    } else {
+      ObservableList<MapBean> installedMaps = mapService.getInstalledMaps(modTechnical);
+      JavaFxUtil.addListener(installedMaps, new WeakListChangeListener<>(installStatusChangeListener));
+      mapService.isInstalled(modTechnical, map.getMapName(), map.getCrcValue()).thenAccept(
+          isInstalled -> JavaFxUtil.runLater(() -> setInstalled(isInstalled)));
+    }
   }
 
   private void populateReviews() {
@@ -171,7 +161,7 @@ public class MapCardController implements Controller<Node> {
   }
 
   public void onUninstallButtonClicked() {
-    mapService.uninstallMap(preferencesService.getPreferences().getLastGame().getLastGameType(), map.getMapName(), map.getCrc())
+    mapService.uninstallMap(preferencesService.getPreferences().getLastGame().getLastGameType(), map.getMapName(), map.getCrcValue())
         .thenRun(() -> setInstalled(false))
         .exceptionally(throwable -> {
           log.error("Could not delete map", throwable);

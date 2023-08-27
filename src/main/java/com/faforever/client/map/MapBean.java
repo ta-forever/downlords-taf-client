@@ -1,6 +1,10 @@
 package com.faforever.client.map;
 
 import com.faforever.client.api.dto.MapVersion;
+import com.faforever.client.task.CompletableTask;
+import com.faforever.client.task.CompletableTask.Priority;
+import com.faforever.client.task.PrioritizedCompletableTask;
+import com.faforever.client.task.TaskService;
 import com.faforever.client.vault.review.Review;
 import com.faforever.client.vault.review.ReviewsSummary;
 import javafx.beans.Observable;
@@ -25,6 +29,8 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
 public class MapBean implements Comparable<MapBean> {
@@ -37,7 +43,9 @@ public class MapBean implements Comparable<MapBean> {
   private final IntegerProperty players;
   private final ObjectProperty<MapSize> size;
   private final ObjectProperty<ComparableVersion> version;
-  private final StringProperty crc;
+  private CompletableFuture<String> crcFuture;
+  private Function<Void,String> getInstalledMapCrc;
+  private TaskService taskService;
   private final StringProperty id;
   private final StringProperty author;
   private final BooleanProperty hidden;
@@ -48,13 +56,14 @@ public class MapBean implements Comparable<MapBean> {
   private final ObjectProperty<Type> type;
   private final ObjectProperty<ReviewsSummary> reviewsSummary;
   private final ListProperty<Review> reviews;
-  private Optional<Function<Void,String>> lazyCrcGetter;
 
   public MapBean() {
     id = new SimpleStringProperty();
     mapName = new SimpleStringProperty();
     hpiArchiveName = new SimpleStringProperty();
-    crc = new SimpleStringProperty();
+    crcFuture = null;
+    getInstalledMapCrc = null;
+    taskService = null;
     description = new SimpleStringProperty();
     numberOfPlays = new SimpleIntegerProperty(0);
     downloads = new SimpleIntegerProperty();
@@ -71,7 +80,6 @@ public class MapBean implements Comparable<MapBean> {
         -> new Observable[]{param.scoreProperty(), param.textProperty()}));
     hidden = new SimpleBooleanProperty();
     ranked = new SimpleBooleanProperty();
-    lazyCrcGetter = Optional.empty();
   }
 
   public static MapBean fromMapDto(com.faforever.client.api.dto.Map map) {
@@ -82,7 +90,7 @@ public class MapBean implements Comparable<MapBean> {
     mapBean.setDescription(mapVersion.getDescription());
     mapBean.setMapName(map.getDisplayName());
     mapBean.setHpiArchiveName(mapVersion.getArchiveName());
-    mapBean.setCrc(mapVersion.getCrc());
+    mapBean.setCrcFuture(CompletableFuture.completedFuture(mapVersion.getCrc()));
     mapBean.setSize(MapSize.valueOf(mapVersion.getWidth(), mapVersion.getHeight()));
     mapBean.setDownloads(map.getStatistics().getDownloads());
     mapBean.setId(mapVersion.getId());
@@ -114,7 +122,7 @@ public class MapBean implements Comparable<MapBean> {
     mapBean.setDescription(mapVersion.getDescription());
     mapBean.setMapName(mapVersion.getMap().getDisplayName());
     mapBean.setHpiArchiveName(mapVersion.getArchiveName());
-    mapBean.setCrc(mapVersion.getCrc());
+    mapBean.setCrcFuture(CompletableFuture.completedFuture(mapVersion.getCrc()));
     mapBean.setSize(MapSize.valueOf(mapVersion.getWidth(), mapVersion.getHeight()));
     mapBean.setDownloads(mapVersion.getMap().getStatistics().getDownloads());
     mapBean.setId(mapVersion.getId());
@@ -241,15 +249,34 @@ public class MapBean implements Comparable<MapBean> {
     return version;
   }
 
-  public String getCrc() {
-    if ((crc.get() == null || crc.get().equals("00000000")) && this.lazyCrcGetter.isPresent()) {
-      crc.setValue(this.lazyCrcGetter.get().apply(null));
-    }
-    return crc.get();
+  public String getCrcValue() {
+    try {
+      if (getCrcFuture() != null) {
+        return getCrcFuture().get();
+      }
+    } catch (InterruptedException | ExecutionException ignored) { }
+    return "00000000";
   }
-  public void setCrc(String crc) { this.crc.set(crc); }
-  public void setLazyCrc(Function<Void,String> getter) { this.lazyCrcGetter = Optional.of(getter); }
-  public StringProperty crcProperty() { return crc; }
+
+  public CompletableFuture<String> getCrcFuture() {
+    if (crcFuture == null && taskService != null && getInstalledMapCrc != null) {
+      crcFuture = taskService.submitTask(new CompletableTask<String>(Priority.LOW) {
+        protected String call() {
+          return getInstalledMapCrc.apply(null);
+        }
+      }).getFuture();
+    }
+    return crcFuture;
+  }
+
+  public void setInstalledMapCrcGetter(TaskService taskService, Function<Void, String> getter) {
+    this.taskService = taskService;
+    this.getInstalledMapCrc = getter;
+  }
+
+  public void setCrcFuture(CompletableFuture<String> crcFuture) {
+    this.crcFuture = crcFuture;
+  }
 
   @Override
   public int compareTo(@NotNull MapBean o) {

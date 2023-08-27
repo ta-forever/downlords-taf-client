@@ -80,6 +80,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -87,6 +89,7 @@ import java.util.stream.Collectors;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_ARCHIVE;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_CRC;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_DESCRIPTION;
+import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_NAME;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_SIZE;
 import static com.faforever.client.util.LinkOrCopy.linkOrCopyWithBackup;
 import static com.github.nocatch.NoCatch.noCatch;
@@ -149,8 +152,8 @@ public class MapService implements InitializingBean, DisposableBean {
       maps.remove(mapsByName.remove(mapName));
     }
 
-    private void addMap(String mapName, String mapDetail[]) {
-      MapBean mapBean = readMap(mapName, mapDetail);
+    private void addMap(String mapName, String[] mapDetail, Function<Void, String> installedMapCrcGetter) {
+      MapBean mapBean = readMap(mapName, mapDetail, installedMapCrcGetter);
       addMap(mapBean);
     }
 
@@ -413,16 +416,16 @@ public class MapService implements InitializingBean, DisposableBean {
         List<MapBean> mapList = new ArrayList<>();
         try {
           for (String[] details : MapTool.listMapsInstalled(gamePath, preferencesService.getCacheDirectory().resolve("maps"), false)) {
-            MapBean mapBean = readMap(details[0], details);
-            mapBean.setLazyCrc((aVoid) -> {
+            Function<Void,String> getInstalledMapCrc = (aVoid) -> {
               try {
-                List<String[]> detailsWithCrc = MapTool.listMap(gamePath, mapBean.getMapName());
+                List<String[]> detailsWithCrc = MapTool.listMap(gamePath, details[MAP_DETAIL_COLUMN_NAME]);
                 return detailsWithCrc.get(0)[MAP_DETAIL_COLUMN_CRC];
               } catch (IOException e) {
                 notifyBadMapTool(e);
                 return "00000000";
               }
-            });
+            };
+            MapBean mapBean = readMap(details[0], details, getInstalledMapCrc);
             mapList.add(mapBean);
           }
         }
@@ -430,12 +433,11 @@ public class MapService implements InitializingBean, DisposableBean {
           notifyBadMapTool(e);
         }
         JavaFxUtil.runLater(() -> {
-              installation.maps.clear();
               installation.maps.setAll(mapList);
               if (installation.maps.isEmpty()) {
                 logger.warn("no maps found for mod={}. inserting OTA maps", installation.modTechnicalName);
                 for (String map : otaMaps) {
-                  installation.addMap(map, null);
+                  installation.addMap(map, null, null);
                 }
               }
             });
@@ -463,7 +465,7 @@ public class MapService implements InitializingBean, DisposableBean {
 
   static final Pattern MAP_SIZE_FROM_DESCRIPTION_REGEX = Pattern.compile("([0-9]+\\s?[xX]\\s?[0-9]+)[\\s\\.].*");
   @NotNull
-  public MapBean readMap(String mapName, String [] mapDetails) {
+  public MapBean readMap(String mapName, @Nullable String [] mapDetails, @Nullable Function<Void, String> getInstalledMapCrc) {
     MapBean mapBean = new MapBean();
 
     String archiveName = "unknown.ufo";
@@ -496,11 +498,20 @@ public class MapService implements InitializingBean, DisposableBean {
 
     mapBean.setDownloadUrl(getDownloadUrl(archiveName, mapDownloadUrlFormat));
     mapBean.setMapName(mapName);
-    mapBean.setCrc(crc);
     mapBean.setDescription(description.replaceAll("[ ][ ]+", "\n"));  // some maps insert spaces into description to move to new line when displayed in TA lobby
     mapBean.setHpiArchiveName(archiveName);
     mapBean.setPlayers(10);
     mapBean.setType(Type.SKIRMISH);
+
+    if (!"00000000".equals(crc)) {
+      mapBean.setCrcFuture(CompletableFuture.completedFuture(crc));
+    }
+    else if (getInstalledMapCrc != null) {
+      mapBean.setInstalledMapCrcGetter(this.taskService, getInstalledMapCrc);
+    }
+    else {
+      mapBean.setCrcFuture(CompletableFuture.completedFuture(crc));
+    }
 
     mapBean.setSize(MapSize.valueOf(0, 0));
     try {
@@ -524,7 +535,10 @@ public class MapService implements InitializingBean, DisposableBean {
 
   public ObservableList<MapBean> getOfficialMaps() {
     ObservableList<MapBean> maps = FXCollections.observableArrayList();
-    maps.add(readMap("SHERWOOD", new String[]{"SHERWOOD", "totala2.hpi", "ead82fc5", "TAF had trouble finding your maps so we just put this one in cos we know you probably have it", "7 x 7", "3"}));
+    maps.add(readMap(
+        "SHERWOOD",
+        new String[]{"SHERWOOD", "totala2.hpi", "ead82fc5", "TAF had trouble finding your maps so we just put this one in cos we know you probably have it", "7 x 7", "3"},
+        null));
     return maps;
   }
 
@@ -550,10 +564,26 @@ public class MapService implements InitializingBean, DisposableBean {
   /**
    * Returns {@code true} if the given map is available locally, {@code false} otherwise.
    */
-
-  public boolean isInstalled(String modTechnical, String mapName, String mapCrc) {
+  public CompletableFuture<Boolean> isInstalled(String modTechnical, String mapName, String mapCrc) {
     Installation installation = getInstallation(modTechnical);
-    return installation.mapsByName.containsKey(mapName) && installation.mapsByName.get(mapName).getCrc().equals(mapCrc);
+    if (!installation.mapsByName.containsKey(mapName)) {
+      return CompletableFuture.completedFuture(false);
+    }
+
+    MapBean installedMap = installation.mapsByName.get(mapName);
+    if (installedMap.getCrcFuture() == null) {
+      logger.warn("[isInstalled] Unable to retrieve CRC for installed map '{}'.  Assuming it matches {}", mapName, mapCrc);
+      return CompletableFuture.completedFuture(true);
+    }
+
+    return installation.mapsByName.get(mapName).getCrcFuture().
+        thenApply(installedMapCrc -> {
+          if (installedMapCrc == null || "00000000".equals(installedMapCrc)) {
+            logger.warn("[isInstalled] Retrieved null CRC for installed map '{}'.  Assuming it matches {}", mapName, mapCrc);
+            return true;
+          }
+          return installedMapCrc.equals(mapCrc);
+        });
   }
 
   public void removeConflictingArchives(String modTechnical, java.util.Map<String,MapBean> preExistingMaps, Path newArchive) {
@@ -655,7 +685,8 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   public CompletableFuture<MapBean> ensureMap(String modTechnicalName, MapBean map, @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
-    return ensureMap(modTechnicalName, map.getMapName(), map.getCrc(), map.getHpiArchiveName(), progressProperty, titleProperty);
+    return map.getCrcFuture().thenCompose(mapCrc ->
+        ensureMap(modTechnicalName, map.getMapName(), mapCrc, map.getHpiArchiveName(), progressProperty, titleProperty));
   }
 
   /// Set mapCrc to null to ensure the most recent version
@@ -671,8 +702,13 @@ public class MapService implements InitializingBean, DisposableBean {
       return CompletableFuture.completedFuture(installedVersion);
     }
 
-    if (mapName != null && mapCrc != null && isInstalled(modTechnical, mapName, mapCrc)) {
-      logger.info("[ensureMap] '{}'/{} is already installed", mapName, mapCrc);
+    try {
+      if (installedVersion != null && mapName != null && mapCrc != null && isInstalled(modTechnical, mapName, mapCrc).get()) {
+        logger.info("[ensureMap] '{}'/{} is already installed", mapName, mapCrc);
+        return CompletableFuture.completedFuture(installedVersion);
+      }
+    } catch (InterruptedException | ExecutionException e) {
+      logger.warn("[ensureMap] exception while determining isInstalled() '{}'/{}.  Assuming the installed version matches", mapName, mapCrc);
       return CompletableFuture.completedFuture(installedVersion);
     }
 
@@ -681,30 +717,36 @@ public class MapService implements InitializingBean, DisposableBean {
           .thenApply(aVoid -> null);
     }
 
-    return findMapsByName(mapName)
-        .thenCompose(knownVersions -> {
-          boolean installedVersionIsKnown = installedVersion != null && knownVersions.stream()
-              .anyMatch(map -> map.getCrc().equals(installedVersion.getCrc()));
+    return findServerMapsByName(mapName)
+        .thenCompose(knownServerVersions -> {
+          boolean installedVersionIsKnown = installedVersion != null && knownServerVersions.stream()
+              .anyMatch(serverMapVersion -> serverMapVersion.getCrcValue().equals(installedVersion.getCrcValue()));
 
           if (installedVersion != null && !installedVersionIsKnown) {
-            logger.info("[ensureMap] Leaving '{}' in place as installed '{}'/{} is not known to server", installedVersion.getHpiArchiveName(), installedVersion.getMapName(), installedVersion.getCrc());
+            logger.info("[ensureMap] Leaving '{}' in place as installed '{}'/{} is not known to server",
+                installedVersion.getHpiArchiveName(), installedVersion.getMapName(), installedVersion.getCrcValue());
             return CompletableFuture.completedFuture(installedVersion);
           }
 
-          MapBean latestVersion = knownVersions.stream()
+          MapBean latestVersion = knownServerVersions.stream()
               .filter(map -> !map.isHidden())
               .sorted((a, b) -> Objects.requireNonNull(a.getVersion()).compareTo(b.getVersion()))
               .reduce((a, b) -> b)
               .orElse(null);
 
           if (mapCrc == null && latestVersion != null) {
-            if (isInstalled(modTechnical, latestVersion.getMapName(), latestVersion.getCrc())) {
-              logger.info("[ensureMap] '{}'/{} is the latest known version and is already installed", latestVersion.getMapName(), latestVersion.getCrc());
-              return CompletableFuture.completedFuture(latestVersion);
-            }
-            else {
-              return _ensureMap(modTechnical, latestVersion.getMapName(), latestVersion.getCrc(), latestVersion.getHpiArchiveName(), progressProperty, titleProperty)
-                  .thenApply(aVoid -> latestVersion);
+            try {
+              if (isInstalled(modTechnical, latestVersion.getMapName(), latestVersion.getCrcValue()).get()) {
+                logger.info("[ensureMap] '{}'/{} is the latest known version and is already installed", latestVersion.getMapName(), latestVersion.getCrcValue());
+                return CompletableFuture.completedFuture(latestVersion);
+              }
+              else {
+                return _ensureMap(modTechnical, latestVersion.getMapName(), latestVersion.getCrcValue(), latestVersion.getHpiArchiveName(), progressProperty, titleProperty)
+                    .thenApply(aVoid -> latestVersion);
+              }
+            } catch (InterruptedException | ExecutionException e) {
+              logger.warn("[ensureMap] exception while determining isInstalled() latest version '{}'/{}.  Assuming the installed version matches",
+                  latestVersion.getMapName(), latestVersion.getCrcValue());
             }
           }
           return _ensureMap(modTechnical, mapName, mapCrc, downloadHpiArchiveName, progressProperty, titleProperty)
@@ -734,8 +776,8 @@ public class MapService implements InitializingBean, DisposableBean {
           .map(installation -> new Pair<>(installation, installation.mapsByName.getOrDefault(mapName, null)))
           .filter(pair -> pair.getValue() != null)
           .filter(pair -> pair.getValue().getMapName().equals(mapName))
-          .filter(pair -> pair.getValue().getCrc().equals("00000000") || pair.getValue().getCrc().equals(mapCrc))
-          .sorted((a,b) -> b.getValue().getCrc().compareTo(a.getValue().getCrc()))  // those with non-zero crc first
+          .filter(pair -> pair.getValue().getCrcValue().equals("00000000") || pair.getValue().getCrcValue().equals(mapCrc))
+          .sorted((a,b) -> b.getValue().getCrcValue().compareTo(a.getValue().getCrcValue()))  // those with non-zero crc first
           .collect(Collectors.toList());
 
       List<Pair<Installation,MapBean>> alreadyInstalledForMod = alreadyInstalledAnywhere.stream()
@@ -745,7 +787,7 @@ public class MapService implements InitializingBean, DisposableBean {
       if (!alreadyInstalledForMod.isEmpty()) {
         MapBean installedMap = alreadyInstalledForMod.get(0).getValue();
         logger.info("{}/{}/{} already installed",
-            installedMap.getHpiArchiveName(), installedMap.getMapName(), installedMap.getCrc());
+            installedMap.getHpiArchiveName(), installedMap.getMapName(), installedMap.getCrcValue());
 
       } else if (!alreadyInstalledAnywhere.isEmpty()) {
         String donorModName = alreadyInstalledAnywhere.get(0).getKey().modTechnicalName;
@@ -1004,10 +1046,13 @@ public class MapService implements InitializingBean, DisposableBean {
       throw new IllegalArgumentException("Attempt to uninstall an official map");
     }
 
-    if (!isInstalled(modTechnicalName, mapName, mapCrc)) {
-      CompletableFuture<Void> result = new CompletableFuture<>();
-      result.complete(null);
-      return result;
+    try {
+      if (!isInstalled(modTechnicalName, mapName, mapCrc).get()) {
+        return CompletableFuture.completedFuture(null);
+      }
+    } catch (InterruptedException | ExecutionException e) {
+      logger.warn("[uninstallMap] exception trying to uninstall map {}/{}", mapName, mapCrc);
+      return CompletableFuture.completedFuture(null);
     }
 
     Path mapsDirectory = preferencesService.getTotalAnnihilation(modTechnicalName).getInstalledPath();
@@ -1046,7 +1091,7 @@ public class MapService implements InitializingBean, DisposableBean {
     return fafService.findMapByName(displayName);
   }
 
-  public CompletableFuture<List<MapBean>> findMapsByName(String displayName) {
+  public CompletableFuture<List<MapBean>> findServerMapsByName(String displayName) {
     return fafService.findMapsByName(displayName);
   }
 

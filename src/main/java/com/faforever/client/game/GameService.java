@@ -466,7 +466,7 @@ public class GameService implements InitializingBean {
         .thenCompose(aVoid -> fafService.findMapByTaDemoMapHash(demoFileInfo.getMapHash()))
         .thenAccept(mapBeanOptional -> mapBeanOptional.ifPresent(v -> {
           mapName[0] = v.getMapName();
-          mapCrc[0] = v.getCrc();
+          mapCrc[0] = v.getCrcValue();
           mapArchive[0] = v.getHpiArchiveName();
         }))
         .thenCompose(aVoid -> {
@@ -524,31 +524,6 @@ public class GameService implements InitializingBean {
 
     return future;
   }
-
-//  public CompletableFuture<Void> runWithReplay(String replayFileOrUrl, Replay replay) {
-//    final String mapName = replay.getMap() != null ? replay.getMap().getMapName() : null;
-//    final String mapCrc = replay.getMap() != null ? replay.getMap().getCrc() : null;
-//    final String mapArchive = replay.getMap() != null ? replay.getMap().getHpiArchiveName() : null;
-//
-//    if (replay.getDemoFileInfo() != null) {
-//      fafService.findFeaturedModByTaDemoModHash(replay.getDemoFileInfo().getModHash())
-//          .thenCompose((fm) -> {
-//            if (fm != null && !fm.getVersions().isEmpty()) {
-//              return runWithReplay(replayFileOrUrl, replay.getId(), fm.getTechnicalName(),
-//                  fm.getVersions().get(0).getGitBranch(), mapName, mapCrc, mapArchive);
-//            }
-//            else {
-//              return this.promptModVersion(replay.getFeaturedMod(), replay.getDemoFileInfo())
-//                  .thenCompose(userSelectedVersion -> runWithReplay(
-//                      replayFileOrUrl, replay.getId(), replay.getFeaturedMod().getTechnicalName(),
-//                      userSelectedVersion.getGitBranch(), mapName, mapCrc, mapArchive));
-//            }
-//          });
-//    }
-//
-//    return runWithReplay(replayFileOrUrl, replay.getId(), replay.getFeaturedMod().getTechnicalName(),
-//        replay.getFeaturedMod().getGitBranch(), mapName, mapCrc, mapArchive);
-//  }
 
   public CompletableFuture<Void> runWithReplay(String replayFileOrUrl, Game game) {
     if (game.getFeaturedModVersion() != null) {

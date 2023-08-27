@@ -47,7 +47,7 @@ public class RemovableMapCellController extends ListCell<MapBean> implements Con
         previewMapView.setImage(mapService.loadPreview(modTechnical, item, PreviewType.MINI, 10));
         mapNameLabel.setText(item.getMapName());
         if (!mapService.isOfficialMap(item.getMapName())) {
-          removeButton.setOnMouseClicked(event -> mapService.uninstallMap(modTechnical, item.getMapName(), item.getCrc()).exceptionally(throwable -> {
+          removeButton.setOnMouseClicked(event -> mapService.uninstallMap(modTechnical, item.getMapName(), item.getCrcValue()).exceptionally(throwable -> {
             log.error("cannot uninstall the map", throwable);
             notificationService.addImmediateErrorNotification(throwable, "management.maps.uninstall.error");
             return null;

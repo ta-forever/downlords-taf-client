@@ -172,7 +172,7 @@ public class MapDetailController implements Controller<Node> {
     maintainerLabel.setText(i18n.get("map.maintainer") + ": " + Optional.ofNullable(map.getAuthor()).orElse(i18n.get("unknown")));
     maxPlayersLabel.setText(i18n.number(map.getPlayers()));
     mapIdLabel.setText("ID: " + i18n.get("map.id", map.getId()));
-    mapCrcLabel.setText("CRC32: " + map.getCrc());
+    mapCrcLabel.setText("CRC32: " + map.getCrcValue());
     mapHpiArchiveNameLabel.setText("Map Pack: " + map.getHpiArchiveName());
 
     MapSize mapSize = map.getSize();
@@ -181,8 +181,8 @@ public class MapDetailController implements Controller<Node> {
     LocalDateTime createTime = map.getCreateTime();
     dateLabel.setText(timeService.asDate(createTime));
 
-    boolean mapInstalled = mapService.isInstalled(modTechnical, map.getMapName(), map.getCrc());
-    setInstalled(mapInstalled);
+    mapService.isInstalled(modTechnical, map.getMapName(), map.getCrcValue()).thenAccept(
+        isInstalled -> JavaFxUtil.runLater(() -> setInstalled(isInstalled)));
 
     Player player = playerService.getCurrentPlayer().orElseThrow(() -> new IllegalStateException("No user is logged in"));
 
@@ -224,7 +224,8 @@ public class MapDetailController implements Controller<Node> {
     } else {
       ObservableList<MapBean> installedMaps = mapService.getInstalledMaps(modTechnical);
       JavaFxUtil.addListener(installedMaps, new WeakListChangeListener<>(installStatusChangeListener));
-      setInstalled(mapService.isInstalled(modTechnical, map.getMapName(), map.getCrc()));
+      mapService.isInstalled(modTechnical, map.getMapName(), map.getCrcValue()).thenAccept(
+          isInstalled -> JavaFxUtil.runLater(() -> setInstalled(isInstalled)));
     }
   }
 
@@ -282,7 +283,7 @@ public class MapDetailController implements Controller<Node> {
     progressBar.progressProperty().unbind();
     progressBar.setProgress(-1);
 
-    mapService.uninstallMap(preferencesService.getPreferences().getLastGame().getLastGameType(), map.getMapName(), map.getCrc())
+    mapService.uninstallMap(preferencesService.getPreferences().getLastGame().getLastGameType(), map.getMapName(), map.getCrcValue())
         .thenRun(() -> setInstalled(false))
         .exceptionally(throwable -> {
           log.error("Could not delete map", throwable);
@@ -303,11 +304,13 @@ public class MapDetailController implements Controller<Node> {
 
   public void onCreateGameButtonClicked() {
     String modTechnical = preferencesService.getPreferences().getLastGame().getLastGameType();
-    if (!mapService.isInstalled(modTechnical, map.getMapName(), map.getCrc())) {
-      installMap().thenRun(() -> eventBus.post(new HostGameEvent(map.getMapName())));
-    } else {
-      eventBus.post(new HostGameEvent(map.getMapName()));
-    }
+    mapService.isInstalled(modTechnical, map.getMapName(), map.getCrcValue()).thenAccept(isInstalled -> {
+      if (!isInstalled) {
+        installMap().thenRun(() -> eventBus.post(new HostGameEvent(map.getMapName())));
+      } else {
+        eventBus.post(new HostGameEvent(map.getMapName()));
+      }
+    });
   }
 
   public void hideMap() {
