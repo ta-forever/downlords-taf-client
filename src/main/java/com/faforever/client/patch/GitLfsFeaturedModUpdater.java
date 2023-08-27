@@ -58,8 +58,6 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
    */
   @Override
   public CompletableFuture<String> updateMod(FeaturedMod featuredMod, @Nullable String version) {
-    log.info("[updateMod]");
-
     TotalAnnihilationPrefs taPrefs = preferencesService.getTotalAnnihilation(featuredMod.getTechnicalName());
     Path deployPath = taPrefs.getInstalledPath();
     String repoUrl = featuredMod.getGitUrl();
@@ -71,7 +69,6 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
         _git = Git.open(deployPath.toFile());
         _git.getRepository().getConfig().setString("remote", "origin", "url", repoUrl);
         _git.getRepository().getConfig().save();
-        log.info("[updateMod] git status");
         _hasUncommittedChanges = _git.status().call().hasUncommittedChanges();
       } catch (IOException | GitAPIException e1) {
         log.info("[updateMod] Exception in git status: {}", e1.getMessage());
@@ -120,7 +117,6 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
 
     final boolean[] okToUpdate = {true};
     final boolean[] okToReset = {true};
-    log.info("[updateMod] promptOkToUpdate");
     return promptOkToUpdate(featuredMod)
         .thenApply(ok -> {
           okToUpdate[0] = ok;

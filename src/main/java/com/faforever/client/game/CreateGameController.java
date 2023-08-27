@@ -151,7 +151,6 @@ public class CreateGameController implements Controller<Pane> {
   private boolean initialized;
 
   void setContextGame(Game game) {
-    log.info("[setContextGame] {}", game);
     if (game != null) {
       if (preferencesService.isGameExeValid(game.getFeaturedMod())) {
         this.featuredModListView.getItems().stream()
