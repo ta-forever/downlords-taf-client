@@ -74,6 +74,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
 
@@ -362,6 +363,10 @@ public class FafService {
       File[] files = {
           logClient, logIceAdapter, logLauncher,
           logGpgnet4ta, logReplay, taErrorLog};
+
+      int MAX_FILE_SIZE = 1000000; // until we increase the MAX_FILE_SIZE on the API side
+      files = Stream.of(files).filter(file -> file != null && file.length() < MAX_FILE_SIZE).toArray(File[]::new);
+
       ZipUtil.zipFile(files, targetZipFile.toFile());
       ResourceLocks.acquireUploadLock();
       fafApiAccessor.uploadGameLogs(targetZipFile, context, gameId, (written, total) -> {});
