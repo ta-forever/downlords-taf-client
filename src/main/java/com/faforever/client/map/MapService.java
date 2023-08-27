@@ -315,9 +315,9 @@ public class MapService implements InitializingBean, DisposableBean {
   private final Object deferInstalledMapsUpdateMutex = new Object();
   private Integer deferInstalledMapsUpdate = 0;
   public void addInstalledMapsUpdateDeferal() {
-      synchronized(deferInstalledMapsUpdateMutex) {
-        deferInstalledMapsUpdate += 1;
-      }
+    synchronized(deferInstalledMapsUpdateMutex) {
+      deferInstalledMapsUpdate += 1;
+    }
   }
 
   public void releaseInstalledMapsUpdateDeferal() {
@@ -390,12 +390,14 @@ public class MapService implements InitializingBean, DisposableBean {
       synchronized (installation) {
         ++installation.enumerationsRequested;
         if (installation.enumerationsRequested > 1) {
+          logger.info("[loadInstalledMaps] enumeration already in progress.  returning straight away");
           return;
         }
       }
     }
 
     if (isInstalledMapsUpdateDeferred()) {
+      logger.info("[loadInstalledMaps] enumeration deferral in force.  returning straight away");
       return;
     }
 
@@ -433,14 +435,14 @@ public class MapService implements InitializingBean, DisposableBean {
           notifyBadMapTool(e);
         }
         JavaFxUtil.runLater(() -> {
-              installation.maps.setAll(mapList);
-              if (installation.maps.isEmpty()) {
-                logger.warn("no maps found for mod={}. inserting OTA maps", installation.modTechnicalName);
-                for (String map : otaMaps) {
-                  installation.addMap(map, null, null);
-                }
-              }
-            });
+          installation.maps.setAll(mapList);
+          if (installation.maps.isEmpty()) {
+            logger.warn("no maps found for mod={}. inserting OTA maps", installation.modTechnicalName);
+            for (String map : otaMaps) {
+              installation.addMap(map, null, null);
+            }
+          }
+        });
         updateProgress(1, 1);
 
         boolean again = false;
@@ -507,7 +509,7 @@ public class MapService implements InitializingBean, DisposableBean {
       mapBean.setCrcFuture(CompletableFuture.completedFuture(crc));
     }
     else if (getInstalledMapCrc != null) {
-      mapBean.setInstalledMapCrcGetter(this.taskService, getInstalledMapCrc);
+      mapBean.setInstalledMapCrcGetter(getInstalledMapCrc);
     }
     else {
       mapBean.setCrcFuture(CompletableFuture.completedFuture(crc));
@@ -702,56 +704,60 @@ public class MapService implements InitializingBean, DisposableBean {
       return CompletableFuture.completedFuture(installedVersion);
     }
 
-    try {
-      if (installedVersion != null && mapName != null && mapCrc != null && isInstalled(modTechnical, mapName, mapCrc).get()) {
-        logger.info("[ensureMap] '{}'/{} is already installed", mapName, mapCrc);
-        return CompletableFuture.completedFuture(installedVersion);
+    return CompletableFuture.supplyAsync(() -> {
+      try {
+        if (installedVersion != null && mapName != null && mapCrc != null && isInstalled(modTechnical, mapName, mapCrc).get()) {
+          logger.info("[ensureMap] '{}'/{} is already installed", mapName, mapCrc);
+          return installedVersion;
+        }
+      } catch (InterruptedException | ExecutionException ignore) { }
+      return null;
+    }).thenCompose((ensuredVersion) -> {
+      if (ensuredVersion != null) {
+        return CompletableFuture.completedFuture(ensuredVersion);
       }
-    } catch (InterruptedException | ExecutionException e) {
-      logger.warn("[ensureMap] exception while determining isInstalled() '{}'/{}.  Assuming the installed version matches", mapName, mapCrc);
-      return CompletableFuture.completedFuture(installedVersion);
-    }
+      else if (mapName == null) {
+        return _ensureMap(modTechnical, mapName, mapCrc, downloadHpiArchiveName, progressProperty, titleProperty)
+            .thenApply(aVoid -> null);
+      }
+      else {
+        return findServerMapsByName(mapName)
+            .thenCompose(knownServerVersions -> {
+              boolean installedVersionIsKnown = installedVersion != null && knownServerVersions.stream()
+                  .anyMatch(serverMapVersion -> serverMapVersion.getCrcValue().equals(installedVersion.getCrcValue()));
 
-    if (mapName == null) {
-      return _ensureMap(modTechnical, mapName, mapCrc, downloadHpiArchiveName, progressProperty, titleProperty)
-          .thenApply(aVoid -> null);
-    }
-
-    return findServerMapsByName(mapName)
-        .thenCompose(knownServerVersions -> {
-          boolean installedVersionIsKnown = installedVersion != null && knownServerVersions.stream()
-              .anyMatch(serverMapVersion -> serverMapVersion.getCrcValue().equals(installedVersion.getCrcValue()));
-
-          if (installedVersion != null && !installedVersionIsKnown) {
-            logger.info("[ensureMap] Leaving '{}' in place as installed '{}'/{} is not known to server",
-                installedVersion.getHpiArchiveName(), installedVersion.getMapName(), installedVersion.getCrcValue());
-            return CompletableFuture.completedFuture(installedVersion);
-          }
-
-          MapBean latestVersion = knownServerVersions.stream()
-              .filter(map -> !map.isHidden())
-              .sorted((a, b) -> Objects.requireNonNull(a.getVersion()).compareTo(b.getVersion()))
-              .reduce((a, b) -> b)
-              .orElse(null);
-
-          if (mapCrc == null && latestVersion != null) {
-            try {
-              if (isInstalled(modTechnical, latestVersion.getMapName(), latestVersion.getCrcValue()).get()) {
-                logger.info("[ensureMap] '{}'/{} is the latest known version and is already installed", latestVersion.getMapName(), latestVersion.getCrcValue());
-                return CompletableFuture.completedFuture(latestVersion);
+              if (installedVersion != null && !installedVersionIsKnown) {
+                logger.info("[ensureMap] Leaving '{}' in place as installed '{}'/{} is not known to server",
+                    installedVersion.getHpiArchiveName(), installedVersion.getMapName(), installedVersion.getCrcValue());
+                return CompletableFuture.completedFuture(installedVersion);
               }
-              else {
-                return _ensureMap(modTechnical, latestVersion.getMapName(), latestVersion.getCrcValue(), latestVersion.getHpiArchiveName(), progressProperty, titleProperty)
-                    .thenApply(aVoid -> latestVersion);
+
+              MapBean latestVersion = knownServerVersions.stream()
+                  .filter(map -> !map.isHidden())
+                  .sorted((a, b) -> Objects.requireNonNull(a.getVersion()).compareTo(b.getVersion()))
+                  .reduce((a, b) -> b)
+                  .orElse(null);
+
+              if (mapCrc == null && latestVersion != null) {
+                try {
+                  JavaFxUtil.assertBackgroundThread();
+                  if (isInstalled(modTechnical, latestVersion.getMapName(), latestVersion.getCrcValue()).get()) {
+                    logger.info("[ensureMap] '{}'/{} is the latest known version and is already installed", latestVersion.getMapName(), latestVersion.getCrcValue());
+                    return CompletableFuture.completedFuture(latestVersion);
+                  } else {
+                    return _ensureMap(modTechnical, latestVersion.getMapName(), latestVersion.getCrcValue(), latestVersion.getHpiArchiveName(), progressProperty, titleProperty)
+                        .thenApply(aVoid -> latestVersion);
+                  }
+                } catch (InterruptedException | ExecutionException e) {
+                  logger.warn("[ensureMap] exception while determining isInstalled() latest version '{}'/{}.  Assuming the installed version matches",
+                      latestVersion.getMapName(), latestVersion.getCrcValue());
+                }
               }
-            } catch (InterruptedException | ExecutionException e) {
-              logger.warn("[ensureMap] exception while determining isInstalled() latest version '{}'/{}.  Assuming the installed version matches",
-                  latestVersion.getMapName(), latestVersion.getCrcValue());
-            }
-          }
-          return _ensureMap(modTechnical, mapName, mapCrc, downloadHpiArchiveName, progressProperty, titleProperty)
-              .thenApply(aVoid -> null);
-        });
+              return _ensureMap(modTechnical, mapName, mapCrc, downloadHpiArchiveName, progressProperty, titleProperty)
+                  .thenApply(aVoid -> null);
+            });
+      }
+    });
   }
 
   /// @note even if mapName etc are null, will still check for TA_features_2013.ccx
@@ -778,11 +784,11 @@ public class MapService implements InitializingBean, DisposableBean {
           .filter(pair -> pair.getValue().getMapName().equals(mapName))
           .filter(pair -> pair.getValue().getCrcValue().equals("00000000") || pair.getValue().getCrcValue().equals(mapCrc))
           .sorted((a,b) -> b.getValue().getCrcValue().compareTo(a.getValue().getCrcValue()))  // those with non-zero crc first
-          .collect(Collectors.toList());
+          .toList();
 
       List<Pair<Installation,MapBean>> alreadyInstalledForMod = alreadyInstalledAnywhere.stream()
           .filter(pair -> pair.getKey().modTechnicalName.equals(modTechnicalName))
-          .collect(Collectors.toList());
+          .toList();
 
       if (!alreadyInstalledForMod.isEmpty()) {
         MapBean installedMap = alreadyInstalledForMod.get(0).getValue();
@@ -1046,23 +1052,22 @@ public class MapService implements InitializingBean, DisposableBean {
       throw new IllegalArgumentException("Attempt to uninstall an official map");
     }
 
-    try {
-      if (!isInstalled(modTechnicalName, mapName, mapCrc).get()) {
-        return CompletableFuture.completedFuture(null);
-      }
-    } catch (InterruptedException | ExecutionException e) {
-      logger.warn("[uninstallMap] exception trying to uninstall map {}/{}", mapName, mapCrc);
-      return CompletableFuture.completedFuture(null);
-    }
+    return isInstalled(modTechnicalName, mapName, mapCrc)
+        .thenCompose(installed -> {
+          if (!installed) {
+            return CompletableFuture.completedFuture(null);
+          }
+          else {
+            Path mapsDirectory = preferencesService.getTotalAnnihilation(modTechnicalName).getInstalledPath();
+            Installation installation = installations.get(modTechnicalName);
+            MapBean installedMap = installation.mapsByName.get(mapName);
 
-    Path mapsDirectory = preferencesService.getTotalAnnihilation(modTechnicalName).getInstalledPath();
-    Installation installation = installations.get(modTechnicalName);
-    MapBean installedMap = installation.mapsByName.get(mapName);
-
-    UninstallMapTask task = applicationContext.getBean(UninstallMapTask.class);
-    task.setInstallationPath(mapsDirectory);
-    task.setHpiArchiveName(installedMap.getHpiArchiveName());
-    return taskService.submitTask(task).getFuture();
+            UninstallMapTask task = applicationContext.getBean(UninstallMapTask.class);
+            task.setInstallationPath(mapsDirectory);
+            task.setHpiArchiveName(installedMap.getHpiArchiveName());
+            return taskService.submitTask(task).getFuture();
+          }
+        });
   }
 
   public CompletableTask<Void> uploadMap(Path stagingDirectory, String archiveFileName, boolean ranked, List<Map<String,String>> mapDetails) {

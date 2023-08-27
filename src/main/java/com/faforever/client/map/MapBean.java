@@ -1,10 +1,6 @@
 package com.faforever.client.map;
 
 import com.faforever.client.api.dto.MapVersion;
-import com.faforever.client.task.CompletableTask;
-import com.faforever.client.task.CompletableTask.Priority;
-import com.faforever.client.task.PrioritizedCompletableTask;
-import com.faforever.client.task.TaskService;
 import com.faforever.client.vault.review.Review;
 import com.faforever.client.vault.review.ReviewsSummary;
 import javafx.beans.Observable;
@@ -45,7 +41,6 @@ public class MapBean implements Comparable<MapBean> {
   private final ObjectProperty<ComparableVersion> version;
   private CompletableFuture<String> crcFuture;
   private Function<Void,String> getInstalledMapCrc;
-  private TaskService taskService;
   private final StringProperty id;
   private final StringProperty author;
   private final BooleanProperty hidden;
@@ -63,7 +58,6 @@ public class MapBean implements Comparable<MapBean> {
     hpiArchiveName = new SimpleStringProperty();
     crcFuture = null;
     getInstalledMapCrc = null;
-    taskService = null;
     description = new SimpleStringProperty();
     numberOfPlays = new SimpleIntegerProperty(0);
     downloads = new SimpleIntegerProperty();
@@ -249,28 +243,29 @@ public class MapBean implements Comparable<MapBean> {
     return version;
   }
 
+  /*
+   * beware, may take a long time to retrieve.  Use getCrcFuture if you need CRC for a lot of maps
+   */
   public String getCrcValue() {
     try {
       if (getCrcFuture() != null) {
-        return getCrcFuture().get();
+        String crc = getCrcFuture().get();
+        return crc;
       }
     } catch (InterruptedException | ExecutionException ignored) { }
     return "00000000";
   }
 
   public CompletableFuture<String> getCrcFuture() {
-    if (crcFuture == null && taskService != null && getInstalledMapCrc != null) {
-      crcFuture = taskService.submitTask(new CompletableTask<String>(Priority.LOW) {
-        protected String call() {
-          return getInstalledMapCrc.apply(null);
-        }
-      }).getFuture();
+    synchronized(this) {
+      if (crcFuture == null && getInstalledMapCrc != null) {
+        crcFuture = CompletableFuture.supplyAsync(() -> getInstalledMapCrc.apply(null));
+      }
     }
     return crcFuture;
   }
 
-  public void setInstalledMapCrcGetter(TaskService taskService, Function<Void, String> getter) {
-    this.taskService = taskService;
+  public void setInstalledMapCrcGetter(Function<Void, String> getter) {
     this.getInstalledMapCrc = getter;
   }
 

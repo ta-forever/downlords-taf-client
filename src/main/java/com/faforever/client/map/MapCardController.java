@@ -18,6 +18,8 @@ import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.WeakListChangeListener;
@@ -66,6 +68,8 @@ public class MapCardController implements Controller<Node> {
   private ListChangeListener<MapBean> installStatusChangeListener;
   private final InvalidationListener reviewsChangedListener = observable -> populateReviews();
 
+  private ChangeListener<Boolean> visibilityChangeListener;
+
   public void initialize() {
     thumbnailImageView.setDefaultImage(uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
     installButton.managedProperty().bind(installButton.visibleProperty());
@@ -75,7 +79,7 @@ public class MapCardController implements Controller<Node> {
         for (MapBean unInstalledMapBean : change.getRemoved()) {
           if (map.getMapName().equals(unInstalledMapBean.getMapName())) {
             setInstalled(false);
-            return;
+            break;
           }
         }
         for (MapBean installedMapBean : change.getAddedSubList()) {
@@ -87,20 +91,20 @@ public class MapCardController implements Controller<Node> {
                 mapService.isInstalled(modTechnical, map.getMapName(), map.getCrcValue()).thenAccept(
                     isInstalled -> JavaFxUtil.runLater(() -> setInstalled(isInstalled)));
             }
-            return;
+            break;
           }
         }
       }
     };
 
-    // here we query the map's crc when we transition to displayed
-    getRoot().visibleProperty().addListener((obs, oldValue, newValue) -> {
+    visibilityChangeListener = (obs, oldValue, newValue) -> {
       if (newValue) {
         String modTechnical = preferencesService.getPreferences().getLastGame().getLastGameType();
         mapService.isInstalled(modTechnical, map.getMapName(), map.getCrcValue()).thenAccept(
             isInstalled -> JavaFxUtil.runLater(() -> setInstalled(isInstalled)));
       }
-    });
+    };
+    getRoot().visibleProperty().addListener(new WeakChangeListener<>(visibilityChangeListener));
   }
 
   public void setMap(MapBean map) {

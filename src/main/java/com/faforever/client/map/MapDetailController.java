@@ -20,6 +20,7 @@ import com.faforever.commons.io.Bytes;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.eventbus.EventBus;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.WeakListChangeListener;
@@ -90,6 +91,7 @@ public class MapDetailController implements Controller<Node> {
 
   private MapBean map;
   private ListChangeListener<MapBean> installStatusChangeListener;
+  private ChangeListener<Boolean> visibilityChangeListener;
 
   public void initialize() {
     JavaFxUtil.bindManagedToVisible(uninstallButton, installButton, progressBar, progressLabel, hideButton,
@@ -110,16 +112,16 @@ public class MapDetailController implements Controller<Node> {
 
     installStatusChangeListener = change -> {
       while (change.next()) {
-        for (MapBean mapBean : change.getAddedSubList()) {
-          if (map.getMapName().equalsIgnoreCase(mapBean.getMapName())) {
-            setInstalled(true);
-            return;
-          }
-        }
         for (MapBean mapBean : change.getRemoved()) {
           if (map.getMapName().equals(mapBean.getMapName())) {
             setInstalled(false);
-            return;
+            break;
+          }
+        }
+        for (MapBean mapBean : change.getAddedSubList()) {
+          if (map.getMapName().equalsIgnoreCase(mapBean.getMapName())) {
+            setInstalled(true);
+            break;
           }
         }
       }
