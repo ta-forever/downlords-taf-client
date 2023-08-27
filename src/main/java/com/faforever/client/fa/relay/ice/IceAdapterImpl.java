@@ -36,11 +36,12 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
-import org.springframework.util.SocketUtils;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.ConnectException;
+import java.net.ServerSocket;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -51,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import static java.util.Arrays.asList;
 
@@ -153,8 +155,15 @@ public class IceAdapterImpl implements IceAdapter, InitializingBean, DisposableB
     Thread thread = new Thread(() -> {
       String nativeDir = System.getProperty("nativeDir", "lib");
 
-      int adapterPort = SocketUtils.findAvailableTcpPort();
-      int gpgPort = SocketUtils.findAvailableTcpPort();
+      int adapterPort;
+      int gpgPort;
+      try (ServerSocket adapterTestSocket = new ServerSocket(0);
+           ServerSocket gpgTestSocket = new ServerSocket(0)) {
+        adapterPort = adapterTestSocket.getLocalPort();
+        gpgPort = gpgTestSocket.getLocalPort();
+      } catch (IOException exception) {
+        throw new CompletionException("Unable to find open port for ICE and GPG", exception);
+      }
 
       Player currentPlayer = playerService.getCurrentPlayer()
           .orElseThrow(() -> new IllegalStateException("Player has not been set"));
