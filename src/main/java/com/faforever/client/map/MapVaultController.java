@@ -143,6 +143,7 @@ public class MapVaultController extends VaultEntityController<MapBean> {
     MapCardController controller = uiService.loadFxml("theme/vault/map/map_card.fxml");
     controller.setMap(map);
     controller.setOnOpenDetailListener(this::onDisplayDetails);
+    controller.getRoot().visibleProperty().bind(getRoot().visibleProperty());
     return controller.getRoot();
   }
 
@@ -221,4 +222,17 @@ public class MapVaultController extends VaultEntityController<MapBean> {
   public void onMapUploaded(MapUploadedEvent event) {
     onRefreshButtonClicked();
   }
+
+  @Override
+  protected void onDisplay(NavigateEvent navigateEvent) {
+    super.onDisplay(navigateEvent);
+    getRoot().setVisible(true);
+  }
+
+  @Override
+  public void onHide() {
+    super.onHide();
+    getRoot().setVisible(false);
+  }
+
 }

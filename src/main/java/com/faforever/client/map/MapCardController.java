@@ -7,12 +7,17 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.task.CompletableTask;
+import com.faforever.client.task.CompletableTask.Priority;
+import com.faforever.client.task.TaskService;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.util.IdenticonUtil;
 import com.faforever.client.vault.review.Review;
 import com.faforever.client.vault.review.StarsController;
 import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.WeakListChangeListener;
@@ -40,6 +45,7 @@ public class MapCardController implements Controller<Node> {
   private final PreferencesService preferencesService;
   private final UiService uiService;
   private final I18n i18n;
+  private final TaskService taskService;
 
   public DefaultImageView thumbnailImageView;
   public Label nameLabel;
@@ -55,6 +61,7 @@ public class MapCardController implements Controller<Node> {
   public Button uninstallButton;
 
   private MapBean map;
+
   private Consumer<MapBean> onOpenDetailListener;
   private ListChangeListener<MapBean> installStatusChangeListener;
   private final InvalidationListener reviewsChangedListener = observable -> populateReviews();
@@ -65,20 +72,38 @@ public class MapCardController implements Controller<Node> {
     uninstallButton.managedProperty().bind(uninstallButton.visibleProperty());
     installStatusChangeListener = change -> {
       while (change.next()) {
-        for (MapBean mapBean : change.getAddedSubList()) {
-          if (map.getMapName().equals(mapBean.getMapName()) && map.getCrc().equals(mapBean.getCrc())) {
-            setInstalled(true);
+        for (MapBean installedMapBean : change.getAddedSubList()) {
+          if (map.getMapName().equals(installedMapBean.getMapName())) {
+            // it's potentially expensive to get the crc for the installed maps
+            // so we only query the crc for installed maps if vault is actually being displayed
+            if (getRoot().isVisible() && map.getCrc().equals(installedMapBean.getCrc())) {
+              setInstalled(true);
+            }
             return;
           }
         }
-        for (MapBean mapBean : change.getRemoved()) {
-          if (map.getMapName().equals(mapBean.getMapName()) && map.getCrc().equals(mapBean.getCrc())) {
+        for (MapBean unInstalledMapBean : change.getRemoved()) {
+          if (map.getMapName().equals(unInstalledMapBean.getMapName())) {
             setInstalled(false);
             return;
           }
         }
       }
     };
+
+    // here we query the map's crc when we transition to displayed
+    getRoot().visibleProperty().addListener((obs, oldValue, newValue) -> {
+      if (newValue) {
+        taskService.submitTask(new CompletableTask<Void>(Priority.LOW) {
+          protected Void call() {
+            String modTechnical = preferencesService.getPreferences().getLastGame().getLastGameType();
+            boolean isInstalled = mapService.isInstalled(modTechnical, map.getMapName(), map.getCrc());
+            JavaFxUtil.runLater(() -> setInstalled(isInstalled));
+            return null;
+          }
+        });
+      }
+    });
   }
 
   public void setMap(MapBean map) {
@@ -95,27 +120,35 @@ public class MapCardController implements Controller<Node> {
     mapHpiArchiveNameLabel.setText(Optional.ofNullable(map.getHpiArchiveName()).orElse("<unknown archive>"));
     numberOfPlaysLabel.setText(i18n.number(map.getNumberOfPlays()));
 
-    mapVersionLabel.setText(String.format("v%s / CRC32 %s",
-        map.getVersion()!=null ? map.getVersion().toString() : "?",
-        map.getCrc()!=null ? map.getCrc() : "????????"));
-    mapVersionLabel.setVisible(map.getVersion() != null || map.getCrc() != null);
-
     MapSize size = map.getSize();
     sizeLabel.setText(i18n.get("mapPreview.size", size.getWidthInKm(), size.getHeightInKm()));
     maxPlayersLabel.setText(i18n.number(map.getPlayers()));
 
-    if (mapService.isOfficialMap(map.getMapName())) {
-      installButton.setVisible(false);
-      uninstallButton.setVisible(false);
-    } else {
-      ObservableList<MapBean> installedMaps = mapService.getInstalledMaps(modTechnical);
-      JavaFxUtil.addListener(installedMaps, new WeakListChangeListener<>(installStatusChangeListener));
-      setInstalled(mapService.isInstalled(modTechnical, map.getMapName(), map.getCrc()));
-    }
-
     ObservableList<Review> reviews = map.getReviews();
     JavaFxUtil.addListener(reviews, new WeakInvalidationListener(reviewsChangedListener));
     reviewsChangedListener.invalidated(reviews);
+
+    taskService.submitTask(new CompletableTask<Void>(Priority.LOW) {
+      protected Void call() {
+        String crc = map.getCrc();
+        JavaFxUtil.runLater(() -> {
+          mapVersionLabel.setText(String.format("v%s / CRC32 %s",
+              map.getVersion() != null ? map.getVersion().toString() : "?",
+              crc != null ? crc : "????????"));
+          mapVersionLabel.setVisible(map.getVersion() != null || crc != null);
+
+          if (mapService.isOfficialMap(map.getMapName())) {
+            installButton.setVisible(false);
+            uninstallButton.setVisible(false);
+          } else {
+            ObservableList<MapBean> installedMaps = mapService.getInstalledMaps(modTechnical);
+            JavaFxUtil.addListener(installedMaps, new WeakListChangeListener<>(installStatusChangeListener));
+            setInstalled(mapService.isInstalled(modTechnical, map.getMapName(), crc));
+          }
+        });
+        return null;
+      }
+    });
   }
 
   private void populateReviews() {

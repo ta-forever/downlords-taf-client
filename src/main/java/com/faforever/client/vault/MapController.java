@@ -36,4 +36,7 @@ public class MapController extends AbstractViewController<Node> {
   protected void onDisplay(NavigateEvent navigateEvent) {
     mapVaultController.display(navigateEvent);
   }
+
+  @Override
+  public void onHide() { mapVaultController.onHide(); }
 }
