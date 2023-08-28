@@ -7,7 +7,7 @@ repositories {
 }
 
 configurations {
-  jar.archiveName = 'webview-patch.jar'
+  jar.archiveFileName = 'webview-patch.jar'
 }
 
 jar {

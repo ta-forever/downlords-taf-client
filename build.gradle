@@ -5,17 +5,15 @@ buildscript {
   repositories {
     mavenCentral()
   }
-
-  dependencies {
-    classpath "org.springframework.boot:spring-boot-gradle-plugin:2.6.2"
-  }
 }
 
 plugins {
-  id "com.install4j.gradle" version "10.0.3"
-  id "co.riiid.gradle" version "0.4.2"
-  id "de.undercouch.download" version "4.1.2"
+  id 'org.springframework.boot' version '2.7.15'
+  id "com.install4j.gradle" version "10.0.6"
+  id "de.undercouch.download" version "5.4.0"
   id 'jacoco'
+  id 'java'
+  id 'distribution'
 }
 
 tasks.withType(Test) {
@@ -140,7 +138,8 @@ configurations {
 
 jacocoTestReport {
   reports {
-    xml.enabled = true
+    xml.getRequired().set(true)
+    html.getRequired().set(false)
   }
 }
 
@@ -160,7 +159,7 @@ configurations {
 
 
 bootRun {
-    main = "com.faforever.client.Main"
+  mainClass = "com.faforever.client.Main"
     jvmArgs = [
             "-DnativeDir=build/resources/native",
             "-Dprism.dirtyopts=false",
@@ -267,19 +266,11 @@ task downloadWindowsUid(type: Download) {
   onlyIfNewer true
 }
 
-task downloadUnixGpgnet4Ta(type: Download) {
+task downloadUnixTafToolbox(type: Download) {
   group "native dependencies"
-  src "https://github.com/ta-forever/gpgnet4ta/releases/download/${gpgnet4ta_version}/gpgnet4ta-ubuntu-focal-x64.tar.gz"
-  dest file("${buildDir}/resources/native/gpgnet4ta-ubuntu-focal-x64.tar.gz")
+  src "https://github.com/ta-forever/taftoolbox/releases/download/v${taftoolbox_version}/taftoolbox-ubuntu-focal-x64.tar.gz"
+  dest file("${buildDir}/resources/native/taftoolbox-ubuntu-focal-x64.tar.gz")
   onlyIfNewer true
-}
-
-task extractUnixGpgnet4Ta(type: Copy, dependsOn: [downloadUnixGpgnet4Ta]) {
-  group "native dependencies"
-  def zipFile = file("${buildDir}/resources/native/gpgnet4ta-ubuntu-focal-x64.tar.gz")
-  def outputDir = file("${buildDir}/resources/native")
-  from tarTree(resources.gzip(zipFile))
-  into outputDir
 }
 
 task downloadWindowsGpgnet4Ta(type: Download) {
@@ -289,27 +280,11 @@ task downloadWindowsGpgnet4Ta(type: Download) {
   onlyIfNewer true
 }
 
-task extractWindowsGpgnet4Ta(type: Copy, dependsOn: [downloadWindowsGpgnet4Ta]) {
+task downloadUnixGpgnet4Ta(type: Download) {
   group "native dependencies"
-  def zipFile = file("${buildDir}/resources/native/gpgnet4ta-win-x86.zip")
-  def outputDir = file("${buildDir}/resources/native")
-  from zipTree(zipFile)
-  into outputDir
-}
-
-task downloadUnixTafToolbox(type: Download) {
-  group "native dependencies"
-  src "https://github.com/ta-forever/taftoolbox/releases/download/v${taftoolbox_version}/taftoolbox-ubuntu-focal-x64.tar.gz"
-  dest file("${buildDir}/resources/native/taftoolbox-ubuntu-focal-x64.tar.gz")
+  src "https://github.com/ta-forever/gpgnet4ta/releases/download/${gpgnet4ta_version}/gpgnet4ta-ubuntu-focal-x64.tar.gz"
+  dest file("${buildDir}/resources/native/gpgnet4ta-ubuntu-focal-x64.tar.gz")
   onlyIfNewer true
-}
-
-task extractUnixTafToolbox(type: Copy, dependsOn: [downloadUnixTafToolbox]) {
-  group "native dependencies"
-  def zipFile = file("${buildDir}/resources/native/taftoolbox-ubuntu-focal-x64.tar.gz")
-  def outputDir = file("${buildDir}/resources/native")
-  from tarTree(resources.gzip(zipFile))
-  into outputDir
 }
 
 task downloadWindowsTafToolbox(type: Download) {
@@ -324,6 +299,30 @@ task extractWindowsTafToolbox(type: Copy, dependsOn: [downloadWindowsTafToolbox]
   def zipFile = file("${buildDir}/resources/native/taftoolbox-win-x86.zip")
   def outputDir = file("${buildDir}/resources/native")
   from zipTree(zipFile)
+  into outputDir
+}
+
+task extractWindowsGpgnet4Ta(type: Copy, dependsOn: [downloadWindowsGpgnet4Ta, extractWindowsTafToolbox]) {
+  group "native dependencies"
+  def zipFile = file("${buildDir}/resources/native/gpgnet4ta-win-x86.zip")
+  def outputDir = file("${buildDir}/resources/native")
+  from zipTree(zipFile)
+  into outputDir
+}
+
+task extractUnixTafToolbox(type: Copy, dependsOn: [downloadUnixTafToolbox, extractWindowsGpgnet4Ta]) {
+  group "native dependencies"
+  def zipFile = file("${buildDir}/resources/native/taftoolbox-ubuntu-focal-x64.tar.gz")
+  def outputDir = file("${buildDir}/resources/native")
+  from tarTree(resources.gzip(zipFile))
+  into outputDir
+}
+
+task extractUnixGpgnet4Ta(type: Copy, dependsOn: [downloadUnixGpgnet4Ta, extractWindowsGpgnet4Ta, extractUnixTafToolbox]) {
+  group "native dependencies"
+  def zipFile = file("${buildDir}/resources/native/gpgnet4ta-ubuntu-focal-x64.tar.gz")
+  def outputDir = file("${buildDir}/resources/native")
+  from tarTree(resources.gzip(zipFile))
   into outputDir
 }
 
@@ -355,13 +354,13 @@ dependencies {
   implementation("net.sf.sevenzipjbinding:sevenzipjbinding-all-platforms:16.02-2.01")
   implementation("com.brunomnsilva:JavaFXSmartGraph:0.9.2")
 
-  implementation("org.springframework.boot:spring-boot-starter")
-  implementation("org.springframework.boot:spring-boot-starter-cache")
-  implementation("org.springframework.boot:spring-boot-starter-logging")
-  implementation("org.springframework.boot:spring-boot-starter-websocket")
-  implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.1")
-  implementation("org.springframework:spring-web")
-  implementation("org.springframework:spring-websocket")
+  implementation("org.springframework.boot:spring-boot-starter:2.7.15")
+  implementation("org.springframework.boot:spring-boot-starter-cache:2.7.15")
+  implementation("org.springframework.boot:spring-boot-starter-logging:2.7.15")
+  implementation("org.springframework.boot:spring-boot-starter-websocket:2.7.15")
+  implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.8")
+  implementation("org.springframework:spring-web:5.3.29")
+  implementation("org.springframework:spring-websocket:5.3.29")
 
   implementation("com.github.FAForever:faf-java-commons:c1db35776a062a4f345cd6e17366dddd8b09492f") {
     exclude module: 'guava'
@@ -391,12 +390,12 @@ dependencies {
   implementation("com.github.jasminb:jsonapi-converter:0.11")
   implementation("javax.annotation:javax.annotation-api:1.3.2")
   implementation("com.github.ben-manes.caffeine:caffeine")
-  implementation("org.apache.httpcomponents:httpclient")
+  implementation("org.apache.httpcomponents:httpclient:4.5.14")
   implementation("io.github.micheljung:fxstage:0.8.2")
   implementation("io.github.micheljung:jfx-waitomo-theme:0.3.0")
   implementation("org.kitteh.irc:client-lib:8.0.0")
 
-  def javafxVersion = "18"
+  def javafxVersion = "20"
   implementation("org.openjfx:javafx-base:${javafxVersion}:${javafxPlatform}")
   implementation("org.openjfx:javafx-controls:${javafxVersion}:${javafxPlatform}")
   implementation("org.openjfx:javafx-graphics:${javafxVersion}:${javafxPlatform}")
