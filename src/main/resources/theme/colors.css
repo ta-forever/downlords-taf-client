@@ -1,12 +1,19 @@
 .root {
   -fx-base: #212121;
   -fx-accent: #2b71d9;
+  -fx-hover-accent: #2b71d920;
+  -fx-light-text-color: #DCDCDC;
+  -fx-background: #212121;
+  -fx-text-background-color: #DCDCDC;
+  -fx-uninstall-color: #8b0000;
 
   -unread: derive(#00ff00, 80%);
 
   -good: #4caf50;
   -warn: #ff9800;
   -bad: #f44336;
+
+  -warn-transparent: #ff98001a;
 
   GOK_COLOR: #4caf50;
   CORE_COLOR: #f44336;
@@ -30,4 +37,12 @@
   -card-color: #424242CC;
   -dimmer-color: #21212199;
   -fx-text-color: #fff;
+  -darkened-color: dimgrey;
+
+  -context-menu-color: #3c3f41;
+  -context-menu-border-color: #868686;
+  -menu-item-label-color: #DCDCDC;
+
+  FRIEND_IN_GAME_NOT_SELECTED_ITEM: rgba(42, 253, 53, 0.1);
+  FRIEND_IN_GAME_SELECTED_ITEM: rgba(42, 253, 53, 0.35);
 }
