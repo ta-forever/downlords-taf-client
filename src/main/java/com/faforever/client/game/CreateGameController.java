@@ -142,13 +142,9 @@ public class CreateGameController implements Controller<Pane> {
   private BooleanProperty modVersionUpdateCompletedProperty;
   private StringProperty interactionLevelProperty; // "CREATE", "UPDATE", "BROWSE"
   private BooleanProperty loadingMapsProperty;
+  private BooleanProperty rankedMapPoolsAvailableProperty;
 
   private ObjectProperty<Game> contextGameProperty; // is player actually creating a new game (contextGame==null), or inspecting settings for an existing game?
-
-  /**
-   * Remembers if the controller's init method was called, to avoid memory leaks by adding several listeners
-   */
-  private boolean initialized;
 
   void setContextGame(Game game) {
     if (game != null) {
@@ -197,6 +193,7 @@ public class CreateGameController implements Controller<Pane> {
     interactionLevelProperty = new SimpleStringProperty();
     contextGameProperty = new SimpleObjectProperty<>();
     loadingMapsProperty = new SimpleBooleanProperty();
+    rankedMapPoolsAvailableProperty = new SimpleBooleanProperty();
 
     JavaFxUtil.addLabelContextMenus(uiService, hpiArchiveLabel, mapDescriptionLabel);
     versionLabel.managedProperty().bind(versionLabel.visibleProperty());
@@ -383,7 +380,8 @@ public class CreateGameController implements Controller<Pane> {
 
     rankedEnabledCheckBox.setSelected(preferencesService.getPreferences().getLastGame().getLastGameRankedEnabled());
     rankedEnabledCheckBox.disableProperty().bind(
-        interactionLevelProperty.isEqualTo("BROWSE").or(interactionLevelProperty.isEqualTo("UPDATE_GW")));
+        interactionLevelProperty.isEqualTo("BROWSE").or(interactionLevelProperty.isEqualTo("UPDATE_GW"))
+            .or(rankedMapPoolsAvailableProperty.not()));
     rankedEnabledLabel.disableProperty().bind(rankedEnabledCheckBox.disabledProperty());
 
     createGameButton.visibleProperty().bind(interactionLevelProperty.isEqualTo("CREATE"));
@@ -509,14 +507,19 @@ public class CreateGameController implements Controller<Pane> {
   protected void setAvailableMapPools(String modTechnical) {
     fafService.getMatchingQueuesByMod(modTechnical)
         .thenAccept(queues -> {
-          JavaFxUtil.runLater(() -> {
-            mapPoolListView.getItems().setAll(queues);
-            if (mapPoolListView.getItems().size() > 0) {
-              mapPoolListView.getSelectionModel().select(0);
-            }
-          });
-          // just page the maps into cache so they're available should the user select them
-          queues.forEach(mapService::getMatchmakerMaps);
+              JavaFxUtil.runLater(() -> {
+                mapPoolListView.getItems().setAll(queues.stream().filter(q -> !q.getLeaderboard().getLeaderboardHidden()).toList());
+                if (mapPoolListView.getItems().size() > 0) {
+                  mapPoolListView.getSelectionModel().select(0);
+                  rankedMapPoolsAvailableProperty.set(true);
+                }
+                else {
+                  rankedMapPoolsAvailableProperty.set(false);
+                  rankedEnabledCheckBox.setSelected(false);
+                }
+              });
+              // just page the maps into cache so they're available should the user select them
+              queues.forEach(mapService::getMatchmakerMaps);
         });
   }
 

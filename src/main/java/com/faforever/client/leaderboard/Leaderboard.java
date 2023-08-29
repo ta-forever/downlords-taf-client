@@ -1,7 +1,9 @@
 package com.faforever.client.leaderboard;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -19,6 +21,7 @@ public class Leaderboard {
   private final StringProperty descriptionKey;
   private final StringProperty nameKey;
   private final StringProperty technicalName;
+  private final BooleanProperty leaderboardHidden;
 
   public Leaderboard() {
     id = new SimpleIntegerProperty();
@@ -27,6 +30,7 @@ public class Leaderboard {
     technicalName = new SimpleStringProperty();
     createTime = new SimpleObjectProperty<>();
     updateTime = new SimpleObjectProperty<>();
+    leaderboardHidden = new SimpleBooleanProperty();
   }
 
   public static Leaderboard fromDto(com.faforever.client.api.dto.Leaderboard dto) {
@@ -37,6 +41,7 @@ public class Leaderboard {
     leaderboard.setDescriptionKey(dto.getDescriptionKey());
     leaderboard.setNameKey(dto.getNameKey());
     leaderboard.setTechnicalName(dto.getTechnicalName());
+    leaderboard.setLeaderboardHidden(dto.getLeaderboardHidden());
     return leaderboard;
   }
 
@@ -111,6 +116,10 @@ public class Leaderboard {
   public ObjectProperty<OffsetDateTime> updateTimeProperty() {
     return updateTime;
   }
+
+  public boolean getLeaderboardHidden() { return leaderboardHidden.get(); }
+  public void setLeaderboardHidden(boolean leaderboardHidden) { this.leaderboardHidden.set(leaderboardHidden); }
+  public BooleanProperty leaderboardHiddenProperty() { return leaderboardHidden; }
 
   @Override
   public int hashCode() {

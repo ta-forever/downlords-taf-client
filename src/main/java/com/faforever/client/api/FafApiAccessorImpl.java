@@ -83,7 +83,6 @@ import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
-import static com.faforever.client.game.GameService.DEFAULT_RATING_TYPE;
 import static java.lang.String.format;
 
 @Slf4j
@@ -212,16 +211,14 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   @Cacheable(value = CacheNames.LEADERBOARD, sync = true)
   public List<Leaderboard> getLeaderboards() {
     return getAll(LEADERBOARD_ENDPOINT, java.util.Map.of(
-        FILTER, rsql(qBuilder().string("technicalName").ne(DEFAULT_RATING_TYPE))));
+        FILTER, rsql(qBuilder().bool("leaderboardHidden").isFalse())));
   }
 
   @Override
   public List<LeaderboardEntry> getLeaderboardEntriesForPlayer(int playerId) {
     return getAll(LEADERBOARD_ENTRY_ENDPOINT, java.util.Map.of(
         FILTER, rsql(qBuilder()
-            .intNum("player.id").eq(playerId)
-            .and()
-            .string("leaderboard.technicalName").ne(DEFAULT_RATING_TYPE)),
+            .intNum("player.id").eq(playerId)),
         INCLUDE, LEADERBOARD_ENTRY_INCLUDES,
         SORT, "-rating"));
   }

@@ -6,6 +6,8 @@ import com.faforever.client.fx.IconCell;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.StringCell;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.leaderboard.Leaderboard;
+import com.faforever.client.leaderboard.LeaderboardService;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.ModService;
@@ -45,6 +47,7 @@ import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -63,6 +66,7 @@ public class GamesTableController implements Controller<Node> {
   private final I18n i18n;
   private final UiService uiService;
   private final PreferencesService preferencesService;
+  private final LeaderboardService leaderboardService;
   public TableView<Game> gamesTable;
   public TableColumn<Game, Image> mapPreviewColumn;
   public TableColumn<Game, String> modsColumn;
@@ -113,7 +117,7 @@ public class GamesTableController implements Controller<Node> {
     applyLastSorting(gamesTable);
     gamesTable.setOnSort(this::onColumnSorted);
 
-    JavaFxUtil.addListener(sortedList, (Observable observable) -> JavaFxUtil.runLater(() -> selectCurrentGame()));
+    JavaFxUtil.addListener(sortedList, (Observable observable) -> JavaFxUtil.runLater(this::selectCurrentGame));
     selectCurrentGame();
 
     passwordProtectionColumn.setCellValueFactory(param -> param.getValue().passwordProtectedProperty());
@@ -148,14 +152,19 @@ public class GamesTableController implements Controller<Node> {
     coopMissionName.setVisible(coopMissionNameProvider != null);
 
     if (averageRatingColumn != null) {
-      averageRatingColumn.setCellValueFactory(param -> Bindings.createDoubleBinding(() -> {
-        boolean isDefaultRatingType = DEFAULT_RATING_TYPE.equals(param.getValue().getRatingType());
-        return isDefaultRatingType ? 0.0 : param.getValue().getAverageRating();
-        }, param.getValue().ratingTypeProperty(), param.getValue().averageRatingProperty()));
-      averageRatingColumn.setCellFactory(param -> new DecimalCell<>(
-          new DecimalFormat("0"),
-          number -> Math.round(number.doubleValue() / 100.0) * 100.0)
-      );
+      leaderboardService.getLeaderboards().thenAccept(leaderBoards -> {
+        Set<String> visibleLeaderboards = leaderBoards.stream()
+            .map(Leaderboard::getTechnicalName)
+            .collect(Collectors.toSet());
+          averageRatingColumn.setCellValueFactory(param -> Bindings.createDoubleBinding(() -> {
+            boolean isVisibleRatingType = visibleLeaderboards.contains(param.getValue().getRatingType());
+            return isVisibleRatingType ? param.getValue().getAverageRating() : 0.0;
+          }, param.getValue().ratingTypeProperty(), param.getValue().averageRatingProperty()));
+          averageRatingColumn.setCellFactory(param -> new DecimalCell<>(
+              new DecimalFormat("0"),
+              number -> Math.round(number.doubleValue() / 100.0) * 100.0)
+          );
+      });
     }
 
     if (coopMissionNameProvider != null) {

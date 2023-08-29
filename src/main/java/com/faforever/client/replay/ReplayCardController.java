@@ -37,8 +37,6 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import static com.faforever.client.game.GameService.DEFAULT_RATING_TYPE;
-
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @RequiredArgsConstructor
@@ -137,7 +135,7 @@ public class ReplayCardController implements Controller<Node> {
         .flatMap(playerStats -> Optional.ofNullable(playerStats.getLeaderboard()))
         .ifPresent(leaderboard -> {
           ratingTypeLabel.setText(i18n.get(leaderboard.getNameKey()));
-          ratingTypeLabel.setVisible(!DEFAULT_RATING_TYPE.equals(leaderboard.getTechnicalName()));
+          ratingTypeLabel.setVisible(!leaderboard.getLeaderboardHidden());
         });
 
     ratingLabel.visibleProperty().bind(ratingTypeLabel.visibleProperty());

@@ -99,7 +99,7 @@ public class MockFafApiAccessor implements FafApiAccessor {
   @Override
   public List<Leaderboard> getLeaderboards() {
     return List.of(
-        new Leaderboard("1", OffsetDateTime.now(), OffsetDateTime.now(), "mock", "mock", "mock")
+        new Leaderboard("1", OffsetDateTime.now(), OffsetDateTime.now(), "mock", "mock", "mock", Boolean.FALSE)
     );
   }
 

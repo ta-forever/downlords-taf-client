@@ -236,7 +236,7 @@ public class UserInfoWindowController implements Controller<Node> {
     Integer winCount = leaderboardEntries.stream().map(LeaderboardEntry::getWonGames).reduce(0, Integer::sum);
     Integer drawCount = leaderboardEntries.stream().map(LeaderboardEntry::getDrawnGames).reduce(0, Integer::sum);
     Integer lossCount = leaderboardEntries.stream().map(LeaderboardEntry::getLostGames).reduce(0, Integer::sum);
-    Integer gameCount = winCount + drawCount + lossCount;
+    int gameCount = winCount + drawCount + lossCount;
     gamesPlayedLabel.setText(i18n.number(gameCount));
     resultsBreakdownLabel.setText(i18n.get("userInfo.winDrawLoss", winCount, drawCount, lossCount));
 
@@ -244,7 +244,7 @@ public class UserInfoWindowController implements Controller<Node> {
       StringBuilder ratingNames = new StringBuilder();
       StringBuilder ratingNumbers = new StringBuilder();
       leaderboardEntries.forEach(lbe -> {
-        if (lbe != null) {
+        if (lbe != null && !lbe.getLeaderboard().getLeaderboardHidden()) {
           Leaderboard lb = lbe.getLeaderboard();
           String leaderboardName = i18n.get(lb.getNameKey());
           ratingNames.append(i18n.get("leaderboard.rating", leaderboardName)).append("\n");
@@ -333,12 +333,16 @@ public class UserInfoWindowController implements Controller<Node> {
       List<LeaderboardEntry> sortedEntries = leaderboardEntries.stream()
           .sorted((a,b) -> (int)(b.getRating() - a.getRating()))
           .collect(Collectors.toList());
-      ratingTable.setItems(observableList(sortedEntries));
       updateRatingGrids(sortedEntries);
       sortedEntries.forEach(leaderboardEntry ->
             gamesPlayedByLeaderboardChart.getData().add(new PieChart.Data(
                 i18n.get(leaderboardEntry.getLeaderboard().getNameKey()),
                 leaderboardEntry.getWonGames())));
+
+      sortedEntries = sortedEntries.stream()
+          .filter(lbe -> !lbe.getLeaderboard().getLeaderboardHidden())
+              .toList();
+      ratingTable.setItems(observableList(sortedEntries));
 
     })).exceptionally(throwable -> {
       log.warn("Leaderboard entry could not be read for player: " + player.getUsername(), throwable);

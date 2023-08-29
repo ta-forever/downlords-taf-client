@@ -20,4 +20,5 @@ public class Leaderboard {
   private String descriptionKey;
   private String nameKey;
   private String technicalName;
+  private Boolean leaderboardHidden;
 }
