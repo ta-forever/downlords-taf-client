@@ -223,10 +223,10 @@ public class FeaturedModInstallController implements Controller<Node> {
     Path installFolder = Path.of(installPathTextField.getText());
     Path installExe = installFolder.resolve("TotalA.exe");
     if (useExistingCheckBox.isSelected() && !validateTotalAExe(installExe)) {
-      notificationService.addImmediateWarnNotification("gameChosen.noValidExe");
+      notificationService.addImmediateWarnNotification("gameChosen.noValidExe", installFolder);
     }
     else if (useExistingCheckBox.isSelected() && !validateRequiredForExistingInstallation(installFolder)) {
-      notificationService.addImmediateWarnNotification("gameChosen.missingDlls");
+      notificationService.addImmediateWarnNotification("gameChosen.missingDlls", installFolder, featuredMod.getDisplayName());
     }
     else if (useExistingCheckBox.isSelected()) {
       preferencesService.setTotalAnnihilation(
