@@ -6,6 +6,7 @@ import com.faforever.client.fx.DefaultImageView;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.leaderboard.LeaderboardService;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
@@ -46,7 +47,7 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.faforever.client.game.GameService.DEFAULT_RATING_TYPE;
+import static com.faforever.client.leaderboard.LeaderboardService.DEFAULT_RATING_TYPE;
 import static javafx.beans.binding.Bindings.createObjectBinding;
 import static javafx.beans.binding.Bindings.createStringBinding;
 
@@ -62,6 +63,7 @@ public class GameDetailController implements Controller<Pane> {
   private final PlayerService playerService;
   private final UiService uiService;
   private final ChatService chatService;
+  private final LeaderboardService leaderboardService;
   private final JoinGameHelper joinGameHelper;
   private final EventBus eventBus;
 
@@ -114,6 +116,7 @@ public class GameDetailController implements Controller<Pane> {
   public GameDetailController(I18n i18n, MapService mapService, ModService modService,
                               GameService gameService, PlayerService playerService,
                               UiService uiService, ChatService chatService,
+                              LeaderboardService leaderboardService,
                               JoinGameHelper joinGameHelper, EventBus eventBus) {
     this.i18n = i18n;
     this.mapService = mapService;
@@ -122,6 +125,7 @@ public class GameDetailController implements Controller<Pane> {
     this.playerService = playerService;
     this.uiService = uiService;
     this.chatService = chatService;
+    this.leaderboardService = leaderboardService;
     this.joinGameHelper = joinGameHelper;
     this.eventBus = eventBus;
 
@@ -361,9 +365,13 @@ public class GameDetailController implements Controller<Pane> {
   }
 
   private void createTeams() {
-    JavaFxUtil.assertApplicationThread();
-    teamListPane.getChildren().clear();
-    TeamCardController.createAndAdd(game.get().getTeams(), game.get().getRatingType(), playerService, uiService, teamListPane);
+    this.leaderboardService.getLeaderboards()
+            .thenAccept(leaderboards -> JavaFxUtil.runLater(() -> {
+              boolean hidePlayerRatings = leaderboards.stream().noneMatch(lb -> lb.getTechnicalName().equals(game.get().getRatingType()));
+              teamListPane.getChildren().clear();
+              TeamCardController.createAndAdd(game.get().getTeams(), game.get().getRatingType(), playerService, uiService,
+                  teamListPane, hidePlayerRatings);
+            }));
   }
 
   @Override

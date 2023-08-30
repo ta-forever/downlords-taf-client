@@ -37,6 +37,8 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import static com.faforever.client.leaderboard.LeaderboardService.DEFAULT_RATING_TYPE;
+
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @RequiredArgsConstructor
@@ -127,6 +129,8 @@ public class ReplayCardController implements Controller<Node> {
 
     ratingTypeLabel.setVisible(false);
     ratingTypeLabel.managedProperty().bind(ratingTypeLabel.visibleProperty());
+    ratingLabel.setVisible(false);
+    ratingLabel.managedProperty().bind(ratingLabel.visibleProperty());
     modLabel.managedProperty().bind(modLabel.visibleProperty());
     modLabel.visibleProperty().bind(ratingTypeLabel.visibleProperty().not());
     replay.getTeamPlayerStats().values().stream()
@@ -135,11 +139,9 @@ public class ReplayCardController implements Controller<Node> {
         .flatMap(playerStats -> Optional.ofNullable(playerStats.getLeaderboard()))
         .ifPresent(leaderboard -> {
           ratingTypeLabel.setText(i18n.get(leaderboard.getNameKey()));
-          ratingTypeLabel.setVisible(!leaderboard.getLeaderboardHidden());
+          ratingTypeLabel.setVisible(!DEFAULT_RATING_TYPE.equals(leaderboard.getTechnicalName()));
+          ratingLabel.setVisible(!leaderboard.getLeaderboardHidden());
         });
-
-    ratingLabel.visibleProperty().bind(ratingTypeLabel.visibleProperty());
-    ratingLabel.managedProperty().bind(ratingLabel.visibleProperty());
 
     Integer replayTicks = replay.getReplayTicks();
     if (replayTicks != null) {

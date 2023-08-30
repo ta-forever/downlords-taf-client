@@ -59,7 +59,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static com.faforever.client.game.GameService.DEFAULT_RATING_TYPE;
+import static com.faforever.client.leaderboard.LeaderboardService.DEFAULT_RATING_TYPE;
 import static com.faforever.client.game.KnownFeaturedMod.COOP;
 import static java.util.Collections.emptySet;
 import static javafx.collections.FXCollections.observableList;

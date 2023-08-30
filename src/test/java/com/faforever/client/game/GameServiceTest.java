@@ -9,6 +9,7 @@ import com.faforever.client.fa.relay.event.RehostRequestEvent;
 import com.faforever.client.fa.relay.ice.IceAdapter;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.leaderboard.LeaderboardService;
 import com.faforever.client.map.MapService;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.mod.ModService;
@@ -654,7 +655,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
     when(fafService.requestHostGame(newGameInfo)).thenReturn(completedFuture(gameLaunchMessage));
     instance.hostGame(newGameInfo);
     verify(totalAnnihilationService).startGame(
-        gameLaunchMessage.getUid(), null, List.of(), GameService.DEFAULT_RATING_TYPE,
+        gameLaunchMessage.getUid(), null, List.of(), LeaderboardService.DEFAULT_RATING_TYPE,
         GPG_PORT, LOCAL_REPLAY_PORT, false, junitPlayer);
   }
 
@@ -716,7 +717,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
     instance.startSearchMatchmaker();
     verify(totalAnnihilationService).startGame(
         gameLaunchMessage.getUid(), null, List.of("/team", "null", "/players", "null", "/startspot", "null"),
-        GameService.DEFAULT_RATING_TYPE, GPG_PORT, LOCAL_REPLAY_PORT, false, junitPlayer);
+        LeaderboardService.DEFAULT_RATING_TYPE, GPG_PORT, LOCAL_REPLAY_PORT, false, junitPlayer);
   }
 
   @Test

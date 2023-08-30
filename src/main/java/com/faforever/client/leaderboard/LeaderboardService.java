@@ -7,6 +7,7 @@ import java.util.concurrent.CompletableFuture;
 
 public interface LeaderboardService {
   int MINIMUM_GAMES_PLAYED_TO_BE_SHOWN = 10;
+  String DEFAULT_RATING_TYPE = "global";
 
   CompletableFuture<List<Leaderboard>> getLeaderboards();
 

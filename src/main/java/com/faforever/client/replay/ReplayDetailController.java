@@ -69,6 +69,8 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.faforever.client.leaderboard.LeaderboardService.DEFAULT_RATING_TYPE;
+
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @Slf4j
@@ -245,17 +247,17 @@ public class ReplayDetailController implements Controller<Node> {
         .ifPresentOrElse(averageRating -> ratingLabel.setText(i18n.number((int) averageRating)),
             () -> ratingLabel.setText("-"));
 
+    ratingLabel.setVisible(false);
+    ratingLabel.managedProperty().bind(ratingLabel.visibleProperty());
     ratingTypeLabel.setText("-");
     replay.getTeamPlayerStats().values().stream().findAny()
         .flatMap(playerStatsList -> playerStatsList.stream().findAny())
         .flatMap(playerStats -> Optional.ofNullable(playerStats.getLeaderboard()))
         .ifPresent(leaderboard -> {
           ratingTypeLabel.setText(i18n.get(leaderboard.getNameKey()));
-          ratingTypeLabel.setVisible(!leaderboard.getLeaderboardHidden());
+          ratingTypeLabel.setVisible(!DEFAULT_RATING_TYPE.equals(leaderboard.getTechnicalName()));
+          ratingLabel.setVisible(!leaderboard.getLeaderboardHidden());
         });
-
-    ratingLabel.visibleProperty().bind(ratingTypeLabel.visibleProperty());
-    ratingLabel.managedProperty().bind(ratingLabel.visibleProperty());
 
     if (replay.getReplayFile() == null) {
       if (replay.getReplayAvailable()) {

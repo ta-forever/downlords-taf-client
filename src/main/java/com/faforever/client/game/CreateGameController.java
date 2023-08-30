@@ -78,7 +78,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static com.faforever.client.game.GameService.DEFAULT_RATING_TYPE;
+import static com.faforever.client.leaderboard.LeaderboardService.DEFAULT_RATING_TYPE;
 import static com.faforever.client.net.ConnectionState.CONNECTED;
 import static java.util.Collections.emptySet;
 import static javafx.scene.layout.BackgroundPosition.CENTER;

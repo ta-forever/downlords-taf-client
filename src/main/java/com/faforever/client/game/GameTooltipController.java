@@ -3,6 +3,7 @@ package com.faforever.client.game;
 
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.leaderboard.LeaderboardService;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.theme.UiService;
 import com.google.common.base.Joiner;
@@ -28,6 +29,7 @@ public class GameTooltipController implements Controller<Node> {
 
   private final UiService uiService;
   private final PlayerService playerService;
+  private final LeaderboardService leaderboardService;
 
   public TitledPane modsPane;
   public TilePane teamsPane;
@@ -82,13 +84,15 @@ public class GameTooltipController implements Controller<Node> {
   }
 
   private void createTeams(ObservableMap<? extends String, ? extends List<String>> teamsList, String ratingType) {
-    JavaFxUtil.runLater(() -> {
-      synchronized (teamsList) {
-        teamsPane.getChildren().clear();
-        TeamCardController.createAndAdd(teamsList, ratingType, playerService, uiService, teamsPane);
-        teamsPane.setPrefColumns(Math.min(teamsList.size(), maxPrefColumns));
-      }
-    });
+    leaderboardService.getLeaderboards()
+            .thenAccept(leaderboards -> JavaFxUtil.runLater(() -> {
+              boolean hidePlayerRatings = leaderboards.stream().noneMatch(lb -> lb.getTechnicalName().equals(ratingType));
+              synchronized (teamsList) {
+                teamsPane.getChildren().clear();
+                TeamCardController.createAndAdd(teamsList, ratingType, playerService, uiService, teamsPane, hidePlayerRatings);
+                teamsPane.setPrefColumns(Math.min(teamsList.size(), maxPrefColumns));
+              }
+            }));
   }
 
   private void createModsList(ObservableMap<? extends String, ? extends String> simMods) {

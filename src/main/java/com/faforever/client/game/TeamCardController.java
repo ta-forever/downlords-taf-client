@@ -26,8 +26,6 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.faforever.client.game.GameService.DEFAULT_RATING_TYPE;
-
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class TeamCardController implements Controller<Node> {
@@ -51,7 +49,8 @@ public class TeamCardController implements Controller<Node> {
    * @param ratingType the type of rating used for the game sent from the server
    * @param playerService the service to use to look up players by name
    */
-  static void createAndAdd(ObservableMap<? extends String, ? extends List<String>> teamsList, String ratingType, PlayerService playerService, UiService uiService, Pane teamsPane) {
+  static void createAndAdd(ObservableMap<? extends String, ? extends List<String>> teamsList, String ratingType,
+                           PlayerService playerService, UiService uiService, Pane teamsPane, Boolean hidePlayerRatings) {
     JavaFxUtil.assertApplicationThread();
     for (Map.Entry<? extends String, ? extends List<String>> entry : teamsList.entrySet()) {
       List<Player> players = entry.getValue().stream()
@@ -63,7 +62,7 @@ public class TeamCardController implements Controller<Node> {
       TeamCardController teamCardController = uiService.loadFxml("theme/team_card.fxml");
       teamCardController.setPlayersInTeam(
           entry.getKey(), players, player -> RatingUtil.getLeaderboardRating(player, ratingType), null,
-          RatingPrecision.ROUNDED, DEFAULT_RATING_TYPE.equals(ratingType));
+          RatingPrecision.ROUNDED, hidePlayerRatings);
       teamsPane.getChildren().add(teamCardController.getRoot());
     }
   }

@@ -47,7 +47,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import static com.faforever.client.game.GameService.DEFAULT_RATING_TYPE;
+import static com.faforever.client.leaderboard.LeaderboardService.DEFAULT_RATING_TYPE;
 import static javafx.beans.binding.Bindings.createObjectBinding;
 import static javafx.beans.binding.Bindings.createStringBinding;
 

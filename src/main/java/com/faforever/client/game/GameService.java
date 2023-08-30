@@ -42,7 +42,6 @@ import com.faforever.client.remote.domain.GameLaunchMessage;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.remote.domain.LoginMessage;
-import com.faforever.client.replay.ReplayServer;
 import com.faforever.client.replay.UnhideReplayEvent;
 import com.faforever.client.tada.event.UploadToTadaEvent;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
@@ -115,7 +114,6 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 @RequiredArgsConstructor
 public class GameService implements InitializingBean {
 
-  public static final String DEFAULT_RATING_TYPE = "global";
   public static final String CUSTOM_GAME_CHANNEL_REGEX = "^#.+\\[.+\\]$";
 
   /**
@@ -138,7 +136,6 @@ public class GameService implements InitializingBean {
   private final ModService modService;
   private final PlatformService platformService;
   private final DiscordRichPresenceService discordRichPresenceService;
-  private final ReplayServer replayServer;
   private final ReconnectTimerService reconnectTimerService;
   private final ChatService chatService;
   private final RatingService ratingService;
@@ -183,7 +180,6 @@ public class GameService implements InitializingBean {
                      ModService modService,
                      PlatformService platformService,
                      DiscordRichPresenceService discordRichPresenceService,
-                     ReplayServer replayServer,
                      ReconnectTimerService reconnectTimerService,
                      ChatService chatService,
                      RatingService ratingService) {
@@ -203,7 +199,6 @@ public class GameService implements InitializingBean {
     this.modService = modService;
     this.platformService = platformService;
     this.discordRichPresenceService = discordRichPresenceService;
-    this.replayServer = replayServer;
     this.reconnectTimerService = reconnectTimerService;
     this.chatService = chatService;
     this.ratingService = ratingService;
@@ -323,9 +318,6 @@ public class GameService implements InitializingBean {
         Player currentPlayer = getCurrentPlayer();
         Game currentGame = getCurrentGame();
         boolean playerStillInGame = currentPlayer != null && currentGame != null && currentPlayer.getCurrentGameUid() == currentGame.getId();
-        /*game.getTeams().entrySet().stream()
-            .flatMap(stringListEntry -> stringListEntry.getValue().stream())
-            .anyMatch(playerName -> playerName.equals(currentPlayer.getUsername()));*/
 
         /*
           Check if player left the game while it was open, in this case we don't care any longer
@@ -865,9 +857,11 @@ public class GameService implements InitializingBean {
     }
     String modTechnical = gameLaunchMessage.getMod();
     int uid = gameLaunchMessage.getUid();
-    replayServer.start(uid, () -> getByUid(uid))
-        .thenCompose(port ->  iceAdapter.start(playerAlias))
-        .thenAccept(adapterPort -> {
+    final Integer [] adapterPort = {null};
+    iceAdapter.start(playerAlias)
+        .thenAccept(ap -> adapterPort[0] = ap)
+        .thenCompose((aVoid) -> this.fafService.getLeaderboards())
+        .thenAccept(availableLeaderboards -> {
           List<String> args = fixMalformedArgs(gameLaunchMessage.getArgs());
 
           Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(modTechnical, uid));
@@ -876,10 +870,12 @@ public class GameService implements InitializingBean {
           String demoCompilerUrl = String.format("%s:%s/%s",
               clientProperties.getReplay().getRemoteHost(), clientProperties.getReplay().getCompilerPort(), uid);
 
-          boolean isRated = !DEFAULT_RATING_TYPE.equals(gameLaunchMessage.getRatingType());
+          boolean isRated = availableLeaderboards.stream().anyMatch(
+              lb -> lb.getTechnicalName().equals(gameLaunchMessage.getRatingType()));
+          log.info("[startGame] ratingType={}, isRated={}", gameLaunchMessage.getRatingType(), isRated);
 
           process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, uid, args,
-              adapterPort, getCurrentPlayer(), demoCompilerUrl, ircUrl, autoLaunch, isRated));
+              adapterPort[0], getCurrentPlayer(), demoCompilerUrl, ircUrl, autoLaunch, isRated));
           setRunningGameUid(uid);
           currentGameStatusProperty.set(GameStatus.SPAWNING);
           spawnGameTerminationListener(process, uid,  modTechnical, null);
@@ -999,7 +995,6 @@ public class GameService implements InitializingBean {
             triggerTerminationHandler.setValue(true);
           }
           setRunningGameUid(null);
-          replayServer.stop();
           iceAdapter.stop();
           fafService.notifyGameEnded();
         }

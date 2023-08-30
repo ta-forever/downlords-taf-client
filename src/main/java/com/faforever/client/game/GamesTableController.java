@@ -17,7 +17,6 @@ import com.faforever.client.remote.domain.RatingRange;
 import com.faforever.client.theme.UiService;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
@@ -52,7 +51,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.faforever.client.game.GameService.DEFAULT_RATING_TYPE;
+import static com.faforever.client.leaderboard.LeaderboardService.DEFAULT_RATING_TYPE;
 
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @Component
