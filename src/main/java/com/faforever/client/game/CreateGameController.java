@@ -373,6 +373,7 @@ public class CreateGameController implements Controller<Pane> {
     updateGameButton.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
     mapPoolListView.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
     liveReplayOptionComboBox.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
+    passwordTextField.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
     mapListView.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE")
             .or(interactionLevelProperty.isEqualTo("UPDATE_GW")).or(loadingMapsProperty));
     randomMapButton.disableProperty().bind(mapListView.disabledProperty());
@@ -391,7 +392,6 @@ public class CreateGameController implements Controller<Pane> {
     featuredModListView.disableProperty().bind(updateGameButton.visibleProperty());
     installGameButton.disableProperty().bind(updateGameButton.visibleProperty());
     openGameFolderButton.disableProperty().bind(updateGameButton.visibleProperty());
-    passwordTextField.disableProperty().bind(updateGameButton.visibleProperty());
     minRankingTextField.disableProperty().bind(updateGameButton.visibleProperty());
     maxRankingTextField.disableProperty().bind(updateGameButton.visibleProperty());
   }
@@ -781,7 +781,9 @@ public class CreateGameController implements Controller<Pane> {
               rankedEnabledCheckBox.isSelected()
                   ? mapPoolListView.getSelectionModel().getSelectedItem().getLeaderboard().getTechnicalName()
                   : DEFAULT_RATING_TYPE,
-              liveReplayOptionComboBox.getSelectionModel().getSelectedItem()));
+              liveReplayOptionComboBox.getSelectionModel().getSelectedItem(),
+              passwordTextField.getText()
+              ));
   }
 
   public Pane getRoot() {

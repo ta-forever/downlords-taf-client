@@ -7,6 +7,7 @@ import com.faforever.client.fa.CloseGameEvent;
 import com.faforever.client.fa.DemoFileInfo;
 import com.faforever.client.fa.MapTool;
 import com.faforever.client.fa.TotalAnnihilationService;
+import com.faforever.client.fa.relay.GpgGameMessage;
 import com.faforever.client.fa.relay.event.AutoJoinRequestEvent;
 import com.faforever.client.fa.relay.event.RehostRequestEvent;
 import com.faforever.client.fa.relay.ice.IceAdapter;
@@ -824,17 +825,19 @@ public class GameService implements InitializingBean {
     }
   }
 
-  public void updateSettingsForStagingGame(String title, String mapName, String ratingType, LiveReplayOption liveReplayOption) {
+  public void updateSettingsForStagingGame(String title, String mapName, String ratingType, LiveReplayOption liveReplayOption, String password) {
     Game currentGame = getCurrentGame();
     if (isGameRunning() && currentGame != null && currentGame.getStatus()==GameStatus.STAGING) {
       try {
         List<String[]> mapsDetails = MapTool.listMap(preferencesService.getTotalAnnihilation(currentGame.getFeaturedMod()).getInstalledPath(), mapName);
         final String UNIT_SEPARATOR = Character.toString((char)0x1f);
         String mapDetails = String.join(UNIT_SEPARATOR, mapsDetails.get(0));
+        // @TODO I'm not sure all of these need to go to server via gpgnet4ta.  maybe send them directly to faf server?
         this.totalAnnihilationService.sendToConsole(String.format("/title %s", title));
         this.totalAnnihilationService.sendToConsole(String.format("/map %s", mapDetails));
         this.totalAnnihilationService.sendToConsole(String.format("/rating_type %s", ratingType));
         this.totalAnnihilationService.sendToConsole(String.format("/replay_delay_seconds %s", liveReplayOption.getDelaySeconds()));
+        this.fafService.setGamePassword(password);
       }
       catch (IOException e) {
         log.info("[setMapForStagingGame] unable to get details for map {}", mapName);

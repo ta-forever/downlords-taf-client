@@ -380,4 +380,7 @@ public class MockFafServerAccessor implements FafServerAccessor {
 
   @Override
   public void uploadReplayToTada(Integer replayId) { }
+
+  @Override
+  public void setGamePassword(String password) { }
 }

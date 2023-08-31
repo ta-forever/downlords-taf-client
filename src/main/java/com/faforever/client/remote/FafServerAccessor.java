@@ -96,6 +96,8 @@ public interface FafServerAccessor {
 
   void setPlayerAlias(String alias);
 
+  void setGamePassword(String password);
+
   void resetIdleSince();
 
   List<String> getLocalIps();

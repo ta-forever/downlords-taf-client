@@ -777,4 +777,6 @@ public class FafService {
   }
 
   public List<String> getLocalIps() { return fafServerAccessor.getLocalIps(); }
+
+  public void setGamePassword(String password) { fafServerAccessor.setGamePassword(password); }
 }
