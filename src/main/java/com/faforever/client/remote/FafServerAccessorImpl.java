@@ -208,16 +208,18 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
     log.info("NoticeMessage: style={}, text={}", noticeMessage.getStyle(), noticeMessage.getText());
 
     if (Objects.equals(noticeMessage.getStyle(), "kill")) {
-      notificationService.addNotification(new ImmediateNotification(i18n.get("game.kicked.title"), i18n.get("game.kicked.message", clientProperties.getLinks().get("linksRules")), Severity.WARN, Collections.singletonList(new DismissAction(i18n))));
+      notificationService.addNotification(new ImmediateNotification(i18n.get("game.kicked.title"), i18n.get(noticeMessage.getText()), Severity.WARN, Collections.singletonList(new DismissAction(i18n))));
       eventBus.post(new CloseGameEvent());
+      return;
     }
 
-    if (Objects.equals(noticeMessage.getStyle(), "kick")) {
-      notificationService.addNotification(new ImmediateNotification(i18n.get("server.kicked.title"), i18n.get("server.kicked.message", clientProperties.getLinks().get("linksRules")), Severity.WARN, Collections.singletonList(new DismissAction(i18n))));
+    else if (Objects.equals(noticeMessage.getStyle(), "kick")) {
+      notificationService.addNotification(new ImmediateNotification(i18n.get("server.kicked.title"), i18n.get("server.kicked.message"), Severity.WARN, Collections.singletonList(new DismissAction(i18n))));
       taskScheduler.scheduleWithFixedDelay(Platform::exit, Duration.ofSeconds(10));
+      return;
     }
 
-    if (Objects.equals(noticeMessage.getStyle(), "game_join_fail")) {
+    else if (Objects.equals(noticeMessage.getStyle(), "game_join_fail")) {
       if (gameLaunchFuture != null) {
         gameLaunchFuture.complete(null);
         gameLaunchFuture = null;

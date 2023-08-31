@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.ContextMenu?>
+<?import javafx.scene.control.MenuItem?>
+<ContextMenu fx:id="contextMenu"
+            xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.faforever.client.game.TeamCardPlayerContextMenuController">
+  <items>
+    <MenuItem text="%game.detail.player.kick" onAction="#onKickPlayer" fx:id="kickPlayerMenuItem"/>
+    <MenuItem text="%game.detail.player.migrateHost" onAction="#onMigrateHost" fx:id="migrateHostMenuItem"/>
+  </items>
+</ContextMenu>

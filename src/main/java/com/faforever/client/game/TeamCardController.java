@@ -30,14 +30,16 @@ import java.util.stream.Collectors;
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class TeamCardController implements Controller<Node> {
   private final UiService uiService;
+  private final PlayerService playerService;
   private final I18n i18n;
   public Pane teamPaneRoot;
   public VBox teamPane;
   public Label teamNameLabel;
   private final Map<Integer, RatingChangeLabelController> ratingChangeControllersByPlayerId;
 
-  public TeamCardController(UiService uiService, I18n i18n) {
+  public TeamCardController(UiService uiService, PlayerService playerService, I18n i18n) {
     this.uiService = uiService;
+    this.playerService = playerService;
     this.i18n = i18n;
     ratingChangeControllersByPlayerId = new HashMap<>();
   }
@@ -70,7 +72,7 @@ public class TeamCardController implements Controller<Node> {
   public void setPlayersInTeam(
       String team, List<Player> playerList, Function<Player, Integer> ratingProvider, Function<Player,
       Faction> playerFactionProvider, RatingPrecision ratingPrecision, Boolean hidePlayerRatings) {
-    Integer totalRating = 0;
+    int totalRating = 0;
     for (Player player : playerList) {
       // If the server wasn't bugged, this would never be the case.
       if (player == null) {
@@ -90,6 +92,13 @@ public class TeamCardController implements Controller<Node> {
         faction = playerFactionProvider.apply(player);
       }
       playerCardTooltipController.setPlayer(player, hidePlayerRatings ? null : playerRating, faction);
+      playerCardTooltipController.getRoot().setOnContextMenuRequested(event -> {
+        if (TeamCardPlayerContextMenuController.isMenuAvailable(playerService.getCurrentPlayer().orElse(null), player)) {
+          TeamCardPlayerContextMenuController ctrl = uiService.loadFxml("theme/play/team_card_player_context_menu.fxml");
+          ctrl.setPlayer(player);
+          ctrl.getContextMenu().show(this.getRoot().getScene().getWindow(), event.getScreenX(), event.getScreenY());
+        }
+      });
 
       RatingChangeLabelController ratingChangeLabelController = uiService.loadFxml("theme/rating_change_label.fxml");
       ratingChangeControllersByPlayerId.put(player.getId(), ratingChangeLabelController);
@@ -103,9 +112,9 @@ public class TeamCardController implements Controller<Node> {
     } else if ("-1".equals(team)) {
       teamTitle = i18n.get("game.tooltip.observers");
     } else if (hidePlayerRatings){
-      teamTitle = i18n.get("replay.team", Integer.valueOf(team) - 1);
+      teamTitle = i18n.get("replay.team", Integer.parseInt(team) - 1);
     } else {
-      teamTitle = i18n.get("game.tooltip.teamTitle", Integer.valueOf(team) - 1, totalRating);
+      teamTitle = i18n.get("game.tooltip.teamTitle", Integer.parseInt(team) - 1, totalRating);
     }
     teamNameLabel.setText(teamTitle);
   }

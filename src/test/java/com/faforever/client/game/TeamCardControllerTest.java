@@ -2,6 +2,7 @@ package com.faforever.client.game;
 
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.player.Player;
+import com.faforever.client.player.PlayerService;
 import com.faforever.client.replay.Replay.PlayerStats;
 import com.faforever.client.test.AbstractPlainJavaFxTest;
 import com.faforever.client.theme.UiService;
@@ -33,6 +34,8 @@ public class TeamCardControllerTest extends AbstractPlainJavaFxTest {
   @Mock
   private UiService uiService;
   @Mock
+  private PlayerService playerService;
+  @Mock
   private PlayerCardTooltipController playerCardTooltipController;
   @Mock
   private RatingChangeLabelController ratingChangeLabelController;
@@ -43,7 +46,7 @@ public class TeamCardControllerTest extends AbstractPlainJavaFxTest {
 
   @Before
   public void setUp() throws IOException {
-    instance = new TeamCardController(uiService, i18n);
+    instance = new TeamCardController(uiService, playerService, i18n);
     playerList = new ArrayList<>();
     playerList.add(player);
     teams = FXCollections.observableHashMap();
