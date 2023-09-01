@@ -71,6 +71,7 @@ import com.faforever.client.remote.domain.SerializableMessage;
 import com.faforever.client.remote.domain.ServerCommand;
 import com.faforever.client.remote.domain.ServerMessage;
 import com.faforever.client.remote.domain.SessionMessage;
+import com.faforever.client.remote.domain.SetGameMapDetailsMessage;
 import com.faforever.client.remote.domain.SetGamePasswordMessage;
 import com.faforever.client.remote.domain.SetPartyFactionsMessage;
 import com.faforever.client.remote.domain.SetPlayerAliasMessage;
@@ -702,6 +703,11 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
 
   @Override
   public void setGamePassword(String password) { writeToServer(new SetGamePasswordMessage(password)); }
+
+  @Override
+  public void setGameMapDetails(String mapName, String hpiArchive, String crc) {
+    writeToServer(new SetGameMapDetailsMessage(mapName, hpiArchive, crc));
+  }
 
   @Override
   public List<String> getLocalIps() { return localIps; }

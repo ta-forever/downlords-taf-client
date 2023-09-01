@@ -98,6 +98,8 @@ public interface FafServerAccessor {
 
   void setGamePassword(String password);
 
+  void setGameMapDetails(String mapName, String hpiArchive, String crc);
+
   void resetIdleSince();
 
   List<String> getLocalIps();

@@ -779,4 +779,8 @@ public class FafService {
   public List<String> getLocalIps() { return fafServerAccessor.getLocalIps(); }
 
   public void setGamePassword(String password) { fafServerAccessor.setGamePassword(password); }
+
+  public void setGameMapDetails(String mapName, String hpiArchive, String crc) {
+    fafServerAccessor.setGameMapDetails(mapName, hpiArchive, crc);
+  }
 }

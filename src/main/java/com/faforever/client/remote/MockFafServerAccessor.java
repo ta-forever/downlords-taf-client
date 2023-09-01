@@ -383,4 +383,7 @@ public class MockFafServerAccessor implements FafServerAccessor {
 
   @Override
   public void setGamePassword(String password) { }
+
+  @Override
+  public void setGameMapDetails(String mapName, String hpiArchive, String crc) { };
 }

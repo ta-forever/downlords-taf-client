@@ -27,6 +27,7 @@ public enum ClientMessageType {
   LEAVE_PARTY("leave_party"),
   SET_PARTY_FACTIONS("set_party_factions"),
   SET_PLAYER_ALIAS("set_player_alias"),
+  SET_GAME_MAP_DETAILS("set_game_map_details"),
   SET_GAME_PASSWORD("set_game_password"),
   MATCHMAKER_INFO("matchmaker_info"),
   GAME_MATCHMAKING("game_matchmaking"),
