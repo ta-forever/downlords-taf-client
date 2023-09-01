@@ -25,7 +25,6 @@ public class TeamCardPlayerContextMenuController implements Controller<ContextMe
   private Player player;
   public ContextMenu contextMenu;
   public MenuItem kickPlayerMenuItem;
-  public MenuItem migrateHostMenuItem;
 
   public boolean setPlayer(Player player) {
     this.player = player;
@@ -65,8 +64,5 @@ public class TeamCardPlayerContextMenuController implements Controller<ContextMe
 
   public void onKickPlayer(ActionEvent actionEvent) {
     fafService.closePlayersGame(this.player.getId());
-  }
-
-  public void onMigrateHost(ActionEvent actionEvent) {
   }
 }

@@ -7,6 +7,5 @@
             fx:controller="com.faforever.client.game.TeamCardPlayerContextMenuController">
   <items>
     <MenuItem text="%game.detail.player.kick" onAction="#onKickPlayer" fx:id="kickPlayerMenuItem"/>
-    <MenuItem text="%game.detail.player.migrateHost" onAction="#onMigrateHost" fx:id="migrateHostMenuItem"/>
   </items>
 </ContextMenu>
