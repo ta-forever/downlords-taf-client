@@ -27,11 +27,18 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
+
+import static java.util.Locale.US;
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class MatchmakingChatController extends AbstractChatTabController {
+
+  private final AutoCompletionHelper autoCompletionHelper;
+  private final Set<ChatChannelUser> chatChannelUsers;
 
   public Tab matchmakingChatTabRoot;
   public WebView messagesWebView;
@@ -60,6 +67,21 @@ public class MatchmakingChatController extends AbstractChatTabController {
     super(webViewConfigurer, userService, chatService, preferencesService, playerService, audioService,
         timeService, i18n, imageUploadService, notificationService, reportingService, uiService,
         eventBus, countryFlagService, chatUserService);
+
+    chatChannelUsers = new HashSet<>();
+    autoCompletionHelper = new AutoCompletionHelper(
+        currentWord -> chatChannelUsers.stream()
+            .map(ChatChannelUser::getUsername)
+            .filter(playerName -> playerName.toLowerCase(US).startsWith(currentWord.toLowerCase()))
+            .sorted()
+            .collect(Collectors.toList())
+    );
+  }
+
+  @Override
+  public void initialize() {
+    super.initialize();
+    autoCompletionHelper.bindTo(messageTextField());
   }
 
   @Override
@@ -116,6 +138,7 @@ public class MatchmakingChatController extends AbstractChatTabController {
   @VisibleForTesting
   void onPlayerDisconnected(ChatChannelUser user) {
     super.onPlayerDisconnected(user);
+    chatChannelUsers.remove(user);
     onChatMessage(new ChatMessage(getReceiver(), Instant.now(),
         i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerDisconnect", user.getUsername()),true)
             .setSubject(user.getUsername()));
@@ -124,6 +147,7 @@ public class MatchmakingChatController extends AbstractChatTabController {
   @VisibleForTesting
   void onPlayerConnected(ChatChannelUser user) {
     super.onPlayerConnected(user);
+    chatChannelUsers.add(user);
     onChatMessage(new ChatMessage(getReceiver(), Instant.now(),
         i18n.get("chat.operator") + ":", i18n.get("chat.groupChat.playerConnect", user.getUsername()), true)
         .setSubject(user.getUsername()));
