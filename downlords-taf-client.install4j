@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install4j version="10.0.3" transformSequenceNumber="10">
   <directoryPresets config="./README_INSTALL.TXT" />
-  <application name="TA Forever Client" applicationId="1364-9624-6962-8970" mediaDir="./build/install4j" lzmaCompression="true" pack200Compression="true" shortName="tafclient" publisher="TA Forever" publisherWeb="http://www.taforever.com" version="0.16.1" allPathsRelative="true" autoSave="true" macVolumeId="e230e730a6fc064c" javaMinVersion="16" javaMaxVersion="20" allowBetaVM="true" jdkMode="jdk">
+  <application name="TA Forever Client" applicationId="1364-9624-6962-8970" mediaDir="./build/install4j" lzmaCompression="true" pack200Compression="true" shortName="tafclient" publisher="TA Forever" publisherWeb="http://www.taforever.com" version="2023.09.06" allPathsRelative="true" autoSave="true" macVolumeId="e230e730a6fc064c" javaMinVersion="16" javaMaxVersion="20" allowBetaVM="true" jdkMode="jdk">
     <searchSequence>
       <registry />
       <directory location="jre" />
     </searchSequence>
-    <jreBundles jdkProviderId="AdoptOpenJDK" release="20/jdk-20.0.2+9" />
+    <jreBundles jdkProviderId="Adoptium" release="20/jdk-20.0.2+9" />
   </application>
   <files>
     <roots>
