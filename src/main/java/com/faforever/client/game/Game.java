@@ -52,6 +52,7 @@ public class Game {
    */
   private final MapProperty<String, String> simMods;
   private final MapProperty<String, List<String>> teams;
+  private final MapProperty<Integer, List<List<Integer>>> pings;  // key=playerid(measuring), value=list of [playerid(measured), ping]
   /**
    * Maps an index (1,2,3,4...) to a version number. Don't ask me what this index maps to.
    */
@@ -78,6 +79,7 @@ public class Game {
     visibility = new SimpleObjectProperty<>();
     simMods = new SimpleMapProperty<>(FXCollections.observableHashMap());
     teams = new SimpleMapProperty<>(FXCollections.observableHashMap());
+    pings = new SimpleMapProperty<>(FXCollections.observableHashMap());
     featuredModVersions = new SimpleMapProperty<>(FXCollections.observableHashMap());
     status = new SimpleObjectProperty<>();
     startTime = new SimpleObjectProperty<>();
@@ -343,6 +345,14 @@ public class Game {
   public MapProperty<String, List<String>> teamsProperty() {
     return teams;
   }
+
+  public ObservableMap<Integer, List<List<Integer>>> getPings() {
+    return pings.get();
+  }
+
+  public void setPings(ObservableMap<Integer, List<List<Integer>>> pings) { this.pings.set(pings); }
+
+  public MapProperty<Integer, List<List<Integer>>> pingsProperty() { return pings; }
 
   public ObservableMap<String, Integer> getFeaturedModVersions() {
     return featuredModVersions.get();

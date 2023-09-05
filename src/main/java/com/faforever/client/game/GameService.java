@@ -1031,7 +1031,12 @@ public class GameService implements InitializingBean {
 
   private void onLoggedIn() {
     if (isGameRunning()) {
-      fafService.restoreGameSession(getCurrentGame().getId());
+      if (getCurrentGame() != null) {
+        fafService.restoreGameSession(getCurrentGame().getId());
+      }
+      else {
+        killGame();
+      }
     }
   }
 
@@ -1199,6 +1204,7 @@ public class GameService implements InitializingBean {
       }
       synchronized (currentGame) {
         currentGame.set(null);
+        killGame();
       }
     }
 
@@ -1213,6 +1219,7 @@ public class GameService implements InitializingBean {
       } else if (isGameCurrentGame && !currentPlayerInGame) {
         synchronized (currentGame) {
           currentGame.set(null);
+          killGame();
         }
       }
       if (preferencesService.getPreferences().getAutoJoinEnabled() &&
@@ -1269,50 +1276,62 @@ public class GameService implements InitializingBean {
 
   private void updateFromGameInfo(GameInfoMessage gameInfoMessage, Game game) {
     game.setId(gameInfoMessage.getUid());
-    game.setHost(gameInfoMessage.getHost());
-    game.setTitle(StringEscapeUtils.unescapeHtml4(gameInfoMessage.getTitle()));
-    game.setMapName(gameInfoMessage.getMapName());
-    game.setFeaturedMod(gameInfoMessage.getFeaturedMod());
-    game.setGalacticWarPlanetName(gameInfoMessage.getGalacticWarPlanetName());
-    game.setNumPlayers(gameInfoMessage.getNumPlayers());
-    game.setMaxPlayers(gameInfoMessage.getMaxPlayers());
-    Optional.ofNullable(gameInfoMessage.getLaunchedAt()).ifPresent(aDouble -> game.setStartTime(
-        TimeUtil.fromPythonTime(aDouble.longValue()).toInstant()
-    ));
-    game.setStatus(gameInfoMessage.getState());
-    game.setPasswordProtected(gameInfoMessage.getPasswordProtected());
-    game.setGameType(gameInfoMessage.getGameType());
-    game.setRatingType(gameInfoMessage.getRatingType());
-    game.setVisibility(GameVisibility.fromString(gameInfoMessage.getVisibility()));
 
-    //String UnitSeparator = Character.toString((char)0x1f);
-    //String mapDetails[] = gameInfoMessage.getMapDetails().split(UnitSeparator); // determined by host: name,archive,crc,desc,size,numplayers,minwind-maxwind,tide,gravity
-    String mapFilePath[] = gameInfoMessage.getMapFilePath().split("/");   // determined by faf db: archive/name/crc
-    if (mapFilePath.length >= 3) {
-      game.setMapArchiveName(mapFilePath[0]);
-      game.setMapCrc(mapFilePath[2]);
-    }
-
-    game.setAverageRating(calcAverageRating(gameInfoMessage));
-
-    synchronized (game.getSimMods()) {
-      game.getSimMods().clear();
-      if (gameInfoMessage.getSimMods() != null) {
-        game.getSimMods().putAll(gameInfoMessage.getSimMods());
+    synchronized (game.getPings()) {
+      if (gameInfoMessage.getPings() != null) {
+        game.pingsProperty().set(FXCollections.observableMap(gameInfoMessage.getPings()));
+      }
+      else {
+        log.info("[updateFromGameInfo] gameInfoMessage.getPings() is null");
       }
     }
 
-    synchronized (game.getTeams()) {
-      game.getTeams().clear();
-      if (gameInfoMessage.getTeams() != null) {
-        game.getTeams().putAll(gameInfoMessage.getTeams());
-      }
-    }
+    if (gameInfoMessage.getHost() != null) {
+      game.setHost(gameInfoMessage.getHost());
+      game.setTitle(StringEscapeUtils.unescapeHtml4(gameInfoMessage.getTitle()));
+      game.setMapName(gameInfoMessage.getMapName());
+      game.setFeaturedMod(gameInfoMessage.getFeaturedMod());
+      game.setGalacticWarPlanetName(gameInfoMessage.getGalacticWarPlanetName());
+      game.setNumPlayers(gameInfoMessage.getNumPlayers());
+      game.setMaxPlayers(gameInfoMessage.getMaxPlayers());
+      Optional.ofNullable(gameInfoMessage.getLaunchedAt()).ifPresent(aDouble -> game.setStartTime(
+          TimeUtil.fromPythonTime(aDouble.longValue()).toInstant()
+      ));
+      game.setStatus(gameInfoMessage.getState());
+      game.setPasswordProtected(gameInfoMessage.getPasswordProtected());
+      game.setGameType(gameInfoMessage.getGameType());
+      game.setRatingType(gameInfoMessage.getRatingType());
+      game.setVisibility(GameVisibility.fromString(gameInfoMessage.getVisibility()));
 
-    game.setMinRating(gameInfoMessage.getRatingMin());
-    game.setMaxRating(gameInfoMessage.getRatingMax());
-    game.setEnforceRating(gameInfoMessage.getEnforceRatingRange());
-    game.setReplayDelaySeconds(gameInfoMessage.getReplayDelaySeconds());
+      //String UnitSeparator = Character.toString((char)0x1f);
+      //String mapDetails[] = gameInfoMessage.getMapDetails().split(UnitSeparator); // determined by host: name,archive,crc,desc,size,numplayers,minwind-maxwind,tide,gravity
+      String[] mapFilePath = gameInfoMessage.getMapFilePath().split("/");   // determined by faf db: archive/name/crc
+      if (mapFilePath.length >= 3) {
+        game.setMapArchiveName(mapFilePath[0]);
+        game.setMapCrc(mapFilePath[2]);
+      }
+
+      game.setAverageRating(calcAverageRating(gameInfoMessage));
+
+      synchronized (game.getSimMods()) {
+        game.getSimMods().clear();
+        if (gameInfoMessage.getSimMods() != null) {
+          game.getSimMods().putAll(gameInfoMessage.getSimMods());
+        }
+      }
+
+      synchronized (game.getTeams()) {
+        game.getTeams().clear();
+        if (gameInfoMessage.getTeams() != null) {
+          game.getTeams().putAll(gameInfoMessage.getTeams());
+        }
+      }
+
+      game.setMinRating(gameInfoMessage.getRatingMin());
+      game.setMaxRating(gameInfoMessage.getRatingMax());
+      game.setEnforceRating(gameInfoMessage.getEnforceRatingRange());
+      game.setReplayDelaySeconds(gameInfoMessage.getReplayDelaySeconds());
+    }
   }
 
   private void removeGame(GameInfoMessage gameInfoMessage) {

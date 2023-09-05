@@ -12,6 +12,7 @@ public enum GpgClientCommand {
   CONNECTED("Connected"),
   GAME_STATE("GameState"),
   GAME_OPTION("GameOption"),
+  GAME_METRICS("GameMetrics"),
   GAME_MODS("GameMods"),
   PLAYER_OPTION("PlayerOption"),
   DISCONNECT_FROM_PEER("DisconnectFromPeer"),

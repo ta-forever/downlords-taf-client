@@ -326,8 +326,8 @@ task extractUnixGpgnet4Ta(type: Copy, dependsOn: [downloadUnixGpgnet4Ta, extract
   into outputDir
 }
 
-//task downloadNativeDependencies(dependsOn: [downloadUnixUid, downloadWindowsUid, downloadIceAdapter, extractUnixGpgnet4Ta, extractWindowsGpgnet4Ta, extractUnixTafToolbox, extractWindowsTafToolbox]) {
-task downloadNativeDependencies(dependsOn: [downloadUnixUid, downloadWindowsUid, extractUnixGpgnet4Ta, extractWindowsGpgnet4Ta, extractUnixTafToolbox, extractWindowsTafToolbox]) {
+task downloadNativeDependencies(dependsOn: [downloadUnixUid, downloadWindowsUid, downloadIceAdapter, extractUnixGpgnet4Ta, extractWindowsGpgnet4Ta, extractUnixTafToolbox, extractWindowsTafToolbox]) {
+//task downloadNativeDependencies(dependsOn: [downloadUnixUid, downloadWindowsUid, extractUnixGpgnet4Ta, extractWindowsGpgnet4Ta, extractUnixTafToolbox, extractWindowsTafToolbox]) {
 //task downloadNativeDependencies(dependsOn: [downloadUnixUid, downloadWindowsUid, downloadIceAdapter]) {
 //task downloadNativeDependencies(dependsOn: []) {
   group "native dependencies"

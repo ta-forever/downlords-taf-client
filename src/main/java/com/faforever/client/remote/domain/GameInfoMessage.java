@@ -19,6 +19,7 @@ public class GameInfoMessage extends FafServerMessage {
   private GameStatus state;
   private Integer numPlayers;
   private Map<String, List<String>> teams;
+  private Map<Integer, List<List<Integer>>> pings;  // key=playerid(measuring), value=list of [playerid(measured), ping]
   private String featuredMod;
   private String featuredModVersion;
   private Integer uid;

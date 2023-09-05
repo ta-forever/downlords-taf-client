@@ -31,9 +31,12 @@ import javafx.event.ActionEvent;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
@@ -44,10 +47,15 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.faforever.client.leaderboard.LeaderboardService.DEFAULT_RATING_TYPE;
+import static java.lang.Math.min;
 import static javafx.beans.binding.Bindings.createObjectBinding;
 import static javafx.beans.binding.Bindings.createStringBinding;
 
@@ -90,17 +98,23 @@ public class GameDetailController implements Controller<Pane> {
   private final InvalidationListener thisGameStatusInvalidationListener;
   private final WeakInvalidationListener weakThisGameTeamsListener;
   private final WeakInvalidationListener weakThisGameStatusListener;
+  private final WeakInvalidationListener weakThisGamePingsListener;
   public Node watchButton;
   public Label gameRatingTypeLabel;
   public Label gameRatingTypeGlobalLabel;
   public StackPane mapContainer;
+  public GridPane pingTableGridPane;
+  public VBox pingTableContainer;
   private Timeline gameTimeSinceStartUpdater;
   public Label gameTimeSinceStartLabel;
   public GameDetailMapContextMenuController mapContextMenuController;
 
+  private final Tooltip pingTableTooltip;
+
   @SuppressWarnings("FieldCanBeLocal")
   private InvalidationListener featuredModInvalidationListener;
   private InvalidationListener gameRatingTypeInvalidationListener;
+  private InvalidationListener thisGamePingsInvalidationListener;
   private ChangeListener<GameStatus> currentGameStatusListener;
   private ChangeListener<Number> gameRunningListener;
   private ChangeListener<Game> autoJoinRequestedGameListener;
@@ -128,13 +142,16 @@ public class GameDetailController implements Controller<Pane> {
     this.leaderboardService = leaderboardService;
     this.joinGameHelper = joinGameHelper;
     this.eventBus = eventBus;
+    this.pingTableTooltip = new Tooltip();
 
     game = new ReadOnlyObjectWrapper<>();
 
     thisGameStatusInvalidationListener = observable -> onGameStatusChanged();
     thisGameTeamsInvalidationListener = observable -> createTeams();
+    thisGamePingsInvalidationListener = observable -> createPingTable();
     weakThisGameTeamsListener = new WeakInvalidationListener(thisGameTeamsInvalidationListener);
     weakThisGameStatusListener = new WeakInvalidationListener(thisGameStatusInvalidationListener);
+    weakThisGamePingsListener = new WeakInvalidationListener(thisGamePingsInvalidationListener);
 
     currentGameStatusListener = (obs, newValue, oldValue) -> JavaFxUtil.runLater(() -> updateButtonsVisibility(
         gameService.getCurrentGame(), gameService.getAutoJoinRequestedGameProperty().get(),
@@ -154,6 +171,7 @@ public class GameDetailController implements Controller<Pane> {
   public void initialize() {
     mapImageView.setDefaultImage(uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
     mapContextMenuController = uiService.loadFxml("theme/play/game_detail_map_context_menu.fxml");
+    pingTableContainer.managedProperty().bind(pingTableContainer.visibleProperty());
 
     JavaFxUtil.addLabelContextMenus(uiService, gameTitleLabel, hostLabel);
     gameDetailRoot.parentProperty().addListener(observable -> {
@@ -266,6 +284,7 @@ public class GameDetailController implements Controller<Pane> {
 
     Optional.ofNullable(this.game.get()).ifPresent(oldGame -> {
       Optional.ofNullable(weakThisGameTeamsListener).ifPresent(listener -> oldGame.getTeams().removeListener(listener));
+      Optional.ofNullable(weakThisGamePingsListener).ifPresent(listener -> oldGame.pingsProperty().removeListener(listener));
       Optional.ofNullable(weakThisGameStatusListener).ifPresent(listener -> oldGame.statusProperty().removeListener(listener));
       Optional.ofNullable(featuredModInvalidationListener).ifPresent(listener -> oldGame.featuredModProperty().removeListener(listener));
       Optional.ofNullable(gameRatingTypeInvalidationListener).ifPresent(listener -> oldGame.ratingTypeProperty().removeListener(listener));
@@ -354,6 +373,9 @@ public class GameDetailController implements Controller<Pane> {
 
     JavaFxUtil.addListener(game.statusProperty(), weakThisGameStatusListener);
     thisGameStatusInvalidationListener.invalidated(game.statusProperty());
+
+    JavaFxUtil.addListener(game.pingsProperty(), weakThisGamePingsListener);
+    thisGamePingsInvalidationListener.invalidated(game.pingsProperty());
   }
 
   public Game getGame() {
@@ -372,6 +394,100 @@ public class GameDetailController implements Controller<Pane> {
               TeamCardController.createAndAdd(game.get().getTeams(), game.get().getRatingType(), playerService, uiService,
                   teamListPane, hidePlayerRatings);
             }));
+  }
+
+  private void createPingTable() {
+    Map<Integer, Player> playersInGameById = game.get().getTeams().values().stream()
+        .flatMap(List::stream)
+        .map(playerService::getPlayerForUsername)
+        .filter(Optional::isPresent)
+        .map(Optional::get)
+        .collect(Collectors.toMap(Player::getId, player -> player));
+
+    Map<Integer, Integer> playerOrdinalsById = new HashMap<>();
+    Map<Integer, Player> playersByOrdinal = new HashMap<>();
+    for (Map.Entry<Integer, List<List<Integer>>> entry : game.get().getPings().entrySet()) {
+      Integer playerId = entry.getKey();
+      if (!playerOrdinalsById.containsKey(playerId) && playersInGameById.containsKey(playerId)) {
+        Integer nextOrdinal = playersByOrdinal.size();
+        playersByOrdinal.put(nextOrdinal, playersInGameById.get(playerId));
+        playerOrdinalsById.put(playerId, nextOrdinal);
+      }
+      for (List<Integer> peerPingPair : entry.getValue()) {
+        Integer peerId = peerPingPair.get(0);
+        if (!playerOrdinalsById.containsKey(peerId) && playersInGameById.containsKey(peerId)) {
+          Integer nextOrdinal = playersByOrdinal.size();
+          playersByOrdinal.put(nextOrdinal, playersInGameById.get(peerId));
+          playerOrdinalsById.put(peerId, nextOrdinal);
+        }
+      }
+    }
+
+    if (playerOrdinalsById.size() < 2) {
+      JavaFxUtil.runLater(() -> pingTableContainer.setVisible(false));
+      return;
+    }
+
+    JavaFxUtil.runLater(() -> {
+      pingTableGridPane.getChildren().clear();
+      for (Map.Entry<Integer, List<List<Integer>>> entry : game.get().getPings().entrySet()) {
+        Integer playerId = entry.getKey();
+        Integer playerOrdinal = playerOrdinalsById.getOrDefault(playerId, -1);
+
+        if (playerOrdinal >= 0) {
+          for (List<Integer> peerPingPair : entry.getValue()) {
+            Integer peerId = peerPingPair.get(0);
+            Integer peerOrdinal = playerOrdinalsById.getOrDefault(peerId, -1);
+            if (peerOrdinal >= 0) {
+              Integer ping = peerPingPair.get(1);
+              double red = min(1.0, (double) ping / (double) 1000);
+              double green = 1.0 - red;
+              double blue = 0.0;
+              double opacity = 1.0;
+
+              Region cell = new Region();
+              cell.setStyle(
+                  "-fx-background-color: rgba(" +
+                      (int) (red * 255) + "," +
+                      (int) (green * 255) + "," +
+                      (int) (blue * 255) + "," +
+                      opacity + ");"
+              );
+              cell.setMinSize(10, 10); // Set cell size as needed
+              cell.setPrefSize(20, 20);
+
+              String playerUsername = playersInGameById.get(playerId).getUsername();
+              String peerUsername = playersInGameById.get(peerId).getUsername();
+              if (ping < 2000) {
+                cell.setUserData(String.format("%s\n%s\n%dms", playerUsername, peerUsername, ping));
+              }
+              else {
+                cell.setUserData(String.format("%s\n%s\n(timeout)", playerUsername, peerUsername));
+              }
+              pingTableGridPane.add(cell, playerOrdinal, peerOrdinal);
+            }
+          }
+        }
+      }
+      pingTableContainer.setVisible(true);
+    });
+  }
+
+  public void setPingTableTooltip(MouseEvent mouseEvent) {
+    try {
+      Region cell = (Region) mouseEvent.getTarget();
+      String text = (String) cell.getUserData();
+      if (text != null) {
+        pingTableTooltip.setText(text);
+        pingTableTooltip.show(pingTableGridPane, mouseEvent.getScreenX(), mouseEvent.getScreenY() + 20);
+      }
+    }
+    catch (java.lang.ClassCastException ignored)
+    { }
+  }
+
+  public void hidePingTableTooltip(MouseEvent mouseEvent) {
+    pingTableTooltip.hide();
   }
 
   @Override
