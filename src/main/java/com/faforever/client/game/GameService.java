@@ -233,6 +233,7 @@ public class GameService implements InitializingBean {
         if (currentPlayer != null && currentPlayer.getStatus() != PlayerStatus.PLAYING) {
           // this is here to cope with host leaves before player starts TA
           // In that case gpgnet4ta is still waiting for TA to start, so it won't shutdown unless explicitly told to
+          log.info("[afterPropertiesSet][currentGame.listener] killGame because currentPlayer.getStatus != PLAYING");
           killGame();
         }
 
@@ -833,10 +834,15 @@ public class GameService implements InitializingBean {
       try {
         List<String[]> mapsDetails = MapTool.listMap(preferencesService.getTotalAnnihilation(currentGame.getFeaturedMod()).getInstalledPath(), mapName);
         // @TODO I'm not sure all of these need to go to server via gpgnet4ta.  maybe send them directly to faf server?
-        this.totalAnnihilationService.sendToConsole(String.format("/title %s", title));
-        this.totalAnnihilationService.sendToConsole(String.format("/rating_type %s", ratingType));
-        this.totalAnnihilationService.sendToConsole(String.format("/replay_delay_seconds %s", liveReplayOption.getDelaySeconds()));
-        this.fafService.setGamePassword(password);
+        if (ratingType != null && ratingType.length() > 0) {
+          this.totalAnnihilationService.sendToConsole(String.format("/rating_type %s", ratingType));
+        }
+        if (liveReplayOption != null) {
+          this.totalAnnihilationService.sendToConsole(String.format("/replay_delay_seconds %s", liveReplayOption.getDelaySeconds()));
+        }
+        if (password != null) {
+          this.fafService.setGamePassword(password);
+        }
         if (mapsDetails.size() > 0) {
           this.fafService.setGameMapDetails(
               mapsDetails.get(0)[MAP_DETAIL_COLUMN_NAME],
@@ -898,6 +904,7 @@ public class GameService implements InitializingBean {
           }
           iceAdapter.stop();
           fafService.notifyGameEnded();
+          log.info("[startGame] killGame because start process completed exceptionally");
           this.killGame();
           setRunningGameUid(null);
           return null;
@@ -1035,6 +1042,7 @@ public class GameService implements InitializingBean {
         fafService.restoreGameSession(getCurrentGame().getId());
       }
       else {
+        log.info("[onLoggedIn] killGame because currentGame() == null");
         killGame();
       }
     }
@@ -1199,12 +1207,11 @@ public class GameService implements InitializingBean {
 
     if (GameStatus.ENDED == game.getStatus()) {
       removeGame(gameInfoMessage);
-      if (!currentPlayerOptional.isPresent() || !isGameCurrentGame) {
+      if (currentPlayerOptional.isEmpty() || !isGameCurrentGame) {
         return;
       }
       synchronized (currentGame) {
         currentGame.set(null);
-        killGame();
       }
     }
 
@@ -1219,7 +1226,6 @@ public class GameService implements InitializingBean {
       } else if (isGameCurrentGame && !currentPlayerInGame) {
         synchronized (currentGame) {
           currentGame.set(null);
-          killGame();
         }
       }
       if (preferencesService.getPreferences().getAutoJoinEnabled() &&
@@ -1344,7 +1350,7 @@ public class GameService implements InitializingBean {
       // getRunningGameUid() is determined immediately upon starting gpgnet4ta
       // getCurrentGameStatus()==SPAWNING indicates game has been started locally but server hasn't confirmed that fact
       if (GameStatus.SPAWNING.equals(getCurrentGameStatus())) {
-        log.warn("Game cancelled while launching");
+        log.warn("[removeGame] Game cancelled while launching");
         killGame();
         notificationService.addImmediateInfoNotification("game.start.cancelledRemotely.title", "game.start.cancelledRemotely");
       }
@@ -1365,6 +1371,7 @@ public class GameService implements InitializingBean {
 
   @Subscribe
   public void onGameCloseRequested(CloseGameEvent event) {
+    log.info("[onGameCloseRequested] killGame because onGameCLoseRequested");
     killGame();
   }
 
