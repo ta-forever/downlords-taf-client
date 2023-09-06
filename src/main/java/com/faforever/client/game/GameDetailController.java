@@ -451,7 +451,10 @@ public class GameDetailController implements Controller<Pane> {
                       (int) (red * 255) + "," +
                       (int) (green * 255) + "," +
                       (int) (blue * 255) + "," +
-                      opacity + ");"
+                      "1);" +
+                  "-fx-border-color: black;" +
+                  "-fx-border-width: 1px;" +
+                  "-fx-border-style: solid;"
               );
               cell.setMinSize(10, 10); // Set cell size as needed
               cell.setPrefSize(20, 20);
@@ -464,7 +467,7 @@ public class GameDetailController implements Controller<Pane> {
               else {
                 cell.setUserData(String.format("%s\n%s\n(timeout)", playerUsername, peerUsername));
               }
-              pingTableGridPane.add(cell, playerOrdinal, peerOrdinal);
+              pingTableGridPane.add(cell, peerOrdinal, playerOrdinal);
             }
           }
         }
