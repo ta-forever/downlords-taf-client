@@ -28,6 +28,7 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
 import javafx.event.ActionEvent;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -433,17 +434,23 @@ public class GameDetailController implements Controller<Pane> {
       for (Map.Entry<Integer, List<List<Integer>>> entry : game.get().getPings().entrySet()) {
         Integer playerId = entry.getKey();
         Integer playerOrdinal = playerOrdinalsById.getOrDefault(playerId, -1);
+        String playerUsername = playersInGameById.get(playerId).getUsername();
+
+        Label playerLabel = new Label(playerUsername);
+        playerLabel.setAlignment(Pos.CENTER_LEFT);
+        pingTableGridPane.add(playerLabel, 0, playerOrdinal);
 
         if (playerOrdinal >= 0) {
           for (List<Integer> peerPingPair : entry.getValue()) {
             Integer peerId = peerPingPair.get(0);
             Integer peerOrdinal = playerOrdinalsById.getOrDefault(peerId, -1);
+            String peerUsername = playersInGameById.get(peerId).getUsername();
+
             if (peerOrdinal >= 0) {
               Integer ping = peerPingPair.get(1);
               double red = min(1.0, (double) ping / (double) 1000);
               double green = 1.0 - red;
               double blue = 0.0;
-              double opacity = 1.0;
 
               Region cell = new Region();
               cell.setStyle(
@@ -459,15 +466,13 @@ public class GameDetailController implements Controller<Pane> {
               cell.setMinSize(10, 10); // Set cell size as needed
               cell.setPrefSize(20, 20);
 
-              String playerUsername = playersInGameById.get(playerId).getUsername();
-              String peerUsername = playersInGameById.get(peerId).getUsername();
               if (ping < 2000) {
                 cell.setUserData(String.format("%s\n%s\n%dms", playerUsername, peerUsername, ping));
               }
               else {
                 cell.setUserData(String.format("%s\n%s\n(timeout)", playerUsername, peerUsername));
               }
-              pingTableGridPane.add(cell, peerOrdinal, playerOrdinal);
+              pingTableGridPane.add(cell, 1+peerOrdinal, playerOrdinal);
             }
           }
         }
