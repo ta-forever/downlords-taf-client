@@ -7,6 +7,7 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.HostGameEvent;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.dialog.Dialog;
@@ -42,7 +43,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
 
   private static final Predicate<Game> CUSTOM_GAMES_PREDICATE = gameInfoBean ->
       (gameInfoBean.getGameType() != GameType.MATCHMAKER || gameInfoBean.isInProgress()) &&
-          //(gameInfoBean.getReplayDelaySeconds() >= 0 || gameInfoBean.isOpen()) &&
+          (gameInfoBean.getReplayDelaySeconds() >= 0 || gameInfoBean.isOpen()) &&
           (gameInfoBean.getMapArchiveName() != null);
 
   private final UiService uiService;
