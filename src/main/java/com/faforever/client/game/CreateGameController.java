@@ -528,10 +528,11 @@ public class CreateGameController implements Controller<Pane> {
                     queues.stream().filter(q -> !q.getLeaderboard().getLeaderboardHidden()),
                     Stream.of(MatchmakingQueue.makePsuedoQueue(
                         ALL_MAPS_PSUEDO_QUEUE_NAME_KEY,
-                        featuredModListView.getSelectionModel().getSelectedItem())
+                        featuredModListView.getSelectionModel().getSelectedItem(),
+                        queues.isEmpty() ? DEFAULT_RATING_TYPE : queues.get(0).getLeaderboard().getTechnicalName())
                     )).toList();
                 mapPoolListView.getItems().setAll(availableQueues);
-                if (mapPoolListView.getItems().size() > 0) {
+                if (mapPoolListView.getItems().size() > 1) {
                   mapPoolListView.getSelectionModel().select(0);
                   rankedMapPoolsAvailableProperty.set(true);
                 }
