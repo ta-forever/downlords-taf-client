@@ -70,6 +70,7 @@ import org.springframework.stereotype.Component;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -77,6 +78,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static com.faforever.client.leaderboard.LeaderboardService.DEFAULT_RATING_TYPE;
 import static com.faforever.client.net.ConnectionState.CONNECTED;
@@ -89,6 +91,8 @@ import static javafx.scene.layout.BackgroundRepeat.NO_REPEAT;
 @RequiredArgsConstructor
 @Slf4j
 public class CreateGameController implements Controller<Pane> {
+
+  String ALL_MAPS_PSUEDO_QUEUE_NAME_KEY = "games.create.mappool.allmaps";
 
   public static final String STYLE_CLASS_DUAL_LIST_CELL = "create-game-dual-list-cell";
   public static final PseudoClass PSEUDO_CLASS_INVALID = PseudoClass.getPseudoClass("invalid");
@@ -462,14 +466,26 @@ public class CreateGameController implements Controller<Pane> {
         }
         else {
           loadingMapsProperty.set(true);
-          mapService.getMatchmakerMaps(q)
-              .thenAccept((mapList) -> {
-                FilteredList<MapBean> fl = new FilteredList<>(FXCollections.observableArrayList(mapList)
-                    .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())));
-                filteredMapBeansByQueue.put(q.getQueueName(), fl);
-                doSetAvailableMaps(modTechnical, fl);
-                loadingMapsProperty.set(false);
-              });
+          if (q.getQueueName().equals(ALL_MAPS_PSUEDO_QUEUE_NAME_KEY)) {
+            mapService.getAllRankedMaps()
+                .thenAccept(mapList -> {
+                  FilteredList<MapBean> fl = new FilteredList<>(FXCollections.observableArrayList(mapList)
+                      .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())));
+                  filteredMapBeansByQueue.put(q.getQueueName(), fl);
+                  doSetAvailableMaps(modTechnical, fl);
+                  loadingMapsProperty.set(false);
+                });
+          }
+          else {
+            mapService.getMatchmakerMaps(q)
+                .thenAccept((mapList) -> {
+                  FilteredList<MapBean> fl = new FilteredList<>(FXCollections.observableArrayList(mapList)
+                      .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())));
+                  filteredMapBeansByQueue.put(q.getQueueName(), fl);
+                  doSetAvailableMaps(modTechnical, fl);
+                  loadingMapsProperty.set(false);
+                });
+          }
         }
         return;
 
@@ -508,7 +524,13 @@ public class CreateGameController implements Controller<Pane> {
     fafService.getMatchingQueuesByMod(modTechnical)
         .thenAccept(queues -> {
               JavaFxUtil.runLater(() -> {
-                mapPoolListView.getItems().setAll(queues.stream().filter(q -> !q.getLeaderboard().getLeaderboardHidden()).toList());
+                List<MatchmakingQueue> availableQueues = Stream.concat(
+                    queues.stream().filter(q -> !q.getLeaderboard().getLeaderboardHidden()),
+                    Stream.of(MatchmakingQueue.makePsuedoQueue(
+                        ALL_MAPS_PSUEDO_QUEUE_NAME_KEY,
+                        featuredModListView.getSelectionModel().getSelectedItem())
+                    )).toList();
+                mapPoolListView.getItems().setAll(availableQueues);
                 if (mapPoolListView.getItems().size() > 0) {
                   mapPoolListView.getSelectionModel().select(0);
                   rankedMapPoolsAvailableProperty.set(true);

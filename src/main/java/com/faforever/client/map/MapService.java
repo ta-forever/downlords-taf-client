@@ -1142,6 +1142,10 @@ public class MapService implements InitializingBean, DisposableBean {
     return fafService.getMatchmakerMaps(matchmakerQueue.getQueueId(), meanRating);
   }
 
+  public CompletableFuture<List<MapBean>> getAllRankedMaps() {
+    return fafService.getAllRankedMaps();
+  }
+
   public CompletableFuture<Tuple<List<MapBean>, Integer>> getOwnedMapsWithPageCount(int loadMoreCount, int page) {
     Player player = playerService.getCurrentPlayer()
         .orElseThrow(() -> new IllegalStateException("Current player not set"));

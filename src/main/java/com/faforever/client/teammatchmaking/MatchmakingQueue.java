@@ -41,6 +41,16 @@ public class MatchmakingQueue {
     this.featuredMod = new SimpleObjectProperty<>(null);
   }
 
+  public static MatchmakingQueue makePsuedoQueue(String name, FeaturedMod mod) {
+    MatchmakingQueue queue = new MatchmakingQueue();
+    queue.setQueueName(name);
+    queue.setFeaturedMod(mod);
+    Leaderboard leaderboard = new Leaderboard();
+    leaderboard.setNameKey(name);
+    queue.setLeaderboard(leaderboard);
+    return queue;
+  }
+
   public static MatchmakingQueue fromDto(MatchmakerQueue dto) {
     MatchmakingQueue queue = new MatchmakingQueue();
     queue.setQueueId(Integer.parseInt(dto.getId()));

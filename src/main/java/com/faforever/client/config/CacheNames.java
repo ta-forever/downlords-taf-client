@@ -29,6 +29,7 @@ public final class CacheNames {
   public static final String MATCHMAKER_QUEUES = "matchmakerQueues";
   public static final String MATCHMAKER_QUEUES_BY_MOD = "matchmakerQueuesByMod";
   public static final String MATCHMAKER_POOLS = "matchmakerPools";
+  public static final String ALL_RANKED_MAPS = "allrankedmaps";
   public static final String TADEMO_MAP_HASH = "taDemoMapHash";
   public static final String TADEMO_MOD_HASH = "taDemoModHash";
   public static final String PLAYERS_BY_ID = "playersById";

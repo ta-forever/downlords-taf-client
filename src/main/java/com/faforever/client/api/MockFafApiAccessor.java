@@ -314,6 +314,9 @@ public class MockFafApiAccessor implements FafApiAccessor {
   }
 
   @Override
+  public List<Map> getAllRankedMaps() { return List.of(); }
+
+  @Override
   public Optional<MatchmakerQueue> getMatchmakerQueue(String technicalName) {
     return Optional.empty();
   }

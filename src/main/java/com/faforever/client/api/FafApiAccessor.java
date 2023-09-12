@@ -141,6 +141,8 @@ public interface FafApiAccessor {
 
   List<MapPoolAssignment> getMatchmakerPoolMaps(int matchmakerQueueId, float rating);
 
+  List<Map> getAllRankedMaps();
+
   Optional<MatchmakerQueue> getMatchmakerQueue(String technicalName);
 
   List<MatchmakerQueue> getMatchmakerQueuesByMod(String modTechnicalName);

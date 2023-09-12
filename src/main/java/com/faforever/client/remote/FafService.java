@@ -642,6 +642,17 @@ public class FafService {
     return CompletableFuture.completedFuture(mapVersions);
   }
 
+  @Async
+  public CompletableFuture<List<MapBean>> getAllRankedMaps() {
+    List<MapBean> mapVersions = fafApiAccessor.getAllRankedMaps().stream()
+        .distinct()
+        .filter(Objects::nonNull)
+        .map(MapBean::fromMapDto)
+        .collect(Collectors.toList());
+
+    return CompletableFuture.completedFuture(mapVersions);
+  }
+
   @NotNull
   private <T> CompletableFuture<Tuple<List<T>, Integer>> paginateResult(int count, int page, List<T> results) {
     int totalPages = (results.size() - 1) / count + 1;

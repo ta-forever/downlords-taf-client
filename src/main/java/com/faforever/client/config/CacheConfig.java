@@ -17,6 +17,7 @@ import java.util.Arrays;
 
 import static com.faforever.client.config.CacheNames.ACHIEVEMENTS;
 import static com.faforever.client.config.CacheNames.ACHIEVEMENT_IMAGES;
+import static com.faforever.client.config.CacheNames.ALL_RANKED_MAPS;
 import static com.faforever.client.config.CacheNames.AVAILABLE_AVATARS;
 import static com.faforever.client.config.CacheNames.AVATARS;
 import static com.faforever.client.config.CacheNames.CLAN;
@@ -78,6 +79,7 @@ public class CacheConfig extends CachingConfigurerSupport {
         new CaffeineCache(MATCHMAKER_QUEUES, newBuilder().expireAfterWrite(10, MINUTES).build()),
         new CaffeineCache(MATCHMAKER_QUEUES_BY_MOD, newBuilder().expireAfterWrite(10, MINUTES).build()),
         new CaffeineCache(MATCHMAKER_POOLS, newBuilder().expireAfterWrite(10, MINUTES).build()),
+        new CaffeineCache(ALL_RANKED_MAPS, newBuilder().expireAfterWrite(10, MINUTES).build()),
         new CaffeineCache(TADEMO_MAP_HASH, newBuilder().expireAfterWrite(1, MINUTES).build()),
         new CaffeineCache(TADEMO_MOD_HASH, newBuilder().expireAfterWrite(1, MINUTES).build()),
         new CaffeineCache(PLAYERS_BY_ID, newBuilder().expireAfterWrite(10, MINUTES).build()),

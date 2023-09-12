@@ -535,6 +535,20 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
         SORT, "mapVersion.width,mapVersion.map.displayName"));
   }
 
+  @SneakyThrows
+  @Override
+  @Cacheable(value = CacheNames.ALL_RANKED_MAPS, sync = true)
+  public List<Map> getAllRankedMaps() {
+    QBuilder qBuilder = new QBuilder<>();
+    List<Condition<?>> conditions = new ArrayList<>();
+    conditions.add(qBuilder().bool("latestVersion.ranked").isTrue());
+    conditions.add(qBuilder().bool("latestVersion.hidden").isFalse());
+    return getAll("/data/map", java.util.Map.of(
+        INCLUDE, "latestVersion",
+        FILTER, rsql(qBuilder.and(conditions))
+    ));
+  }
+
   @Override
   @Cacheable(value = CacheNames.MATCHMAKER_QUEUES, sync = true)
   public Optional<MatchmakerQueue> getMatchmakerQueue(String technicalName) {
