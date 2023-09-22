@@ -26,7 +26,6 @@ import com.faforever.client.task.CompletableTask;
 import com.faforever.client.task.CompletableTask.Priority;
 import com.faforever.client.task.TaskService;
 import com.faforever.client.teammatchmaking.MatchmakingQueue;
-import com.faforever.client.theme.UiService;
 import com.faforever.client.util.Tuple;
 import com.faforever.client.vault.search.SearchController.SearchConfig;
 import com.google.common.annotations.VisibleForTesting;
@@ -57,7 +56,6 @@ import org.springframework.stereotype.Service;
 import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.lang.invoke.MethodHandles;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -105,7 +103,6 @@ import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 public class MapService implements InitializingBean, DisposableBean {
 
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-  public static final String DEBUG = "debug";
 
   private final PreferencesService preferencesService;
   private final TaskService taskService;
@@ -114,8 +111,6 @@ public class MapService implements InitializingBean, DisposableBean {
   private final AssetService assetService;
   private final NotificationService notificationService;
   private final I18n i18n;
-  private final UiService uiService;
-  private final ClientProperties clientProperties;
   private final EventBus eventBus;
   private final PlayerService playerService;
   private final PlatformService platformService;
@@ -129,7 +124,7 @@ public class MapService implements InitializingBean, DisposableBean {
     final String modTechnicalName;
     private final Map<String, MapBean> mapsByName = new HashMap<>();
     private final ObservableList<MapBean> maps = FXCollections.observableArrayList();
-    private List<String> downloadingList = new ArrayList<>(); // guard against multiple attempts to download same archive prolly due to clicky users
+    final private List<String> downloadingList = new ArrayList<>(); // guard against multiple attempts to download same archive prolly due to clicky users
     private Thread directoryWatcherThread;
     private Integer enumerationsRequested = 0;
 
@@ -148,12 +143,8 @@ public class MapService implements InitializingBean, DisposableBean {
       });
     }
 
-    private void removeMap(String mapName) {
-      maps.remove(mapsByName.remove(mapName));
-    }
-
-    private void addMap(String mapName, String[] mapDetail, Function<Void, String> installedMapCrcGetter) {
-      MapBean mapBean = readMap(mapName, mapDetail, installedMapCrcGetter);
+    private void addMap(String mapName) {
+      MapBean mapBean = readMap(mapName, null, null);
       addMap(mapBean);
     }
 
@@ -166,7 +157,7 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   // keyed by ModTechnical
-  private Map<String, Installation> installations = new HashMap<>();
+  private final Map<String, Installation> installations = new HashMap<>();
 
   public Installation getInstallation(String modTechnical) {
     Installation installation = installations.get(modTechnical);
@@ -184,7 +175,6 @@ public class MapService implements InitializingBean, DisposableBean {
                     AssetService assetService,
                     NotificationService notificationService,
                     I18n i18n,
-                    UiService uiService,
                     ClientProperties clientProperties,
                     EventBus eventBus,
                     PlayerService playerService,
@@ -196,8 +186,6 @@ public class MapService implements InitializingBean, DisposableBean {
     this.assetService = assetService;
     this.notificationService = notificationService;
     this.i18n = i18n;
-    this.uiService = uiService;
-    this.clientProperties = clientProperties;
     this.eventBus = eventBus;
     this.playerService = playerService;
     this.platformService = platformService;
@@ -208,10 +196,9 @@ public class MapService implements InitializingBean, DisposableBean {
     preferencesService.getTotalAnnihilationAllMods().addListener((ListChangeListener<TotalAnnihilationPrefs>) change -> {
       while (change.next()) {
         for (TotalAnnihilationPrefs taPrefs : change.getAddedSubList()) {
-          taPrefs.getInstalledExePathProperty().addListener((observable, oldValue, newValue) -> {
-            Platform.runLater(() -> {tryLoadMaps(taPrefs.getBaseGameName());});
-          });
-          Platform.runLater(() -> {tryLoadMaps(taPrefs.getBaseGameName());});
+          taPrefs.getInstalledExePathProperty().addListener((observable, oldValue, newValue) ->
+              Platform.runLater(() -> tryLoadMaps(taPrefs.getBaseGameName())));
+          Platform.runLater(() -> tryLoadMaps(taPrefs.getBaseGameName()));
         }
       }
     });
@@ -267,7 +254,7 @@ public class MapService implements InitializingBean, DisposableBean {
       "cometctr.ufo", "cormabm.ufo", "cornecro.ufo", "corplas.ufo", "evadrivd.ufo", "example.ufo", "floggen.ufo", "mndsmars.ufo",
       "tademo.ufo");
 
-  private static String HPI_ARCHIVE_TA_FEATURES_2013 = "TA_Features_2013.ccx";
+  private static final String HPI_ARCHIVE_TA_FEATURES_2013 = "TA_Features_2013.ccx";
 
   private static URL getDownloadUrl(String hpiArchiveName, String baseUrl) {
     return noCatch(() -> new URL(format(baseUrl, urlFragmentEscaper().escape(hpiArchiveName))));
@@ -439,7 +426,7 @@ public class MapService implements InitializingBean, DisposableBean {
           if (installation.maps.isEmpty()) {
             logger.warn("no maps found for mod={}. inserting OTA maps", installation.modTechnicalName);
             for (String map : otaMaps) {
-              installation.addMap(map, null, null);
+              installation.addMap(map);
             }
           }
         });
@@ -487,7 +474,7 @@ public class MapService implements InitializingBean, DisposableBean {
       }
     }
     catch (ArrayIndexOutOfBoundsException e) {
-      logger.warn("index out of bounds for map: {}. details: {}", String.join("/",mapDetails));
+      logger.warn("index out of bounds for map: '{}'", mapName);
     }
 
     if (mapSizeStr.isEmpty()) {
@@ -496,7 +483,7 @@ public class MapService implements InitializingBean, DisposableBean {
         mapSizeStr = matcher.group(1);
       }
     }
-    String mapSizeArray[] = mapSizeStr.replaceAll("[^0-9x]", "").split("x");
+    String[] mapSizeArray = mapSizeStr.replaceAll("[^0-9x]", "").split("x");
 
     mapBean.setDownloadUrl(getDownloadUrl(archiveName, mapDownloadUrlFormat));
     mapBean.setMapName(mapName);
@@ -518,8 +505,8 @@ public class MapService implements InitializingBean, DisposableBean {
     mapBean.setSize(MapSize.valueOf(0, 0));
     try {
       if (mapSizeArray.length == 2) {
-        Integer w = Integer.parseInt(mapSizeArray[0].trim());
-        Integer h = Integer.parseInt(mapSizeArray[1].trim());
+        int w = Integer.parseInt(mapSizeArray[0].trim());
+        int h = Integer.parseInt(mapSizeArray[1].trim());
         mapBean.setSize(MapSize.valueOf(w, h));
       }
     }
@@ -602,7 +589,7 @@ public class MapService implements InitializingBean, DisposableBean {
             try {
               removeArchive(installationPath.resolve(archive));
             } catch (IOException e) {
-              logger.error(String.format("[removeConflictingArchives] Unable to remove archive '{}'", archive), e);
+              logger.error(String.format("[removeConflictingArchives] Unable to remove archive '%s'", archive), e);
             }
           });
     }
@@ -631,7 +618,7 @@ public class MapService implements InitializingBean, DisposableBean {
               logger.info("Deleting archive {} (a file of that name and size can be found at {})", archivePath, finalCachedArchivePath1);
               Files.delete(archivePath);
             } catch (IOException e) {
-              logger.error(String.format("[removeArchive] Unable to delete {}", archivePath), e);
+              logger.error(String.format("[removeArchive] Unable to delete '%s'", archivePath), e);
             }
           }))
       ));
@@ -639,7 +626,7 @@ public class MapService implements InitializingBean, DisposableBean {
     }
 
     if (Files.exists(cachedArchivePath)) {
-      // cached file exists but is of different size.  lets append crc and (attempt to) move to cache
+      // cached file exists but is of different size.  let's append crc and (attempt to) move to cache
       long archiveCrc = FileUtils.getCRC(archivePath.toFile());
       cachedArchivePath = preferencesService.getCacheDirectory().resolve("maps").resolve(archivePath.getFileName() + "." + Long.toHexString(archiveCrc));
     }
@@ -657,7 +644,7 @@ public class MapService implements InitializingBean, DisposableBean {
               logger.info("Deleting archive {} (a file of that name and crc can be found at {})", archivePath, finalCachedArchivePath2);
               Files.delete(archivePath);
             } catch (IOException e) {
-              logger.error(String.format("[removeArchive] Unable to delete {}", archivePath), e);
+              logger.error(String.format("[removeArchive] Unable to delete '%s'", archivePath), e);
             }
           }))
       ));
@@ -666,7 +653,7 @@ public class MapService implements InitializingBean, DisposableBean {
       final Path finalCachedArchivePath = cachedArchivePath;
       notificationService.addNotification(new ImmediateNotification(
           i18n.get("mapVault.removingArchive", archivePath),
-          i18n.get("mapVault.removingArchiveMoveTo", cachedArchivePath),
+          i18n.get("mapVault.removingArchiveMoveTo", archivePath, cachedArchivePath),
           Severity.INFO, Arrays.asList(
           new Action(i18n.get("mapVault.removingArchiveShow"), Action.Type.OK_STAY, event -> this.platformService.reveal(archivePath)),
           new Action(i18n.get("mapVault.removingArchiveIgnore"), Action.Type.OK_DONE, event -> {}),
@@ -675,7 +662,7 @@ public class MapService implements InitializingBean, DisposableBean {
               logger.info("Moving archive {} to {})", archivePath, finalCachedArchivePath);
               Files.move(archivePath, finalCachedArchivePath);
             } catch (IOException e) {
-              logger.error(String.format("[removeArchive] Unable to move {} to {}", archivePath, finalCachedArchivePath), e);
+              logger.error(String.format("[removeArchive] Unable to move '%s' to '%s'", archivePath, finalCachedArchivePath), e);
             }
           }))
       ));
@@ -717,7 +704,7 @@ public class MapService implements InitializingBean, DisposableBean {
         return CompletableFuture.completedFuture(ensuredVersion);
       }
       else if (mapName == null) {
-        return _ensureMap(modTechnical, mapName, mapCrc, downloadHpiArchiveName, progressProperty, titleProperty)
+        return _ensureMap(modTechnical, null, mapCrc, downloadHpiArchiveName, progressProperty, titleProperty)
             .thenApply(aVoid -> null);
       }
       else {
@@ -1000,28 +987,6 @@ public class MapService implements InitializingBean, DisposableBean {
     return assetService.loadAndCacheImage(url, cacheDir, null);
   }
 
-  private CompletableFuture<Image> loadPreviewFuture(String modTechnical, String mapName, URL url, PreviewType previewType, int maxPositions) {
-    CompletableFuture<Image> f = new CompletableFuture<Image>();
-    Path cacheDir = preferencesService.getCacheDirectory().resolve("maps").resolve(previewType.getFolderName(maxPositions));
-    Path cachedFile = cacheDir.resolve(mapName+".png");
-    generatePreview(modTechnical, mapName, cachedFile, previewType, maxPositions);
-    Image im = assetService.loadAndCacheImage(url, cacheDir, null);
-    if (im == null) {
-      f.complete(null);
-      return f;
-    }
-
-    im.errorProperty().addListener((obs, oldValue, newValue) -> f.complete(uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE)));
-    im.progressProperty().addListener((obs, oldValue, newValue) -> {
-      if (newValue.intValue() >= 1 && !f.isDone()) {
-        f.complete(im);
-      }
-    });
-
-    return f;
-  }
-
-
   @CacheEvict(value = CacheNames.MAP_PREVIEW, allEntries = true)
   public void resetPreviews(String mapName) {
     for (PreviewType previewType: PreviewType.values()) {
@@ -1032,10 +997,8 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   private void resetPreview(URL url, PreviewType previewType, int maxPositions) {
-    String urlString = url.toString();
-    try {
-      urlString = java.net.URLDecoder.decode(url.toString(), StandardCharsets.UTF_8.name());
-    } catch (UnsupportedEncodingException ignored) { }
+    String urlString;
+    urlString = java.net.URLDecoder.decode(url.toString(), StandardCharsets.UTF_8);
 
     String cachedFilename = urlString.substring(urlString.lastIndexOf('/') + 1);
     Path cacheSubFolder = Paths.get("maps").resolve(previewType.getFolderName(maxPositions));
@@ -1104,10 +1067,6 @@ public class MapService implements InitializingBean, DisposableBean {
     return fafService.getMapLatestVersion(mapDisplayName);
   }
 
-  public CompletableFuture<Optional<MapBean>> findMapVersion(String displayName, String crc) {
-    return fafService.findMapVersion(displayName, crc);
-  }
-
   public CompletableFuture<Boolean> hasPlayedMap(int playerId, String mapVersionId) {
     return fafService.getLastGameOnMap(playerId, mapVersionId)
         .thenApply(Optional::isPresent);
@@ -1122,10 +1081,6 @@ public class MapService implements InitializingBean, DisposableBean {
 
   public CompletableFuture<Tuple<List<MapBean>, Integer>> findByQueryWithPageCount(SearchConfig searchConfig, int count, int page) {
     return fafService.findMapsByQueryWithPageCount(searchConfig, count, page);
-  }
-
-  public Optional<MapBean> findMap(String id) {
-    return fafService.findMapById(id);
   }
 
   public CompletableFuture<Tuple<List<MapBean>, Integer>> getMatchmakerMapsWithPageCount(MatchmakingQueue matchmakerQueue, int count, int page) {
@@ -1179,31 +1134,28 @@ public class MapService implements InitializingBean, DisposableBean {
     ROCKS("rocks"),
     TREES("trees");
 
-    private String folderName;
+    final private String folderName;
 
     PreviewType(String folderName) {
       this.folderName = folderName;
     }
 
     public String getDisplayName() {
-      switch (this) {
-        case MINI: return "Minimap";
-        case POSITIONS: return "Positions";
-        case MEXES: return "Metal Patches";
-        case GEOS: return "Geo Vents";
-        case ROCKS: return "Reclaim (metal)";
-        case TREES: return "Reclaim (energy)";
-        default: return "null";
-      }
+      return switch (this) {
+        case MINI -> "Minimap";
+        case POSITIONS -> "Positions";
+        case MEXES -> "Metal Patches";
+        case GEOS -> "Geo Vents";
+        case ROCKS -> "Reclaim (metal)";
+        case TREES -> "Reclaim (energy)";
+      };
     }
 
     String getFolderName(int maxNumPlayers) {
-      switch (this) {
-        case MINI:
-          return this.folderName;
-        default:
-          return String.format("%s_%s", this.folderName, maxNumPlayers);
+      if (this == PreviewType.MINI) {
+        return this.folderName;
       }
+      return String.format("%s_%s", this.folderName, maxNumPlayers);
     }
   }
 }

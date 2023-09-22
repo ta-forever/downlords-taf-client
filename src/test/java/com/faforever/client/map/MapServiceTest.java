@@ -109,7 +109,7 @@ public class MapServiceTest extends AbstractPlainJavaFxTest {
     when(preferencesService.getPreferences()).thenReturn(preferences);
     when(preferencesService.getCacheDirectory()).thenReturn(cacheDirectory.getRoot().toPath());
     instance = new MapService(preferencesService, taskService, applicationContext,
-        fafService, assetService, notificationService, i18n, uiService, clientProperties, eventBus, playerService);
+        fafService, assetService, notificationService, i18n, clientProperties, eventBus, playerService);
     instance.afterPropertiesSet();
 
     doAnswer(invocation -> {
