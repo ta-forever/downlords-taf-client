@@ -44,6 +44,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -240,9 +241,15 @@ public class GameTileController implements Controller<Node> {
     gameRatingTypeGlobalLabel.visibleProperty().bind(gameTypeLabel.visibleProperty());
     gameRatingTypeLabel.visibleProperty().bind(gameTypeLabel.visibleProperty().not());
 
-    gameTitleLabel.textProperty().bind(game.titleProperty());
-    hostLabel.setText(game.getHost());
+    Optional<Player> host = playerService.getPlayerForUsername(game.getHost());
+    if (host.isPresent() && playerService.isFoe(host.get().getId())) {
+      gameTitleLabel.setText(String.format("%s's Game", game.getHost()));
+    }
+    else {
+      gameTitleLabel.textProperty().bind(game.titleProperty());
+    }
 
+    hostLabel.setText(game.getHost());
     JavaFxUtil.bind(gameMapLabel.textProperty(), game.mapNameProperty());
     gameMapLabel.visibleProperty().bind(
         game.replayDelaySecondsProperty().greaterThanOrEqualTo(0).or(

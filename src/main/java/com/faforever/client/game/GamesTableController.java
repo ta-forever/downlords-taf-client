@@ -11,6 +11,8 @@ import com.faforever.client.leaderboard.LeaderboardService;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.ModService;
+import com.faforever.client.player.Player;
+import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.RatingRange;
@@ -46,6 +48,7 @@ import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -64,6 +67,7 @@ public class GamesTableController implements Controller<Node> {
   private final ModService modService;
   private final I18n i18n;
   private final UiService uiService;
+  private final PlayerService playerService;
   private final PreferencesService preferencesService;
   private final LeaderboardService leaderboardService;
   public TableView<Game> gamesTable;
@@ -132,7 +136,15 @@ public class GamesTableController implements Controller<Node> {
         param.getValue().mapNameProperty(), param.getValue().replayDelaySecondsProperty()
     ));
 
-    gameTitleColumn.setCellValueFactory(param -> param.getValue().titleProperty());
+    gameTitleColumn.setCellValueFactory(param -> {
+      Optional<Player> host = playerService.getPlayerForUsername(param.getValue().getHost());
+      if (host.isPresent() && playerService.isFoe(host.get().getId())) {
+        return new SimpleStringProperty(String.format("%s's Game", param.getValue().getHost()));
+      }
+      else {
+        return param.getValue().titleProperty();
+      }
+    });
     gameTitleColumn.setCellFactory(param -> new StringCell<>(title -> title));
     playersColumn.setCellValueFactory(param -> Bindings.createObjectBinding(
         () -> new PlayerFill(param.getValue().getNumPlayers(), param.getValue().getMaxPlayers()),

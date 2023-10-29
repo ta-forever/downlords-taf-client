@@ -313,7 +313,14 @@ public class GameDetailController implements Controller<Pane> {
     game.mapNameProperty().addListener(mapNameListener);
     mapNameListener.changed(game.mapNameProperty(), game.mapNameProperty().get(), game.mapNameProperty().get());
 
-    gameTitleLabel.textProperty().bind(game.titleProperty());
+    Optional<Player> host = playerService.getPlayerForUsername(game.getHost());
+    if (host.isPresent() && playerService.isFoe(host.get().getId())) {
+      gameTitleLabel.setText(String.format("%s's Game", game.getHost()));
+    }
+    else {
+      gameTitleLabel.textProperty().bind(game.titleProperty());
+    }
+
     hostLabel.textProperty().bind(game.hostProperty());
     mapLabel.textProperty().bind(game.mapNameProperty());
     gameStatusLabel.textProperty().bind(game.statusProperty().asString());
