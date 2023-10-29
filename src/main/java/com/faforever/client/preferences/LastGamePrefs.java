@@ -31,7 +31,7 @@ public class LastGamePrefs {
     lastGameOnlyFriends = new SimpleBooleanProperty();
     lastGameEnforceRating = new SimpleBooleanProperty(false);
     liveReplayOption = new SimpleObjectProperty<>(LiveReplayOption.FIVE_MINUTES);
-    lastGameRankedEnabled = new SimpleBooleanProperty(false);
+    lastGameRankedEnabled = new SimpleBooleanProperty(true);
   }
 
   public String getLastGameType() {

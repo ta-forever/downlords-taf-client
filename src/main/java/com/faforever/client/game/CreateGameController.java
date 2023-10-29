@@ -161,7 +161,6 @@ public class CreateGameController implements Controller<Pane> {
       if (this.featuredModListView.getSelectionModel().getSelectedItem() != null) {
         mapService.optionalEnsureMap(this.featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null);
       }
-      JavaFxUtil.runLater(() -> rankedEnabledCheckBox.setSelected(!DEFAULT_RATING_TYPE.equals(game.getRatingType())));
     }
     this.contextGameProperty.set(game);
     selectAppropriateMap();
@@ -383,7 +382,7 @@ public class CreateGameController implements Controller<Pane> {
     randomMapButton.disableProperty().bind(mapListView.disabledProperty());
     mapSearchTextField.disableProperty().bind(mapListView.disabledProperty());
 
-    rankedEnabledCheckBox.setSelected(preferencesService.getPreferences().getLastGame().getLastGameRankedEnabled());
+    rankedEnabledCheckBox.setSelected(true);
     rankedEnabledCheckBox.disableProperty().bind(
         interactionLevelProperty.isEqualTo("BROWSE").or(interactionLevelProperty.isEqualTo("UPDATE_GW"))
             .or(rankedMapPoolsAvailableProperty.not()));
@@ -525,12 +524,12 @@ public class CreateGameController implements Controller<Pane> {
         .thenAccept(queues -> {
               JavaFxUtil.runLater(() -> {
                 List<MatchmakingQueue> availableQueues = Stream.concat(
-                    queues.stream().filter(q -> !q.getLeaderboard().getLeaderboardHidden()),
                     Stream.of(MatchmakingQueue.makePsuedoQueue(
                         ALL_MAPS_PSUEDO_QUEUE_NAME_KEY,
                         featuredModListView.getSelectionModel().getSelectedItem(),
                         queues.isEmpty() ? DEFAULT_RATING_TYPE : queues.get(0).getLeaderboard().getTechnicalName())
-                    )).toList();
+                    ),
+                    queues.stream().filter(q -> !q.getLeaderboard().getLeaderboardHidden())).toList();
                 mapPoolListView.getItems().setAll(availableQueues);
                 if (mapPoolListView.getItems().size() > 1) {
                   mapPoolListView.getSelectionModel().select(0);
