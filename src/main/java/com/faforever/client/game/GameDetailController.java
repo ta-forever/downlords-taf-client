@@ -433,48 +433,50 @@ public class GameDetailController implements Controller<Pane> {
       pingTableGridPane.getChildren().clear();
       for (Map.Entry<Integer, List<List<Integer>>> entry : game.get().getPings().entrySet()) {
         Integer playerId = entry.getKey();
-        Integer playerOrdinal = playerOrdinalsById.getOrDefault(playerId, -1);
-        String playerUsername = playersInGameById.get(playerId).getUsername();
+        if(!playerOrdinalsById.containsKey(playerId) || !playersInGameById.containsKey(playerId)) {
+          continue;
+        }
 
+        Integer playerOrdinal = playerOrdinalsById.get(playerId);
+        String playerUsername = playersInGameById.get(playerId).getUsername();
         Label playerLabel = new Label(playerUsername);
         playerLabel.setAlignment(Pos.CENTER_LEFT);
         pingTableGridPane.add(playerLabel, 0, playerOrdinal);
 
-        if (playerOrdinal >= 0) {
-          for (List<Integer> peerPingPair : entry.getValue()) {
-            Integer peerId = peerPingPair.get(0);
-            Integer peerOrdinal = playerOrdinalsById.getOrDefault(peerId, -1);
-            String peerUsername = playersInGameById.get(peerId).getUsername();
-
-            if (peerOrdinal >= 0) {
-              Integer ping = peerPingPair.get(1);
-              double red = min(1.0, (double) ping / (double) 1000);
-              double green = 1.0 - red;
-              double blue = 0.0;
-
-              Region cell = new Region();
-              cell.setStyle(
-                  "-fx-background-color: rgba(" +
-                      (int) (red * 255) + "," +
-                      (int) (green * 255) + "," +
-                      (int) (blue * 255) + "," +
-                      "1);" +
-                  "-fx-border-color: black;" +
-                  "-fx-border-width: 1px;" +
-                  "-fx-border-style: solid;"
-              );
-              cell.setMinSize(10, 10); // Set cell size as needed
-              cell.setPrefSize(20, 20);
-
-              if (ping < 2000) {
-                cell.setUserData(String.format("%s\n%s\n%dms", playerUsername, peerUsername, ping));
-              }
-              else {
-                cell.setUserData(String.format("%s\n%s\n(timeout)", playerUsername, peerUsername));
-              }
-              pingTableGridPane.add(cell, 1+peerOrdinal, playerOrdinal);
-            }
+        for (List<Integer> peerPingPair : entry.getValue()) {
+          Integer peerId = peerPingPair.get(0);
+          if(!playerOrdinalsById.containsKey(peerId) || !playersInGameById.containsKey(peerId)) {
+            continue;
           }
+
+          Integer peerOrdinal = playerOrdinalsById.get(peerId);
+          String peerUsername = playersInGameById.get(peerId).getUsername();
+          Integer ping = peerPingPair.get(1);
+          double red = min(1.0, (double) ping / (double) 1000);
+          double green = 1.0 - red;
+          double blue = 0.0;
+
+          Region cell = new Region();
+          cell.setStyle(
+              "-fx-background-color: rgba(" +
+                  (int) (red * 255) + "," +
+                  (int) (green * 255) + "," +
+                  (int) (blue * 255) + "," +
+                  "1);" +
+              "-fx-border-color: black;" +
+              "-fx-border-width: 1px;" +
+              "-fx-border-style: solid;"
+          );
+          cell.setMinSize(10, 10); // Set cell size as needed
+          cell.setPrefSize(20, 20);
+
+          if (ping < 2000) {
+            cell.setUserData(String.format("%s\n%s\n%dms", playerUsername, peerUsername, ping));
+          }
+          else {
+            cell.setUserData(String.format("%s\n%s\n(timeout)", playerUsername, peerUsername));
+          }
+          pingTableGridPane.add(cell, 1+peerOrdinal, playerOrdinal);
         }
       }
       pingTableContainer.setVisible(true);
