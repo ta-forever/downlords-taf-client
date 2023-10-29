@@ -828,6 +828,17 @@ public class GameService implements InitializingBean {
     }
   }
 
+  public void setStartPositions() {
+    if (isGameRunning()) {
+      Game game = getCurrentGame();
+      List<Player> positions = this.ratingService.getBalancedTeams(game);
+      if (positions.size() > 0 && preferencesService.getPreferences().getAutoTeamBalanceEnabled()) {
+        this.totalAnnihilationService.sendToConsole("/startpositions " +
+            String.join(",", positions.stream().map(p -> String.valueOf(p.getId())).toList()));
+      }
+    }
+  }
+
   public void updateSettingsForStagingGame(String title, String mapName, String ratingType, LiveReplayOption liveReplayOption, String password) {
     Game currentGame = getCurrentGame();
     if (isGameRunning() && currentGame != null && currentGame.getStatus()==GameStatus.STAGING) {
@@ -1200,6 +1211,10 @@ public class GameService implements InitializingBean {
     // We may receive game info before we receive our player info
     Optional<Player> currentPlayerOptional = playerService.getCurrentPlayer();
 
+    boolean isCurrentGameAndTeamsChanged =
+        currentGame.get() != null && currentGame.get().getId() == gameInfoMessage.getUid() &&
+        gameInfoMessage.getTeams() != null && !gameInfoMessage.getTeams().equals(currentGame.get().getTeams());
+
     Game game = createOrUpdateGame(gameInfoMessage);
     // some control paths null out currentGame but we still need to remember this
     final boolean isGameCurrentGame = Objects.equals(currentGame.get(), game) ||
@@ -1222,6 +1237,11 @@ public class GameService implements InitializingBean {
       if (currentPlayerInGame && gameInfoMessage.getState().isOpen()) {
         synchronized (currentGame) {
           currentGame.set(game);
+        }
+        if (gameInfoMessage.getHost() != null && currentPlayerOptional.get().getUsername().equals(gameInfoMessage.getHost())) {
+          if (isCurrentGameAndTeamsChanged) {
+            setStartPositions();
+          }
         }
       } else if (isGameCurrentGame && !currentPlayerInGame) {
         synchronized (currentGame) {
