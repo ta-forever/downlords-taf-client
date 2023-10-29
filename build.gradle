@@ -244,7 +244,8 @@ task buildInstall4jMediaFiles(type: Install4jTask) {
 
 task downloadIceAdapter(type: Download) {
   group "native dependencies"
-  src "https://github.com/FAForever/java-ice-adapter/releases/download/v${faf_ice_adapter_version}/faf-ice-adapter-v${faf_ice_adapter_version}-nojfx.jar"
+  // src "https://github.com/FAForever/java-ice-adapter/releases/download/v${faf_ice_adapter_version}/faf-ice-adapter-v${faf_ice_adapter_version}-nojfx.jar"
+  src "https://cdn.discordapp.com/attachments/830738287752380436/1158622779256606800/faf-ice-adapter.jar?ex=6549be0c&is=6537490c&hm=e98c45e2e79fe0d67faa30dbcb3a35232d0644a882efcbf162772997875a3db5&"
   dest file("${buildDir}/resources/native/faf-ice-adapter.jar")
   onlyIfNewer true
 }
@@ -328,6 +329,7 @@ task extractUnixGpgnet4Ta(type: Copy, dependsOn: [downloadUnixGpgnet4Ta, extract
 
 task downloadNativeDependencies(dependsOn: [downloadUnixUid, downloadWindowsUid, downloadIceAdapter, extractUnixGpgnet4Ta, extractWindowsGpgnet4Ta, extractUnixTafToolbox, extractWindowsTafToolbox]) {
 //task downloadNativeDependencies(dependsOn: [downloadUnixUid, downloadWindowsUid, extractUnixGpgnet4Ta, extractWindowsGpgnet4Ta, extractUnixTafToolbox, extractWindowsTafToolbox]) {
+//task downloadNativeDependencies(dependsOn: [downloadUnixUid, downloadWindowsUid, extractUnixTafToolbox, extractWindowsTafToolbox]) {
 //task downloadNativeDependencies(dependsOn: [downloadUnixUid, downloadWindowsUid, downloadIceAdapter]) {
 //task downloadNativeDependencies(dependsOn: []) {
   group "native dependencies"
