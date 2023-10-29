@@ -844,7 +844,11 @@ public class GameService implements InitializingBean {
     if (isGameRunning() && currentGame != null && currentGame.getStatus()==GameStatus.STAGING) {
       try {
         List<String[]> mapsDetails = MapTool.listMap(preferencesService.getTotalAnnihilation(currentGame.getFeaturedMod()).getInstalledPath(), mapName);
-        // @TODO I'm not sure all of these need to go to server via gpgnet4ta.  maybe send them directly to faf server?
+        if (mapsDetails.size() > 0) {
+          final String UNIT_SEPARATOR = Character.toString((char) 0x1f);
+          String mapDetails = String.join(UNIT_SEPARATOR, mapsDetails.get(0));
+          this.totalAnnihilationService.sendToConsole(String.format("/map %s", mapDetails));
+        }
         if (ratingType != null && ratingType.length() > 0) {
           this.totalAnnihilationService.sendToConsole(String.format("/rating_type %s", ratingType));
         }
@@ -853,12 +857,6 @@ public class GameService implements InitializingBean {
         }
         if (password != null) {
           this.fafService.setGamePassword(password);
-        }
-        if (mapsDetails.size() > 0) {
-          this.fafService.setGameMapDetails(
-              mapsDetails.get(0)[MAP_DETAIL_COLUMN_NAME],
-              mapsDetails.get(0)[MAP_DETAIL_COLUMN_ARCHIVE],
-              mapsDetails.get(0)[MAP_DETAIL_COLUMN_CRC]);
         }
       }
       catch (IOException e) {
