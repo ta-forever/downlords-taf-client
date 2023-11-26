@@ -579,12 +579,14 @@ public class MapService implements InitializingBean, DisposableBean {
     Path installationPath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath();
     try {
       List<String[]> archiveMaps = MapTool.listMapsInArchive(newArchive, null, false);
-      archiveMaps.stream()
-          .map(mapDetails -> mapDetails[MapTool.MAP_DETAIL_COLUMN_NAME])
-          .filter(preExistingMaps::containsKey)
-          .map(mapName -> preExistingMaps.get(mapName).getHpiArchiveName())
+      Set<String> archiveMapNames = archiveMaps.stream()
+          .map(details -> details[MapTool.MAP_DETAIL_COLUMN_NAME].toLowerCase())
+          .collect(Collectors.toSet());
+      preExistingMaps.values().stream()
+          .filter(map -> archiveMapNames.contains(map.getMapName().toLowerCase()))
+          .map(MapBean::getHpiArchiveName)
           .distinct()
-          .filter(archive -> !archive.equals(newArchive.getFileName().toString()))
+          .filter(archive -> !archive.equalsIgnoreCase(newArchive.getFileName().toString()))
           .forEach(archive -> {
             try {
               removeArchive(installationPath.resolve(archive));

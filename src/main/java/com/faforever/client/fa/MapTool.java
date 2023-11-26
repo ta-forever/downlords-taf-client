@@ -85,6 +85,10 @@ public class MapTool {
 
     if (hpiSpecs != null) {
       command.add("--hpispecs");
+      // maptool uses Qt's QDir, which uses wildcardToRegularExpression for globbing: https://doc.qt.io/qt-5/qregularexpression.html#wildcardToRegularExpression
+      // so we need to replace "[" with "[[]" and "]" with "[]]"
+      hpiSpecs = hpiSpecs.replace("[", "\\[").replace("]", "\\]");
+      hpiSpecs = hpiSpecs.replace("\\[", "[[]").replace("\\]", "[]]");
       command.add(hpiSpecs);
     }
     if (mapName != null) {
