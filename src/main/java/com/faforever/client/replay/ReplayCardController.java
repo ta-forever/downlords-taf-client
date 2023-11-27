@@ -9,6 +9,7 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
+import com.faforever.client.player.PlayerService;
 import com.faforever.client.rating.RatingService;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.user.UserService;
@@ -50,6 +51,7 @@ public class ReplayCardController implements Controller<Node> {
   private final RatingService ratingService;
   private final UiService uiService;
   private final UserService userService;
+  private final PlayerService playerService;
   private final I18n i18n;
   public Label dateLabel;
   public DefaultImageView mapThumbnailImageView;
@@ -109,7 +111,14 @@ public class ReplayCardController implements Controller<Node> {
         replay.replayHiddenProperty()));
     tadaUploadButton.managedProperty().bind(tadaUploadButton.visibleProperty());
 
-    gameTitleLabel.setText(replay.getTitle());
+    if (playerService.isFoe(replay.getHostId())) {
+      gameTitleLabel.setText(String.format("%s's Game",
+          replay.getTeams().values().stream().findFirst().get().stream().findFirst().get()));
+    }
+    else {
+      gameTitleLabel.textProperty().bind(replay.titleProperty());
+    }
+
     dateLabel.setText(timeService.asDate(replay.getStartTime()));
     timeLabel.setText(timeService.asShortTime(replay.getStartTime()));
     modLabel.setText(replay.getFeaturedMod().getDisplayName());

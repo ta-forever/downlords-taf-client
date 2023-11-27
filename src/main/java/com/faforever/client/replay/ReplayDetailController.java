@@ -182,7 +182,13 @@ public class ReplayDetailController implements Controller<Node> {
     downloadMoreInfoButton.setDisable(false);
 
     replayIdField.setText(i18n.get("game.idFormat", replay.getId()));
-    titleLabel.setText(replay.getTitle());
+    if (playerService.isFoe(replay.getHostId())) {
+      titleLabel.setText(String.format("%s's Game",
+          replay.getTeams().values().stream().findFirst().get().stream().findFirst().get()));
+    }
+    else {
+      titleLabel.textProperty().bind(replay.titleProperty());
+    }
     dateLabel.setText(timeService.asDate(replay.getStartTime()));
     timeLabel.setText(timeService.asShortTime(replay.getStartTime()));
 
