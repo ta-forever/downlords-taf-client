@@ -395,13 +395,20 @@ public class GameDetailController implements Controller<Pane> {
   }
 
   private void createTeams() {
+
+    // show the card immediately without ratings
+    teamListPane.getChildren().clear();
+    TeamCardController.createAndAdd(game.get().getTeams(), game.get().getRatingType(), playerService, uiService,
+        teamListPane, true);
+
+    // update the card after the getLeaderboards() query completes
     this.leaderboardService.getLeaderboards()
-            .thenAccept(leaderboards -> JavaFxUtil.runLater(() -> {
-              boolean hidePlayerRatings = leaderboards.stream().noneMatch(lb -> lb.getTechnicalName().equals(game.get().getRatingType()));
-              teamListPane.getChildren().clear();
-              TeamCardController.createAndAdd(game.get().getTeams(), game.get().getRatingType(), playerService, uiService,
-                  teamListPane, hidePlayerRatings);
-            }));
+        .thenAccept(leaderboards -> JavaFxUtil.runLater(() -> {
+          boolean hidePlayerRatings = leaderboards.stream().noneMatch(lb -> lb.getTechnicalName().equals(game.get().getRatingType()));
+          teamListPane.getChildren().clear();
+          TeamCardController.createAndAdd(game.get().getTeams(), game.get().getRatingType(), playerService, uiService,
+            teamListPane, hidePlayerRatings);
+        }));
   }
 
   private void createPingTable() {
