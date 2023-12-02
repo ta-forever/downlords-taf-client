@@ -65,7 +65,7 @@ public class CacheConfig extends CachingConfigurerSupport {
         new CaffeineCache(MODS, newBuilder().expireAfterWrite(10, MINUTES).build()),
         new CaffeineCache(MAPS, newBuilder().expireAfterWrite(10, MINUTES).build()),
         new CaffeineCache(MAP_GENERATOR, newBuilder().expireAfterWrite(10, MINUTES).build()),
-        new CaffeineCache(LEADERBOARD, newBuilder().expireAfterWrite(15, SECONDS).build()),
+        new CaffeineCache(LEADERBOARD, newBuilder().expireAfterWrite(1, HOURS).build()),
         new CaffeineCache(GLOBAL_LEADERBOARD, newBuilder().maximumSize(1).expireAfterAccess(5, MINUTES).build()),
         new CaffeineCache(LADDER_1V1_LEADERBOARD, newBuilder().maximumSize(1).expireAfterAccess(5, MINUTES).build()),
         new CaffeineCache(AVAILABLE_AVATARS, newBuilder().expireAfterAccess(10, MINUTES).build()),

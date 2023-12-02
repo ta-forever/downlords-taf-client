@@ -84,15 +84,6 @@ public class GameTooltipController implements Controller<Node> {
   }
 
   private void createTeams(ObservableMap<? extends String, ? extends List<String>> teamsList, String ratingType) {
-
-    // show the card immediately without ratings
-    synchronized (teamsList) {
-      teamsPane.getChildren().clear();
-      TeamCardController.createAndAdd(teamsList, ratingType, playerService, uiService, teamsPane, true);
-      teamsPane.setPrefColumns(Math.min(teamsList.size(), maxPrefColumns));
-    }
-
-    // update the card after the getLeaderboards() query completes
     leaderboardService.getLeaderboards()
       .thenAccept(leaderboards -> JavaFxUtil.runLater(() -> {
         boolean hidePlayerRatings = leaderboards.stream().noneMatch(lb -> lb.getTechnicalName().equals(ratingType));
