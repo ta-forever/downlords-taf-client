@@ -11,6 +11,7 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.LeaderboardRating;
 import com.faforever.client.io.FileUtils;
 import com.faforever.client.map.MapBean.Type;
+import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.notification.Action;
 import com.faforever.client.notification.DismissAction;
 import com.faforever.client.notification.ImmediateNotification;
@@ -51,6 +52,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import javax.inject.Inject;
@@ -78,7 +80,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -1158,6 +1162,24 @@ public class MapService implements InitializingBean, DisposableBean {
         return this.folderName;
       }
       return String.format("%s_%s", this.folderName, maxNumPlayers);
+    }
+  }
+
+  boolean keepFreshGuard = false;
+  @SneakyThrows
+  @Scheduled(fixedDelay = 10, timeUnit = TimeUnit.MINUTES)
+  protected void keepFresh() {
+    if (!this.keepFreshGuard) {
+      this.keepFreshGuard = true;
+      fafService.getAllRankedMaps();
+      fafService.getFeaturedMods().thenAccept(featuredModList -> {
+        this.keepFreshGuard = false;
+        for (FeaturedMod featuredMod : featuredModList) {
+          if (featuredMod.isVisible()) {
+            fafService.getMatchmakerQueuesByMod(featuredMod.getTechnicalName());
+          }
+        }
+      });
     }
   }
 }

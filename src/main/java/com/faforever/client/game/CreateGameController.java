@@ -520,7 +520,7 @@ public class CreateGameController implements Controller<Pane> {
   }
 
   protected void setAvailableMapPools(String modTechnical) {
-    fafService.getMatchingQueuesByMod(modTechnical)
+    fafService.getMatchmakerQueuesByMod(modTechnical)
         .thenAccept(queues -> {
               JavaFxUtil.runLater(() -> {
                 List<MatchmakingQueue> availableQueues = Stream.concat(

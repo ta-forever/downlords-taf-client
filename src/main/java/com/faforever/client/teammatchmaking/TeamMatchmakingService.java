@@ -129,7 +129,7 @@ public class TeamMatchmakingService {
     List<CompletableFuture<?>> futures = new ArrayList<>();
 
     message.getQueues().forEach(messageQueue -> {
-      CompletableFuture<Optional<MatchmakingQueue>> future = fafService.getMatchmakingQueue(messageQueue.getQueueName());
+      CompletableFuture<Optional<MatchmakingQueue>> future = fafService.getMatchmakerQueue(messageQueue.getQueueName());
       futures.add(future.thenCompose(result -> result.map(matchmakingQueue ->
           copyInfoAndAddQueueIfNecessary(matchmakingQueue, messageQueue))
           .orElseGet(() -> CompletableFuture.completedFuture(null))));

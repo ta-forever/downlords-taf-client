@@ -299,8 +299,8 @@ public class TeamMatchmakingServiceTest extends AbstractPlainJavaFxTest {
     MatchmakingQueue queue1 = new MatchmakingQueue();
     queue1.setQueueName("queue1");
     instance.getMatchmakingQueues().add(queue1);
-    when(fafService.getMatchmakingQueue("queue1")).thenReturn(CompletableFuture.completedFuture(Optional.of(new MatchmakingQueue())));
-    when(fafService.getMatchmakingQueue("queue2")).thenReturn(CompletableFuture.completedFuture(Optional.of(new MatchmakingQueue())));
+    when(fafService.getMatchmakerQueue("queue1")).thenReturn(CompletableFuture.completedFuture(Optional.of(new MatchmakingQueue())));
+    when(fafService.getMatchmakerQueue("queue2")).thenReturn(CompletableFuture.completedFuture(Optional.of(new MatchmakingQueue())));
 
     AtomicInteger propertyChanged = new AtomicInteger(0);
     instance.queuesReadyForUpdateProperty().addListener((observable, oldValue, newValue) -> {
@@ -309,8 +309,8 @@ public class TeamMatchmakingServiceTest extends AbstractPlainJavaFxTest {
     });
     instance.onMatchmakerInfo(createMatchmakerInfoMessage());
 
-    verify(fafService).getMatchmakingQueue("queue1");
-    verify(fafService).getMatchmakingQueue("queue2");
+    verify(fafService).getMatchmakerQueue("queue1");
+    verify(fafService).getMatchmakerQueue("queue2");
     assertThat(instance.getMatchmakingQueues().size(), is(2));
     assertThat((propertyChanged.get()), is(1));
   }

@@ -665,13 +665,13 @@ public class FafService {
   }
 
   @Async
-  public CompletableFuture<Optional<MatchmakingQueue>> getMatchmakingQueue(String technicalName) {
+  public CompletableFuture<Optional<MatchmakingQueue>> getMatchmakerQueue(String technicalName) {
     return CompletableFuture.completedFuture(fafApiAccessor.getMatchmakerQueue(technicalName)
         .map(MatchmakingQueue::fromDto));
   }
 
   @Async
-  public CompletableFuture<List<MatchmakingQueue>> getMatchingQueuesByMod(String modTechnicalName) {
+  public CompletableFuture<List<MatchmakingQueue>> getMatchmakerQueuesByMod(String modTechnicalName) {
     return CompletableFuture.completedFuture(fafApiAccessor.getMatchmakerQueuesByMod(modTechnicalName)
         .stream()
         .map(MatchmakingQueue::fromDto)

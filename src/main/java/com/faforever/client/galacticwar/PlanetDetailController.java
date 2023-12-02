@@ -140,7 +140,7 @@ public class PlanetDetailController implements Controller<Node> {
         .ifPresent(fm -> JavaFxUtil.runLater(() -> this.featuredMod.set(fm))));
 
     this.leaderboard.set(null);
-    fafService.getMatchingQueuesByMod(planet.getModTechnical())
+    fafService.getMatchmakerQueuesByMod(planet.getModTechnical())
         .thenAccept(queues -> queues.stream().findFirst().ifPresent(q ->
             this.leaderboard.set(q.getLeaderboard())));
 
