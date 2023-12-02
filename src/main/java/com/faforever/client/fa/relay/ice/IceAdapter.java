@@ -6,7 +6,7 @@ import java.util.concurrent.CompletableFuture;
  * Starts or stops the ICE adapter process.
  */
 public interface IceAdapter {
-  CompletableFuture<Integer> start(String playerAlias);
+  CompletableFuture<Integer> start(String playerAlias, int gameId);
 
   void stop();
 }

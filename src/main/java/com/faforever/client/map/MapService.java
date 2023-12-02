@@ -1173,6 +1173,7 @@ public class MapService implements InitializingBean, DisposableBean {
       this.keepFreshGuard = true;
       fafService.getAllRankedMaps();
       fafService.getFeaturedMods().thenAccept(featuredModList -> {
+        logger.info("[keepFresh]");
         this.keepFreshGuard = false;
         for (FeaturedMod featuredMod : featuredModList) {
           if (featuredMod.isVisible()) {

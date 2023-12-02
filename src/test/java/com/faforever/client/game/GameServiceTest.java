@@ -157,7 +157,7 @@ public class GameServiceTest extends AbstractPlainJavaFxTest {
     when(preferencesService.isGameExeValid(KnownFeaturedMod.DEFAULT.getTechnicalName())).thenReturn(true);
     when(fafService.connectionStateProperty()).thenReturn(new SimpleObjectProperty<>());
     when(replayService.start(anyInt(), any())).thenReturn(completedFuture(LOCAL_REPLAY_PORT));
-    when(iceAdapter.start("BILY_IDOL")).thenReturn(completedFuture(GPG_PORT));
+    when(iceAdapter.start("BILY_IDOL", 667)).thenReturn(completedFuture(GPG_PORT));
     when(playerService.getCurrentPlayer()).thenReturn(Optional.of(junitPlayer));
 
     doAnswer(invocation -> {

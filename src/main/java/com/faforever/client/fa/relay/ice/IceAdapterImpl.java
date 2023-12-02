@@ -37,6 +37,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -47,12 +49,16 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static java.util.Arrays.asList;
 
@@ -79,6 +85,7 @@ public class IceAdapterImpl implements IceAdapter, InitializingBean, DisposableB
   private Process process;
   private LobbyMode lobbyInitMode;
   private JJsonPeer peer;
+  private Set<String> supportedOptions;
 
   @Override
   public void afterPropertiesSet() {
@@ -89,6 +96,44 @@ public class IceAdapterImpl implements IceAdapter, InitializingBean, DisposableB
     fafService.addOnMessageListener(GameLaunchMessage.class, this::updateLobbyModeFromGameInfo);
     fafService.addOnMessageListener(DisconnectFromPeerMessage.class, message -> iceAdapterProxy.disconnectFromPeer(message.getUid()));
     fafService.addOnMessageListener(IceServerMessage.class, message -> iceAdapterProxy.iceMsg(message.getSender(), message.getRecord()));
+
+    CompletableFuture.runAsync(this::probeCommandLineOptions);
+  }
+
+  public void probeCommandLineOptions() {
+    log.info("[probeCommandLineOptions]");
+    Set<String> options = new HashSet<>();
+    String nativeDir = System.getProperty("nativeDir", "lib");
+    Path workDirectory = Paths.get(nativeDir).toAbsolutePath();
+    List<String> cmd = Lists.newArrayList(
+        Paths.get(System.getProperty("java.home")).resolve("bin").resolve(org.bridj.Platform.isWindows() ? "java.exe" : "java").toAbsolutePath().toString(),
+        "-jar",
+        getBinaryName(workDirectory),
+        "--help");
+
+    try {
+      ProcessBuilder processBuilder = new ProcessBuilder();
+      processBuilder.directory(workDirectory.toFile());
+      processBuilder.command(cmd);
+      Process process = processBuilder.start();
+
+      Pattern pattern = Pattern.compile("--\\S+");
+
+      try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+          Matcher matcher = pattern.matcher(line);
+          while (matcher.find()) {
+            options.add(matcher.group());
+          }
+        }
+      }
+
+    } catch (Exception e) {
+      log.error("[probeCommandLineOptions] unable to probe command line options", e.getCause());
+    }
+    this.supportedOptions = options;
+    log.info("[probeCommandLineOptions] DONE. options={}", options);
   }
 
   /**
@@ -150,7 +195,7 @@ public class IceAdapterImpl implements IceAdapter, InitializingBean, DisposableB
   }
 
   @Override
-  public CompletableFuture<Integer> start(String playerAlias) {
+  public CompletableFuture<Integer> start(String playerAlias, int gameId) {
     iceAdapterClientFuture = new CompletableFuture<>();
     Thread thread = new Thread(() -> {
       String nativeDir = System.getProperty("nativeDir", "lib");
@@ -181,6 +226,11 @@ public class IceAdapterImpl implements IceAdapter, InitializingBean, DisposableB
           "--rpc-port", String.valueOf(adapterPort),
           "--gpgnet-port", String.valueOf(gpgPort)
       );
+
+      if (this.supportedOptions != null && this.supportedOptions.contains("--game-id=<gameId>")) {
+        cmd.add("--game-id");
+        cmd.add(String.valueOf(gameId));
+      }
 
       if (preferencesService.getPreferences().getForceRelayEnabled()) {
         cmd.add("--force-relay");

@@ -881,7 +881,7 @@ public class GameService implements InitializingBean {
     String modTechnical = gameLaunchMessage.getMod();
     int uid = gameLaunchMessage.getUid();
     final Integer [] adapterPort = {null};
-    iceAdapter.start(playerAlias)
+    iceAdapter.start(playerAlias, uid)
         .thenAccept(ap -> adapterPort[0] = ap)
         .thenCompose((aVoid) -> this.fafService.getLeaderboards())
         .thenAccept(availableLeaderboards -> {
