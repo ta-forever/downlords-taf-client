@@ -126,7 +126,9 @@ public class ReviewsController implements Controller<Pane> {
 
     JavaFxUtil.addListener(this.reviews, onReviewsChangedListener);
     FilteredList<Review> onlyOtherNonEmptyReviews = this.reviews
-        .filtered(review -> review.getPlayer().getId() != currentPlayer.getId() && !Strings.isNullOrEmpty(review.getText()));
+        .filtered(review -> review.getPlayer().getId() != currentPlayer.getId() &&
+            !Strings.isNullOrEmpty(review.getText()) &&
+            !playerService.isFoe(review.getPlayer().getId()));
 
     reviewPages = Lists.newArrayList(Iterables.partition(onlyOtherNonEmptyReviews, REVIEWS_PER_PAGE));
     currentReviewPage = Math.max(0, Math.min(0, reviewPages.size() - 1));
