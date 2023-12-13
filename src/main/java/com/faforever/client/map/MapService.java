@@ -80,7 +80,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -579,8 +578,9 @@ public class MapService implements InitializingBean, DisposableBean {
         });
   }
 
-  public void removeConflictingArchives(String modTechnical, java.util.Map<String,MapBean> preExistingMaps, Path newArchive) {
+  public CompletableFuture<Void> removeConflictingArchives(String modTechnical, java.util.Map<String,MapBean> preExistingMaps, Path newArchive) {
     Path installationPath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath();
+    List<CompletableFuture<Void>> removeArchiveFutures = new ArrayList<>();
     try {
       List<String[]> archiveMaps = MapTool.listMapsInArchive(newArchive, null, false);
       Set<String> archiveMapNames = archiveMaps.stream()
@@ -593,7 +593,7 @@ public class MapService implements InitializingBean, DisposableBean {
           .filter(archive -> !archive.equalsIgnoreCase(newArchive.getFileName().toString()))
           .forEach(archive -> {
             try {
-              removeArchive(installationPath.resolve(archive));
+              removeArchiveFutures.add(removeArchive(installationPath.resolve(archive)));
             } catch (IOException e) {
               logger.error(String.format("[removeConflictingArchives] Unable to remove archive '%s'", archive), e);
             }
@@ -602,12 +602,16 @@ public class MapService implements InitializingBean, DisposableBean {
     catch (IOException e) {
       notifyBadMapTool(e);
     }
+    CompletableFuture<Void>[] futuresArray = removeArchiveFutures.toArray(CompletableFuture[]::new);
+    return CompletableFuture.allOf(futuresArray);
   }
 
-  private void removeArchive(Path archivePath) throws IOException {
+  private CompletableFuture<Void> removeArchive(Path archivePath) throws IOException {
+    CompletableFuture<Void> future = new CompletableFuture<>();
     if (isOfficialArchive(archivePath)) {
       logger.info("Ignoring attempt to delete official map archive '{}' ...", archivePath);
-      return;
+      future.complete(null);
+      return future;
     }
 
     Path cachedArchivePath = preferencesService.getCacheDirectory().resolve("maps").resolve(archivePath.getFileName());
@@ -618,7 +622,9 @@ public class MapService implements InitializingBean, DisposableBean {
           i18n.get("mapVault.removingArchiveAlreadyAt", archivePath, cachedArchivePath),
           Severity.INFO, Arrays.asList(
           new Action(i18n.get("mapVault.removingArchiveShow"), Action.Type.OK_STAY, event -> this.platformService.reveal(archivePath)),
-          new Action(i18n.get("mapVault.removingArchiveIgnore"), Action.Type.OK_DONE, event -> {}),
+          new Action(i18n.get("mapVault.removingArchiveIgnore"), Action.Type.OK_DONE, event -> {
+            future.complete(null);
+          }),
           new Action(i18n.get("mapVault.removingArchiveDelete"), Action.Type.OK_DONE, event -> {
             try {
               logger.info("Deleting archive {} (a file of that name and size can be found at {})", archivePath, finalCachedArchivePath1);
@@ -626,9 +632,10 @@ public class MapService implements InitializingBean, DisposableBean {
             } catch (IOException e) {
               logger.error(String.format("[removeArchive] Unable to delete '%s'", archivePath), e);
             }
+            future.complete(null);
           }))
       ));
-      return;
+      return future;
     }
 
     if (Files.exists(cachedArchivePath)) {
@@ -644,7 +651,9 @@ public class MapService implements InitializingBean, DisposableBean {
           i18n.get("mapVault.removingArchiveAlreadyAt", cachedArchivePath),
           Severity.INFO, Arrays.asList(
           new Action(i18n.get("mapVault.removingArchiveShow"), Action.Type.OK_STAY, event -> this.platformService.reveal(archivePath)),
-          new Action(i18n.get("mapVault.removingArchiveIgnore"), Action.Type.OK_DONE, event -> {}),
+          new Action(i18n.get("mapVault.removingArchiveIgnore"), Action.Type.OK_DONE, event -> {
+            future.complete(null);
+          }),
           new Action(i18n.get("mapVault.removingArchiveDelete"), Action.Type.OK_DONE, event -> {
             try {
               logger.info("Deleting archive {} (a file of that name and crc can be found at {})", archivePath, finalCachedArchivePath2);
@@ -652,6 +661,7 @@ public class MapService implements InitializingBean, DisposableBean {
             } catch (IOException e) {
               logger.error(String.format("[removeArchive] Unable to delete '%s'", archivePath), e);
             }
+            future.complete(null);
           }))
       ));
     }
@@ -662,7 +672,9 @@ public class MapService implements InitializingBean, DisposableBean {
           i18n.get("mapVault.removingArchiveMoveTo", archivePath, cachedArchivePath),
           Severity.INFO, Arrays.asList(
           new Action(i18n.get("mapVault.removingArchiveShow"), Action.Type.OK_STAY, event -> this.platformService.reveal(archivePath)),
-          new Action(i18n.get("mapVault.removingArchiveIgnore"), Action.Type.OK_DONE, event -> {}),
+          new Action(i18n.get("mapVault.removingArchiveIgnore"), Action.Type.OK_DONE, event -> {
+            future.complete(null);
+          }),
           new Action(i18n.get("mapVault.removingArchiveDelete"), Action.Type.OK_DONE, event -> {
             try {
               logger.info("Moving archive {} to {})", archivePath, finalCachedArchivePath);
@@ -670,9 +682,11 @@ public class MapService implements InitializingBean, DisposableBean {
             } catch (IOException e) {
               logger.error(String.format("[removeArchive] Unable to move '%s' to '%s'", archivePath, finalCachedArchivePath), e);
             }
+            future.complete(null);
           }))
       ));
     }
+    return future;
   }
 
   public CompletableFuture<MapBean> ensureMapLatestVersion(String modTechnical, MapBean map) {
@@ -770,6 +784,7 @@ public class MapService implements InitializingBean, DisposableBean {
     // make a copy of this list before we do anything to the installation
     HashMap<String, MapBean> alreadyInstalledForModAllMaps = new HashMap<>(getInstallation(modTechnicalName).mapsByName);
 
+    List<CompletableFuture<Void>> futures = new ArrayList<>();
     if (mapName != null && mapCrc != null && downloadHpiArchiveName != null) {
       List<Pair<Installation,MapBean>> alreadyInstalledAnywhere = installations.values().stream()
           .map(installation -> new Pair<>(installation, installation.mapsByName.getOrDefault(mapName, null)))
@@ -796,7 +811,7 @@ public class MapService implements InitializingBean, DisposableBean {
         try {
           logger.info("Installing {}/{}: link/copied {} to {}", mapName, mapCrc, source, dest);
           linkOrCopyWithBackup(source, dest);
-          removeConflictingArchives(modTechnicalName, alreadyInstalledForModAllMaps, dest);
+          futures.add(removeConflictingArchives(modTechnicalName, alreadyInstalledForModAllMaps, dest));
           if (!preferencesService.getPreferences().isGameDataMapDownloadKeepVersionTag()) {
             removeVersionTag(dest.toFile());
           }
@@ -817,7 +832,7 @@ public class MapService implements InitializingBean, DisposableBean {
 
     if (downloadList.isEmpty()) {
       releaseInstalledMapsUpdateDeferal();
-      return CompletableFuture.completedFuture(null);
+      return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
     }
 
     downloadList = downloadList.stream()
@@ -828,31 +843,33 @@ public class MapService implements InitializingBean, DisposableBean {
     if (downloadList.isEmpty()) {
       logger.info("[ensureMap] Dude, hold up! {} is already downloading", downloadHpiArchiveName);
       releaseInstalledMapsUpdateDeferal();
-      return CompletableFuture.completedFuture(null);
+      return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
     }
 
-    CompletableFuture<Void> future =
+    CompletableFuture<Void> downloadFuture =
         downloadAndInstallArchive(modTechnicalName, downloadList.get(0), progressProperty, titleProperty);
     if (downloadList.size() > 1) {
-      future = future.thenCompose(aVoid ->
+      downloadFuture = downloadFuture.thenCompose(aVoid ->
           downloadAndInstallArchive(modTechnicalName, downloadHpiArchiveName, progressProperty, titleProperty));
     }
 
     if (downloadList.stream().anyMatch(archiveName -> archiveName.equals(downloadHpiArchiveName))) {
-      future = future.thenRun(() -> {
-        removeConflictingArchives(
-            modTechnicalName, alreadyInstalledForModAllMaps, installationPath.resolve(downloadHpiArchiveName));
-        getInstallation(modTechnicalName).downloadingList.removeIf(
-            archive -> Arrays.asList(downloadHpiArchiveName, HPI_ARCHIVE_TA_FEATURES_2013).contains(archive));
-        if (!preferencesService.getPreferences().isGameDataMapDownloadKeepVersionTag()) {
-          removeVersionTag(installationPath.resolve(downloadHpiArchiveName).toFile());
-        }
-        resetPreviews(mapName);
-        loadInstalledMaps(modTechnicalName);
-      });
+      downloadFuture = downloadFuture
+          .thenCompose(aVoid -> removeConflictingArchives(
+              modTechnicalName, alreadyInstalledForModAllMaps, installationPath.resolve(downloadHpiArchiveName)))
+          .thenRun(() -> {
+            getInstallation(modTechnicalName).downloadingList.removeIf(
+                archive -> Arrays.asList(downloadHpiArchiveName, HPI_ARCHIVE_TA_FEATURES_2013).contains(archive));
+            if (!preferencesService.getPreferences().isGameDataMapDownloadKeepVersionTag()) {
+              removeVersionTag(installationPath.resolve(downloadHpiArchiveName).toFile());
+            }
+            resetPreviews(mapName);
+            loadInstalledMaps(modTechnicalName);
+          });
     }
 
-    return future
+    futures.add(downloadFuture);
+    return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
         .thenRun(this::releaseInstalledMapsUpdateDeferal);
   }
 
@@ -1173,7 +1190,6 @@ public class MapService implements InitializingBean, DisposableBean {
       this.keepFreshGuard = true;
       fafService.getAllRankedMaps();
       fafService.getFeaturedMods().thenAccept(featuredModList -> {
-        logger.info("[keepFresh]");
         this.keepFreshGuard = false;
         for (FeaturedMod featuredMod : featuredModList) {
           if (featuredMod.isVisible()) {
