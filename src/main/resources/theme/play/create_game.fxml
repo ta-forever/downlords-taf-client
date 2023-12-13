@@ -145,7 +145,9 @@
                 <Pane fx:id="mapPreviewPane" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
                       styleClass="map-preview" prefHeight="360"/>
                 <AnchorPane>
-                    <Button text="..." onMouseClicked="#onMapAPreviewPaneClicked" AnchorPane.topAnchor="10.0" AnchorPane.rightAnchor="10.0"/>
+                    <Button text="..." onMouseClicked="#onMapAPreviewPaneClicked"
+                            styleClass="map-preview-context-button"
+                            AnchorPane.topAnchor="10.0" AnchorPane.rightAnchor="10.0"/>
                 </AnchorPane>
             </StackPane>
             <HBox alignment="CENTER" spacing="10.0">
