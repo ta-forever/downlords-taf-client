@@ -144,9 +144,9 @@
             <StackPane>
                 <Pane fx:id="mapPreviewPane" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
                       styleClass="map-preview" prefHeight="360"/>
-                <AnchorPane>
-                    <Button text="..." onMouseClicked="#onMapAPreviewPaneClicked"
-                            styleClass="map-preview-context-button"
+                <AnchorPane onMouseEntered="#showMapPreviewContextButton" onMouseExited="#hideMapPreviewContextButton">
+                    <Button fx:id="mapPreviewContextButton" text="..." onMouseClicked="#onMapAPreviewPaneClicked"
+                            visible="false"
                             AnchorPane.topAnchor="10.0" AnchorPane.rightAnchor="10.0"/>
                 </AnchorPane>
             </StackPane>

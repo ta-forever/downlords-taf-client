@@ -19,10 +19,6 @@
   -fx-graphic-text-gap: 0.666667em;
 }
 
-.map-preview-context-button {
-    -fx-background-color: rgba(128, 128, 128, 0.5);
-}
-
 /***************** Split Pane *****************/
 
 .split-pane > .split-pane-divider {

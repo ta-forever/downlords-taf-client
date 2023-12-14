@@ -92,6 +92,7 @@ import static javafx.scene.layout.BackgroundRepeat.NO_REPEAT;
 @Slf4j
 public class CreateGameController implements Controller<Pane> {
 
+  public Button mapPreviewContextButton;
   String ALL_MAPS_PSUEDO_QUEUE_NAME_KEY = "games.create.mappool.allmaps";
 
   public static final String STYLE_CLASS_DUAL_LIST_CELL = "create-game-dual-list-cell";
@@ -891,5 +892,13 @@ public class CreateGameController implements Controller<Pane> {
         platformService.reveal(taPrefs.getInstalledPath());
       }
     }
+  }
+
+  public void showMapPreviewContextButton(MouseEvent mouseEvent) {
+    mapPreviewContextButton.setVisible(true);
+  }
+
+  public void hideMapPreviewContextButton(MouseEvent mouseEvent) {
+    mapPreviewContextButton.setVisible(false);
   }
 }
