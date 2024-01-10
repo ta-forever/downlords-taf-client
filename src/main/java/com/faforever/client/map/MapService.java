@@ -706,6 +706,25 @@ public class MapService implements InitializingBean, DisposableBean {
 
     final MapBean installedVersion = getInstallation(modTechnical).mapsByName.getOrDefault(mapName, null);
 
+    if (installedVersion != null && mapCrc != null && downloadHpiArchiveName != null &&
+        installedVersion.getHpiArchiveName().equals(downloadHpiArchiveName) && !installedVersion.getCrcValue().equals(mapCrc)) {
+      Path installationPath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath();
+      File currentFile = new File(installationPath.toString(), installedVersion.getHpiArchiveName());
+      File newFile = new File(installationPath.toString(), installedVersion.getHpiArchiveName() + "." + installedVersion.getCrcValue());
+
+      logger.info("[ensureMap] Installed hpi archive '{}' (containing '{}'/{}) clashes with archive to be installed '{}' (containing '{}'/{}).  Renaming to '{}'",
+          installedVersion.getHpiArchiveName(), installedVersion.getMapName(), installedVersion.getCrcValue(),
+          downloadHpiArchiveName, mapName, mapCrc,
+          newFile.getName());
+
+      if (!currentFile.renameTo(newFile)) {
+        logger.warn("[ensureMap] rename failed.  deleting instead");
+        if (!currentFile.delete()) {
+          logger.warn("[ensureMap] delete failed!  proceeding with ensuremap regardless");
+        }
+      }
+    }
+
     if (mapName != null && isOfficialMap(mapName)) {
       logger.info("[ensureMap] '{}'/{} is an official cavedog map, so taking no action", mapName, mapCrc);
       return CompletableFuture.completedFuture(installedVersion);
