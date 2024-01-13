@@ -15,6 +15,13 @@ public class ClientConfiguration {
   List<Integer> recommendedMaps;
   List<Endpoints> endpoints;
   GitHubRepo gitHubRepo;
+  List<GameFilesWhitelistEntry> gameFilesWhitelist;
+
+  @Data
+  public static class GameFilesWhitelistEntry {
+    String modTechnical;
+    String whitelist; // eg "tdraw.dll:c42d5a5c,ca919ee7;totala.exe:deadbeef"
+  }
 
   @Data
   public static class GitHubRepo {

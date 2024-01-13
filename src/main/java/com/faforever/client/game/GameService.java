@@ -104,6 +104,7 @@ import java.util.stream.Collectors;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_ARCHIVE;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_CRC;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_NAME;
+import static com.faforever.client.leaderboard.LeaderboardService.DEFAULT_RATING_TYPE;
 import static com.github.nocatch.NoCatch.noCatch;
 import static java.util.Arrays.asList;
 import static java.util.concurrent.CompletableFuture.completedFuture;
@@ -1217,6 +1218,15 @@ public class GameService implements InitializingBean {
     // some control paths null out currentGame but we still need to remember this
     final boolean isGameCurrentGame = Objects.equals(currentGame.get(), game) ||
         Objects.equals(getRunningGameUid(), game.getId());
+
+    if (isGameCurrentGame) {
+      if (DEFAULT_RATING_TYPE.equals(game.getRatingType())) {
+        this.totalAnnihilationService.sendToConsole("/disable_game_file_version_verify");
+      }
+      else if (game.getRatingType() != null){
+        this.totalAnnihilationService.sendToConsole("/enable_game_file_version_verify");
+      }
+    }
 
     if (GameStatus.ENDED == game.getStatus()) {
       removeGame(gameInfoMessage);

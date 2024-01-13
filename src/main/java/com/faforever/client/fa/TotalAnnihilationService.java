@@ -4,6 +4,7 @@ import com.faforever.client.player.Player;
 import com.faforever.client.preferences.MaxPacketSizeOption;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
+import com.faforever.client.update.ClientConfiguration;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -120,6 +121,19 @@ public class TotalAnnihilationService {
         "--democompilerurl", demoCompilerUrl,
         "--maxpacketsize", String.valueOf(maxPacketSize)
     ));
+
+    try {
+      preferencesService.getRemotePreferences().getGameFilesWhitelist().stream()
+          .filter(entry -> entry.getModTechnical().equals(gameMod))
+          .filter(entry -> entry.getWhitelist() != null)
+          .findFirst()
+          .ifPresent(entry -> {
+            command.add("--verify");
+            command.add(entry.getWhitelist());
+          });
+    } catch (IOException e) {
+      logger.error("[getGpgNet4TaCommand] Unable to get remote preferences!  Not setting any game files whitelists ...");
+    }
 
     if (isRated) {
       command.add("--israted");
