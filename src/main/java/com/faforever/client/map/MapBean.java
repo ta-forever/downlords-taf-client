@@ -118,25 +118,29 @@ public class MapBean implements Comparable<MapBean> {
     mapBean.setHpiArchiveName(mapVersion.getArchiveName());
     mapBean.setCrcFuture(CompletableFuture.completedFuture(mapVersion.getCrc()));
     mapBean.setSize(MapSize.valueOf(mapVersion.getWidth(), mapVersion.getHeight()));
-    mapBean.setDownloads(mapVersion.getMap().getStatistics().getDownloads());
     mapBean.setId(mapVersion.getId());
     mapBean.setPlayers(mapVersion.getMaxPlayers());
     mapBean.setVersion(mapVersion.getVersion());
     mapBean.setDownloadUrl(mapVersion.getDownloadUrl());
     mapBean.setThumbnailUrl(mapVersion.getThumbnailUrl());
     mapBean.setCreateTime(mapVersion.getCreateTime().toLocalDateTime());
-    mapBean.setNumberOfPlays(mapVersion.getMap().getStatistics().getPlays());
     mapBean.setReviewsSummary(ReviewsSummary.fromDto(mapVersion.getMap().getMapReviewsSummary()));
-    mapVersion.getMap().getVersions().forEach(v -> {
-      if (v.getReviews() != null) {
-        v.getReviews().forEach(mapVersionReview -> {
-          Review review = Review.fromDto(mapVersionReview);
-          review.setVersion(v.getVersion());
-          review.setLatestVersion(mapVersion.getMap().getLatestVersion().getVersion());
-          mapBean.getReviews().add(review);
-        });
-      }
-    });
+    if (mapVersion.getMap().getStatistics() != null) {
+      mapBean.setDownloads(mapVersion.getMap().getStatistics().getDownloads());
+      mapBean.setNumberOfPlays(mapVersion.getMap().getStatistics().getPlays());
+    }
+    if (mapVersion.getMap().getVersions() != null) {
+      mapVersion.getMap().getVersions().forEach(v -> {
+        if (v.getReviews() != null) {
+          v.getReviews().forEach(mapVersionReview -> {
+            Review review = Review.fromDto(mapVersionReview);
+            review.setVersion(v.getVersion());
+            review.setLatestVersion(mapVersion.getMap().getLatestVersion().getVersion());
+            mapBean.getReviews().add(review);
+          });
+        }
+      });
+    }
     mapBean.setHidden(mapVersion.getHidden());
     mapBean.setRanked(mapVersion.getRanked());
     return mapBean;

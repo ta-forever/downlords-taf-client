@@ -1,16 +1,22 @@
 package com.faforever.client.teammatchmaking;
 
 import com.faforever.client.api.dto.MatchmakerQueue;
+import com.faforever.client.api.dto.MatchmakerQueueMapPool;
 import com.faforever.client.leaderboard.Leaderboard;
+import com.faforever.client.map.MapBean;
 import com.faforever.client.mod.FeaturedMod;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ListProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleListProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import org.springframework.scheduling.TaskScheduler;
 
 import java.time.Duration;
@@ -27,6 +33,7 @@ public class MatchmakingQueue {
   private final ObjectProperty<MatchingStatus> matchingStatus;
   private final ObjectProperty<Leaderboard> leaderboard;
   private final ObjectProperty<FeaturedMod> featuredMod;
+  private final ListProperty<MapBean> mapPool;
 
   public MatchmakingQueue() {
     this.queueId = new SimpleIntegerProperty();
@@ -39,6 +46,7 @@ public class MatchmakingQueue {
     this.matchingStatus = new SimpleObjectProperty<>(null);
     this.leaderboard = new SimpleObjectProperty<>(null);
     this.featuredMod = new SimpleObjectProperty<>(null);
+    this.mapPool = new SimpleListProperty<>(FXCollections.observableArrayList());
   }
 
   public static MatchmakingQueue makePsuedoQueue(String name, FeaturedMod mod, String ratingType) {
@@ -58,6 +66,16 @@ public class MatchmakingQueue {
     queue.setQueueName(dto.getTechnicalName());
     queue.setLeaderboard(Leaderboard.fromDto(dto.getLeaderboard()));
     queue.setFeaturedMod(FeaturedMod.fromFeaturedMod(dto.getFeaturedMod()));
+    return queue;
+  }
+
+  public static MatchmakingQueue fromMatchmakerQueueMapPoolDto(MatchmakerQueueMapPool dto) {
+    MatchmakingQueue queue = fromDto(dto.getMatchmakerQueue());
+    queue.getMapPool().setAll(
+        dto.getMapPool().getMapPoolAssignments().stream()
+            .map(mpa -> MapBean.fromMapVersionDto(mpa.getMapVersion()))
+            .toList()
+    );
     return queue;
   }
 
@@ -193,4 +211,6 @@ public class MatchmakingQueue {
   public BooleanProperty joinedProperty() {
     return joined;
   }
+
+  public ObservableList<MapBean> getMapPool() { return mapPool; }
 }

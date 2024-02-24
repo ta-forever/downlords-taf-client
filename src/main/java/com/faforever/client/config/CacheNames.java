@@ -28,6 +28,7 @@ public final class CacheNames {
   public static final String CLAN = "clan";
   public static final String MATCHMAKER_QUEUES = "matchmakerQueues";
   public static final String MATCHMAKER_QUEUES_BY_MOD = "matchmakerQueuesByMod";
+  public static final String MATCHMAKER_QUEUE_MAP_POOLS = "matchmakerQueueMapPools";
   public static final String MATCHMAKER_POOLS = "matchmakerPools";
   public static final String ALL_RANKED_MAPS = "allrankedmaps";
   public static final String TADEMO_MAP_HASH = "taDemoMapHash";

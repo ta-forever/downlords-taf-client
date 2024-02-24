@@ -17,6 +17,7 @@ import com.faforever.client.api.dto.MapStatistics;
 import com.faforever.client.api.dto.MapVersion;
 import com.faforever.client.api.dto.MapVersionReview;
 import com.faforever.client.api.dto.MatchmakerQueue;
+import com.faforever.client.api.dto.MatchmakerQueueMapPool;
 import com.faforever.client.api.dto.MeResult;
 import com.faforever.client.api.dto.Mod;
 import com.faforever.client.api.dto.ModVersion;
@@ -518,6 +519,16 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
     } catch (HttpClientErrorException.NotFound e) {
       return Optional.empty();
     }
+  }
+
+  @SneakyThrows
+  @Override
+  @Cacheable(value = CacheNames.MATCHMAKER_QUEUE_MAP_POOLS, sync = true)
+  public List<MatchmakerQueueMapPool> getMatchmakerQueueMapPools() {
+    QBuilder qBuilder = new QBuilder<>();
+    List<Condition<?>> conditions = new ArrayList<>();
+    return getAll("/data/matchmakerQueueMapPool", java.util.Map.of(
+        INCLUDE, "matchmakerQueue,matchmakerQueue.featuredMod,matchmakerQueue.leaderboard,mapPool,mapPool.mapPoolAssignments,mapPool.mapPoolAssignments.mapVersion,mapPool.mapPoolAssignments.mapVersion.map"));
   }
 
   @SneakyThrows

@@ -1132,13 +1132,6 @@ public class MapService implements InitializingBean, DisposableBean {
     return fafService.getMatchmakerMapsWithPageCount(matchmakerQueue.getQueueId(), meanRating, count, page);
   }
 
-  public CompletableFuture<List<MapBean>> getMatchmakerMaps(MatchmakingQueue matchmakerQueue) {
-    Player player = playerService.getCurrentPlayer().orElseThrow(() -> new IllegalStateException("No user is logged in"));
-    float meanRating = Optional.ofNullable(player.getLeaderboardRatings().get(matchmakerQueue.getLeaderboard().getTechnicalName()))
-        .map(LeaderboardRating::getMean).orElse(0f);
-    return fafService.getMatchmakerMaps(matchmakerQueue.getQueueId(), meanRating);
-  }
-
   public CompletableFuture<List<MapBean>> getAllRankedMaps() {
     return fafService.getAllRankedMaps();
   }
@@ -1201,21 +1194,13 @@ public class MapService implements InitializingBean, DisposableBean {
     }
   }
 
-  boolean keepFreshGuard = false;
   @SneakyThrows
   @Scheduled(fixedDelay = 10, timeUnit = TimeUnit.MINUTES)
   protected void keepFresh() {
-    if (!this.keepFreshGuard) {
-      this.keepFreshGuard = true;
-      fafService.getAllRankedMaps();
-      fafService.getFeaturedMods().thenAccept(featuredModList -> {
-        this.keepFreshGuard = false;
-        for (FeaturedMod featuredMod : featuredModList) {
-          if (featuredMod.isVisible()) {
-            fafService.getMatchmakerQueuesByMod(featuredMod.getTechnicalName());
-          }
-        }
-      });
-    }
+    logger.debug("[keepFresh] updating ...");
+    fafService.getAllRankedMaps()
+        .thenAccept(mapVersions -> logger.debug("[keepFresh] received {} ranked maps", mapVersions.size()));
+    fafService.getMatchmakerQueueMapPools()
+        .thenAccept(queues -> logger.debug("[keepFresh] recieved {} map pools", queues.size()));
   }
 }

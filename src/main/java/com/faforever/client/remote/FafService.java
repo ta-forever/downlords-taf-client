@@ -10,6 +10,7 @@ import com.faforever.client.api.dto.Map;
 import com.faforever.client.api.dto.MapPoolAssignment;
 import com.faforever.client.api.dto.MapVersion;
 import com.faforever.client.api.dto.MapVersionReview;
+import com.faforever.client.api.dto.MatchmakerQueueMapPool;
 import com.faforever.client.api.dto.Mod;
 import com.faforever.client.api.dto.ModVersionReview;
 import com.faforever.client.api.dto.PlayerAchievement;
@@ -630,16 +631,12 @@ public class FafService {
   }
 
   @Async
-  public CompletableFuture<List<MapBean>> getMatchmakerMaps(int matchmakerQueueId, float rating) {
-    List<MapPoolAssignment> poolAssignments = fafApiAccessor.getMatchmakerPoolMaps(matchmakerQueueId, rating);
-    List<MapBean> mapVersions = poolAssignments.stream()
-        .map(MapPoolAssignment::getMapVersion)
-        .distinct()
-        .filter(Objects::nonNull)
-        .map(MapBean::fromMapVersionDto)
-        .collect(Collectors.toList());
-
-    return CompletableFuture.completedFuture(mapVersions);
+  public CompletableFuture<List<MatchmakingQueue>> getMatchmakerQueueMapPools() {
+    List<MatchmakerQueueMapPool> queues = fafApiAccessor.getMatchmakerQueueMapPools();
+    List<MatchmakingQueue> result = queues.stream()
+        .map(MatchmakingQueue::fromMatchmakerQueueMapPoolDto)
+        .toList();
+    return CompletableFuture.completedFuture(result);
   }
 
   @Async

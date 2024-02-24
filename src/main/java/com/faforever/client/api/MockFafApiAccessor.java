@@ -18,6 +18,7 @@ import com.faforever.client.api.dto.MapPoolAssignment;
 import com.faforever.client.api.dto.MapVersion;
 import com.faforever.client.api.dto.MapVersionReview;
 import com.faforever.client.api.dto.MatchmakerQueue;
+import com.faforever.client.api.dto.MatchmakerQueueMapPool;
 import com.faforever.client.api.dto.MeResult;
 import com.faforever.client.api.dto.Mod;
 import com.faforever.client.api.dto.ModReviewsSummary;
@@ -306,6 +307,11 @@ public class MockFafApiAccessor implements FafApiAccessor {
   @Override
   public Tuple<List<Mod>, java.util.Map<String, ?>> findModsByQueryWithMeta(SearchConfig query, int maxResults, int page) {
     return new Tuple<>(List.of(), Collections.emptyMap());
+  }
+
+  @Override
+  public List<MatchmakerQueueMapPool> getMatchmakerQueueMapPools() {
+    return List.of();
   }
 
   @Override

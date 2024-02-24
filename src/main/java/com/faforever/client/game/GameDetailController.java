@@ -368,7 +368,13 @@ public class GameDetailController implements Controller<Pane> {
     featuredModInvalidationListener.invalidated(game.featuredModProperty());
 
     gameRatingTypeInvalidationListener = observable -> JavaFxUtil.runLater(() ->
-        gameRatingTypeLabel.setText(i18n.get(String.format("leaderboard.%s.name", game.getRatingType()))));
+        this.leaderboardService.getLeaderboards()
+            .thenAccept(leaderboards -> leaderboards.stream()
+                .filter(lb -> lb.getTechnicalName().equals(game.getRatingType()))
+                .findAny()
+                .ifPresent(lb ->
+                    JavaFxUtil.runLater(() ->
+                        gameRatingTypeLabel.setText(i18n.get(lb.getNameKey()))))));
     game.ratingTypeProperty().addListener(gameRatingTypeInvalidationListener);
     gameRatingTypeInvalidationListener.invalidated(game.ratingTypeProperty());
 

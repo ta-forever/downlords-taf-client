@@ -75,6 +75,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -459,50 +460,48 @@ public class CreateGameController implements Controller<Pane> {
   protected void setAvailableMaps(String modTechnical) {
     if (rankedEnabledCheckBox.isSelected() && mapPoolListView.getSelectionModel().getSelectedItem() != null &&
         !mapService.getInstalledMaps(modTechnical).isEmpty()) {
-      try {
-        MatchmakingQueue q = mapPoolListView.getSelectionModel().getSelectedItem();
-        if (filteredMapBeansByQueue.containsKey(q.getQueueName())) {
-          doSetAvailableMaps(modTechnical, filteredMapBeansByQueue.get(q.getQueueName()));
-        }
-        else {
+      MatchmakingQueue selectedQueue = mapPoolListView.getSelectionModel().getSelectedItem();
+      if (rankedEnabledCheckBox.isSelected() && selectedQueue != null && !mapService.getInstalledMaps(modTechnical).isEmpty()) {
+        if (filteredMapBeansByQueue.containsKey(selectedQueue.getQueueName())) {
+          doSetAvailableMaps(modTechnical, filteredMapBeansByQueue.get(selectedQueue.getQueueName()));
+        } else {
           loadingMapsProperty.set(true);
-          if (q.getQueueName().equals(ALL_MAPS_PSUEDO_QUEUE_NAME_KEY)) {
-            mapService.getAllRankedMaps()
-                .thenAccept(mapList -> {
-                  FilteredList<MapBean> fl = new FilteredList<>(FXCollections.observableArrayList(mapList)
-                      .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())));
-                  filteredMapBeansByQueue.put(q.getQueueName(), fl);
-                  doSetAvailableMaps(modTechnical, fl);
-                  loadingMapsProperty.set(false);
-                });
-          }
-          else {
-            mapService.getMatchmakerMaps(q)
-                .thenAccept((mapList) -> {
-                  FilteredList<MapBean> fl = new FilteredList<>(FXCollections.observableArrayList(mapList)
-                      .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())));
-                  filteredMapBeansByQueue.put(q.getQueueName(), fl);
-                  doSetAvailableMaps(modTechnical, fl);
-                  loadingMapsProperty.set(false);
-                });
+          if (selectedQueue.getQueueName().equals(ALL_MAPS_PSUEDO_QUEUE_NAME_KEY)) {
+            mapService.getAllRankedMaps().thenAccept(mapList -> {
+              FilteredList<MapBean> fl = new FilteredList<>(FXCollections.observableArrayList(mapList)
+                  .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())));
+              filteredMapBeansByQueue.put(selectedQueue.getQueueName(), fl);
+              doSetAvailableMaps(modTechnical, fl);
+              loadingMapsProperty.set(false);
+            });
+          } else {
+            fafService.getMatchmakerQueueMapPools().thenAccept(allQueues -> {
+              allQueues.stream()
+                  .filter(_q -> _q.getQueueId() == selectedQueue.getQueueId())
+                  .findFirst()
+                  .ifPresent(q -> {
+                    FilteredList<MapBean> fl = new FilteredList<>(FXCollections.observableArrayList(q.getMapPool())
+                        .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())));
+                    filteredMapBeansByQueue.put(selectedQueue.getQueueName(), fl);
+                    doSetAvailableMaps(modTechnical, fl);
+                  });
+              loadingMapsProperty.set(false);
+            });
           }
         }
-        return;
-
-      } catch (Exception e) {
-        log.error("[setAvailableMaps] {}", e.getMessage());
       }
     }
-
-    if (!filteredMapBeansByMod.containsKey(modTechnical)) {
-      filteredMapBeansByMod.put(
-          modTechnical,
-          new FilteredList<>(mapService.getInstalledMaps(modTechnical)
-              .filtered(mapBean -> mapBean.getType() == Type.SKIRMISH)
-              .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())))
-      );
+    else {
+      if (!filteredMapBeansByMod.containsKey(modTechnical)) {
+        filteredMapBeansByMod.put(
+            modTechnical,
+            new FilteredList<>(mapService.getInstalledMaps(modTechnical)
+                .filtered(mapBean -> mapBean.getType() == Type.SKIRMISH)
+                .sorted((o1, o2) -> o1.getMapName().compareToIgnoreCase(o2.getMapName())))
+        );
+      }
+      doSetAvailableMaps(modTechnical, filteredMapBeansByMod.get(modTechnical));
     }
-    doSetAvailableMaps(modTechnical, filteredMapBeansByMod.get(modTechnical));
   }
 
   protected void doSetAvailableMaps(String modTechnical, FilteredList<MapBean> items) {
@@ -521,29 +520,42 @@ public class CreateGameController implements Controller<Pane> {
   }
 
   protected void setAvailableMapPools(String modTechnical) {
-    fafService.getMatchmakerQueuesByMod(modTechnical)
+
+    mapPoolListView.getItems().clear();
+    fafService.getMatchmakerQueueMapPools()
         .thenAccept(queues -> {
-              JavaFxUtil.runLater(() -> {
-                List<MatchmakingQueue> availableQueues = Stream.concat(
-                    Stream.of(MatchmakingQueue.makePsuedoQueue(
-                        ALL_MAPS_PSUEDO_QUEUE_NAME_KEY,
-                        featuredModListView.getSelectionModel().getSelectedItem(),
-                        queues.isEmpty() ? DEFAULT_RATING_TYPE : queues.get(0).getLeaderboard().getTechnicalName())
-                    ),
-                    queues.stream().filter(q -> !q.getLeaderboard().getLeaderboardHidden())).toList();
-                mapPoolListView.getItems().setAll(availableQueues);
-                if (mapPoolListView.getItems().size() > 1) {
-                  mapPoolListView.getSelectionModel().select(0);
-                  rankedMapPoolsAvailableProperty.set(true);
+          Stream<MatchmakingQueue> queuesPlusGlobal = Stream.concat(
+              Stream.of(MatchmakingQueue.makePsuedoQueue(
+                  ALL_MAPS_PSUEDO_QUEUE_NAME_KEY,
+                  featuredModListView.getSelectionModel().getSelectedItem(),
+                  queues.isEmpty() ? DEFAULT_RATING_TYPE : queues.get(0).getLeaderboard().getTechnicalName())
+              ),
+              queues.stream().filter(q -> q.getFeaturedMod().getTechnicalName().equals(modTechnical))
+          );
+
+          queuesPlusGlobal
+              .filter(q -> !q.getLeaderboard().getLeaderboardHidden())
+              .map(q -> new javafx.util.Pair<>(q,
+                  q.getLeaderboard().getNameKey().equals(ALL_MAPS_PSUEDO_QUEUE_NAME_KEY)
+                      ? mapService.getAllRankedMaps()
+                      : CompletableFuture.completedFuture(q.getMapPool())))
+              .forEach(queueAndMapsPair -> queueAndMapsPair.getValue().thenAccept(maps -> JavaFxUtil.runLater(() -> {
+                if (maps != null && !maps.isEmpty()
+                    && featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName().equals(modTechnical)
+                    && !mapPoolListView.getItems().stream()
+                    .anyMatch(listItem -> listItem.getQueueId() == queueAndMapsPair.getKey().getQueueId())) {
+                  if (queueAndMapsPair.getKey().getLeaderboard().getNameKey().equals(ALL_MAPS_PSUEDO_QUEUE_NAME_KEY)) {
+                    mapPoolListView.getItems().add(0, queueAndMapsPair.getKey());
+                    mapPoolListView.getSelectionModel().select(0);
+                  }
+                  else {
+                    mapPoolListView.getItems().add(queueAndMapsPair.getKey());
+                  }
                 }
-                else {
-                  rankedMapPoolsAvailableProperty.set(false);
-                  rankedEnabledCheckBox.setSelected(false);
-                }
-              });
-              // just page the maps into cache so they're available should the user select them
-              queues.forEach(mapService::getMatchmakerMaps);
+              })));
         });
+
+    rankedMapPoolsAvailableProperty.bind(Bindings.isNotEmpty(mapPoolListView.getItems()));
   }
 
   protected void setSelectedMap(MapBean newValue, PreviewType previewType, int maxNumPlayers) {

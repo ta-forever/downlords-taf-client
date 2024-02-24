@@ -852,6 +852,12 @@ public class GameService implements InitializingBean {
         }
         if (ratingType != null && ratingType.length() > 0) {
           this.totalAnnihilationService.sendToConsole(String.format("/rating_type %s", ratingType));
+          if (ratingType.equals(DEFAULT_RATING_TYPE)) {
+            this.totalAnnihilationService.sendToConsole("/disable_game_file_version_verify");
+          }
+          else {
+            this.totalAnnihilationService.sendToConsole("/enable_game_file_version_verify");
+          }
         }
         if (liveReplayOption != null) {
           this.totalAnnihilationService.sendToConsole(String.format("/replay_delay_seconds %s", liveReplayOption.getDelaySeconds()));
@@ -1214,12 +1220,17 @@ public class GameService implements InitializingBean {
         currentGame.get() != null && currentGame.get().getId() == gameInfoMessage.getUid() &&
         gameInfoMessage.getTeams() != null && !gameInfoMessage.getTeams().equals(currentGame.get().getTeams());
 
+    String currentGameRatingType = null;
+    if (currentGame.get() != null) {
+      currentGameRatingType = currentGame.get().getRatingType();
+    }
+
     Game game = createOrUpdateGame(gameInfoMessage);
     // some control paths null out currentGame but we still need to remember this
     final boolean isGameCurrentGame = Objects.equals(currentGame.get(), game) ||
         Objects.equals(getRunningGameUid(), game.getId());
 
-    if (isGameCurrentGame) {
+    if (isGameCurrentGame && currentGameRatingType != null && !currentGameRatingType.equals(game.getRatingType())) {
       if (DEFAULT_RATING_TYPE.equals(game.getRatingType())) {
         this.totalAnnihilationService.sendToConsole("/disable_game_file_version_verify");
       }

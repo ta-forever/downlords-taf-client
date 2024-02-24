@@ -6,6 +6,8 @@ import com.faforever.client.fx.DefaultImageView;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.leaderboard.Leaderboard;
+import com.faforever.client.leaderboard.LeaderboardService;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.ModService;
@@ -45,6 +47,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -67,6 +70,7 @@ public class GameTileController implements Controller<Node> {
   private final ChatService chatService;
   private final EventBus eventBus;
   private final UiService uiService;
+  private final LeaderboardService leaderboardService;
   public Node lockIconLabel;
   public Label gameTypeLabel;
   public Node gameCardRoot;
@@ -233,9 +237,17 @@ public class GameTileController implements Controller<Node> {
             () -> gameTypeLabel.setText(featuredModBean.getDisplayName())
         ));
 
-    gameRatingTypeLabel.textProperty().bind(createStringBinding(
-        () -> i18n.get(String.format("leaderboard.%s.name", game.getRatingType())),
-        game.ratingTypeProperty()));
+    CompletableFuture<List<Leaderboard>> leaderboards = this.leaderboardService.getLeaderboards();
+    gameRatingTypeLabel.textProperty().bind(createStringBinding(() -> {
+          Optional<Leaderboard> olb = leaderboards.get().stream()
+              .filter(lb -> lb.getTechnicalName().equals(game.getRatingType()))
+              .findAny();
+          return olb.isPresent()
+              ? i18n.get(olb.get().getNameKey())
+              : i18n.get(String.format("leaderboard.%s.name", game.getRatingType()));
+        },
+        game.ratingTypeProperty()
+    ));
 
     gameTypeLabel.visibleProperty().bind(game.ratingTypeProperty().isEqualTo(DEFAULT_RATING_TYPE));
     gameRatingTypeGlobalLabel.visibleProperty().bind(gameTypeLabel.visibleProperty());

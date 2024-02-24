@@ -15,6 +15,7 @@ import com.faforever.client.api.dto.MapPoolAssignment;
 import com.faforever.client.api.dto.MapVersion;
 import com.faforever.client.api.dto.MapVersionReview;
 import com.faforever.client.api.dto.MatchmakerQueue;
+import com.faforever.client.api.dto.MatchmakerQueueMapPool;
 import com.faforever.client.api.dto.MeResult;
 import com.faforever.client.api.dto.Mod;
 import com.faforever.client.api.dto.ModVersion;
@@ -138,6 +139,8 @@ public interface FafApiAccessor {
   Optional<Game> findReplayById(int id);
 
   Tuple<List<Mod>, java.util.Map<String, ?>> findModsByQueryWithMeta(SearchConfig query, int maxResults, int page);
+
+  List<MatchmakerQueueMapPool> getMatchmakerQueueMapPools();
 
   List<MapPoolAssignment> getMatchmakerPoolMaps(int matchmakerQueueId, float rating);
 
