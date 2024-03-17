@@ -44,6 +44,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
   private static final Predicate<Game> CUSTOM_GAMES_PREDICATE = gameInfoBean ->
       (gameInfoBean.getGameType() != GameType.MATCHMAKER || gameInfoBean.isInProgress()) &&
           (gameInfoBean.getReplayDelaySeconds() >= 0 || gameInfoBean.isOpen()) &&
+          (gameInfoBean.getNumPlayers() > 1 || gameInfoBean.isOpen()) &&
           (gameInfoBean.getMapArchiveName() != null);
 
   private final UiService uiService;
