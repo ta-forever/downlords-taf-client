@@ -27,6 +27,7 @@ public class MatchmakingQueue {
   private final StringProperty queueName;
   private final ObjectProperty<Instant> queuePopTime;
   private final IntegerProperty teamSize;
+  private final BooleanProperty enabled;
   private final IntegerProperty partiesInQueue;
   private final IntegerProperty playersInQueue;
   private final BooleanProperty joined;
@@ -40,6 +41,7 @@ public class MatchmakingQueue {
     this.queueName = new SimpleStringProperty();
     this.queuePopTime = new SimpleObjectProperty<>(Instant.now().plus(Duration.ofDays(1)));
     this.teamSize = new SimpleIntegerProperty(0);
+    this.enabled = new SimpleBooleanProperty(true);
     this.partiesInQueue = new SimpleIntegerProperty(0);
     this.playersInQueue = new SimpleIntegerProperty(0);
     this.joined = new SimpleBooleanProperty(false);
@@ -64,6 +66,8 @@ public class MatchmakingQueue {
     MatchmakingQueue queue = new MatchmakingQueue();
     queue.setQueueId(Integer.parseInt(dto.getId()));
     queue.setQueueName(dto.getTechnicalName());
+    queue.setTeamSize(dto.getTeamSize());
+    queue.setEnabled(dto.isEnabled());
     queue.setLeaderboard(Leaderboard.fromDto(dto.getLeaderboard()));
     queue.setFeaturedMod(FeaturedMod.fromFeaturedMod(dto.getFeaturedMod()));
     return queue;
@@ -186,6 +190,16 @@ public class MatchmakingQueue {
 
   public IntegerProperty teamSizeProperty() {
     return teamSize;
+  }
+
+  public boolean getEnabled() {
+    return enabled.get();
+  }
+
+  public void setEnabled(boolean enabled) { this.enabled.set(enabled); }
+
+  public BooleanProperty enabledProperty() {
+    return enabled;
   }
 
   public int getPlayersInQueue() {

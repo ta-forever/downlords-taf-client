@@ -16,6 +16,8 @@ public class MatchmakerQueue {
   private OffsetDateTime updateTime;
   private String nameKey;
   private String technicalName;
+  private int teamSize;
+  private boolean enabled;
 
   @Relationship("featuredMod")
   private FeaturedMod featuredMod;
