@@ -57,6 +57,7 @@ public class Preferences {
   private final BooleanProperty autoLaunchOnJoinEnabled;
   private final BooleanProperty autoRehostEnabled;
   private final BooleanProperty autoTeamBalanceEnabled;
+  private final BooleanProperty sequencedLaunchEnabled;
   private final BooleanProperty autoJoinEnabled;
   private final BooleanProperty requireUacEnabled;
   // end TA options
@@ -117,6 +118,7 @@ public class Preferences {
     autoLaunchOnJoinEnabled = new SimpleBooleanProperty(true);
     autoRehostEnabled = new SimpleBooleanProperty(false);
     autoTeamBalanceEnabled = new SimpleBooleanProperty(true);
+    sequencedLaunchEnabled = new SimpleBooleanProperty(false);
     autoJoinEnabled = new SimpleBooleanProperty(false);
     requireUacEnabled = new SimpleBooleanProperty(true);
     disallowJoinsViaDiscord = new SimpleBooleanProperty();
@@ -233,6 +235,18 @@ public class Preferences {
 
   public BooleanProperty getAutoTeamBalanceEnabledProperty() {
     return autoTeamBalanceEnabled;
+  }
+
+  public boolean getSequencedLaunchEnabled() {
+    return sequencedLaunchEnabled.get();
+  }
+
+  public void setSequencedLaunchEnabled(boolean enabled) {
+    sequencedLaunchEnabled.set(enabled);
+  }
+
+  public BooleanProperty getSequencedLaunchProperty() {
+    return sequencedLaunchEnabled;
   }
 
   public BooleanProperty getAutoJoinEnabledProperty() {

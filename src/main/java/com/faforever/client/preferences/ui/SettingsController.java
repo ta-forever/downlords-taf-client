@@ -113,6 +113,7 @@ public class SettingsController implements Controller<Node> {
   public CheckBox enableAutoLaunchOnJoinToggle;
   public CheckBox enableAutoRehostToggle;
   public CheckBox enableAutoTeamBalanceToggle;
+  public CheckBox enableSequencedLaunchToggle;
   public CheckBox enableAutoJoinToggle;
   public CheckBox requireUacToggle;
   public TableView<TotalAnnihilationPrefs> gameLocationTableView;
@@ -363,6 +364,7 @@ public class SettingsController implements Controller<Node> {
     enableAutoLaunchOnJoinToggle.selectedProperty().bindBidirectional(preferences.getAutoLaunchOnJoinEnabledProperty());
     enableAutoRehostToggle.selectedProperty().bindBidirectional(preferences.getAutoRehostEnabledProperty());
     enableAutoTeamBalanceToggle.selectedProperty().bindBidirectional(preferences.getAutoTeamBalanceEnabledProperty());
+    enableSequencedLaunchToggle.selectedProperty().bindBidirectional(preferences.getSequencedLaunchProperty());
     enableAutoJoinToggle.selectedProperty().bindBidirectional(preferences.getAutoJoinEnabledProperty());
     requireUacToggle.selectedProperty().bindBidirectional(preferences.getRequireUacEnabledProperty());
     updateGameLocationTable();
