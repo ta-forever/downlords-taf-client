@@ -524,13 +524,14 @@ public class CreateGameController implements Controller<Pane> {
     mapPoolListView.getItems().clear();
     fafService.getMatchmakerQueueMapPools()
         .thenAccept(queues -> {
+          queues = queues.stream().filter(q -> q.getFeaturedMod().getTechnicalName().equals(modTechnical)).toList();
           Stream<MatchmakingQueue> queuesPlusGlobal = Stream.concat(
               Stream.of(MatchmakingQueue.makePsuedoQueue(
                   ALL_MAPS_PSUEDO_QUEUE_NAME_KEY,
                   featuredModListView.getSelectionModel().getSelectedItem(),
                   queues.isEmpty() ? DEFAULT_RATING_TYPE : queues.get(0).getLeaderboard().getTechnicalName())
               ),
-              queues.stream().filter(q -> q.getFeaturedMod().getTechnicalName().equals(modTechnical))
+              queues.stream()
           );
 
           queuesPlusGlobal
