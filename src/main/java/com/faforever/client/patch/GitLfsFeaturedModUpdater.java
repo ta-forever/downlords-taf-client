@@ -179,25 +179,32 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
   }
 
   private void resetExceptUserIniFiles(Git git) throws GitAPIException, IOException {
-    final String[] userIniFiles = { "TA.ini" };
-    List<String> foundUserIniFiles = new ArrayList<>();
-    for (String userIniFile: userIniFiles) {
-      Path src = Path.of(git.getRepository().getDirectory().getParent()).resolve(userIniFile);
-      Path dest = preferencesService.getCacheDirectory().resolve(userIniFile);
-      if (Files.exists(src)) {
-        Files.copy(src, dest, StandardCopyOption.REPLACE_EXISTING);
-        foundUserIniFiles.add(userIniFile);
-      }
+    // Get the source and destination directories
+    Path srcDirectory = Path.of(git.getRepository().getDirectory().getParent());
+    Path destDirectory = preferencesService.getCacheDirectory();
+
+    // List all files in the source directory
+    List<String> foundUserIniFiles = Files.walk(srcDirectory)
+        .map(Path::getFileName)
+        .map(Path::toString)
+        .filter(fileName -> fileName.toLowerCase().endsWith(".ini")) // Case-insensitive match
+        .toList();
+
+    // Copy each ".ini" file from source to destination directory
+    for (String userIniFile : foundUserIniFiles) {
+      Path src = srcDirectory.resolve(userIniFile);
+      Path dest = destDirectory.resolve(userIniFile);
+      Files.copy(src, dest, StandardCopyOption.REPLACE_EXISTING);
     }
 
+    // Reset the repository
     git.reset().setMode(ResetType.HARD).call();
 
-    for (String userIniFile: foundUserIniFiles) {
-      Path src = preferencesService.getCacheDirectory().resolve(userIniFile);
-      Path dest = Path.of(git.getRepository().getDirectory().getParent()).resolve(userIniFile);
-      if (Files.exists(src)) {
-        Files.move(src, dest, StandardCopyOption.REPLACE_EXISTING);
-      }
+    // Move back the ".ini" files from the cache directory to the source directory
+    for (String userIniFile : foundUserIniFiles) {
+      Path src = destDirectory.resolve(userIniFile);
+      Path dest = srcDirectory.resolve(userIniFile);
+      Files.move(src, dest, StandardCopyOption.REPLACE_EXISTING);
     }
   }
 
