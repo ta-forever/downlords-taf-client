@@ -356,25 +356,51 @@ public class FafService {
     Path targetZipFile = preferencesService.getFafLogDirectory().resolve(String.format("game_logs_%d.zip", gameId));
 
     File taErrorLog = null;
+    File tdrawLog = null;
     if (modTechnical != null) {
       taErrorLog = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath().resolve("ErrorLog.txt").toFile();
+      tdrawLog = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath().resolve("tdrawlog.txt").toFile();
     }
 
     try {
       File[] files = {
           logClient, logIceAdapter, logLauncher,
-          logGpgnet4ta, logReplay, taErrorLog};
+          logGpgnet4ta, logReplay, taErrorLog, tdrawLog};
 
-      int MAX_FILE_SIZE = 1000000; // until we increase the MAX_FILE_SIZE on the API side
-      files = Stream.of(files).filter(file -> file != null && file.length() < MAX_FILE_SIZE).toArray(File[]::new);
+      files = java.util.Arrays.stream(files)
+          .filter(file -> file != null)
+          .toArray(File[]::new);
 
-      ZipUtil.zipFile(files, targetZipFile.toFile());
-      ResourceLocks.acquireUploadLock();
-      fafApiAccessor.uploadGameLogs(targetZipFile, context, gameId, (written, total) -> {});
-      if (modTechnical != null) {
-        this.removeErrorLog(modTechnical);
-        this.removeReplay0Log();
+      java.util.Arrays.sort(files, Comparator.comparingLong(File::length).reversed());
+
+      int MAX_FILE_SIZE = 1000000; // limited by MAX_FILE_SIZE on the API side
+      while (true) {
+        ZipUtil.zipFile(files, targetZipFile.toFile());
+        long zipFileSize = targetZipFile.toFile().length();
+        if (zipFileSize <= MAX_FILE_SIZE) {
+          break;
+        }
+
+        // Remove the largest file from the files array
+        if (files.length > 0) {
+          log.info("[uploadGameLogs] zipfile too large ({} bytes). Excluding {} ({} bytes) from upload",
+              zipFileSize, files[0].toString(), files[0].length());
+          files = java.util.Arrays.copyOfRange(files, 1, files.length);
+        } else {
+          break;
+        }
       }
+
+      if (files.length > 0) {
+        ResourceLocks.acquireUploadLock();
+        fafApiAccessor.uploadGameLogs(targetZipFile, context, gameId, (written, total) -> {
+        });
+        if (modTechnical != null) {
+          this.removeErrorLog(modTechnical);
+          this.removeReplay0Log();
+        }
+      }
+
     } catch (Exception e) {
       log.error("[uploadGameLogs] unable to submit logs", e);
     } finally {
