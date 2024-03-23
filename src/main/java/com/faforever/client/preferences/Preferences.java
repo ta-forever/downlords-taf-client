@@ -49,6 +49,7 @@ public class Preferences {
   private final BooleanProperty showPasswordProtectedGames;
   // TA options @todo they need to be in TotalAnnilationPreferences()
   private final BooleanProperty forceRelayEnabled;
+  private final IntegerProperty iceAcceptableLatency;
   private final BooleanProperty proactiveResendEnabled;
   private final ObjectProperty<MaxPacketSizeOption> maxPacketSizeOption;
   private final BooleanProperty suppressReplayChatEnabled;
@@ -110,6 +111,7 @@ public class Preferences {
     storedCookies = new SimpleMapProperty<>(FXCollections.observableHashMap());
     showPasswordProtectedGames = new SimpleBooleanProperty(true);
     forceRelayEnabled = new SimpleBooleanProperty(false);
+    iceAcceptableLatency = new SimpleIntegerProperty(-1);
     proactiveResendEnabled = new SimpleBooleanProperty(false);
     maxPacketSizeOption = new SimpleObjectProperty<>(MaxPacketSizeOption.NORMAL);
     suppressReplayChatEnabled = new SimpleBooleanProperty(false);
@@ -195,9 +197,9 @@ public class Preferences {
 
   public ObservableList<TotalAnnihilationPrefs> getTotalAnnihilationAllMods() { return totalAnnihilation; }
 
-  public BooleanProperty getForceRelayEnabledProperty() {
-    return forceRelayEnabled;
-  }
+  public BooleanProperty getForceRelayEnabledProperty() { return forceRelayEnabled; }
+
+  public IntegerProperty getIceAcceptableLatencyProperty() { return iceAcceptableLatency; }
 
   public BooleanProperty getProactiveResendEnabledProperty() {
     return proactiveResendEnabled;
@@ -257,9 +259,9 @@ public class Preferences {
     return requireUacEnabled;
   }
 
-  public boolean getForceRelayEnabled() {
-    return forceRelayEnabled.get();
-  }
+  public boolean getForceRelayEnabled() { return forceRelayEnabled.get(); }
+
+  public int getIceAcceptableLatency() { return iceAcceptableLatency.get(); }
 
   public boolean getProactiveResendEnabled() {
     return proactiveResendEnabled.get();

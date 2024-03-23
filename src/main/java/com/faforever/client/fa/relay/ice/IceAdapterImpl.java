@@ -227,6 +227,18 @@ public class IceAdapterImpl implements IceAdapter, InitializingBean, DisposableB
           "--gpgnet-port", String.valueOf(gpgPort)
       );
 
+      if (this.supportedOptions != null && this.supportedOptions.contains("--acceptable-latency=<acceptableLatency>")) {
+        int latency = preferencesService.getPreferences().getIceAcceptableLatency();
+        if (latency > 0) {
+          cmd.add("--acceptable-latency");
+          cmd.add(String.valueOf(latency));
+        }
+        else {
+          cmd.add("--ping-count");
+          cmd.add("0");
+        }
+      }
+
       if (this.supportedOptions != null && this.supportedOptions.contains("--game-id=<gameId>")) {
         cmd.add("--game-id");
         cmd.add(String.valueOf(gameId));

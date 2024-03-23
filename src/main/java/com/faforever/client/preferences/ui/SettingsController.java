@@ -105,6 +105,7 @@ public class SettingsController implements Controller<Node> {
   public Toggle defaultColorsToggle;
   public CheckBox hideFoeToggle;
   public CheckBox forceRelayToggle;
+  public TextField iceAcceptableLatencyTextField;
   public CheckBox proactiveResendToggle;
   public ComboBox<MaxPacketSizeOption> maxPacketSizeOptionComboBox;
   public CheckBox suppressReplayChatToggle;
@@ -356,6 +357,7 @@ public class SettingsController implements Controller<Node> {
 //            .get(t.getTablePosition().getRow())
 //            .setCommandLineOptions(t.getNewValue()));
 
+    JavaFxUtil.bindBidirectional(iceAcceptableLatencyTextField.textProperty(), preferences.getIceAcceptableLatencyProperty(), numberToStringConverter);
     forceRelayToggle.selectedProperty().bindBidirectional(preferences.getForceRelayEnabledProperty());
     proactiveResendToggle.selectedProperty().bindBidirectional(preferences.getProactiveResendEnabledProperty());
     suppressReplayChatToggle.selectedProperty().bindBidirectional(preferences.getSuppressReplayChatEnabledProperty());
