@@ -289,6 +289,9 @@ public class GameDetailController implements Controller<Pane> {
       Optional.ofNullable(weakThisGameStatusListener).ifPresent(listener -> oldGame.statusProperty().removeListener(listener));
       Optional.ofNullable(featuredModInvalidationListener).ifPresent(listener -> oldGame.featuredModProperty().removeListener(listener));
       Optional.ofNullable(gameRatingTypeInvalidationListener).ifPresent(listener -> oldGame.ratingTypeProperty().removeListener(listener));
+      if (oldGame.getId() != game.getId()) {
+        teamListPane.getChildren().clear();
+      }
     });
 
     this.game.set(game);
@@ -401,12 +404,13 @@ public class GameDetailController implements Controller<Pane> {
   }
 
   private void createTeams() {
+
     this.leaderboardService.getLeaderboards()
         .thenAccept(leaderboards -> JavaFxUtil.runLater(() -> {
           boolean hidePlayerRatings = leaderboards.stream().noneMatch(lb -> lb.getTechnicalName().equals(game.get().getRatingType()));
           teamListPane.getChildren().clear();
           TeamCardController.createAndAdd(game.get().getTeams(), game.get().getRatingType(), playerService, uiService,
-            teamListPane, hidePlayerRatings);
+              teamListPane, hidePlayerRatings);
         }));
   }
 

@@ -63,6 +63,10 @@ public class WatchButtonController implements Controller<Node> {
 
   private boolean canWatch() {
     java.time.Duration duration = getWatchDelayTime();
+    int playerCount = this.game.getTeams().values().stream()
+        .flatMap(java.util.List::stream)
+        .toList()
+        .size();
     return duration.isZero() || duration.isNegative();
   }
 
