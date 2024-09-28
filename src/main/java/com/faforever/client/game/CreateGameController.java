@@ -370,6 +370,7 @@ public class CreateGameController implements Controller<Pane> {
             .or(fafService.connectionStateProperty().isNotEqualTo(CONNECTED))
             .or(mapListView.getSelectionModel().selectedItemProperty().isNull())
             .or(modVersionUpdateCompletedProperty.not())
+            .or(mapPoolListView.getSelectionModel().selectedItemProperty().isNull())
     );
     interactionLevelProperty.bind(Bindings.createStringBinding(
         this::calcInteractionLevel, gameService.getCurrentGameStatusProperty(), contextGameProperty));
