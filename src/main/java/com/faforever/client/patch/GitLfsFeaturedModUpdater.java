@@ -184,7 +184,7 @@ public class GitLfsFeaturedModUpdater implements FeaturedModUpdater {
     Path destDirectory = preferencesService.getCacheDirectory();
 
     // List all files in the source directory
-    List<String> foundUserIniFiles = Files.walk(srcDirectory)
+    List<String> foundUserIniFiles = Files.walk(srcDirectory, 1)
         .map(Path::getFileName)
         .map(Path::toString)
         .filter(fileName -> fileName.toLowerCase().endsWith(".ini")) // Case-insensitive match
