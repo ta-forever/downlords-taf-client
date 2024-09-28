@@ -1180,10 +1180,6 @@ public class GameService implements InitializingBean {
       log.info("[checkAutoJoin] auto-joining {}!", gameOptional.get());
       JavaFxUtil.runLater(() -> this.joinGame(gameOptional.get(), prototype.getPassword()));
     }
-    else {
-      log.info("[checkAutoJoin] not yet joinableGame:{}, playerStatus:{}, currentGame{}, getRunningGameUid():{}",
-          gameOptional.isPresent(), currentPlayerOptional.get().getStatus(), currentGame, getRunningGameUid());
-    }
   }
 
   /// @note this means offline wrt IRC, not necessarily wrt taf-python-server
@@ -1216,9 +1212,27 @@ public class GameService implements InitializingBean {
     // We may receive game info before we receive our player info
     Optional<Player> currentPlayerOptional = playerService.getCurrentPlayer();
 
-    boolean isCurrentGameAndTeamsChanged =
-        currentGame.get() != null && currentGame.get().getId() == gameInfoMessage.getUid() &&
-        gameInfoMessage.getTeams() != null && !gameInfoMessage.getTeams().equals(currentGame.get().getTeams());
+    boolean isCurrentGameAndPlayersChanged = false;
+    if (currentGame.get() != null) {
+      isCurrentGameAndPlayersChanged = currentGame.get().getId() == gameInfoMessage.getUid();
+      if (isCurrentGameAndPlayersChanged) {
+        java.util.Map<?, List<String>> currentGameTeams = currentGame.get().getTeams();
+        java.util.Map<?, List<String>> gameInfoTeams = gameInfoMessage.getTeams();
+        if (currentGameTeams != null && gameInfoTeams != null) {
+          currentGameTeams.entrySet().removeIf(entry -> entry.getKey().equals("-1"));
+          gameInfoTeams.entrySet().removeIf(entry -> entry.getKey().equals("-1"));
+          List<String> currentGamePlayers = currentGameTeams.values().stream().flatMap(List::stream).sorted().toList();
+          List<String> gameInfoGamePlayers = gameInfoTeams.values().stream().flatMap(List::stream).sorted().toList();
+          isCurrentGameAndPlayersChanged &= !gameInfoGamePlayers.equals(currentGamePlayers);
+        } else {
+          isCurrentGameAndPlayersChanged = currentGameTeams != null || gameInfoTeams != null;
+        }
+      }
+    }
+
+    //boolean isCurrentGameAndPlayersChanged =
+    //        currentGame.get() != null && currentGame.get().getId() == gameInfoMessage.getUid() &&
+    //        gameInfoMessage.getTeams() != null && !gameInfoMessage.getTeams().equals(currentGame.get().getTeams());
 
     String currentGameRatingType = null;
     if (currentGame.get() != null) {
@@ -1258,7 +1272,7 @@ public class GameService implements InitializingBean {
           currentGame.set(game);
         }
         if (gameInfoMessage.getHost() != null && currentPlayerOptional.get().getUsername().equals(gameInfoMessage.getHost())) {
-          if (isCurrentGameAndTeamsChanged) {
+          if (isCurrentGameAndPlayersChanged) {
             setStartPositions();
           }
         }
