@@ -285,7 +285,7 @@ task downloadWindowsUid(type: Download) {
 
 task downloadUnixTafToolbox(type: Download) {
   group "native dependencies"
-  src "https://github.com/ta-forever/taftoolbox/releases/download/v${taftoolbox_version}/taftoolbox-ubuntu-focal-x64.tar.gz"
+  src "https://github.com/ta-forever/taftoolbox/releases/download/${taftoolbox_version}/taftoolbox-ubuntu-focal-x64.tar.gz"
   dest file("${buildDir}/resources/taftoolbox-ubuntu-focal-x64.tar.gz")
   onlyIfNewer true
 }
@@ -306,7 +306,7 @@ task downloadUnixGpgnet4Ta(type: Download) {
 
 task downloadWindowsTafToolbox(type: Download) {
   group "native dependencies"
-  src "https://github.com/ta-forever/taftoolbox/releases/download/v${taftoolbox_version}/taftoolbox-win-x86.zip"
+  src "https://github.com/ta-forever/taftoolbox/releases/download/${taftoolbox_version}/taftoolbox-win-x86.zip"
   dest file("${buildDir}/resources/taftoolbox-win-x86.zip")
   onlyIfNewer true
 }
