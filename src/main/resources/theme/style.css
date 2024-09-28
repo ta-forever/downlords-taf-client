@@ -19,6 +19,10 @@
   -fx-graphic-text-gap: 0.666667em;
 }
 
+.combo-box {
+  -fx-background-color: -fx-background;
+}
+
 /***************** Split Pane *****************/
 
 .split-pane > .split-pane-divider {

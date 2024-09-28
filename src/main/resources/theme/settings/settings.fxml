@@ -810,27 +810,46 @@
                                        <CheckBox fx:id="enableAutoJoinToggle" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" GridPane.columnIndex="1" />
                                    </children>
                                </GridPane>
-                              <GridPane styleClass="setting-container" visible="true">
-                                            <columnConstraints>
-                                                <ColumnConstraints hgrow="ALWAYS" minWidth="10.0"/>
-                                                <ColumnConstraints halignment="RIGHT" hgrow="SOMETIMES"
-                                                                   minWidth="10.0"/>
-                                            </columnConstraints>
-                                            <rowConstraints>
-                                                <RowConstraints minHeight="10.0" valignment="TOP" vgrow="SOMETIMES"/>
-                                                <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
-                                            </rowConstraints>
-                                            <children>
-                                                <Label contentDisplay="RIGHT" maxWidth="1.7976931348623157E308"
-                                                       styleClass="setting-title" text="%settings.fa.forceRelay"/>
-                                                <Label styleClass="setting-description"
-                                                       text="%settings.fa.forceRelay.description"
-                                                       GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS"
-                                                       GridPane.rowIndex="1"/>
-                                                <CheckBox fx:id="forceRelayToggle" contentDisplay="GRAPHIC_ONLY"
-                                                          mnemonicParsing="false" GridPane.columnIndex="1"/>
-                                 </children>
-                              </GridPane>
+                               <GridPane styleClass="setting-container" visible="true">
+                                             <columnConstraints>
+                                                 <ColumnConstraints hgrow="ALWAYS" minWidth="10.0"/>
+                                                 <ColumnConstraints halignment="RIGHT" hgrow="SOMETIMES"
+                                                                    minWidth="10.0"/>
+                                             </columnConstraints>
+                                             <rowConstraints>
+                                                 <RowConstraints minHeight="10.0" valignment="TOP" vgrow="SOMETIMES"/>
+                                                 <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
+                                             </rowConstraints>
+                                             <children>
+                                                 <Label contentDisplay="RIGHT" maxWidth="1.7976931348623157E308"
+                                                        styleClass="setting-title" text="%settings.fa.forceRelay"/>
+                                                 <Label styleClass="setting-description"
+                                                        text="%settings.fa.forceRelay.description"
+                                                        GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS"
+                                                        GridPane.rowIndex="1"/>
+                                                 <CheckBox fx:id="forceRelayToggle" contentDisplay="GRAPHIC_ONLY"
+                                                           mnemonicParsing="false" GridPane.columnIndex="1"/>
+                                  </children>
+                               </GridPane>
+                               <GridPane styleClass="setting-container" visible="true">
+                                   <columnConstraints>
+                                       <ColumnConstraints hgrow="ALWAYS" minWidth="10.0"/>
+                                       <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0"/>
+                                   </columnConstraints>
+                                   <rowConstraints>
+                                       <RowConstraints minHeight="10.0" valignment="TOP" vgrow="SOMETIMES"/>
+                                       <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
+                                   </rowConstraints>
+                                   <children>
+                                       <Label styleClass="setting-title" text="%settings.fa.iceAcceptableLatency"/>
+                                       <Label styleClass="setting-description"
+                                              text="%settings.fa.iceAcceptableLatency.description"
+                                              GridPane.columnSpan="2147483647" GridPane.rowIndex="1"/>
+                                       <TextField fx:id="iceAcceptableLatencyTextField"
+                                                  maxWidth="1.7976931348623157E308" prefWidth="50.0"
+                                                  GridPane.columnIndex="1"/>
+                                   </children>
+                               </GridPane>
                                <GridPane styleClass="setting-container" visible="true">
                                    <columnConstraints>
                                        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />

@@ -19,7 +19,7 @@
       fx:controller="com.faforever.client.leaderboard.LeaderboardsController">
     <Separator minHeight="10.0"/>
     <HBox alignment="CENTER_LEFT" spacing="10.0">
-        <ComboBox fx:id="leaderboardComboBox" onAction="#onLeaderboardSelected"/>
+        <ComboBox fx:id="leaderboardComboBox" onAction="#onLeaderboardSelected" styleClass="query-filter"/>
         <CheckBox fx:id="friendsOnlyCheckBox" text="%leaderboard.friendsOnlyOption" onAction="#onLeaderboardSelected"/>
         <Button text="%refresh" onAction="#onLeaderboardSelected"/>
         <Label contentDisplay="RIGHT" graphicTextGap="10.0" maxWidth="1.7976931348623157E308">
@@ -28,7 +28,7 @@
             </graphic>
         </Label>
         <TextField fx:id="searchTextField" maxWidth="1.7976931348623157E308"
-                   promptText="%ladder.searchPrompt" HBox.hgrow="ALWAYS"/>
+                   promptText="%ladder.searchPrompt" HBox.hgrow="ALWAYS" styleClass="query-item"/>
     </HBox>
     <VBox fx:id="contentPane" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" spacing="10.0"
           VBox.vgrow="ALWAYS" visible="false">
