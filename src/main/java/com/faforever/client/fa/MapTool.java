@@ -67,8 +67,12 @@ public class MapTool {
     return run(hpiFile.getParent(), hpiFile.getFileName().toString(), null, doCrc, previewCacheDirectory, PreviewType.MINI, 0, null);
   }
 
-  public static void generatePreview(Path gamePath, String mapName, Path previewCacheDirectory, PreviewType previewType, int maxPositions) throws IOException {
-    run(gamePath, null, mapName + "$", false, previewCacheDirectory, previewType, maxPositions, previewCacheDirectory);
+  public static void generatePreview(Path gamePath, String modGp3FileName, String mapName, Path previewCacheDirectory, PreviewType previewType, int maxPositions) throws IOException {
+    String hpiSpecs = "*.hpi;*.gpf;*.ccx;rev31.gp3;*.ufo";
+    if (modGp3FileName != null) {
+      hpiSpecs = "*.hpi;*.gpf;*.ccx;" + modGp3FileName + ";*.ufo";
+    }
+    run(gamePath, hpiSpecs, mapName + "$", false, previewCacheDirectory, previewType, maxPositions, previewCacheDirectory);
   }
 
   static private List<String[]> run(Path gamePath, String hpiSpecs, String mapName, boolean doCrc, Path previewCacheDirectory, PreviewType previewType, int maxPositions, Path featuresCacheDirectory) throws IOException {

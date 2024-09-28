@@ -22,6 +22,8 @@ public class FeaturedMod {
   private int order;
   private String gitBranch;
   private String gitUrl;
+  private String fileExtension;
+  private String gp3Filename;
   private String installPackage;
   private String technicalName;
   private boolean visible;

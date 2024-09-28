@@ -99,6 +99,7 @@ import static java.lang.String.format;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
+import static java.util.concurrent.CompletableFuture.completedFuture;
 
 
 @Lazy
@@ -987,8 +988,21 @@ public class MapService implements InitializingBean, DisposableBean {
       return;
     }
 
+    String modGp3FileName = null;
     try {
-      MapTool.generatePreview(gamePath, mapName, cachedFile.getParent().getParent(), previewType, maxPositions);
+      Optional<FeaturedMod> featuredMod = fafService.getFeaturedMods().thenCompose(featuredModBeans -> completedFuture(featuredModBeans.stream()
+          .filter(mod -> modTechnical.equals(mod.getTechnicalName()))
+          .findFirst()
+      )).get();
+      if (featuredMod.isPresent()) {
+        modGp3FileName = featuredMod.get().getGp3Filename();
+      }
+    }
+    catch (InterruptedException e) { }
+    catch (ExecutionException e) { }
+
+    try {
+      MapTool.generatePreview(gamePath, modGp3FileName, mapName, cachedFile.getParent().getParent(), previewType, maxPositions);
     }
     catch (IOException e) {
       notifyBadMapTool(e);

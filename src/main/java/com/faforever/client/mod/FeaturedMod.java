@@ -21,6 +21,8 @@ public class FeaturedMod {
   private final StringProperty website;
   private final StringProperty description;
   private final StringProperty gitUrl;
+  private final StringProperty fileExtension;
+  private final StringProperty gp3Filename;
   private final StringProperty gitBranch;
   private final StringProperty installPackage;
   private final BooleanProperty visible;
@@ -34,6 +36,8 @@ public class FeaturedMod {
     description = new SimpleStringProperty();
     visible = new SimpleBooleanProperty();
     gitUrl = new SimpleStringProperty();
+    fileExtension = new SimpleStringProperty();
+    gp3Filename = new SimpleStringProperty();
     gitBranch = new SimpleStringProperty();
     installPackage = new SimpleStringProperty();
     versions = new SimpleListProperty<>(FXCollections.observableArrayList());
@@ -48,6 +52,8 @@ public class FeaturedMod {
     bean.description.setValue(featuredMod.getDescription());
     bean.visible.setValue(featuredMod.isVisible());
     bean.gitUrl.set(Strings.emptyToNull(featuredMod.getGitUrl()));
+    bean.fileExtension.set(Strings.emptyToNull(featuredMod.getFileExtension()));
+    bean.gp3Filename.set(Strings.emptyToNull(featuredMod.getGp3Filename()));
     bean.gitBranch.set(Strings.emptyToNull(featuredMod.getGitBranch()));
     bean.installPackage.set(Strings.emptyToNull(featuredMod.getInstallPackage()));
     if (featuredMod.getVersions() != null && !featuredMod.getVersions().isEmpty()) {
@@ -115,6 +121,26 @@ public class FeaturedMod {
   }
   public StringProperty gitUrlProperty() {
     return gitUrl;
+  }
+
+  public String getFileExtension() {
+    return fileExtension.get();
+  }
+  public void setFileExtension(String fileExtension) {
+    this.fileExtension.set(fileExtension);
+  }
+  public StringProperty gitFileExtensionProperty() {
+    return fileExtension;
+  }
+
+  public String getGp3Filename() {
+    return gp3Filename.get();
+  }
+  public void setGp3Filename(String gp3Filename) {
+    this.gp3Filename.set(gp3Filename);
+  }
+  public StringProperty gitGp3FilenameProperty() {
+    return gp3Filename;
   }
 
   public String getGitBranch() { return gitBranch.get(); }
