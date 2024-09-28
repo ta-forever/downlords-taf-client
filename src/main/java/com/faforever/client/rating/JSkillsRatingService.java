@@ -115,8 +115,11 @@ public class JSkillsRatingService implements RatingService {
     } catch (ExecutionException e) {
     }
 
+    java.util.Map<?, List<String>> currentTeams = game.getTeams();
+    currentTeams.entrySet().removeIf(entry -> entry.getKey().equals("-1"));
+
     // get a list of al players excluding the host
-    List<Player> players = game.getTeams().values().stream()
+    List<Player> players = currentTeams.values().stream()
         .flatMap(Collection::stream)
         .filter(playerName -> !playerName.equals(game.getHost()))
         .map(playerService::getPlayerForUsername)
@@ -124,8 +127,11 @@ public class JSkillsRatingService implements RatingService {
         .map(Optional::get)
         .collect(Collectors.toList());
 
+    boolean isHostWatching = currentTeams.containsKey("-1") &&
+        currentTeams.get("-1").contains(game.getHost());
+
     // prepend the host
-    List<Player> hostAndPlayers = new ArrayList<>(List.of(host.get()));
+    List<Player> hostAndPlayers = isHostWatching ? new ArrayList<>() : new ArrayList<>(List.of(host.get()));
     hostAndPlayers.addAll(players);
     if (hostAndPlayers.size() < 1) {
       return hostAndPlayers;
