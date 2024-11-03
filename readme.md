@@ -26,17 +26,15 @@ The official client for [TA Forever (TAF)](https://www.taforever.com/), forked f
 A video tutorial is available [here](https://www.youtube.com/watch?v=_kJoRehdBcM). Don't forget step 5.
 
 ### Linux
-Learn how to install the client on Linux [here](https://github.com/FAForever/downlords-faf-client/wiki/Install-on-Linux)
+Learn how to install the client on Linux [here](https://github.com/ta-forever/downlords-taf-client/blob/develop/readme.linux.txt)
 
-(NB: Linux support is mostly likely broken since forking from FAF)
 
 ## Open Source licenses
 |                |                               |
 |----------------|-------------------------------|
 |<img src="https://www.ej-technologies.com/images/product_banners/install4j_large.png" width="128">|Thanks to [ej-technologies](https://www.ej-technologies.com) for our open source license for Install4j, a [multi-platform installer builder](https://www.ej-technologies.com/products/install4j/overview.html). We use Install4j to build installers.|
 |<img src="https://www.ej-technologies.com/images/product_banners/jprofiler_large.png" width="128">|Thanks to [ej-technologies](https://www.ej-technologies.com) for our open source license for JProfiler, a [java profiler](https://www.ej-technologies.com/products/jprofiler/overview.html). We use JProfiler to optimise our software.|
-|<img src="https://slack-files2.s3-us-west-2.amazonaws.com/avatars/2017-12-13/286651735269_a5ab3167acef52b0111e_512.png" width="128">| Thanks to [bugsnag](https://www.bugsnag.com) for their [open source license](https://www.bugsnag.com/open-source/). We use bugsnag for our error reporting.|
-|<img src="https://faforever.github.io/downlords-faf-client/images/yklogo.png" width="128">| Thanks to [YourKit](https://www.yourkit.com) for their open source license|
+
 
 
 ## Contribute
@@ -44,4 +42,5 @@ Please take a look at (FAF's) [contribution guidelines](https://github.com/FAFor
 
 Have a look at (FAF's) [wiki](https://github.com/FAForever/downlords-faf-client/wiki).
 
+Contribute localisations on our [crowdin project](https://crowdin.com/project/downlords-taf-client)
 

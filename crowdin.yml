@@ -1,0 +1,9 @@
+"project_id": "733529"  # Replace with your actual project ID
+"api_token": "${CROWDIN_PERSONAL_TOKEN}"
+
+"files": [
+  {
+    "source": "src/main/resources/i18n/messages.properties",
+    "translation": "src/main/resources/i18n/messages_%two_letters_code%.properties"
+  }
+]
