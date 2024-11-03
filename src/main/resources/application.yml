@@ -11,6 +11,7 @@ faf-client:
     linksTecHelpDiscord: https://discord.gg/hTRDqn3mkX
     linksTada: https://www.tademos.xyz
     linksTecHelpForum: https://www.tauniverse.com/forum/forumdisplay.php?f=41
+    linksContributeLocalisation: https://crowdin.com/project/downlords-taf-client
 
   vault:
     map_rules_url: https://forum.faforever.com/topic/323/faf-map-vault-rules-regulations
