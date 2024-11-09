@@ -62,10 +62,10 @@ public class I18n implements InitializingBean {
         new Locale("cs"),
         new Locale("es"),
         new Locale("uk"),
-        new Locale("iw"),
+        new Locale("he"),
         new Locale("tr"),
         new Locale("nl"),
-        new Locale("cat"),
+        new Locale("ca"),
         Locale.ITALIAN,
         new Locale("pl")
     ));
