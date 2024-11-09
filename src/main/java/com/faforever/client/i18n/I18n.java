@@ -54,21 +54,60 @@ public class I18n implements InitializingBean {
   private void loadAvailableLanguages() throws IOException {
     // These are the default languages shipped with the client
     availableLanguages.addAll(Set.of(
-        Locale.US,
-        new Locale("ca"),
-        new Locale("cs"),
-        Locale.GERMAN,
-        new Locale("es"),
-        Locale.FRENCH,
-        new Locale("he"),
-        Locale.ITALIAN,
-        new Locale("ja"),
-        new Locale("nl"),
-        new Locale("pl"),
-        new Locale("ru"),
-        new Locale("tr"),
-        new Locale("uk"),
-        Locale.CHINESE
+        Locale.US,    // 2750 users
+        Locale.FRENCH,// 414 users
+        Locale.GERMAN,  // 208 users
+        new Locale("nl"), // 172 users
+        // portugese 150 users
+        new Locale("pl"), // 140 users
+        new Locale("ru"), // 98 users
+        new Locale("es"), // 77 users
+        // swedish 76 users
+        Locale.ITALIAN, // 72 users
+        Locale.CHINESE, // 61 users
+        // finish 47 users
+        // danish 39 users
+
+        // hungarian 35 users
+        // norwegian 29 users
+        new Locale("cs"), // 27 users
+        // korean 27 users
+        // malay 26 users
+        new Locale("ca"), // 23 users
+        new Locale("uk"), // 20 users
+        new Locale("tr"), // 18 users
+        // irish 16 users
+        // arabic 16 users
+        // afrikaans/zulu/xhosa 14 users
+        // croatian 14 users
+        // tamil 12 users
+        // romanian 11 users
+        // serbian 10 users
+        new Locale("he") // 10 users
+        // filipino 10 users
+        // slovak 10 users
+        // greek 10 users
+        // estonian 7 users
+        //new Locale("ja") // 7 users
+        // luxembourgish 7 users
+        // slovene 6 users
+        // indonesian 6 users
+        // swahili 5 users
+        // thai 5 users
+        // hokkien 5 users
+        // belarusian 4 users
+        // latvian 3 users
+        // bosnian 2 users
+        // khazak 2 users
+        // khmer 2 users
+        // armenian 2 users
+        // georgian 1 user
+        // lithuanian 1 user
+        // urdu 1 user
+        // montenegrin 1 user
+        // belizian 1 user
+
+
     ));
 
     Path languagesDirectory = preferencesService.getLanguagesDirectory();
