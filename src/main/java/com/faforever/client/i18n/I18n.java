@@ -58,11 +58,11 @@ public class I18n implements InitializingBean {
         Locale.FRENCH,// 414 users
         Locale.GERMAN,  // 208 users
         new Locale("nl"), // 172 users
-        // portugese 150 users
+        new Locale("pt"), // portugese 150 users
         new Locale("pl"), // 140 users
         new Locale("ru"), // 98 users
         new Locale("es"), // 77 users
-        // swedish 76 users
+        new Locale("sv"), // swedish 76 users
         Locale.ITALIAN, // 72 users
         Locale.CHINESE, // 61 users
         // finish 47 users
