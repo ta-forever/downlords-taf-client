@@ -55,19 +55,20 @@ public class I18n implements InitializingBean {
     // These are the default languages shipped with the client
     availableLanguages.addAll(Set.of(
         Locale.US,
-        Locale.GERMAN,
-        Locale.FRENCH,
-        new Locale("ru"),
-        Locale.CHINESE,
-        new Locale("cs"),
-        new Locale("es"),
-        new Locale("uk"),
-        new Locale("he"),
-        new Locale("tr"),
-        new Locale("nl"),
         new Locale("ca"),
+        new Locale("cs"),
+        Locale.GERMAN,
+        new Locale("es"),
+        Locale.FRENCH,
+        new Locale("he"),
         Locale.ITALIAN,
-        new Locale("pl")
+        new Locale("ja"),
+        new Locale("nl"),
+        new Locale("pl"),
+        new Locale("ru"),
+        new Locale("tr"),
+        new Locale("uk"),
+        Locale.CHINESE
     ));
 
     Path languagesDirectory = preferencesService.getLanguagesDirectory();
