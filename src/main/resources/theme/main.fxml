@@ -65,9 +65,6 @@
                       <ToggleButton fx:id="tournamentsButton" disable="true"  minWidth="-Infinity" mnemonicParsing="false"
                                     onAction="#onNavigateButtonClicked" styleClass="main-navigation-button"
                                     text="%main.tournaments" toggleGroup="$mainNavigation"/>
-                      <ToggleButton fx:id="unitsButton" disable="true"  minWidth="-Infinity" mnemonicParsing="false"
-                                    onAction="#onNavigateButtonClicked" styleClass="main-navigation-button"
-                                    text="%main.units" toggleGroup="$mainNavigation"/>
                       <ToggleButton fx:id="tutorialsButton" disable="true" minWidth="-Infinity" mnemonicParsing="false"
                                     onAction="#onNavigateButtonClicked" styleClass="main-navigation-button"
                                     text="%main.tutorials" toggleGroup="$mainNavigation"/>
