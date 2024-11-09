@@ -224,11 +224,13 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Subscribe
   public void onLoginSuccessEvent(LoginSuccessEvent event) {
+    log.debug("[onLoginSuccessEvent]");
     connect();
   }
 
   @Subscribe
   public void onLoggedOutEvent(LoggedOutEvent event) {
+    log.debug("[onLoggedOutEvent]");
     disconnect();
     eventBus.post(UpdateApplicationBadgeEvent.ofNewValue(0));
   }
@@ -250,18 +252,20 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Handler
   public void onConnect(ClientNegotiationCompleteEvent event) {
+    log.debug("[onConnect]");
     connectionState.set(ConnectionState.CONNECTED);
   }
 
   @Handler
   private void onJoinEvent(ChannelJoinEvent event) {
     User user = event.getActor();
-    log.debug("User joined channel: {}", user);
+    log.debug("[onJoinEvent] User joined channel: {}", user);
     addUserToChannel(event.getChannel().getName(), getOrCreateChatUser(user, event.getChannel()));
   }
 
   @Handler
   public void onChatUserList(ChannelNamesUpdatedEvent event) {
+    log.debug("[onChatUserList]");
     Channel channel = event.getChannel();
     List<ChatChannelUser> users = channel.getUsers().stream().map(user -> getOrCreateChatUser(user, channel)).collect(Collectors.toList());
     getOrCreateChannel(channel.getName()).addUsers(users);
@@ -269,24 +273,28 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Handler
   private void onPartEvent(ChannelPartEvent event) {
+    log.debug("[onPartEvent]");
     User user = event.getActor();
     onChatUserLeftChannel(event.getChannel().getName(), user.getNick());
   }
 
   @Handler
   private void onChatUserQuit(UserQuitEvent event) {
+    log.debug("[onChatUserQuit]");
     User user = event.getUser();
     new ArrayList<>(channels.values()).forEach(channel -> onChatUserLeftChannel(channel.getName(), user.getNick()));
   }
 
   @Handler
   private void onTopicChange(ChannelTopicEvent event) {
+    log.debug("[onTopicChange]");
     Channel channel = event.getChannel();
     getOrCreateChannel(channel.getName()).setTopic(event.getNewTopic().getValue().orElse(""));
   }
 
   @Handler
   private void onChannelMessage(ChannelMessageEvent event) {
+    log.debug("[onChannelMessage]");
     User user = event.getActor();
 
     String source = event.getChannel().getName();
@@ -296,6 +304,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Handler
   private void onChannelCTCP(ChannelCtcpEvent event) {
+    log.debug("[onChannelCTCP]");
     User user = event.getActor();
 
     Channel channel = event.getChannel();
@@ -306,6 +315,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Handler
   private void onChannelModeChanged(ChannelModeEvent event) {
+    log.debug("[onChannelModeChanged]");
     ChatChannel channel = getOrCreateChannel(event.getChannel().getName());
     event.getStatusList().getAll().forEach(channelModeStatus ->
         channelModeStatus.getParameter().ifPresent(username -> {
@@ -328,7 +338,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   @Handler
   private void onPrivateMessage(PrivateMessageEvent event) {
     User user = event.getActor();
-    log.debug("Received private message: {}", event);
+    log.debug("[onPrivateMessage] Received private message: {}", event);
 
     ChatChannelUser sender = getOrCreateChatUser(user.getNick(), user.getNick(), false);
     if (sender.getPlayer().map(Player::getSocialStatus).filter(status -> status == SocialStatus.FOE).isPresent()
@@ -341,6 +351,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Handler
   private void onNotice(PrivateNoticeEvent event) {
+    log.debug("[onNotice]");
     String message = event.getMessage();
 
     if (message.contains("choose a different nick")) {
@@ -368,6 +379,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   }
 
   private void onDisconnected() {
+    log.debug("[onDisconnected]");
     synchronized (channels) {
       channels.values().forEach(ChatChannel::clearUsers);
       channels.clear();
@@ -387,6 +399,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   }
 
   private void onChatUserLeftChannel(String channelName, String username) {
+    log.debug("[onChatUserLeftChannel] {} {}", channelName, username);
     if (!channels.containsKey(channelName) || channels.get(channelName).removeUser(username) == null) {
       return;
     }
@@ -405,12 +418,15 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   }
 
   private void onMessage(String message) {
+    log.debug("[onMessage] {}", message);
     message = message.replace(getPassword(), "*****");
     log.debug(message);
   }
 
   @Handler
   private void onDisconnect(ClientConnectionEndedEvent event) {
+    log.debug("[onDisconnect] event.getReconnectionDelay()={}, event.getCause={}", event.getReconnectionDelay(),
+        event.getCause().isPresent() ? event.getCause().get().toString() : "unknown");
     connectionState.set(ConnectionState.DISCONNECTED);
   }
 
@@ -420,6 +436,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   }
 
   private void onSocialMessage(SocialMessage socialMessage) {
+    log.debug("[onSocialMessage]");
     if (!autoChannelsJoined && socialMessage.getChannels() != null) {
       this.autoChannels = new ArrayList<>(socialMessage.getChannels());
       autoChannels.remove(defaultChannelName);
@@ -534,6 +551,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Override
   public void leaveChannel(String channelName) {
+    log.debug("[leaveChannel] {}", channelName);
     client.removeChannel(channelName);
   }
 
@@ -547,6 +565,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Override
   public void joinChannel(String channelName) {
+    log.debug("[joinChannel] {}", channelName);
     client.addChannel(channelName);
   }
 
@@ -573,6 +592,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Override
   public void reconnect() {
+    log.debug("[reconnect]");
     Set<String> currentChannels = channels.keySet();
     client.reconnect();
     currentChannels.forEach(this::joinChannel);

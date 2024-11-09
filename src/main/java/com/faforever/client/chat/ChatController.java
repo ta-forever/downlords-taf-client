@@ -216,10 +216,13 @@ public class ChatController extends AbstractViewController<Node> {
     eventBus.register(this);
 
     chatService.addChannelsListener(change -> {
+      log.debug("[chatService.addChannelsListener] change.wasRemoved()={}, change.wasAdded()={}", change.wasRemoved(), change.wasAdded());
       if (change.wasRemoved() && !isMatchmakerPartyMessage(change.getValueRemoved().getName())) {
+        log.debug("[chatService.addChannelsListener] change.getValueRemoved()={}", change.getValueRemoved().getName());
         onChannelLeft(change.getValueRemoved());
       }
       if (change.wasAdded() && !isMatchmakerPartyMessage(change.getValueAdded().getName())) {
+        log.debug("[chatService.addChannelsListener] change.getValueAdded()={}", change.getValueAdded().getName());
         onChannelJoined(change.getValueAdded());
       }
     });
