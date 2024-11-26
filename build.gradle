@@ -268,7 +268,7 @@ task downloadIceAdapter(type: Download) {
 
 task downloadUnixUid(type: Download) {
   group "native dependencies"
-  src "https://github.com/FAForever/uid/releases/download/v${faf_uid_version}/faf-uid"
+  src "https://github.com/ta-forever/uid/releases/download/v${faf_uid_version}/faf-uid"
   dest file("${buildDir}/resources/native/faf-uid")
   onlyIfNewer true
   doLast {
@@ -278,7 +278,7 @@ task downloadUnixUid(type: Download) {
 
 task downloadWindowsUid(type: Download) {
   group "native dependencies"
-  src "https://github.com/FAForever/uid/releases/download/v${faf_uid_version}/faf-uid.exe"
+  src "https://github.com/ta-forever/uid/releases/download/v${faf_uid_version}/faf-uid.exe"
   dest file("${buildDir}/resources/native/faf-uid.exe")
   onlyIfNewer true
 }
