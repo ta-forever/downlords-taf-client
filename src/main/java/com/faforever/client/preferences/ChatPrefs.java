@@ -3,6 +3,7 @@ package com.faforever.client.preferences;
 import com.faforever.client.chat.ChatColorMode;
 import com.faforever.client.chat.ChatFormat;
 import com.faforever.client.chat.ChatUserCategory;
+import com.faforever.client.player.SocialStatus;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import javafx.beans.property.BooleanProperty;
@@ -49,6 +50,7 @@ public class ChatPrefs {
   private final MapProperty<String, Color> userToColor;
   private final MapProperty<ChatUserCategory, Color> groupToColor;
   private final BooleanProperty hideFoeMessages;
+  private final BooleanProperty showToxicity;
   private final BooleanProperty playerListShown;
   private final ObjectProperty<TimeInfo> timeFormat;
   private final ObjectProperty<DateInfo> dateFormat;
@@ -59,6 +61,9 @@ public class ChatPrefs {
    */
   private final IntegerProperty idleThreshold;
 
+  private final ListProperty<ToxicitySetting> toxicitySettings;
+
+
   public ChatPrefs() {
     timeFormat = new SimpleObjectProperty<>(TimeInfo.AUTO);
     dateFormat = new SimpleObjectProperty<>(DateInfo.AUTO);
@@ -67,6 +72,7 @@ public class ChatPrefs {
     learnedAutoComplete = new SimpleBooleanProperty(false);
     previewImageUrls = new SimpleBooleanProperty(true);
     hideFoeMessages = new SimpleBooleanProperty(true);
+    showToxicity = new SimpleBooleanProperty(false);
     channelTabScrollPaneWidth = new SimpleIntegerProperty(250);
     userToColor = new SimpleMapProperty<>(FXCollections.observableHashMap());
     groupToColor = new SimpleMapProperty<>(FXCollections.observableHashMap());
@@ -79,6 +85,11 @@ public class ChatPrefs {
     Locale localeLanguage = new Locale(Locale.getDefault().getLanguage());
     Optional.ofNullable(LOCALE_LANGUAGES_TO_CHANNELS.get(localeLanguage))
         .ifPresent(channel -> autoJoinChannels.get().add(channel.getChannelName()));
+
+    toxicitySettings = new SimpleListProperty<>(FXCollections.observableArrayList());
+    toxicitySettings.add(new ToxicitySetting(SocialStatus.FOE, 0.67, ToxicityAction.HIDE));
+    toxicitySettings.add(new ToxicitySetting(SocialStatus.FRIEND, 0.95, ToxicityAction.REDACT));
+    toxicitySettings.add(new ToxicitySetting(SocialStatus.OTHER, 0.9, ToxicityAction.REDACT));
   }
 
   public ChatColorMode getChatColorMode() {
@@ -218,6 +229,18 @@ public class ChatPrefs {
     return hideFoeMessages;
   }
 
+  public boolean getShowToxicity() {
+    return showToxicity.get();
+  }
+
+  public void setShowToxicity(boolean showToxicity) {
+    this.showToxicity.set(showToxicity);
+  }
+
+  public BooleanProperty showToxicityProperty() {
+    return showToxicity;
+  }
+
   public int getIdleThreshold() {
     return idleThreshold.get();
   }
@@ -234,6 +257,10 @@ public class ChatPrefs {
     return autoJoinChannels.get();
   }
 
+  public ObservableList<ToxicitySetting> getToxicitySettings() { return toxicitySettings.get(); }
+
+  public ListProperty<ToxicitySetting> toxicitySettingsProperty() { return toxicitySettings; }
+
   public boolean isPlayerListShown() {
     return playerListShown.get();
   }
@@ -245,4 +272,5 @@ public class ChatPrefs {
   public BooleanProperty playerListShownProperty() {
     return playerListShown;
   }
+
 }

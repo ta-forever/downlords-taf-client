@@ -16,6 +16,7 @@ import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.PersistentNotification;
 import com.faforever.client.notification.Severity;
 import com.faforever.client.notification.TransientNotification;
+import com.faforever.client.player.SocialStatus;
 import com.faforever.client.preferences.AutoUploadLogsOption;
 import com.faforever.client.preferences.DateInfo;
 import com.faforever.client.preferences.LocalizationPrefs;
@@ -28,6 +29,8 @@ import com.faforever.client.preferences.AskAlwaysOrNever;
 import com.faforever.client.preferences.TimeInfo;
 import com.faforever.client.preferences.ToastPosition;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
+import com.faforever.client.preferences.ToxicityAction;
+import com.faforever.client.preferences.ToxicitySetting;
 import com.faforever.client.settings.LanguageItemController;
 import com.faforever.client.theme.Theme;
 import com.faforever.client.theme.UiService;
@@ -46,7 +49,9 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
@@ -54,18 +59,22 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Spinner;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.cell.ComboBoxTableCell;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.util.StringConverter;
+import javafx.util.converter.DoubleStringConverter;
 import javafx.util.converter.NumberStringConverter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -74,9 +83,11 @@ import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.text.NumberFormat;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -104,6 +115,7 @@ public class SettingsController implements Controller<Node> {
   public Toggle randomColorsToggle;
   public Toggle defaultColorsToggle;
   public CheckBox hideFoeToggle;
+  public CheckBox showToxicityToggle;
   public CheckBox forceRelayToggle;
   public TextField iceAcceptableLatencyTextField;
   public CheckBox proactiveResendToggle;
@@ -180,6 +192,19 @@ public class SettingsController implements Controller<Node> {
 
   private ChangeListener<Theme> selectedThemeChangeListener;
   private ChangeListener<Theme> currentThemeChangeListener;
+
+  @FXML
+  private TableView<ToxicitySetting> toxicitySettingsTable;
+
+  @FXML
+  private TableColumn<ToxicitySetting, SocialStatus> toxicitySocialStatusColumn;
+
+  @FXML
+  private TableColumn<ToxicitySetting, Double> toxicityThresholdColumn;
+
+  @FXML
+  private TableColumn<ToxicitySetting, ToxicityAction> toxicityActionColumn;
+
 
   public SettingsController(UserService userService, PreferencesService preferencesService, UiService uiService,
                             I18n i18n, EventBus eventBus, NotificationService notificationService,
@@ -261,6 +286,7 @@ public class SettingsController implements Controller<Node> {
     enableNotificationsToggle.selectedProperty().bindBidirectional(preferences.getNotification().transientNotificationsEnabledProperty());
 
     hideFoeToggle.selectedProperty().bindBidirectional(preferences.getChat().hideFoeMessagesProperty());
+    showToxicityToggle.selectedProperty().bindBidirectional(preferences.getChat().showToxicityProperty());
 
     disallowJoinsCheckBox.selectedProperty().bindBidirectional(preferences.disallowJoinsViaDiscordProperty());
 
@@ -393,6 +419,69 @@ public class SettingsController implements Controller<Node> {
     debugLogToggle.selectedProperty().bindBidirectional(preferences.debugLogEnabledProperty());
     initNotifyMeOnAtMention();
     initGameDataCache();
+    initToxicitySettings();
+  }
+
+  public void initToxicitySettings() {
+
+    toxicitySocialStatusColumn.setCellValueFactory(cellData -> cellData.getValue().socialStatusProperty());
+    toxicitySocialStatusColumn.setCellFactory(col -> new StringCell<>(param -> i18n.get(param.getI18nKey())));
+    toxicitySocialStatusColumn.setEditable(false);
+
+    toxicityThresholdColumn.setCellValueFactory(cellData -> cellData.getValue().toxicityThresholdProperty().asObject());
+    toxicityThresholdColumn.setCellFactory(col -> {
+      TextFieldTableCell<ToxicitySetting, Double> cell = new TextFieldTableCell<>(new DoubleStringConverter()) {
+        @Override
+        public void commitEdit(Double newValue) {
+          if (newValue < 0.0 || newValue > 1.0) {
+            cancelEdit();
+          } else {
+            super.commitEdit(newValue);
+          }
+        }
+      };
+      return cell;
+    });
+    toxicityThresholdColumn.setEditable(true);
+
+    toxicityActionColumn.setCellValueFactory(cellData -> cellData.getValue().actionProperty());
+    toxicityActionColumn.setCellFactory(col -> {
+      Map<ToxicityAction, String> localizedActions = Arrays.stream(ToxicityAction.values())
+          .collect(Collectors.toMap(
+              action -> action,
+              action -> i18n.get(action.getI18nKey())
+          ));
+      ObservableList<ToxicityAction> actions = FXCollections.observableArrayList(ToxicityAction.values());
+
+      ComboBoxTableCell<ToxicitySetting, ToxicityAction> cell = new ComboBoxTableCell<>(actions);
+      cell.setConverter(new StringConverter<>() {
+        @Override
+        public String toString(ToxicityAction action) {
+          return localizedActions.getOrDefault(action, action.toString());
+        }
+
+        @Override
+        public ToxicityAction fromString(String string) {
+          // Reverse lookup by localized string
+          return localizedActions.entrySet()
+              .stream()
+              .filter(entry -> entry.getValue().equals(string))
+              .map(Map.Entry::getKey)
+              .findFirst()
+              .orElse(null); // Return null if no match
+        }
+      });
+
+      return cell;
+    });
+    toxicityActionColumn.setEditable(true);
+
+    toxicitySettingsTable.setRowFactory(tv -> new TableRow<>());
+    toxicitySettingsTable.setEditable(true);
+
+    // Load existing settings into the table
+    toxicitySettingsTable.setItems(preferencesService.getPreferences().getChat().getToxicitySettings());
+    toxicitySettingsTable.itemsProperty().bindBidirectional(preferencesService.getPreferences().getChat().toxicitySettingsProperty());
   }
 
   private void initGameDataCache() {

@@ -117,3 +117,57 @@ function highlightText(text) {
 function removeHighlight() {
   $('#chat-container').removeHighlight();
 }
+
+function toggleTextVisibility(messageId) {
+  const chatText = document.getElementById(`chat-text-${messageId}`);
+  const textContent = chatText.querySelector('.text-content');
+  const textRedacted = chatText.querySelector('.text-redacted');
+
+  if (textContent.style.display === 'none') {
+    textContent.style.display = 'block';
+    textRedacted.style.display = 'none';
+  } else {
+    textContent.style.display = 'none';
+    textRedacted.style.display = 'block';
+  }
+}
+
+// Toggle visibility of the {toxicity} field for all text lines
+function toggleToxicityVisibility() {
+  const allToxicityFields = document.querySelectorAll('.toxicity');
+  allToxicityFields.forEach(field => {
+    field.style.display = field.style.display === 'none' ? 'inline' : 'none';
+  });
+}
+
+function enableToxicityVisibility() {
+  const allToxicityFields = document.querySelectorAll('.toxicity');
+  allToxicityFields.forEach(field => {
+    field.style.display = 'inline';
+  });
+}
+
+function disableToxicityVisibility() {
+  const allToxicityFields = document.querySelectorAll('.toxicity');
+  allToxicityFields.forEach(field => {
+    field.style.display = 'none';
+  });
+}
+
+function revealText(messageId) {
+  const textLine = document.getElementById(`text-line-${messageId}`);
+  const text = textLine.querySelector('.text');
+  const textRedacted = textLine.querySelector('.text-redacted');
+
+  text.style.display = 'block';
+  textRedacted.style.display = 'none';
+}
+
+function hideText(messageId) {
+  const textLine = document.getElementById(`text-line-${messageId}`);
+  const text = textLine.querySelector('.text');
+  const textRedacted = textLine.querySelector('.text-redacted');
+
+  text.style.display = 'none';
+  textRedacted.style.display = 'block';
+}

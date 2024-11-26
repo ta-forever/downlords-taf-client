@@ -3,6 +3,7 @@ package com.faforever.client.chat;
 import com.faforever.client.FafClientApplication;
 import com.faforever.client.chat.event.ChatMessageEvent;
 import com.faforever.client.chat.event.ChatUserCategoryChangeEvent;
+import com.faforever.client.chat.messagetags.Toxicity;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.config.ClientProperties.Irc;
 import com.faforever.client.fx.JavaFxUtil;
@@ -43,6 +44,7 @@ import org.kitteh.irc.client.library.Client;
 import org.kitteh.irc.client.library.Client.Builder.Server.SecurityType;
 import org.kitteh.irc.client.library.defaults.DefaultClient;
 import org.kitteh.irc.client.library.element.Channel;
+import org.kitteh.irc.client.library.element.MessageTag;
 import org.kitteh.irc.client.library.element.User;
 import org.kitteh.irc.client.library.element.mode.ChannelUserMode;
 import org.kitteh.irc.client.library.element.mode.Mode;
@@ -69,10 +71,8 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -295,11 +295,17 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   @Handler
   private void onChannelMessage(ChannelMessageEvent event) {
     log.debug("[onChannelMessage]");
-    User user = event.getActor();
 
+    User user = event.getActor();
     String source = event.getChannel().getName();
 
-    eventBus.post(new ChatMessageEvent(new ChatMessage(source, Instant.now(), user.getNick(), event.getMessage(), false)));
+    double toxicity = event.getSource().getTag("taforever.com/toxicity")
+        .map(MessageTag::getValue)
+        .map(value -> value.orElse("0"))
+        .map(Double::parseDouble)
+        .orElse(0.0);
+
+    eventBus.post(new ChatMessageEvent(new ChatMessage(source, Instant.now(), user.getNick(), event.getMessage(), toxicity, false)));
   }
 
   @Handler
@@ -310,7 +316,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     Channel channel = event.getChannel();
     String source = channel.getName();
 
-    eventBus.post(new ChatMessageEvent(new ChatMessage(source, Instant.now(), user.getNick(), event.getMessage().replace("ACTION", user.getNick()), true)));
+    eventBus.post(new ChatMessageEvent(new ChatMessage(source, Instant.now(), user.getNick(), event.getMessage().replace("ACTION", user.getNick()), 0.0, true)));
   }
 
   @Handler
@@ -346,7 +352,14 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
       log.debug("Suppressing chat message from foe '{}'", user.getNick());
       return;
     }
-    eventBus.post(new ChatMessageEvent(new ChatMessage(user.getNick(), Instant.now(), user.getNick(), event.getMessage())));
+
+    double toxicity = event.getSource().getTag("taforever.com/toxicity")
+        .map(MessageTag::getValue)
+        .map(value -> value.orElse("0"))
+        .map(Double::parseDouble)
+        .orElse(0.0);
+
+    eventBus.post(new ChatMessageEvent(new ChatMessage(user.getNick(), Instant.now(), user.getNick(), event.getMessage(), toxicity)));
   }
 
   @Handler
@@ -473,6 +486,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
         .password(getPassword())
         .build();
 
+    client.getMessageTagManager().registerTagCreator("message-tags", "+taforever.com/toxicity", Toxicity.FUNCTION);
     client.getEventManager().registerEventListener(this);
     client.getActorTracker().setQueryChannelInformation(false);
     client.connect();
@@ -486,7 +500,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Override
   public CompletableFuture<String> sendMessageInBackground(String target, String message) {
-    eventBus.post(new ChatMessageEvent(new ChatMessage(target, Instant.now(), userService.getUsername(), message)));
+    eventBus.post(new ChatMessageEvent(new ChatMessage(target, Instant.now(), userService.getUsername(), message, 0.0)));
     return CompletableFuture.supplyAsync(() -> {
       client.sendMessage(target, message);
       return message;
@@ -636,7 +650,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
         players, newTadaReplayMessage.getMapName());
 
     ChatMessage msg = new ChatMessage(
-        getDefaultChannelName(), Instant.now(), i18n.get("chat.operator"), chatContent, true);
+        getDefaultChannelName(), Instant.now(), i18n.get("chat.operator"), chatContent, 0.0, true);
 
     eventBus.post(new ChatMessageEvent(msg));
   }

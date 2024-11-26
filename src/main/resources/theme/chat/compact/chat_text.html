@@ -1,1 +1,10 @@
-<span class="text {css-classes}" style="{inline-style}">{text}</span>
+<span id="chat-text-{message-id}" class="text {css-classes}" style="{inline-style}">
+  <span class="text-content" style="display: {text-content-display};">
+    {text}
+    <span class="toxicity" style="display: {toxicity-display};">[toxicity={toxicity}]</span>
+  </span>
+  <span class="text-redacted" style="display: {text-redacted-display};" onclick="toggleTextVisibility('{message-id}')">
+    {text_redacted}
+  </span>
+</span>
+

@@ -168,7 +168,8 @@ public class MockChatService implements ChatService, InitializingBean {
                   "%1$s Lorem ipsum dolor sit amet, consetetur %1$s sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam %1$s " +
                       "http://www.faforever.com/wp-content/uploads/2013/07/cropped-backForum41.jpg",
                   userService.getUsername()
-              )
+              ),
+              0.95
           );
 
           onChatMessageListener.accept(chatMessage);

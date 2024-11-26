@@ -1,5 +1,6 @@
 package com.faforever.client.chat;
 
+import com.faforever.client.preferences.ToxicityAction;
 import lombok.Data;
 
 import java.time.Instant;
@@ -13,22 +14,24 @@ public class ChatMessage {
   private final Instant time;
   private final String username;
   private final String message;
+  private final double toxicityScore;
   private boolean action;
   private String subject;
 
   /**
-   * @param source the name of the message source/target - either a channel or an username.
+   * @param source the name of the message source/target - either a channel or a username.
    * @param username the user who sent the message
    */
-  public ChatMessage(String source, Instant time, String username, String message) {
-    this(source, time, username, message, false);
+  public ChatMessage(String source, Instant time, String username, String message, double toxicityScore) {
+    this(source, time, username, message, toxicityScore, false);
   }
 
-  public ChatMessage(String source, Instant time, String username, String message, boolean isAction) {
+  public ChatMessage(String source, Instant time, String username, String message, double toxicityScore, boolean isAction) {
     this.source = source;
     this.time = time;
     this.username = username;
     this.message = message;
+    this.toxicityScore = toxicityScore;
     this.action = isAction;
   }
 

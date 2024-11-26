@@ -229,6 +229,51 @@
                                                 <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
                                             </rowConstraints>
                                             <children>
+                                                <Label styleClass="setting-title" text="%settings.chat.showToxicity"/>
+                                                <Label styleClass="setting-description"
+                                                       text="%settings.chat.showToxicity.description"
+                                                       GridPane.columnSpan="2147483647" GridPane.rowIndex="1"/>
+                                                <CheckBox fx:id="showToxicityToggle" contentDisplay="GRAPHIC_ONLY"
+                                                          mnemonicParsing="false" GridPane.columnIndex="1"/>
+                                            </children>
+                                        </GridPane>
+                                        <GridPane styleClass="setting-container">
+                                            <columnConstraints>
+                                                <ColumnConstraints hgrow="ALWAYS" minWidth="10.0"/>
+                                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0"/>
+                                            </columnConstraints>
+                                            <rowConstraints>
+                                                <RowConstraints minHeight="10.0" valignment="TOP" vgrow="SOMETIMES"/>
+                                                <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
+                                            </rowConstraints>
+                                            <children>
+                                                <Label styleClass="setting-title" text="%settings.chat.userToxicitySettings"/>
+                                                <Label styleClass="setting-description"
+                                                       text="%settings.chat.userToxicitySettings.description"
+                                                       GridPane.columnSpan="2147483647" GridPane.rowIndex="1"/>
+                                                <TableView fx:id="toxicitySettingsTable" GridPane.rowIndex="2" GridPane.columnSpan="2147483647"
+                                                           prefHeight="160.0" maxHeight="160.0" fixedCellSize="40.0">
+                                                    <columns>
+                                                        <TableColumn fx:id="toxicitySocialStatusColumn" text="%settings.chat.socialStatus" />
+                                                        <TableColumn fx:id="toxicityThresholdColumn" text="%settings.chat.toxicityThreshold" />
+                                                        <TableColumn fx:id="toxicityActionColumn" text="%settings.chat.action" />
+                                                    </columns>
+                                                    <columnResizePolicy>
+                                                        <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                                                    </columnResizePolicy>
+                                                </TableView>
+                                            </children>
+                                        </GridPane>
+                                        <GridPane styleClass="setting-container">
+                                            <columnConstraints>
+                                                <ColumnConstraints hgrow="ALWAYS" minWidth="10.0"/>
+                                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0"/>
+                                            </columnConstraints>
+                                            <rowConstraints>
+                                                <RowConstraints minHeight="10.0" valignment="TOP" vgrow="SOMETIMES"/>
+                                                <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
+                                            </rowConstraints>
+                                            <children>
                                                 <Label fx:id="notifyAtMentionTitle" styleClass="setting-title"
                                                        text="%settings.chat.notifyOnAtMentionOnly"/>
                                                 <Label fx:id="notifyAtMentionDescription"

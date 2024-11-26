@@ -11,7 +11,10 @@ import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.TransientNotification;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
+import com.faforever.client.player.SocialStatus;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.ToxicityAction;
+import com.faforever.client.preferences.ToxicitySetting;
 import com.faforever.client.reporting.ReportingService;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.StageHolder;
@@ -337,6 +340,14 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
     JavaFxUtil.addListener(StageHolder.getStage().focusedProperty(), new WeakChangeListener<>(resetUnreadMessagesListener));
     JavaFxUtil.addListener(getRoot().selectedProperty(), new WeakChangeListener<>(resetUnreadMessagesListener));
 
+    preferencesService.getPreferences().getChat().showToxicityProperty().addListener((observable, oldValue, newValue) -> {
+      if (newValue) {
+        JavaFxUtil.runLater(() -> getJsObject().call("enableToxicityVisibility"));
+      } else {
+        JavaFxUtil.runLater(() -> getJsObject().call("disableToxicityVisibility"));
+      }
+    });
+
     getRoot().setOnClosed(this::onClosed);
   }
 
@@ -514,7 +525,7 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
           messageTextField.clear();
           messageTextField.setDisable(false);
           messageTextField.requestFocus();
-          onChatMessage(new ChatMessage(userService.getUsername(), Instant.now(), userService.getUsername(), message, true));
+          onChatMessage(new ChatMessage(userService.getUsername(), Instant.now(), userService.getUsername(), message, 0.0, true));
         })
         .exceptionally(throwable -> {
           throwable = ConcurrentUtil.unwrapIfCompletionException(throwable);
@@ -586,12 +597,15 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
         incrementUnreadMessagesCount(1);
       }
 
+      boolean appended;
       if (requiresNewChatSection(chatMessage)) {
-        appendChatMessageSection(chatMessage);
+        appended = appendChatMessageSection(chatMessage);
       } else {
-        appendMessage(chatMessage);
+        appended = appendMessage(chatMessage);
       }
-      lastMessage = chatMessage;
+      if (appended) {
+        lastMessage = chatMessage;
+      }
     });
   }
 
@@ -602,7 +616,8 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
         || lastMessage.isAction();
   }
 
-  private void appendMessage(ChatMessage chatMessage) throws IOException {
+  int nextTextLineId = 0;
+  private boolean appendMessage(ChatMessage chatMessage) throws IOException {
     URL themeFileUrl;
     if (preferencesService.getPreferences().getChat().getChatFormat() == ChatFormat.COMPACT) {
       themeFileUrl = uiService.getThemeFileUrl(CHAT_TEXT_COMPACT);
@@ -610,12 +625,17 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
       themeFileUrl = uiService.getThemeFileUrl(CHAT_TEXT_EXTENDED);
     }
 
-    String html = renderHtml(chatMessage, themeFileUrl, null);
-
-    insertIntoContainer(html, "chat-section-" + lastEntryId);
+    String html = renderHtml(++nextTextLineId, chatMessage, themeFileUrl, null);
+    if (html != null) {
+      insertIntoContainer(html, "chat-section-" + lastEntryId);
+      return true;
+    }
+    else {
+      return false;
+    }
   }
 
-  private void appendChatMessageSection(ChatMessage chatMessage) throws IOException {
+  private boolean appendChatMessageSection(ChatMessage chatMessage) throws IOException {
     URL themeFileURL;
     if (preferencesService.getPreferences().getChat().getChatFormat() == ChatFormat.COMPACT) {
       themeFileURL = uiService.getThemeFileUrl(CHAT_SECTION_COMPACT);
@@ -623,12 +643,18 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
       themeFileURL = uiService.getThemeFileUrl(CHAT_SECTION_EXTENDED);
     }
 
-    String html = renderHtml(chatMessage, themeFileURL, ++lastEntryId);
-    insertIntoContainer(html, MESSAGE_CONTAINER_ID);
-    appendMessage(chatMessage);
+    String html = renderHtml(++nextTextLineId, chatMessage, themeFileURL, ++lastEntryId);
+    if (html != null) {
+      insertIntoContainer(html, MESSAGE_CONTAINER_ID);
+      appendMessage(chatMessage);
+      return true;
+    }
+    else {
+      return false;
+    }
   }
 
-  private String renderHtml(ChatMessage chatMessage, URL themeFileUrl, @Nullable Integer sectionId) throws IOException {
+  private String renderHtml(int textLineId, ChatMessage chatMessage, URL themeFileUrl, @Nullable Integer sectionId) throws IOException {
     String html;
     try (Reader reader = new InputStreamReader(themeFileUrl.openStream())) {
       html = CharStreams.toString(reader);
@@ -685,9 +711,30 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
       onMention(chatMessage);
     }
 
+    SocialStatus senderSocialStatus = playerOptional.map(Player::getSocialStatus).orElse(SocialStatus.OTHER);
+    ToxicityAction toxicityAction = chatMessage.getToxicityScore() > 0.0
+        ? preferencesService.getPreferences().getChat().getToxicitySettings()
+        .stream()
+        .filter(ts -> ts.getSocialStatus() == senderSocialStatus)
+        .filter(ts -> chatMessage.getToxicityScore() > ts.getToxicityThreshold())
+        .map(ToxicitySetting::getAction)
+        .findAny()
+        .orElse(ToxicityAction.SHOW)
+        : ToxicityAction.SHOW;
+
+    if (toxicityAction == ToxicityAction.HIDE) {
+      return null;
+    }
+
     return html
         .replace("{css-classes}", Joiner.on(' ').join(cssClasses))
         .replace("{inline-style}", getInlineStyle(login))
+        .replace("{message-id}", String.format("%d", textLineId))
+        .replace("{text_redacted}", i18n.get("chat.toxicity.filter.redactedFormat", chatMessage.getToxicityScore()))
+        .replace("{text-content-display}", toxicityAction == ToxicityAction.REDACT ? "none" : "block")
+        .replace("{toxicity-display}", preferencesService.getPreferences().getChat().getShowToxicity() ? "inline" : "none")
+        .replace("{text-redacted-display}", toxicityAction == ToxicityAction.REDACT ? "block" : "none")
+        .replace("{toxicity}", String.format("%.2f", chatMessage.getToxicityScore()))
         // Always replace text last in case the message contains one of the placeholders.
         .replace("{text}", text);
   }
