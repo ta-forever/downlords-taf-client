@@ -6,12 +6,11 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.task.TaskService;
+import com.faforever.client.ui.tray.TaskBarFlashTask;
 import com.faforever.client.update.Version;
 import com.google.common.base.Strings;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.StringProperty;
 import javafx.concurrent.Worker;
 import javafx.css.PseudoClass;
 import javafx.scene.Node;
@@ -19,7 +18,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.Pane;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -123,7 +121,7 @@ public class StatusBarController implements Controller<Node> {
         return;
       }
 
-      taskPane.setVisible(true);
+      taskPane.setVisible(!(worker instanceof TaskBarFlashTask));
       taskProgressBar.progressProperty().bind(worker.progressProperty());
       taskProgressLabel.textProperty().bind(Bindings.createStringBinding(
           () -> {
