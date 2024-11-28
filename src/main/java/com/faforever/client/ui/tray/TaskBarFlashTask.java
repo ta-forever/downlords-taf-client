@@ -2,11 +2,14 @@ package com.faforever.client.ui.tray;
 
 import com.faforever.client.task.CompletableTask;
 import com.faforever.client.ui.StageHolder;
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.scene.control.ProgressIndicator;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+
+import java.util.concurrent.CountDownLatch;
 
 /*
  * A task that just holds INDETERMINATE_PROGRESS until JavaFX Stage indicates isFocused
@@ -19,31 +22,44 @@ import org.springframework.stereotype.Component;
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class TaskBarFlashTask extends CompletableTask<Void> {
 
-  ChangeListener<Boolean> onFocusedListener;
-  Object semaphore;
+  private final CountDownLatch latch = new CountDownLatch(1);
 
-  TaskBarFlashTask() {
+  private final ChangeListener<Boolean> onFocusedListener = (obs, oldValue, newValue) -> {
+    if (newValue) {
+      latch.countDown();
+    }
+  };
+
+  public TaskBarFlashTask() {
     super(Priority.LOW);
-    semaphore = new Object();
-    onFocusedListener = (obs, oldValue, newValue) -> {
-      if (newValue) {
-        synchronized(semaphore) {
-          semaphore.notify();
-        }
-      }
-    };
+    Platform.runLater(() -> StageHolder.getStage().focusedProperty().addListener(onFocusedListener));
   }
 
   @Override
   protected Void call() throws Exception {
     updateProgress(0.0, ProgressIndicator.INDETERMINATE_PROGRESS);
-    StageHolder.getStage().focusedProperty().addListener(onFocusedListener);
     if (!StageHolder.getStage().isFocused()) {
-      synchronized (semaphore) {
-        semaphore.wait();
-      }
+      latch.await();
     }
-    StageHolder.getStage().focusedProperty().removeListener(onFocusedListener);
+    Platform.runLater(() -> StageHolder.getStage().focusedProperty().removeListener(onFocusedListener));
     return null;
+  }
+
+  @Override
+  protected void cancelled() {
+    super.cancelled();
+    latch.countDown();
+    Platform.runLater(() -> StageHolder.getStage().focusedProperty().removeListener(onFocusedListener));
+  }
+
+  @Override
+  protected void failed() {
+    super.failed();
+    Platform.runLater(() -> StageHolder.getStage().focusedProperty().removeListener(onFocusedListener));
+  }
+
+  @Override
+  protected void succeeded() {
+    super.succeeded();
   }
 }
