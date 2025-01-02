@@ -6,6 +6,7 @@ import com.faforever.client.fx.DefaultImageView;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.leaderboard.LeaderboardService;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
@@ -370,14 +371,15 @@ public class GameDetailController implements Controller<Pane> {
     game.featuredModProperty().addListener(featuredModInvalidationListener);
     featuredModInvalidationListener.invalidated(game.featuredModProperty());
 
-    gameRatingTypeInvalidationListener = observable -> JavaFxUtil.runLater(() ->
-        this.leaderboardService.getLeaderboards()
-            .thenAccept(leaderboards -> leaderboards.stream()
+    gameRatingTypeInvalidationListener = observable ->
+        leaderboardService.getLeaderboards()
+            .thenCombine(modService.getFeaturedMod(game.getFeaturedMod()), (leaderboards, featuredMod) -> leaderboards.stream()
                 .filter(lb -> lb.getTechnicalName().equals(game.getRatingType()))
                 .findAny()
-                .ifPresent(lb ->
-                    JavaFxUtil.runLater(() ->
-                        gameRatingTypeLabel.setText(i18n.get(lb.getNameKey()))))));
+                .map(Leaderboard::getNameKey)
+                .orElse(featuredMod.getDisplayName()))
+            .thenAccept(text -> JavaFxUtil.runLater(() -> gameRatingTypeLabel.setText(text)));
+
     game.ratingTypeProperty().addListener(gameRatingTypeInvalidationListener);
     gameRatingTypeInvalidationListener.invalidated(game.ratingTypeProperty());
 

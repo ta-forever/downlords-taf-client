@@ -10,6 +10,7 @@ import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.leaderboard.LeaderboardService;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
+import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.mod.ModService;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
@@ -233,21 +234,23 @@ public class GameTileController implements Controller<Node> {
       this.watchButtonController.setGame(game);
     }
 
-    modService.getFeaturedMod(game.getFeaturedMod()).thenAccept(featuredModBean -> JavaFxUtil.runLater(
-            () -> gameTypeLabel.setText(featuredModBean.getDisplayName())
-        ));
+    CompletableFuture<FeaturedMod> featuredModFuture = modService.getFeaturedMod(game.getFeaturedMod());
+    featuredModFuture.thenAccept(featuredModBean ->
+        JavaFxUtil.runLater(() -> gameTypeLabel.setText(featuredModBean.getDisplayName()))
+    );
 
-    CompletableFuture<List<Leaderboard>> leaderboards = this.leaderboardService.getLeaderboards();
-    gameRatingTypeLabel.textProperty().bind(createStringBinding(() -> {
-          Optional<Leaderboard> olb = leaderboards.get().stream()
-              .filter(lb -> lb.getTechnicalName().equals(game.getRatingType()))
-              .findAny();
-          return olb.isPresent()
-              ? i18n.get(olb.get().getNameKey())
-              : i18n.get(String.format("leaderboard.%s.name", game.getRatingType()));
-        },
-        game.ratingTypeProperty()
-    ));
+    CompletableFuture<List<Leaderboard>> leaderboardsFuture = this.leaderboardService.getLeaderboards();
+    gameRatingTypeLabel.textProperty().bind(
+        createStringBinding(() -> {
+            List<Leaderboard> leaderboards = leaderboardsFuture.get();
+            FeaturedMod featuredMod = featuredModFuture.get();
+            return leaderboards.stream()
+                .filter(lb -> lb.getTechnicalName().equals(game.getRatingType()))
+                .findAny()
+                .map(Leaderboard::getNameKey)
+                .orElse(featuredMod.getDisplayName());
+        }, game.ratingTypeProperty())
+    );
 
     gameTypeLabel.visibleProperty().bind(game.ratingTypeProperty().isEqualTo(DEFAULT_RATING_TYPE));
     gameRatingTypeGlobalLabel.visibleProperty().bind(gameTypeLabel.visibleProperty());
