@@ -713,16 +713,16 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
 
     SocialStatus senderSocialStatus = playerOptional.map(Player::getSocialStatus).orElse(SocialStatus.OTHER);
     ToxicityAction toxicityAction = chatMessage.getToxicityScore() > 0.0
-        ? preferencesService.getPreferences().getChat().getToxicitySettings()
+        ? preferencesService.getPreferences().getChat().getToxicitySettings2()
         .stream()
         .filter(ts -> ts.getSocialStatus() == senderSocialStatus)
         .filter(ts -> chatMessage.getToxicityScore() > ts.getToxicityThreshold())
         .map(ToxicitySetting::getAction)
         .findAny()
-        .orElse(ToxicityAction.SHOW)
-        : ToxicityAction.SHOW;
+        .orElse(ToxicityAction.DISPLAY)
+        : ToxicityAction.DISPLAY;
 
-    if (toxicityAction == ToxicityAction.HIDE) {
+    if (toxicityAction == ToxicityAction.SUPPRESS) {
       return null;
     }
 
@@ -731,9 +731,9 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
         .replace("{inline-style}", getInlineStyle(login))
         .replace("{message-id}", String.format("%d", textLineId))
         .replace("{text_redacted}", i18n.get("chat.toxicity.filter.redactedFormat", chatMessage.getToxicityScore()))
-        .replace("{text-content-display}", toxicityAction == ToxicityAction.REDACT ? "none" : "block")
+        .replace("{text-content-display}", toxicityAction == ToxicityAction.MASK ? "none" : "block")
         .replace("{toxicity-display}", preferencesService.getPreferences().getChat().getShowToxicity() ? "inline" : "none")
-        .replace("{text-redacted-display}", toxicityAction == ToxicityAction.REDACT ? "block" : "none")
+        .replace("{text-redacted-display}", toxicityAction == ToxicityAction.MASK ? "block" : "none")
         .replace("{toxicity}", String.format("%.2f", chatMessage.getToxicityScore()))
         // Always replace text last in case the message contains one of the placeholders.
         .replace("{text}", text);

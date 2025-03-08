@@ -61,7 +61,7 @@ public class ChatPrefs {
    */
   private final IntegerProperty idleThreshold;
 
-  private final ListProperty<ToxicitySetting> toxicitySettings;
+  private final ListProperty<ToxicitySetting> toxicitySettings2;
 
 
   public ChatPrefs() {
@@ -86,10 +86,10 @@ public class ChatPrefs {
     Optional.ofNullable(LOCALE_LANGUAGES_TO_CHANNELS.get(localeLanguage))
         .ifPresent(channel -> autoJoinChannels.get().add(channel.getChannelName()));
 
-    toxicitySettings = new SimpleListProperty<>(FXCollections.observableArrayList());
-    toxicitySettings.add(new ToxicitySetting(SocialStatus.FOE, 0.67, ToxicityAction.HIDE));
-    toxicitySettings.add(new ToxicitySetting(SocialStatus.FRIEND, 0.95, ToxicityAction.REDACT));
-    toxicitySettings.add(new ToxicitySetting(SocialStatus.OTHER, 0.9, ToxicityAction.REDACT));
+    toxicitySettings2 = new SimpleListProperty<>(FXCollections.observableArrayList());
+    toxicitySettings2.add(new ToxicitySetting(SocialStatus.FOE, 0.67, ToxicityAction.SUPPRESS));
+    toxicitySettings2.add(new ToxicitySetting(SocialStatus.FRIEND, 0.95, ToxicityAction.MASK));
+    toxicitySettings2.add(new ToxicitySetting(SocialStatus.OTHER, 0.9, ToxicityAction.SUPPRESS));
   }
 
   public ChatColorMode getChatColorMode() {
@@ -257,9 +257,9 @@ public class ChatPrefs {
     return autoJoinChannels.get();
   }
 
-  public ObservableList<ToxicitySetting> getToxicitySettings() { return toxicitySettings.get(); }
+  public ObservableList<ToxicitySetting> getToxicitySettings2() { return toxicitySettings2.get(); }
 
-  public ListProperty<ToxicitySetting> toxicitySettingsProperty() { return toxicitySettings; }
+  public ListProperty<ToxicitySetting> toxicitySettings2Property() { return toxicitySettings2; }
 
   public boolean isPlayerListShown() {
     return playerListShown.get();
