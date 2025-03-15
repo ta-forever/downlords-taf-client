@@ -19,6 +19,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.sun.jna.platform.win32.Shell32Util;
 import com.sun.jna.platform.win32.ShlObj;
+import javafx.application.Platform;
 import javafx.beans.property.Property;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
@@ -26,6 +27,9 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
 import javafx.scene.paint.Color;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import lombok.Getter;
 import lombok.SneakyThrows;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +48,6 @@ import java.lang.invoke.MethodHandles;
 import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -63,8 +66,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -131,7 +132,8 @@ public class PreferencesService implements InitializingBean {
   private final Timer timer;
   private final Collection<WeakReference<PreferenceUpdateListener>> updateListeners;
   private final ClientProperties clientProperties;
-  private ClientConfiguration clientConfiguration;
+  @Getter
+  private ClientConfiguration clientRemoteConfiguration;
 
   private Preferences preferences;
   private TimerTask storeInBackgroundTask;
@@ -152,6 +154,8 @@ public class PreferencesService implements InitializingBean {
         .registerTypeAdapter(ObservableMap.class, FactionTypeAdapter.INSTANCE)
         .registerTypeAdapter(java.net.HttpCookie.class, HttpCookieTypeAdapter.INSTANCE)
         .create();
+
+   this.clientRemoteConfiguration = doGetClientRemoteConfiguration();
   }
 
   public Path getPreferencesDirectory() {
@@ -162,13 +166,21 @@ public class PreferencesService implements InitializingBean {
   }
 
   @Override
-  public void afterPropertiesSet() throws IOException {
+  public void afterPropertiesSet() {
     if (Files.exists(preferencesFilePath)) {
-      if (!deleteFileIfEmpty()) {
-        readExistingFile(preferencesFilePath);
+      try {
+        if (deleteFileIfEmpty()) {
+          preferences = new Preferences(clientRemoteConfiguration.getDefaultChatChannels());
+        }
+        else {
+          readExistingFile(clientRemoteConfiguration, preferencesFilePath);
+          migratePreferences(clientRemoteConfiguration, preferences);
+        }
+      } catch (IOException e) {
+        logger.error("[afterPropertiesSet(on clientConfigurationFuture): {}", e.getMessage());
       }
     } else {
-      preferences = new Preferences();
+      preferences = new Preferences(clientRemoteConfiguration.getDefaultChatChannels());
     }
 
     setLoggingLevel();
@@ -179,7 +191,7 @@ public class PreferencesService implements InitializingBean {
    * Sometimes, old preferences values are renamed or moved. The purpose of this method is to temporarily perform such
    * migrations.
    */
-  private void migratePreferences(Preferences preferences) {
+  private void migratePreferences(ClientConfiguration remotePreferences, Preferences preferences) {
 
     List<TotalAnnihilationPrefs> taPrefs = preferences.getTotalAnnihilationAllMods();
     Map<String,TotalAnnihilationPrefs> toKeep = new HashMap<>();
@@ -198,6 +210,14 @@ public class PreferencesService implements InitializingBean {
       taPrefs.add(prefs.getValue());
     }
 
+    if (preferences.getChat().autoJoinChannels2Property() == null) {
+      preferences.getChat().initAutoJoinChannels2(remotePreferences.getDefaultChatChannels());
+    }
+
+    if (preferences.getChat().toxicitySettings2Property() == null) {
+      preferences.getChat().initToxicitySettings2Property();
+    }
+
     storeInBackground();
   }
 
@@ -214,7 +234,6 @@ public class PreferencesService implements InitializingBean {
   private boolean deleteFileIfEmpty() throws IOException {
     if (Files.size(preferencesFilePath) == 0) {
       Files.delete(preferencesFilePath);
-      preferences = new Preferences();
       return true;
     }
     return false;
@@ -236,13 +255,13 @@ public class PreferencesService implements InitializingBean {
     return getFafDataDirectory().resolve("repos");
   }
 
-  private void readExistingFile(Path path) {
+  private void readExistingFile(ClientConfiguration remotePreferences, Path path) {
     Assert.checkNotNullIllegalState(preferences, "Preferences have already been initialized");
 
     try (Reader reader = Files.newBufferedReader(path, CHARSET)) {
       logger.debug("Reading preferences file {}", preferencesFilePath.toAbsolutePath());
       preferences = gson.fromJson(reader, Preferences.class);
-      migratePreferences(preferences);
+      migratePreferences(remotePreferences, preferences);
     } catch (Exception e) {
       logger.warn("Preferences file " + path.toAbsolutePath() + " could not be read", e);
       CountDownLatch waitForUser = new CountDownLatch(1);
@@ -253,21 +272,19 @@ public class PreferencesService implements InitializingBean {
         if (errorReading.getResult() == ButtonType.YES) {
           try {
             Files.delete(path);
-            preferences = new Preferences();
+            preferences = new Preferences(remotePreferences.getDefaultChatChannels());
             waitForUser.countDown();
           } catch (Exception ex) {
             logger.error("Error deleting settings file", ex);
             Alert errorDeleting = new Alert(AlertType.ERROR, MessageFormat.format("Error deleting setting. Please delete them yourself. You find them under {} .", preferencesFilePath.toAbsolutePath()), ButtonType.OK);
             errorDeleting.showAndWait();
-            preferences = new Preferences();
+            preferences = new Preferences(remotePreferences.getDefaultChatChannels());
             waitForUser.countDown();
           }
         }
       });
       noCatch((NoCatchRunnable) waitForUser::await);
-
     }
-
   }
 
   public Preferences getPreferences() {
@@ -444,43 +461,42 @@ public class PreferencesService implements InitializingBean {
   }
 
   boolean warnedUnknownHostException = false;
-  public ClientConfiguration getRemotePreferences() throws IOException {
-    if (clientConfiguration != null) {
+  private ClientConfiguration doGetClientRemoteConfiguration() {
+
+    try {
+      URL url = new URL(clientProperties.getClientConfigUrl());
+      HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+      urlConnection.setConnectTimeout((int) clientProperties.getClientConfigConnectTimeout().toMillis());
+
+      Reader reader = new InputStreamReader(urlConnection.getInputStream(), StandardCharsets.UTF_8);
+      ClientConfiguration clientConfiguration = gson.fromJson(reader, ClientConfiguration.class);
       return clientConfiguration;
     }
-
-    URL url = new URL(clientProperties.getClientConfigUrl());
-    HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
-    urlConnection.setConnectTimeout((int) clientProperties.getClientConfigConnectTimeout().toMillis());
-
-    try (Reader reader = new InputStreamReader(urlConnection.getInputStream(), StandardCharsets.UTF_8)) {
-      clientConfiguration = gson.fromJson(reader, ClientConfiguration.class);
-      return clientConfiguration;
-    }
-    catch(UnknownHostException e) {
+    catch(IOException e) {
       if (warnedUnknownHostException == false) {
         warnedUnknownHostException = true;
         CountDownLatch waitForUserInput = new CountDownLatch(1);
         JavaFxUtil.runLater(() -> {
-          Alert alert = new Alert(AlertType.ERROR, String.format("Unable to resolve host '%s'. Please check your internet connectivity and DNS settings", e.getMessage()), ButtonType.OK);
-          Optional<ButtonType> buttonType = alert.showAndWait();
+          Alert alert = new Alert(AlertType.ERROR);
+          alert.setTitle("Error");
+          alert.setHeaderText("Failed to Retrieve Remote Configuration from server.\nPlease check your internet connectivity and DNS settings.");
+          alert.setContentText(String.format("%s\n%s", e.getClass(), e.getMessage()));
+
+          Stage alertStage = (Stage) alert.getDialogPane().getScene().getWindow();
+          alertStage.setAlwaysOnTop(true);
+          alert.initModality(Modality.APPLICATION_MODAL);
+
+          alert.showAndWait();
           waitForUserInput.countDown();
+
+          // Terminate the application after user closes the alert
+          Platform.exit();
+          System.exit(0);
         });
         noCatch((NoCatchRunnable) waitForUserInput::await);
       }
-      throw e;
+      return null;
     }
-  }
-
-
-  public CompletableFuture<ClientConfiguration> getRemotePreferencesAsync() {
-    return CompletableFuture.supplyAsync(() -> {
-      try {
-        return getRemotePreferences();
-      } catch (IOException e) {
-        throw new CompletionException(e);
-      }
-    });
   }
 
   public void setLoggingLevel() {

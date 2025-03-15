@@ -3,11 +3,13 @@ package com.faforever.client.chat;
 import com.faforever.client.chat.event.ChatMessageEvent;
 import com.faforever.client.net.ConnectionState;
 import com.faforever.client.notification.NotificationService;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.test.AbstractPlainJavaFxTest;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.user.UserService;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
+import com.google.errorprone.annotations.DoNotMock;
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.MapChangeListener;
@@ -60,6 +62,8 @@ public class ChatControllerTest extends AbstractPlainJavaFxTest {
   private NotificationService notificationService;
   @Mock
   private EventBus eventBus;
+  @Mock
+  private PreferencesService preferencesService;
   @Captor
   private ArgumentCaptor<MapChangeListener<String, ChatChannel>> channelsListener;
   @Captor
@@ -70,7 +74,7 @@ public class ChatControllerTest extends AbstractPlainJavaFxTest {
 
   @Before
   public void setUp() throws Exception {
-    instance = new ChatController(chatService, uiService, userService, notificationService, eventBus);
+    instance = new ChatController(chatService, uiService, userService, notificationService, eventBus, preferencesService);
 
     connectionState = new SimpleObjectProperty<>(ConnectionState.DISCONNECTED);
 

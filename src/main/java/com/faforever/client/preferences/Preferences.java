@@ -25,6 +25,7 @@ import java.net.HttpCookie;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.List;
 
 import static javafx.collections.FXCollections.observableArrayList;
 
@@ -87,9 +88,9 @@ public class Preferences {
   private final ListProperty<String> LeaderBoardsSelectionFilter;
   private final BooleanProperty gameRoomPopout;
 
-  public Preferences() {
+  public Preferences(List<String> defaultAutoJoinChatChannels) {
     gameTileSortingOrder = new SimpleObjectProperty<>(TilesSortingOrder.PLAYER_DES);
-    chat = new ChatPrefs();
+    chat = new ChatPrefs(defaultAutoJoinChatChannels);
     login = new LoginPrefs();
     generator = new GeneratorPrefs();
 

@@ -27,6 +27,7 @@ import com.faforever.client.task.CompletableTask;
 import com.faforever.client.task.CompletableTask.Priority;
 import com.faforever.client.task.TaskService;
 import com.faforever.client.teammatchmaking.MatchmakingQueue;
+import com.faforever.client.update.ClientConfiguration;
 import com.faforever.client.util.Tuple;
 import com.faforever.client.vault.search.SearchController.SearchConfig;
 import com.google.common.annotations.VisibleForTesting;
@@ -953,13 +954,9 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   public CompletableFuture<Tuple<List<MapBean>, Integer>> getRecommendedMapsWithPageCount(int count, int page) {
-    return preferencesService.getRemotePreferencesAsync()
-        .thenCompose(
-            clientConfiguration -> {
-              List<Integer> recommendedMapIds = clientConfiguration.getRecommendedMaps();
-              return fafService.getMapsByIdWithPageCount(recommendedMapIds, count, page);
-            }
-        );
+    ClientConfiguration clientConfiguration = preferencesService.getClientRemoteConfiguration();
+    List<Integer> recommendedMapIds = clientConfiguration.getRecommendedMaps();
+    return fafService.getMapsByIdWithPageCount(recommendedMapIds, count, page);
   }
 
   public CompletableFuture<Tuple<List<MapBean>, Integer>> getHighestRatedMapsWithPageCount(int count, int page) {

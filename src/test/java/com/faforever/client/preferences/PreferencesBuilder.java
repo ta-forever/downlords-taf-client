@@ -237,7 +237,7 @@ public class PreferencesBuilder {
     }
 
     public ChatPrefsBuilder autoJoinChannels(ObservableList<String> autoJoinChannels) {
-      chatPrefs.getAutoJoinChannels().setAll(autoJoinChannels);
+      chatPrefs.getAutoJoinChannels2().setAll(autoJoinChannels);
       return this;
     }
 

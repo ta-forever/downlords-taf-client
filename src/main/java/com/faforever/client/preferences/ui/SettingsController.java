@@ -66,6 +66,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.ComboBoxTableCell;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
@@ -401,11 +402,17 @@ public class SettingsController implements Controller<Node> {
 
     autoChannelListView.setSelectionModel(new NoSelectionModel<>());
     autoChannelListView.setFocusTraversable(false);
-    autoChannelListView.setItems(preferencesService.getPreferences().getChat().getAutoJoinChannels());
+    autoChannelListView.setItems(preferencesService.getPreferences().getChat().getAutoJoinChannels2());
     autoChannelListView.setCellFactory(param -> uiService.<RemovableListCellController>loadFxml("theme/settings/removable_cell.fxml"));
     autoChannelListView.getItems().addListener((ListChangeListener<String>) c -> preferencesService.storeInBackground());
     autoChannelListView.managedProperty().bind(autoChannelListView.visibleProperty());
     autoChannelListView.visibleProperty().bind(Bindings.createBooleanBinding(() -> !autoChannelListView.getItems().isEmpty(), autoChannelListView.getItems()));
+
+    String prompt = String.format("eg: %s", String.join(", ", preferencesService.getClientRemoteConfiguration().getAllChatChannels()));
+    this.channelTextField.setPromptText(prompt);
+    Tooltip channelTextFieldTooltip = new Tooltip(prompt);
+    this.channelTextField.setTooltip(channelTextFieldTooltip);
+    channelTextField.setPromptText(prompt);
 
     advancedIceLogToggle.selectedProperty().bindBidirectional(preferences.advancedIceLogEnabledProperty());
 
@@ -732,7 +739,7 @@ public class SettingsController implements Controller<Node> {
     if (!channelTextField.getText().startsWith("#")) {
       channelTextField.setText("#" + channelTextField.getText());
     }
-    preferencesService.getPreferences().getChat().getAutoJoinChannels().add(channelTextField.getText());
+    preferencesService.getPreferences().getChat().getAutoJoinChannels2().add(channelTextField.getText());
     preferencesService.storeInBackground();
     channelTextField.clear();
   }

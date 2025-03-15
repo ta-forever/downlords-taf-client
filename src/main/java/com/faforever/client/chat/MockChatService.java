@@ -220,8 +220,4 @@ public class MockChatService implements ChatService, InitializingBean {
     return new ChatChannelUser(username, false);
   }
 
-  @Override
-  public String getDefaultChannelName() {
-    return channelUserListListeners.keySet().iterator().next();
-  }
 }

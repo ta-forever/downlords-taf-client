@@ -15,6 +15,7 @@ import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.SocialStatus;
 import com.faforever.client.player.UserOfflineEvent;
 import com.faforever.client.preferences.ChatPrefs;
+import com.faforever.client.preferences.LocalizationPrefs;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.domain.NewTadaReplayMessage;
@@ -73,6 +74,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.ListIterator;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -113,14 +116,8 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   @VisibleForTesting
   ObjectProperty<ConnectionState> connectionState = new SimpleObjectProperty<>(ConnectionState.DISCONNECTED);
   @VisibleForTesting
-  String defaultChannelName;
-  @VisibleForTesting
   DefaultClient client;
   private NickServ nickServ;
-  /**
-   * A list of channels the server wants us to join.
-   */
-  private List<String> autoChannels;
   /**
    * Indicates whether the "auto channels" already have been joined. This is needed because we don't want to auto join
    * channels after a reconnect that the user left before the reconnect.
@@ -374,21 +371,20 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     }
   }
 
-  private void joinAutoChannels() {
-    if (autoChannels == null) {
+  private void joinChannels(List<String> channels, boolean reverseOrder) {
+    if (channels == null) {
       return;
     }
-    autoChannels.forEach(this::joinChannel);
-    autoChannelsJoined = true;
-  }
 
-  private void joinSavedAutoChannels() {
-    ObservableList<String> savedAutoChannels = preferencesService.getPreferences().getChat().getAutoJoinChannels();
-    if (savedAutoChannels == null) {
-      return;
+    if (reverseOrder) {
+      ListIterator<String> iterator = channels.listIterator(channels.size());
+      while (iterator.hasPrevious()) {
+        joinChannel(iterator.previous());
+      }
     }
-    log.debug("Joining user's saved auto channel: {}", savedAutoChannels);
-    savedAutoChannels.forEach(this::joinChannel);
+    else {
+      channels.forEach(this::joinChannel);
+    }
   }
 
   private void onDisconnected() {
@@ -425,7 +421,9 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
       chatChannelUsersByChannelAndName.remove(mapKey(username, channelName));
     }
     // The server doesn't yet tell us when a user goes offline, so we have to rely on the user leaving IRC.
-    if (defaultChannelName.equals(channelName)) {
+    if (preferencesService.getClientRemoteConfiguration().getAllChatChannels().stream()
+        .noneMatch(chan -> this.chatChannelUsersByChannelAndName.containsKey(mapKey(username, chan))))
+    {
       eventBus.post(new UserOfflineEvent(username));
     }
   }
@@ -451,11 +449,11 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   private void onSocialMessage(SocialMessage socialMessage) {
     log.debug("[onSocialMessage]");
     if (!autoChannelsJoined && socialMessage.getChannels() != null) {
-      this.autoChannels = new ArrayList<>(socialMessage.getChannels());
-      autoChannels.remove(defaultChannelName);
-      autoChannels.add(0, defaultChannelName);
-      joinAutoChannels();
-      joinSavedAutoChannels();
+      autoChannelsJoined = true;
+      List<String> autoChannels = new ArrayList<>(socialMessage.getChannels());
+      autoChannels.removeAll(preferencesService.getPreferences().getChat().getAutoJoinChannels2());
+      joinChannels(autoChannels, true);
+      joinChannels(preferencesService.getPreferences().getChat().getAutoJoinChannels2(), true);
     }
   }
 
@@ -464,7 +462,6 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     String username = userService.getUsername();
 
     Irc irc = clientProperties.getIrc();
-    this.defaultChannelName = irc.getDefaultChannel();
 
     client = (DefaultClient) Client.builder()
         .user(String.valueOf(userService.getUserId()))
@@ -585,7 +582,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Override
   public boolean isDefaultChannel(String channelName) {
-    return defaultChannelName.equals(channelName);
+    return preferencesService.getClientRemoteConfiguration().getAllChatChannels().contains(channelName);
   }
 
   @Override
@@ -628,11 +625,6 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     return unreadMessagesCount;
   }
 
-  @Override
-  public String getDefaultChannelName() {
-    return defaultChannelName;
-  }
-
   private void onModeratorSet(String channelName, String username) {
     getOrCreateChatUser(username, channelName, true).setModerator(true);
   }
@@ -649,9 +641,11 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
         clientProperties.getTada().getRootUrl(), newTadaReplayMessage.getTadaReplayId(),
         players, newTadaReplayMessage.getMapName());
 
-    ChatMessage msg = new ChatMessage(
-        getDefaultChannelName(), Instant.now(), i18n.get("chat.operator"), chatContent, 0.0, true);
+    for (String channel: preferencesService.getClientRemoteConfiguration().getAllChatChannels()) {
+      ChatMessage msg = new ChatMessage(
+          channel, Instant.now(), i18n.get("chat.operator"), chatContent, 0.0, true);
+      eventBus.post(new ChatMessageEvent(msg));
+    }
 
-    eventBus.post(new ChatMessageEvent(msg));
   }
 }

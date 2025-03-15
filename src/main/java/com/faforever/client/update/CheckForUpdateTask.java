@@ -50,7 +50,7 @@ public class CheckForUpdateTask extends CompletableTask<UpdateInfo> {
     log.info("Checking for client update");
 
     // no async call because this task runs asynchronously already
-    ClientConfiguration clientConfiguration = preferencesService.getRemotePreferences();
+    ClientConfiguration clientConfiguration = preferencesService.getClientRemoteConfiguration();
 
     ReleaseInfo latestRelease = clientConfiguration.getLatestRelease();
     String version = latestRelease.getVersion();

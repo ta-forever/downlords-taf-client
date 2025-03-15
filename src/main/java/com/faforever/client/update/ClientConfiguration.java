@@ -16,6 +16,8 @@ public class ClientConfiguration {
   List<Endpoints> endpoints;
   GitHubRepo gitHubRepo;
   List<GameFilesWhitelistEntry> gameFilesWhitelist;
+  List<String> defaultChatChannels;
+  List<String> allChatChannels;
 
   @Data
   public static class GameFilesWhitelistEntry {

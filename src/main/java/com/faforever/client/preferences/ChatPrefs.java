@@ -23,6 +23,7 @@ import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.scene.paint.Color;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -55,16 +56,15 @@ public class ChatPrefs {
   private final ObjectProperty<TimeInfo> timeFormat;
   private final ObjectProperty<DateInfo> dateFormat;
   private final ObjectProperty<ChatFormat> chatFormat;
-  private final ListProperty<String> autoJoinChannels;
+  private ListProperty<String> autoJoinChannels2;
   /**
    * Time in minutes a player has to be inactive to be considered idle.
    */
   private final IntegerProperty idleThreshold;
 
-  private final ListProperty<ToxicitySetting> toxicitySettings2;
+  private ListProperty<ToxicitySetting> toxicitySettings2;
 
-
-  public ChatPrefs() {
+  public ChatPrefs(List<String> defaultAutoJoinChannels) {
     timeFormat = new SimpleObjectProperty<>(TimeInfo.AUTO);
     dateFormat = new SimpleObjectProperty<>(DateInfo.AUTO);
     maxMessages = new SimpleIntegerProperty(500);
@@ -79,17 +79,10 @@ public class ChatPrefs {
     chatColorMode = new SimpleObjectProperty<>(DEFAULT);
     idleThreshold = new SimpleIntegerProperty(10);
     chatFormat = new SimpleObjectProperty<>(ChatFormat.COMPACT);
-    autoJoinChannels = new SimpleListProperty<>(FXCollections.observableArrayList());
     playerListShown = new SimpleBooleanProperty(true);
 
-    Locale localeLanguage = new Locale(Locale.getDefault().getLanguage());
-    Optional.ofNullable(LOCALE_LANGUAGES_TO_CHANNELS.get(localeLanguage))
-        .ifPresent(channel -> autoJoinChannels.get().add(channel.getChannelName()));
-
-    toxicitySettings2 = new SimpleListProperty<>(FXCollections.observableArrayList());
-    toxicitySettings2.add(new ToxicitySetting(SocialStatus.FOE, 0.67, ToxicityAction.SUPPRESS));
-    toxicitySettings2.add(new ToxicitySetting(SocialStatus.FRIEND, 0.95, ToxicityAction.MASK));
-    toxicitySettings2.add(new ToxicitySetting(SocialStatus.OTHER, 0.9, ToxicityAction.SUPPRESS));
+    initAutoJoinChannels2(defaultAutoJoinChannels);
+    initToxicitySettings2Property();
   }
 
   public ChatColorMode getChatColorMode() {
@@ -253,13 +246,31 @@ public class ChatPrefs {
     return idleThreshold;
   }
 
-  public ObservableList<String> getAutoJoinChannels() {
-    return autoJoinChannels.get();
+  public ObservableList<String> getAutoJoinChannels2() { return autoJoinChannels2.get(); }
+  public ListProperty<String> autoJoinChannels2Property() { return autoJoinChannels2; }
+  void initAutoJoinChannels2(List<String> channels) {
+    if (autoJoinChannels2 == null) {
+      ObservableList<String> observableList = FXCollections.observableArrayList(channels);
+      autoJoinChannels2 = new SimpleListProperty<>(observableList);
+    }
+    else {
+      autoJoinChannels2.clear();
+      autoJoinChannels2.addAll(channels);
+    }
   }
 
   public ObservableList<ToxicitySetting> getToxicitySettings2() { return toxicitySettings2.get(); }
+    public ListProperty<ToxicitySetting> toxicitySettings2Property() { return toxicitySettings2; }
 
-  public ListProperty<ToxicitySetting> toxicitySettings2Property() { return toxicitySettings2; }
+  void initToxicitySettings2Property() {
+    if (toxicitySettings2 == null) {
+      toxicitySettings2 = new SimpleListProperty<>(FXCollections.observableArrayList());
+    }
+    toxicitySettings2.clear();
+    toxicitySettings2.add(new ToxicitySetting(SocialStatus.FOE, 0.67, ToxicityAction.SUPPRESS));
+    toxicitySettings2.add(new ToxicitySetting(SocialStatus.FRIEND, 0.95, ToxicityAction.MASK));
+    toxicitySettings2.add(new ToxicitySetting(SocialStatus.OTHER, 0.9, ToxicityAction.SUPPRESS));
+  }
 
   public boolean isPlayerListShown() {
     return playerListShown.get();

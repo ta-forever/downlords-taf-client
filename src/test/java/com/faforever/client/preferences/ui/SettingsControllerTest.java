@@ -172,11 +172,11 @@ public class SettingsControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void testOnAddChannelButtonPressed() {
-    preferences.getChat().getAutoJoinChannels().clear();
+    preferences.getChat().getAutoJoinChannels2().clear();
     instance.channelTextField.setText("#newbie");
     instance.onAddAutoChannel();
     List<String> expected = Collections.singletonList("#newbie");
-    assertThat(preferences.getChat().getAutoJoinChannels(), is(expected));
+    assertThat(preferences.getChat().getAutoJoinChannels2(), is(expected));
   }
 
   @Test
@@ -186,7 +186,7 @@ public class SettingsControllerTest extends AbstractPlainJavaFxTest {
     Locale.setDefault(firstEntry.getKey());
 
     List<String> expected = Collections.singletonList(firstEntry.getValue().getChannelName());
-    preferences.getChat().getAutoJoinChannels().setAll(expected);
+    preferences.getChat().getAutoJoinChannels2().setAll(expected);
 
     assertThat(instance.autoChannelListView.getItems(), is(expected));
   }

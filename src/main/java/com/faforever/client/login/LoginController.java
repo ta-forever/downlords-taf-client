@@ -100,6 +100,7 @@ public class LoginController implements Controller<Pane> {
   }
 
   public void initialize() {
+    initializeFuture = new CompletableFuture<>();
     updateInfoFuture = clientUpdateService.getNewestUpdate();
 
     downloadUpdateButton.managedProperty().bind(downloadUpdateButton.visibleProperty());
@@ -168,38 +169,31 @@ public class LoginController implements Controller<Pane> {
       clientProperties.getGalacticWar().setUrl(endpoints.getGalacticWar().getUrl());
     });
 
+    ClientConfiguration clientConfiguration = preferencesService.getClientRemoteConfiguration();
+    if (clientProperties.isUseRemotePreferences() && clientConfiguration != null) {
+      String minimumVersion = clientConfiguration.getLatestRelease().getMinimumVersion();
+      boolean shouldUpdate = false;
+      try {
+        shouldUpdate = Version.shouldUpdate(Version.getCurrentVersion(), minimumVersion);
+      } catch (Exception e) {
+        log.error("Something went wrong checking for update", e);
+      }
+      if (minimumVersion != null && shouldUpdate) {
+        loginAllowed = false;
+        JavaFxUtil.runLater(() -> showClientOutdatedPane(minimumVersion));
+      } else {
+        loginAllowed = true;
+      }
 
-    if (clientProperties.isUseRemotePreferences()) {
-      initializeFuture = preferencesService.getRemotePreferencesAsync()
-          .thenApply(clientConfiguration -> {
-            String minimumVersion = clientConfiguration.getLatestRelease().getMinimumVersion();
-            boolean shouldUpdate = false;
-            try {
-              shouldUpdate = Version.shouldUpdate(Version.getCurrentVersion(), minimumVersion);
-            } catch (Exception e) {
-              log.error("Something went wrong checking for update", e);
-            }
-            if (minimumVersion != null && shouldUpdate) {
-              loginAllowed = false;
-              JavaFxUtil.runLater(() -> showClientOutdatedPane(minimumVersion));
-            } else {
-              loginAllowed = true;
-            }
-            return clientConfiguration;
-          })
-          .thenAccept(clientConfiguration -> JavaFxUtil.runLater(() -> {
-            Endpoints defaultEndpoint = clientConfiguration.getEndpoints().get(0);
-            environmentComboBox.getItems().addAll(clientConfiguration.getEndpoints());
-            environmentComboBox.getSelectionModel().select(defaultEndpoint);
-          })).exceptionally(throwable -> {
-            log.warn("Could not read remote preferences", throwable);
-            loginAllowed = true;
-            return null;
-          });
+      Endpoints defaultEndpoint = clientConfiguration.getEndpoints().get(0);
+      environmentComboBox.getItems().addAll(clientConfiguration.getEndpoints());
+      environmentComboBox.getSelectionModel().select(defaultEndpoint);
+
     } else {
       loginAllowed = true;
-      initializeFuture = CompletableFuture.completedFuture(null);
     }
+
+    initializeFuture.complete(null);
   }
 
   private void showClientOutdatedPane(String minimumVersion) {

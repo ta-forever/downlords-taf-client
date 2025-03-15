@@ -18,6 +18,7 @@ import com.faforever.client.teammatchmaking.MatchmakingQueue;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.dialog.Dialog;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
+import com.faforever.client.update.ClientConfiguration;
 import com.faforever.client.vault.VaultEntityController;
 import com.faforever.client.vault.search.SearchController.SearchConfig;
 import com.google.common.eventbus.EventBus;
@@ -67,14 +68,8 @@ public class MapVaultController extends VaultEntityController<MapBean> {
     super.initialize();
     manageVaultButton.setVisible(false);
     manageVaultButton.setText(i18n.get("management.maps.openButton.label"));
-    preferencesService.getRemotePreferencesAsync().thenAccept(clientConfiguration ->
-        recommendedShowRoomPageCount = clientConfiguration.getRecommendedMaps().size() / TOP_ELEMENT_COUNT)
-        .exceptionally(throwable -> {
-          recommendedShowRoomPageCount = null;
-          log.warn("Client Configuration get recommended maps failed", throwable);
-          return null;
-        });
-
+    ClientConfiguration clientConfiguration = preferencesService.getClientRemoteConfiguration();
+    recommendedShowRoomPageCount = clientConfiguration.getRecommendedMaps().size() / TOP_ELEMENT_COUNT;
     eventBus.register(this);
   }
 

@@ -66,6 +66,4 @@ public interface ChatService {
   void incrementUnreadMessagesCount(int delta);
 
   ReadOnlyIntegerProperty unreadMessagesCount();
-
-  String getDefaultChannelName();
 }
