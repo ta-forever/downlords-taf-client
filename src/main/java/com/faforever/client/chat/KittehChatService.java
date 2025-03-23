@@ -635,17 +635,22 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   private void onNewTadaReplayMessage(NewTadaReplayMessage newTadaReplayMessage) {
     String players = newTadaReplayMessage.getPlayers().stream()
-        .reduce("", (a,b) -> a.isEmpty() ? b : a + "+" + b);
+        .reduce("", (a, b) -> a.isEmpty() ? b : a + "+" + b);
 
     String chatContent = i18n.get("tada.advertise.newReplay",
         clientProperties.getTada().getRootUrl(), newTadaReplayMessage.getTadaReplayId(),
         players, newTadaReplayMessage.getMapName());
 
-    for (String channel: preferencesService.getClientRemoteConfiguration().getAllChatChannels()) {
-      ChatMessage msg = new ChatMessage(
-          channel, Instant.now(), i18n.get("chat.operator"), chatContent, 0.0, true);
-      eventBus.post(new ChatMessageEvent(msg));
-    }
-
+    this.playerService.getCurrentPlayer()
+        .map(player -> preferencesService.getClientRemoteConfiguration().getAllChatChannels().stream()
+            .filter(channel -> this.chatChannelUsersByChannelAndName.containsKey(mapKey(player.getUsername(), channel)))
+            .findFirst()
+            .map(channel -> {
+              ChatMessage msg = new ChatMessage(
+                  channel, Instant.now(), i18n.get("chat.operator"), chatContent, 0.0, true);
+              eventBus.post(new ChatMessageEvent(msg));
+              return msg;
+            })
+        );
   }
 }
