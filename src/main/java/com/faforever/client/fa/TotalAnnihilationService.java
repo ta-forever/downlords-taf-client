@@ -101,8 +101,8 @@ public class TotalAnnihilationService {
 
   private List<String> getGpgNet4TaCommand(
       String bindAddress, int consolePort, String gameMod, Path gamePath, boolean autoLaunch, boolean lockOptions,
-      int players, boolean proactiveResend, int maxPacketSize, String gpgNetUrl, String demoCompilerUrl, @Nullable String ircUrl,
-      Path logFile, int launchServerPort, boolean isRated
+      boolean proactiveResend, int maxPacketSize, String gpgNetUrl, String demoCompilerUrl, @Nullable String ircUrl,
+      Path logFile, int launchServerPort, boolean isRated, List<String> args
   ) {
     Path exePath = getNativeGpgnet4taDir().resolve(org.bridj.Platform.isLinux() ? "gpgnet4ta" : "gpgnet4ta.exe");
 
@@ -113,13 +113,15 @@ public class TotalAnnihilationService {
         "--consoleport", String.valueOf(consolePort),
         "--gamemod", gameMod,
         "--gamepath", gamePath.toString(),
-        "--players", String.valueOf(players),
         "--gpgnet", gpgNetUrl,
         "--logfile", logFile.toString(),
         "--launchserverport", String.valueOf(launchServerPort),
         "--democompilerurl", demoCompilerUrl,
         "--maxpacketsize", String.valueOf(maxPacketSize)
     ));
+
+    command.addAll(args);
+    command.replaceAll(s -> s.startsWith("/") ? "--" + s.substring(1) : s);
 
     preferencesService.getClientRemoteConfiguration().getGameFilesWhitelist().stream()
         .filter(entry -> entry.getModTechnical().equals(gameMod))
@@ -315,8 +317,8 @@ public class TotalAnnihilationService {
 
     List<String> gpgnet4taCommand = getGpgNet4TaCommand(
         loopbackAddress, this.consolePort, prefs.getBaseGameName(), prefs.getInstalledPath(), autoLaunch,
-        false, 10, proactiveResend, maxPacketSize, gpgNetUrl, demoCompilerUrl, ircUrl,
-        preferencesService.getNewLogFile("game", uid), this.launchServerPort, isRated);
+        false, proactiveResend, maxPacketSize, gpgNetUrl, demoCompilerUrl, ircUrl,
+        preferencesService.getNewLogFile("game", uid), this.launchServerPort, isRated, additionalArgs);
 
     return launch(getNativeGpgnet4taDir(), gpgnet4taCommand);
   }

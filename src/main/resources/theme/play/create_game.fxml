@@ -54,9 +54,17 @@
             </padding>
         </HBox>
 
-        <VBox GridPane.columnIndex="2" GridPane.rowIndex="1" spacing="2.0">
+        <HBox GridPane.columnIndex="2" GridPane.rowIndex="1" alignment="CENTER_RIGHT" maxWidth="1.7976931348623157E308" spacing="10.0">
+        <children>
             <CheckBox fx:id="onlyForFriendsCheckBox" mnemonicParsing="false" text="%game.create.onlyFriends" />
-        </VBox>
+            <Region HBox.hgrow="ALWAYS" minWidth="10"/>
+            <ComboBox fx:id="maxPlayersComboBox" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" />
+            <Label alignment="CENTER_RIGHT" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="%games.create.maxPlayers" wrapText="true"/>
+        </children>
+            <padding>
+                <Insets left="2.0" right="2.0" top="2.0" />
+            </padding>
+        </HBox>
 
         <VBox visible="false" managed="false" GridPane.columnIndex="2" GridPane.columnSpan="2147483647" GridPane.rowIndex="1" spacing="2.0">
             <HBox alignment="CENTER_RIGHT" maxWidth="1.7976931348623157E308" spacing="10.0">
@@ -133,9 +141,6 @@
             <Label alignment="CENTER_RIGHT" maxHeight="1.7976931348623157E308"
                    maxWidth="1.7976931348623157E308" text="Preview" wrapText="true"/>
             <ComboBox fx:id="mapPreviewTypeComboBox" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" />
-            <Label alignment="CENTER_RIGHT" maxHeight="1.7976931348623157E308"
-                   maxWidth="1.7976931348623157E308" text="Positions" wrapText="true"/>
-            <ComboBox fx:id="mapPreviewMaxPositionsComboBox" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" />
         </HBox>
         <VBox fx:id="mapPreview" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" GridPane.columnIndex="2"
               GridPane.columnSpan="2" GridPane.rowIndex="4" GridPane.rowSpan="2" GridPane.vgrow="ALWAYS">

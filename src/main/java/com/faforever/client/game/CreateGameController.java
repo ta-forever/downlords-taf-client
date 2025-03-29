@@ -70,12 +70,10 @@ import org.springframework.stereotype.Component;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -131,7 +129,7 @@ public class CreateGameController implements Controller<Pane> {
   public Label versionLabel;
   public Label hpiArchiveLabel;
   public ComboBox<PreviewType> mapPreviewTypeComboBox;
-  public ComboBox<Integer> mapPreviewMaxPositionsComboBox;
+  public ComboBox<Integer> maxPlayersComboBox;
   public CheckBox onlyForFriendsCheckBox;
   public ComboBox<LiveReplayOption> liveReplayOptionComboBox;
   public ListView<MatchmakingQueue> mapPoolListView;
@@ -234,21 +232,27 @@ public class CreateGameController implements Controller<Pane> {
       }
     });
     mapPreviewTypeComboBox.getSelectionModel().selectedItemProperty().addListener(
-        (observable, oldValue, newValue) -> setSelectedMap(mapListView.getSelectionModel().getSelectedItem(), newValue, mapPreviewMaxPositionsComboBox.getSelectionModel().getSelectedItem()));
+        (observable, oldValue, newValue) -> setSelectedMap(mapListView.getSelectionModel().getSelectedItem(), newValue, maxPlayersComboBox.getSelectionModel().getSelectedItem()));
 
-    mapPreviewMaxPositionsComboBox.getItems().setAll(IntStream.rangeClosed(2,10).boxed().collect(Collectors.toList()));
-    mapPreviewMaxPositionsComboBox.getSelectionModel().select(0);
-    mapPreviewMaxPositionsComboBox.setConverter(new StringConverter<>() {
+    maxPlayersComboBox.getItems().setAll(
+        IntStream.rangeClosed(2, 10)
+            .map(i -> 12 - i) // Maps (2 -> 10), (3 -> 9), ..., (10 -> 2)
+            .boxed()
+            .collect(Collectors.toList())
+    );
+
+    maxPlayersComboBox.getSelectionModel().select(Integer.valueOf(preferencesService.getPreferences().getLastGame().getMaxPlayers()));
+    maxPlayersComboBox.setConverter(new StringConverter<>() {
       @Override
-      public String toString(Integer maxPositions) {
-        return String.valueOf(maxPositions);
+      public String toString(Integer maxPlayers) {
+        return String.valueOf(maxPlayers);
       }
       @Override
       public Integer fromString(String string) {
         throw new UnsupportedOperationException("Not supported");
       }
     });
-    mapPreviewMaxPositionsComboBox.getSelectionModel().selectedItemProperty().addListener(
+    maxPlayersComboBox.getSelectionModel().selectedItemProperty().addListener(
         (observable, oldValue, newValue) -> setSelectedMap(mapListView.getSelectionModel().getSelectedItem(), mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(), newValue));
 
     mapSearchTextField.textProperty().addListener(
@@ -346,6 +350,7 @@ public class CreateGameController implements Controller<Pane> {
   private void init() {
     bindGameVisibility();
     bindLiveReplayDelayOption();
+    bindMaxPlayersOption();
     initMapSelection(KnownFeaturedMod.DEFAULT.getBaseGameName());
     initFeaturedModList();
     initMapPoolList();
@@ -444,13 +449,20 @@ public class CreateGameController implements Controller<Pane> {
     });
   }
 
+  private void bindMaxPlayersOption() {
+    maxPlayersComboBox.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
+      preferencesService.getPreferences().getLastGame().setMaxPlayers(newValue);
+      preferencesService.storeInBackground();
+    });
+  }
+
   protected void initMapSelection(String modTechnical) {
     setAvailableMaps(modTechnical);
     mapListView.setCellFactory(param -> new StringListCell<>(MapBean::getMapName));
     ChangeListener<MapBean> selectedMapChangeListener = (observable, oldValue, newValue) -> JavaFxUtil.runLater(() -> {
       PreviewType previewType = mapPreviewTypeComboBox.getSelectionModel().getSelectedItem();
-      Integer maxPositions = mapPreviewMaxPositionsComboBox.getSelectionModel().getSelectedItem();
-      setSelectedMap(newValue, previewType, maxPositions);
+      Integer maxPlayers = maxPlayersComboBox.getSelectionModel().getSelectedItem();
+      setSelectedMap(newValue, previewType, maxPlayers);
     });
     mapListView.getSelectionModel().selectedItemProperty().addListener(selectedMapChangeListener);
     selectedMapChangeListener.changed(null, null, mapListView.getSelectionModel().selectedItemProperty().getValue());
@@ -799,7 +811,8 @@ public class CreateGameController implements Controller<Pane> {
         rankedEnabledCheckBox.isSelected()
             ? mapPoolListView.getSelectionModel().getSelectedItem().getLeaderboard().getTechnicalName()
             : DEFAULT_RATING_TYPE,
-        null);
+        null,
+        maxPlayersComboBox.getValue());
 
     gameService.hostGame(newGameInfo).exceptionally(throwable -> {
       log.warn("Game could not be hosted", throwable);
@@ -819,7 +832,8 @@ public class CreateGameController implements Controller<Pane> {
                   ? mapPoolListView.getSelectionModel().getSelectedItem().getLeaderboard().getTechnicalName()
                   : DEFAULT_RATING_TYPE,
               liveReplayOptionComboBox.getSelectionModel().getSelectedItem(),
-              passwordTextField.getText()
+              passwordTextField.getText(),
+              maxPlayersComboBox.getValue()
               ));
   }
 
@@ -857,7 +871,7 @@ public class CreateGameController implements Controller<Pane> {
       setSelectedMap(
           mapListView.getSelectionModel().getSelectedItem(),
           mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(),
-          mapPreviewMaxPositionsComboBox.getSelectionModel().getSelectedItem());
+          maxPlayersComboBox.getSelectionModel().getSelectedItem());
     });
     contextMenu.getItems().add(menuItem);
 
@@ -878,7 +892,7 @@ public class CreateGameController implements Controller<Pane> {
           JavaFxUtil.runLater(() -> setSelectedMap(
               mapListView.getSelectionModel().getSelectedItem(),
               mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(),
-              mapPreviewMaxPositionsComboBox.getSelectionModel().getSelectedItem()));
+              maxPlayersComboBox.getSelectionModel().getSelectedItem()));
         });
   }
 

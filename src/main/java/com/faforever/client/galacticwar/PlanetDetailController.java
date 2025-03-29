@@ -276,7 +276,8 @@ public class PlanetDetailController implements Controller<Node> {
         null, null, false,
         lastGameLiveReplayOption.getDelaySeconds(),
         this.leaderboard.get().getTechnicalName(),
-        this.planet.getName());
+        this.planet.getName(),
+        2);
 
     mapService.optionalEnsureMapLatestVersion(this.planet.getModTechnical(), this.mapBean.get())
         .exceptionally(throwable -> {

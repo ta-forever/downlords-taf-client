@@ -24,4 +24,5 @@ public class NewGameInfo {
   private Integer replayDelaySeconds; // or -ve to disable
   private String ratingType;
   private String galacticWarPlanetName; // or null
+  private Integer maxPlayers;
 }

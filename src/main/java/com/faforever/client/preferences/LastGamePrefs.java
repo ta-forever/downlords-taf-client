@@ -20,6 +20,7 @@ public class LastGamePrefs {
   private final BooleanProperty lastGameOnlyFriends;
   private final ObjectProperty<LiveReplayOption> liveReplayOption;
   private final BooleanProperty lastGameRankedEnabled;
+  private final ObjectProperty<Integer> maxPlayers;
 
   public LastGamePrefs() {
     lastGameType = new SimpleStringProperty(KnownFeaturedMod.DEFAULT.getTechnicalName());
@@ -32,6 +33,7 @@ public class LastGamePrefs {
     lastGameEnforceRating = new SimpleBooleanProperty(false);
     liveReplayOption = new SimpleObjectProperty<>(LiveReplayOption.FIVE_MINUTES);
     lastGameRankedEnabled = new SimpleBooleanProperty(true);
+    maxPlayers = new SimpleObjectProperty<>(4);
   }
 
   public String getLastGameType() {
@@ -153,4 +155,8 @@ public class LastGamePrefs {
   public BooleanProperty lastGameRankedEnabledProperty() {
     return this.lastGameRankedEnabled;
   }
+
+  public void setMaxPlayers(int maxPlayers) { this.maxPlayers.set(maxPlayers); }
+  public int getMaxPlayers() { return this.maxPlayers.get(); }
+  public ObjectProperty<Integer> maxPlayersProperty() { return this.maxPlayers; }
 }

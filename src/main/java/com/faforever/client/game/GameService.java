@@ -840,7 +840,7 @@ public class GameService implements InitializingBean {
     }
   }
 
-  public void updateSettingsForStagingGame(String title, String mapName, String ratingType, LiveReplayOption liveReplayOption, String password) {
+  public void updateSettingsForStagingGame(String title, String mapName, String ratingType, LiveReplayOption liveReplayOption, String password, int maxPlayers) {
     Game currentGame = getCurrentGame();
     if (isGameRunning() && currentGame != null && currentGame.getStatus()==GameStatus.STAGING) {
       try {
@@ -864,6 +864,9 @@ public class GameService implements InitializingBean {
         }
         if (password != null) {
           this.fafService.setGamePassword(password);
+        }
+        if (maxPlayers > 0 && maxPlayers <= 10) {
+          this.totalAnnihilationService.sendToConsole(String.format("/max_players %d", maxPlayers));
         }
       }
       catch (IOException e) {
@@ -902,6 +905,7 @@ public class GameService implements InitializingBean {
 
           boolean isRated = availableLeaderboards.stream().anyMatch(
               lb -> lb.getTechnicalName().equals(gameLaunchMessage.getRatingType()));
+
           log.info("[startGame] ratingType={}, isRated={}", gameLaunchMessage.getRatingType(), isRated);
 
           process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, uid, args,
@@ -1138,7 +1142,8 @@ public class GameService implements InitializingBean {
             prototype.getMinRating(), prototype.getMaxRating(),
             prototype.getEnforceRating(), prototype.getReplayDelaySeconds(),
             prototype.getRatingType(),
-            prototype.getGalacticWarPlanetName())));
+            prototype.getGalacticWarPlanetName(),
+            prototype.getMaxPlayers())));
   }
 
   private ObjectProperty<Game> autoJoinRequestedGameProperty = new SimpleObjectProperty<>();
