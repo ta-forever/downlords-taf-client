@@ -9,7 +9,7 @@
 <StackPane fx:id="root" prefWidth="800" prefHeight="600" maxHeight="1.7976931348623157E308" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.faforever.client.play.GamePopoutController">
     <VBox>
         <HBox alignment="CENTER_LEFT" styleClass="user-info-header-area" VBox.vgrow="NEVER">
-            <Label fx:id="headingLabel" maxWidth="1.7976931348623157E308" styleClass="h2" text="%game.chatBox.title"/>
+            <Label fx:id="headingLabel" maxWidth="1.7976931348623157E308" styleClass="h2"/>
         </HBox>
         <HBox VBox.vgrow="ALWAYS">
             <TabPane fx:id="chatTabPane" styleClass="chat-tab-pane" tabClosingPolicy="UNAVAILABLE" HBox.hgrow="ALWAYS"/>

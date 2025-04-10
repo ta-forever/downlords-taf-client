@@ -56,7 +56,6 @@ faf-client:
   show-ice-adapter-debug-Window: ${SHOW_ICE_ADAPTER_DEBUG_WINDOW:false}
 
   discord:
-    discord_prerelease_feedback_channel_url: https://discord.gg/KP7ndRagrM
     application_id: 785128540886532097
     small_image_key: taf-logo-crystal-nodt-512
     big_image_key: taf-logo-crystal-dt-512

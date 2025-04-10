@@ -125,8 +125,7 @@
                                   <HBox fx:id="hideBox" spacing="10.0" GridPane.columnIndex="1"
                                         GridPane.columnSpan="2147483647" GridPane.rowIndex="4">
                                       <children>
-                                          <Label maxHeight="1.7976931348623157E308" minHeight="0.0" minWidth="0.0"
-                                                 text="%map.hidden"/>
+                                          <Label maxHeight="1.7976931348623157E308" minHeight="0.0" minWidth="0.0"/>
                                           <Label fx:id="isHiddenLabel" maxHeight="1.7976931348623157E308"/>
                                           <Button fx:id="hideButton" minHeight="0.0" minWidth="0.0"
                                                      mnemonicParsing="false" onAction="#hideMap" text="%map.hide"/>

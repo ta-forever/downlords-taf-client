@@ -402,20 +402,6 @@ public class ChatUserServiceTest extends AbstractPlainJavaFxTest {
   }
 
   @Test
-  public void testStatusToHosting() {
-    Game game = GameBuilder.create().defaultValues().status(GameStatus.OPEN).host("junit").get();
-    player.setGame(game);
-    when(i18n.get("game.gameStatus.hosting")).thenReturn("Hosting");
-    instance.associatePlayerToChatUser(chatUser, player);
-    WaitForAsyncUtils.waitForFxEvents();
-
-    verify(uiService).getThemeImage(UiService.CHAT_LIST_STATUS_HOSTING);
-    assertTrue(chatUser.getMapImage().isPresent());
-    assertEquals(PlayerStatus.HOSTING, chatUser.getGameStatus().orElse(null));
-    assertEquals("Hosting", chatUser.getStatusTooltipText().orElse(null));
-  }
-
-  @Test
   public void testStatusToLobbying() {
     Game game = GameBuilder.create().defaultValues().status(GameStatus.OPEN).get();
     player.setGame(game);

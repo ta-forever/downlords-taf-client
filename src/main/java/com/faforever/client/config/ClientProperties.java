@@ -172,7 +172,6 @@ public class ClientProperties {
     private String applicationId;
     private String smallImageKey;
     private String bigImageKey;
-    private String discordPrereleaseFeedbackChannelUrl;
     /** URL to join Discord server. */
     private List<DiscordServer> servers;
   }

@@ -416,7 +416,7 @@ public class PreferencesService implements InitializingBean {
     return isGameExeValidWithError(preferences.getTotalAnnihilation(baseGameName).getInstalledExePath()) == null;
   }
 
-  /// @return null is executablePath is valid. Otherwise a i18n string for indicating the problem to the user
+  /// @return null if executablePath is valid. Otherwise a i18n string for indicating the problem to the user
   public String isGameExeValidWithError(Path executablePath) {
     if (executablePath == null) {
       return "gamePath.select.noneChosen";

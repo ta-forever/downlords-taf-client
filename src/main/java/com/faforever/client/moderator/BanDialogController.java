@@ -53,7 +53,9 @@ public class BanDialogController implements Controller<Node> {
   public void initialize() {
     dialogLayout.setBody(banDialogRoot);
 
-    userLabel.textProperty().bind(Bindings.createStringBinding(() -> i18n.get("moderator.ban.user", player.get().getUsername()), player));
+    userLabel.textProperty().bind(Bindings.createStringBinding(() ->
+        player.get() != null ? i18n.get("moderator.ban.user", player.get().getUsername()) : "<ban user>", player)
+    );
 
     periodTypeChoiceBox.setConverter(new StringConverter<PeriodType>() {
       @Override
@@ -67,6 +69,7 @@ public class BanDialogController implements Controller<Node> {
       }
     });
     periodTypeChoiceBox.setItems(FXCollections.observableArrayList(PeriodType.values()));
+    periodTypeChoiceBox.getSelectionModel().select(PeriodType.WEEK);
     JavaFxUtil.makeNumericTextField(durationText, 5, false);
   }
 
