@@ -1,17 +1,13 @@
 package com.faforever.client.preferences;
 
-import com.faforever.client.map.generator.GenerationType;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
 public class GeneratorPrefs {
-  private final ObjectProperty<GenerationType> generationType;
   private final StringProperty commandLineArgs;
   private final IntegerProperty spawnCount;
   private final StringProperty mapSize;
@@ -34,7 +30,6 @@ public class GeneratorPrefs {
     spawnCount = new SimpleIntegerProperty(6);
     mapSize = new SimpleStringProperty("10km");
     mapStyle = new SimpleStringProperty("");
-    generationType = new SimpleObjectProperty<>(GenerationType.CASUAL);
     waterDensity = new SimpleIntegerProperty(0);
     waterRandom = new SimpleBooleanProperty(true);
     plateauDensity = new SimpleIntegerProperty(0);
@@ -95,18 +90,6 @@ public class GeneratorPrefs {
 
   public StringProperty mapStyleProperty() {
     return mapStyle;
-  }
-
-  public GenerationType getGenerationType() {
-    return generationType.get();
-  }
-
-  public void setGenerationType(GenerationType generationType) {
-    this.generationType.set(generationType);
-  }
-
-  public ObjectProperty<GenerationType> generationTypeProperty() {
-    return generationType;
   }
 
   public int getWaterDensity() {

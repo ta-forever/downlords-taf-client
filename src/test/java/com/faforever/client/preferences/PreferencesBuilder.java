@@ -6,7 +6,6 @@ import com.faforever.client.chat.ChatUserCategory;
 import com.faforever.client.game.Faction;
 import com.faforever.client.game.GamesTilesContainerController.TilesSortingOrder;
 import com.faforever.client.main.event.NavigationItem;
-import com.faforever.client.map.generator.GenerationType;
 import com.faforever.client.preferences.Preferences.UnitDataBaseType;
 import com.faforever.client.vault.search.SearchController.SortConfig;
 import javafx.collections.FXCollections;
@@ -112,10 +111,6 @@ public class PreferencesBuilder {
 
   public WindowPrefsBuilder windowPrefs() {
     return new WindowPrefsBuilder();
-  }
-
-  public GeneratorPrefsBuilder generatorPrefs() {
-    return new GeneratorPrefsBuilder();
   }
 
   public TotalAnnihilationPrefsBuilder totalAnnihilationPrefs(String baseGameName, Path installedExePath) {
@@ -261,65 +256,6 @@ public class PreferencesBuilder {
 
     public TotalAnnihilationPrefsBuilder(String baseGameName, Path installedExePath) {
        totalAnnihilationPrefs = preferences.setTotalAnnihilation(baseGameName, installedExePath, null);
-    }
-  }
-
-  public class GeneratorPrefsBuilder extends SubPreferencesBuilder {
-    private final GeneratorPrefs generatorPrefs = preferences.getGenerator();
-
-    public GeneratorPrefsBuilder generationType(GenerationType generationType) {
-      generatorPrefs.setGenerationType(generationType);
-      return this;
-    }
-
-    public GeneratorPrefsBuilder spawnCount(int spawnCount) {
-      generatorPrefs.setSpawnCount(spawnCount);
-      return this;
-    }
-
-    public GeneratorPrefsBuilder mapSize(String mapSize) {
-      generatorPrefs.setMapSize(mapSize);
-      return this;
-    }
-
-    public GeneratorPrefsBuilder waterDensity(int waterDensity) {
-      generatorPrefs.setWaterDensity(waterDensity);
-      return this;
-    }
-
-    public GeneratorPrefsBuilder waterRandom(boolean waterRandom) {
-      generatorPrefs.setWaterRandom(waterRandom);
-      return this;
-    }
-
-    public GeneratorPrefsBuilder plateauDensity(int plateauDensity) {
-      generatorPrefs.setPlateauDensity(plateauDensity);
-      return this;
-    }
-
-    public GeneratorPrefsBuilder plateauRandom(boolean plateauRandom) {
-      generatorPrefs.setPlateauRandom(plateauRandom);
-      return this;
-    }
-
-    public GeneratorPrefsBuilder mountainDensity(int mountainDensity) {
-      generatorPrefs.setMountainDensity(mountainDensity);
-      return this;
-    }
-
-    public GeneratorPrefsBuilder mountainRandom(boolean mountainRandom) {
-      generatorPrefs.setMountainRandom(mountainRandom);
-      return this;
-    }
-
-    public GeneratorPrefsBuilder rampDensity(int rampDensity) {
-      generatorPrefs.setRampDensity(rampDensity);
-      return this;
-    }
-
-    public GeneratorPrefsBuilder rampRandom(boolean rampRandom) {
-      generatorPrefs.setRampRandom(rampRandom);
-      return this;
     }
   }
 

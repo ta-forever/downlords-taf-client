@@ -62,7 +62,7 @@ public class I18n implements InitializingBean {
         new Locale("pl"), // 140 users
         new Locale("ru"), // 98 users
         new Locale("es"), // 77 users
-        new Locale("sv"), // swedish 76 users
+        //new Locale("sv"), // swedish 76 users, but I'm told Swedes don't use translations
         Locale.ITALIAN, // 72 users
         Locale.CHINESE, // 61 users
         // finish 47 users
