@@ -71,7 +71,7 @@ public class I18n implements InitializingBean {
         // hungarian 35 users
         // norwegian 29 users
         new Locale("cs"), // 27 users
-        // korean 27 users
+        new Locale("ko"), // korean 27 users
         // malay 26 users
         new Locale("ca"), // 23 users
         new Locale("uk"), // 20 users
