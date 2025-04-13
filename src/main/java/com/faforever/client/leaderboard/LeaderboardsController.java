@@ -202,17 +202,22 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     preferencesService.storeInBackground();
 
     leaderboardService.getEntries(leaderboardComboBox.getValue()).thenAccept(leaderboardEntryBeans -> {
-      ratingTable.getItems().clear();
       if (friendsOnlyCheckBox.isSelected()) {
         leaderboardEntryBeans = leaderboardEntryBeans.stream()
             .filter(leaderboardEntry -> playerService.isFriend(leaderboardEntry.getUserId()))
             .collect(Collectors.toList());
       }
-      ratingTable.setItems(observableList(leaderboardEntryBeans));
-      usernamesAutoCompletion = TextFields.bindAutoCompletion(searchTextField,
-          leaderboardEntryBeans.stream().map(LeaderboardEntry::getUsername).collect(Collectors.toList()));
-      usernamesAutoCompletion.setDelay(0);
-      contentPane.setVisible(true);
+      List<LeaderboardEntry> finalLeaderboardEntryBeans = leaderboardEntryBeans;
+      JavaFxUtil.runLater(() -> {
+        ratingTable.getItems().clear();
+        ratingTable.setItems(observableList(finalLeaderboardEntryBeans));
+        usernamesAutoCompletion = TextFields.bindAutoCompletion(
+            searchTextField,
+            finalLeaderboardEntryBeans.stream().map(LeaderboardEntry::getUsername).collect(Collectors.toList()))
+        ;
+        usernamesAutoCompletion.setDelay(0);
+        contentPane.setVisible(true);
+      });
     }).exceptionally(throwable -> {
       contentPane.setVisible(false);
       log.warn("Error while loading leaderboard entries", throwable);
