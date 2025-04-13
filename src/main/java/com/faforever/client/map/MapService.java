@@ -1186,14 +1186,14 @@ public class MapService implements InitializingBean, DisposableBean {
       this.folderName = folderName;
     }
 
-    public String getDisplayName() {
+    public String getI18nKey() {
       return switch (this) {
-        case MINI -> "Minimap";
-        case POSITIONS -> "Positions";
-        case MEXES -> "Metal Patches";
-        case GEOS -> "Geo Vents";
-        case ROCKS -> "Reclaim (metal)";
-        case TREES -> "Reclaim (energy)";
+        case MINI -> "map.previewType.minimap";
+        case POSITIONS -> "map.previewType.Positions";
+        case MEXES -> "map.previewType.metalPatches";
+        case GEOS -> "map.previewType.geoVents";
+        case ROCKS -> "map.previewType.reclaimMetal";
+        case TREES -> "map.previewType.reclaimEnergy";
       };
     }
 

@@ -2,6 +2,7 @@ package com.faforever.client.teammatchmaking;
 
 import com.faforever.client.api.dto.MatchmakerQueue;
 import com.faforever.client.api.dto.MatchmakerQueueMapPool;
+import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.mod.FeaturedMod;
@@ -62,19 +63,19 @@ public class MatchmakingQueue {
     return queue;
   }
 
-  public static MatchmakingQueue fromDto(MatchmakerQueue dto) {
+  public static MatchmakingQueue fromDto(MatchmakerQueue dto, I18n i18n) {
     MatchmakingQueue queue = new MatchmakingQueue();
     queue.setQueueId(Integer.parseInt(dto.getId()));
     queue.setQueueName(dto.getTechnicalName());
     queue.setTeamSize(dto.getTeamSize());
     queue.setEnabled(dto.isEnabled());
     queue.setLeaderboard(Leaderboard.fromDto(dto.getLeaderboard()));
-    queue.setFeaturedMod(FeaturedMod.fromFeaturedMod(dto.getFeaturedMod()));
+    queue.setFeaturedMod(FeaturedMod.fromDto(dto.getFeaturedMod(), i18n));
     return queue;
   }
 
-  public static MatchmakingQueue fromMatchmakerQueueMapPoolDto(MatchmakerQueueMapPool dto) {
-    MatchmakingQueue queue = fromDto(dto.getMatchmakerQueue());
+  public static MatchmakingQueue fromMatchmakerQueueMapPoolDto(MatchmakerQueueMapPool dto, I18n i18n) {
+    MatchmakingQueue queue = fromDto(dto.getMatchmakerQueue(), i18n);
     queue.getMapPool().setAll(
         dto.getMapPool().getMapPoolAssignments().stream()
             .map(mpa -> MapBean.fromMapVersionDto(mpa.getMapVersion()))

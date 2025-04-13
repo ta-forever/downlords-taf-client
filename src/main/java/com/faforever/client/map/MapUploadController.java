@@ -142,7 +142,7 @@ public class MapUploadController implements Controller<Node> {
 
   private void updateDisplay()  {
     mapNameLabel.textProperty().setValue(archiveFileName);
-    sizeLabel.textProperty().setValue(mapDetails.size() + " maps");
+    sizeLabel.textProperty().setValue(i18n.get("mapVault.upload.numberOfMaps", mapDetails.size()));
 
     try {
       Files.walkFileTree(stagingDirectory.resolve("mini"), new SimpleFileVisitor<>() {

@@ -7,15 +7,13 @@ import com.faforever.client.api.dto.ReplayMeta;
 import com.faforever.client.api.dto.Validity;
 import com.faforever.client.fa.DemoFileInfo;
 import com.faforever.client.game.Faction;
+import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.vault.review.Review;
 import com.faforever.client.vault.review.ReviewsSummary;
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonSyntaxException;
 import javafx.beans.Observable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
@@ -117,12 +115,12 @@ public class Replay {
     }
   }
 
-  public static Replay fromDto(Game dto) {
+  public static Replay fromDto(Game dto, I18n i18n) {
     Replay replay = new Replay();
     replay.setReplayAvailable(dto.getReplayAvailable());
     replay.setTadaAvailable(dto.getTadaAvailable());
     replay.setId(Integer.parseInt(dto.getId()));
-    replay.setFeaturedMod(FeaturedMod.fromFeaturedMod(dto.getFeaturedMod()));
+    replay.setFeaturedMod(FeaturedMod.fromDto(dto.getFeaturedMod(), i18n));
     replay.setTitle(dto.getName());
     replay.setStartTime(dto.getStartTime());
     Optional.ofNullable(dto.getEndTime()).ifPresent(replay::setEndTime);

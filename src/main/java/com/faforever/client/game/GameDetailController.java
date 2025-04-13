@@ -327,7 +327,10 @@ public class GameDetailController implements Controller<Pane> {
 
     hostLabel.textProperty().bind(game.hostProperty());
     mapLabel.textProperty().bind(game.mapNameProperty());
-    gameStatusLabel.textProperty().bind(game.statusProperty().asString());
+    gameStatusLabel.textProperty().bind(createObjectBinding(() ->
+            i18n.getWithDefault(game.getStatus().getString(), game.getStatus().getI18nKey()),
+        game.statusProperty()
+    ));
     gameStatusLabel.graphicProperty().bind(createObjectBinding(() -> {
       String themeImageFileName = game.getStatus().getThemeImageFileName();
       if (themeImageFileName != null) {
@@ -346,7 +349,7 @@ public class GameDetailController implements Controller<Pane> {
     ));
     liveReplayDelayLabel.textProperty().bind(createStringBinding(() -> {
       if (game.getReplayDelaySeconds() > 0) {
-        return game.getReplayDelaySeconds().toString() + " secs";
+        return i18n.get("duration.seconds", game.getReplayDelaySeconds());
       } else if (game.getReplayDelaySeconds() == 0) {
         return i18n.get("liveReplay.zeroDelay");
       } else {
@@ -490,10 +493,10 @@ public class GameDetailController implements Controller<Pane> {
           cell.setPrefSize(20, 20);
 
           if (ping < 2000) {
-            cell.setUserData(String.format("%s\n%s\n%dms", playerUsername, peerUsername, ping));
+            cell.setUserData(String.format("%s\n%s\n%s", playerUsername, peerUsername, i18n.get("duration.milliseconds", ping)));
           }
           else {
-            cell.setUserData(String.format("%s\n%s\n(timeout)", playerUsername, peerUsername));
+            cell.setUserData(String.format("%s\n%s\n(timeout)", playerUsername, peerUsername, i18n.get("duration.timeout")));
           }
           pingTableGridPane.add(cell, 1+peerOrdinal, playerOrdinal);
         }

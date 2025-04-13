@@ -70,7 +70,6 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   public TableColumn<LeaderboardEntry, String> recentResultsColumn;
   public TableColumn<LeaderboardEntry, Number> streakColumn;
   public TableColumn<LeaderboardEntry, Number> bestStreakColumn;
-  public TableColumn<LeaderboardEntry, String> recentModColumn;
   public TableView<LeaderboardEntry> ratingTable;
   public ComboBox<Leaderboard> leaderboardComboBox;
   public TextField searchTextField;
@@ -113,9 +112,6 @@ public class LeaderboardsController extends AbstractViewController<Node> {
 
     bestStreakColumn.setCellValueFactory(param -> param.getValue().bestStreakProperty());
     bestStreakColumn.setCellFactory(param -> new StringCell<>(streak -> i18n.number(streak.intValue())));
-
-    recentModColumn.setCellValueFactory(param -> param.getValue().recentModProperty());
-    recentModColumn.setCellFactory(param -> new StringCell<>(mod -> modService.getFeaturedModDisplayName(mod)));
 
     gamesPlayedColumn.setCellValueFactory(param -> param.getValue().totalGamesProperty());
     gamesPlayedColumn.setCellFactory(param -> new StringCell<>(count -> i18n.number(count.intValue())));

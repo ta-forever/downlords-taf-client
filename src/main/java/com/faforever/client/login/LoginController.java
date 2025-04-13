@@ -80,7 +80,6 @@ public class LoginController implements Controller<Pane> {
   public TextField ircServerPortField;
   public TextField apiBaseUrlField;
   public TextField galacticWarUrlField;
-  public Button serverStatusButton;
 
   @VisibleForTesting
   CompletableFuture<UpdateInfo> updateInfoFuture;
@@ -116,9 +115,6 @@ public class LoginController implements Controller<Pane> {
 
     serverConfigPane.managedProperty().bind(serverConfigPane.visibleProperty());
     serverConfigPane.setVisible(false);
-
-    serverStatusButton.managedProperty().bind(serverStatusButton.visibleProperty());
-    serverStatusButton.setVisible(clientProperties.getStatusPageUrl() != null);
 
     // fallback values if configuration is not read from remote
     populateEndpointFields(
@@ -365,13 +361,5 @@ public class LoginController implements Controller<Pane> {
     if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
       serverConfigPane.setVisible(true);
     }
-  }
-
-  public void seeServerStatus() {
-    String statusPageUrl = clientProperties.getStatusPageUrl();
-    if (statusPageUrl == null) {
-      return;
-    }
-    platformService.showDocument(statusPageUrl);
   }
 }

@@ -224,7 +224,7 @@ public class CreateGameController implements Controller<Pane> {
     mapPreviewTypeComboBox.setConverter(new StringConverter<>() {
       @Override
       public String toString(PreviewType previewType) {
-        return previewType == null ? "null" : previewType.getDisplayName();
+        return previewType == null ? "null" : i18n.get(previewType.getI18nKey());
       }
       @Override
       public PreviewType fromString(String string) {

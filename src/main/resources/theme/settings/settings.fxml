@@ -687,15 +687,15 @@
                                         </rowConstraints>
                                         <children>
                                             <Label contentDisplay="RIGHT"
-                                                   styleClass="setting-title" text="Installed game/mod locations"/>
-                                            <Label styleClass="setting-description" text="Click to change location of your Total Annihilation installations / mods" GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1"/>
+                                                   styleClass="setting-title" text="%settings.fa.installation"/>
+                                            <Label styleClass="setting-description" text="%settings.fa.installation.description" GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1"/>
                                             <TableView fx:id="gameLocationTableView" onMouseClicked="#onSelectGameLocation"
                                                        prefHeight="260.0" prefWidth="200.0"
                                                        GridPane.rowIndex="2">
                                                 <columns>
-                                                    <TableColumn fx:id="gameLocationModTableColumn" editable="false" prefWidth="150.0" text="Mod" />
-                                                    <TableColumn fx:id="gameLocationExecutableTableColumn" editable="false" prefWidth="277.0" text="Installed Path" />
-                                                    <TableColumn fx:id="gameLocationCommandLineOptionsTableColumn" editable="false" prefWidth="217.0" text="Command Line Options" />
+                                                    <TableColumn fx:id="gameLocationModTableColumn" editable="false" prefWidth="150.0" text="%settings.fa.installation.table.mod" />
+                                                    <TableColumn fx:id="gameLocationExecutableTableColumn" editable="false" prefWidth="277.0" text="%settings.fa.installation.table.path" />
+                                                    <TableColumn fx:id="gameLocationCommandLineOptionsTableColumn" editable="false" prefWidth="217.0" text="%settings.fa.installation.table.cmdline" />
                                                 </columns>
                                             </TableView>
                                         </children>

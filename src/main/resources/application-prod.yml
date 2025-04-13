@@ -26,8 +26,6 @@ faf-client:
   galactic-war:
     url: https://content.taforever.com/galactic_war/galactic_war.json
 
-  status-page-url: https://statuspage.taforever.com
-
   forged-alliance:
     exe-url: https://content.taforever.com/faf/updaterNew/updates_faf_files/ForgedAlliance.exe
 

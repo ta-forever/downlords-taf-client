@@ -14,13 +14,13 @@ import static com.faforever.client.theme.UiService.CHAT_LIST_STATUS_PLAYING;
 
 public enum GameStatus {
 
-  UNKNOWN("unknown", null),
-  SPAWNING("spawning", null),        // OS has spawned the executable but things are still initialising
-  STAGING("staging", CHAT_LIST_STATUS_HOSTING),      // chat room has been opened but game hasn't been launched
-  BATTLEROOM("battleroom", CHAT_LIST_STATUS_HOSTED), // players are in game battleroom. new players can still join
-  LAUNCHING("launching", CHAT_LIST_STATUS_PLAYING),  // game has been started. new players can no longer join. teams have not been finalised
-  LIVE("live", CHAT_LIST_STATUS_PLAYING),            // game in progress, teams have been finalised
-  ENDED("ended", null);               // game has terminated
+  UNKNOWN("unknown", "game.status.unknown", null),
+  SPAWNING("spawning", "game.status.spawning", null),        // OS has spawned the executable but things are still initialising
+  STAGING("staging", "game.status.staging", CHAT_LIST_STATUS_HOSTING),      // chat room has been opened but game hasn't been launched
+  BATTLEROOM("battleroom", "game.status.battleroom", CHAT_LIST_STATUS_HOSTED), // players are in game battleroom. new players can still join
+  LAUNCHING("launching", "game.status.launching", CHAT_LIST_STATUS_PLAYING),  // game has been started. new players can no longer join. teams have not been finalised
+  LIVE("live", "game.status.live", CHAT_LIST_STATUS_PLAYING),            // game in progress, teams have been finalised
+  ENDED("ended", "game.status.ended", null);               // game has terminated
 
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private static final Map<String, GameStatus> fromString;
@@ -33,10 +33,12 @@ public enum GameStatus {
   }
 
   private final String string;
+  private final String i18nKey;
   private final String themeImageFileName;
 
-  GameStatus(String string, String themeImageFileName) {
+  GameStatus(String string, String i18nKey, String themeImageFileName) {
     this.string = string;
+    this.i18nKey = i18nKey;
     this.themeImageFileName = themeImageFileName;
   }
 
@@ -60,6 +62,8 @@ public enum GameStatus {
   public String getString() {
     return string;
   }
+
+  public String getI18nKey() { return i18nKey; }
 
   public String getThemeImageFileName() { return themeImageFileName; }
 }

@@ -22,6 +22,7 @@ import com.faforever.client.coop.CoopMission;
 import com.faforever.client.domain.RatingHistoryDataPoint;
 import com.faforever.client.fa.relay.GpgGameMessage;
 import com.faforever.client.game.NewGameInfo;
+import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.leaderboard.LeaderboardEntry;
 import com.faforever.client.map.MapBean;
@@ -75,7 +76,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
 
@@ -89,6 +89,7 @@ public class FafService {
   private final FafServerAccessor fafServerAccessor;
   private final FafApiAccessor fafApiAccessor;
   private final EventBus eventBus;
+  private final I18n i18n;
 
   public <T extends ServerMessage> void addOnMessageListener(Class<T> type, Consumer<T> listener) {
     fafServerAccessor.addOnMessageListener(type, listener);
@@ -296,7 +297,7 @@ public class FafService {
     List<com.faforever.client.api.dto.FeaturedMod> dtos = fafApiAccessor.getFeaturedMods();
     List<com.faforever.client.mod.FeaturedMod> mods = dtos.stream()
         .sorted(Comparator.comparingInt(com.faforever.client.api.dto.FeaturedMod::getOrder))
-        .map(FeaturedMod::fromFeaturedMod)
+        .map(dto -> FeaturedMod.fromDto(dto, i18n))
         .collect(Collectors.toList());
     return CompletableFuture.completedFuture(mods);
   }
@@ -327,7 +328,7 @@ public class FafService {
     Tuple<List<Game>, java.util.Map<String, ?>> tuple = fafApiAccessor.getNewestReplaysWithMeta(topElementCount, page);
     return CompletableFuture.completedFuture(new Tuple<>(tuple.getFirst()
         .parallelStream()
-        .map(Replay::fromDto)
+        .map(dto -> Replay.fromDto(dto, i18n))
         .collect(toList()),
         ((HashMap<String, Integer>) tuple.getSecond().get("page")).get("totalPages")));
   }
@@ -337,7 +338,7 @@ public class FafService {
     Tuple<List<Game>, java.util.Map<String, ?>> tuple = fafApiAccessor.getHighestRatedReplaysWithMeta(topElementCount, page);
     return CompletableFuture.completedFuture(new Tuple<>(tuple.getFirst()
         .parallelStream()
-        .map(Replay::fromDto)
+        .map(dto -> Replay.fromDto(dto, i18n))
         .collect(toList()),
         ((HashMap<String, Integer>) tuple.getSecond().get("page")).get("totalPages")));
   }
@@ -464,7 +465,7 @@ public class FafService {
     Tuple<List<Game>, java.util.Map<String, ?>> tuple = fafApiAccessor.findReplaysByQueryWithMeta(query, maxResults, page, sortConfig);
     return CompletableFuture.completedFuture(new Tuple<>(tuple.getFirst()
         .parallelStream()
-        .map(Replay::fromDto)
+        .map(dto -> Replay.fromDto(dto, i18n))
         .collect(toList()),
         ((HashMap<String, Integer>) tuple.getSecond().get("page")).get("totalPages")));
   }
@@ -598,7 +599,7 @@ public class FafService {
   @Async
   public CompletableFuture<Optional<Replay>> getLastGameOnMap(int playerId, String mapVersionId) {
     return CompletableFuture.completedFuture(fafApiAccessor.getLastGamesOnMap(playerId, mapVersionId, 1).stream()
-        .map(Replay::fromDto)
+        .map(dto -> Replay.fromDto(dto, i18n))
         .findFirst());
   }
 
@@ -622,7 +623,7 @@ public class FafService {
 
   public CompletableFuture<Optional<Replay>> findReplayById(int id) {
     return CompletableFuture.completedFuture(fafApiAccessor.findReplayById(id)
-        .map(Replay::fromDto));
+        .map(dto -> Replay.fromDto(dto, i18n)));
   }
 
   public CompletableFuture<List<IceServer>> getIceServers() {
@@ -660,7 +661,7 @@ public class FafService {
   public CompletableFuture<List<MatchmakingQueue>> getMatchmakerQueueMapPools() {
     List<MatchmakerQueueMapPool> queues = fafApiAccessor.getMatchmakerQueueMapPools();
     List<MatchmakingQueue> result = queues.stream()
-        .map(MatchmakingQueue::fromMatchmakerQueueMapPoolDto)
+        .map(dto -> MatchmakingQueue.fromMatchmakerQueueMapPoolDto(dto, i18n))
         .toList();
     return CompletableFuture.completedFuture(result);
   }
@@ -690,14 +691,14 @@ public class FafService {
   @Async
   public CompletableFuture<Optional<MatchmakingQueue>> getMatchmakerQueue(String technicalName) {
     return CompletableFuture.completedFuture(fafApiAccessor.getMatchmakerQueue(technicalName)
-        .map(MatchmakingQueue::fromDto));
+        .map(dto -> MatchmakingQueue.fromDto(dto, i18n)));
   }
 
   @Async
   public CompletableFuture<List<MatchmakingQueue>> getMatchmakerQueuesByMod(String modTechnicalName) {
     return CompletableFuture.completedFuture(fafApiAccessor.getMatchmakerQueuesByMod(modTechnicalName)
         .stream()
-        .map(MatchmakingQueue::fromDto)
+        .map(dto -> MatchmakingQueue.fromDto(dto, i18n))
         .collect(Collectors.toList()));
   }
 

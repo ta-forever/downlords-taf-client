@@ -169,7 +169,8 @@ public abstract class VaultEntityController<T> extends AbstractViewController<No
     AnchorPane.setLeftAnchor(detailView, 0d);
 
     taInstallationComboBox.setCellFactory(param -> new StringListCell<>(prefs -> String.format("%s [%s]", prefs.getInstalledPath().toString(), modService.getFeaturedModDisplayName(prefs.getModNameProperty().get()))));
-    taInstallationComboBox.setButtonCell(new StringListCell<>(prefs -> String.format("Install Maps Into Folder: %s [%s]", prefs.getInstalledPath().toString(), modService.getFeaturedModDisplayName(prefs.getModNameProperty().get()))));
+
+    taInstallationComboBox.setButtonCell(new StringListCell<>(prefs -> i18n.get("vault.mapDownloadPath.template", prefs.getInstalledPath().toString(), modService.getFeaturedModDisplayName(prefs.getModNameProperty().get()))));
     ListChangeListener<TotalAnnihilationPrefs> taInstallationsListener = change -> Platform.runLater(
         () -> setTaInstallations(new ArrayList<>(change.getList())));
     preferencesService.getTotalAnnihilationAllMods().addListener(taInstallationsListener);

@@ -175,7 +175,7 @@ public class MapDetailController implements Controller<Node> {
     maxPlayersLabel.setText(i18n.number(map.getPlayers()));
     mapIdLabel.setText("ID: " + i18n.get("map.id", map.getId()));
     mapCrcLabel.setText("CRC32: " + map.getCrcValue());
-    mapHpiArchiveNameLabel.setText("Map Pack: " + map.getHpiArchiveName());
+    mapHpiArchiveNameLabel.setText(map.getHpiArchiveName());
 
     MapSize mapSize = map.getSize();
     dimensionsLabel.setText(i18n.get("mapPreview.size", mapSize.getWidthInKm(), mapSize.getHeightInKm()));

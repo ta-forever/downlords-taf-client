@@ -136,7 +136,7 @@ public class OnlineReplayVaultController extends VaultEntityController<Replay> {
 
     modService.getFeaturedMods().thenAccept(featuredMods ->
         JavaFxUtil.runLater(() ->
-            featuredModFilterController.setItems(featuredMods.stream().map(FeaturedMod::getDisplayName)
+            featuredModFilterController.setItems(featuredMods.stream().map(FeaturedMod::getDisplayNameNotLocalised)
                 .collect(Collectors.toList()))));
 
     CategoryFilterController leaderboardFilterController = uiService.loadFxml("theme/vault/search/categoryFilter.fxml");

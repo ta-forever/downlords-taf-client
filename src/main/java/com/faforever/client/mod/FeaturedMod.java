@@ -1,5 +1,6 @@
 package com.faforever.client.mod;
 
+import com.faforever.client.i18n.I18n;
 import com.google.common.base.Strings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ListProperty;
@@ -18,6 +19,7 @@ public class FeaturedMod {
   private final StringProperty id;
   private final StringProperty technicalName;
   private final StringProperty displayName;
+  private final StringProperty displayNameNotLocalised;
   private final StringProperty website;
   private final StringProperty description;
   private final StringProperty gitUrl;
@@ -31,6 +33,7 @@ public class FeaturedMod {
   public FeaturedMod() {
     id = new SimpleStringProperty();
     technicalName = new SimpleStringProperty();
+    displayNameNotLocalised = new SimpleStringProperty();
     displayName = new SimpleStringProperty();
     website = new SimpleStringProperty();
     description = new SimpleStringProperty();
@@ -43,11 +46,13 @@ public class FeaturedMod {
     versions = new SimpleListProperty<>(FXCollections.observableArrayList());
   }
 
-  public static FeaturedMod fromFeaturedMod(com.faforever.client.api.dto.FeaturedMod featuredMod) {
+  public static FeaturedMod fromDto(com.faforever.client.api.dto.FeaturedMod featuredMod, I18n i18n) {
     FeaturedMod bean = new FeaturedMod();
     bean.setId(featuredMod.getId());
     bean.technicalName.set(featuredMod.getTechnicalName());
-    bean.displayName.set(featuredMod.getDisplayName());
+    String i18nKey = "featuredMod.displayName." + featuredMod.getTechnicalName();
+    bean.displayName.set(i18n.getWithDefault(featuredMod.getDisplayName(), i18nKey));
+    bean.displayNameNotLocalised.set(featuredMod.getDisplayName());
     bean.website.set(featuredMod.getWebsite());
     bean.description.setValue(featuredMod.getDescription());
     bean.visible.setValue(featuredMod.isVisible());
@@ -75,15 +80,13 @@ public class FeaturedMod {
     return technicalName;
   }
 
-  public String getDisplayName() {
-    return displayName.get();
-  }
-  public void setDisplayName(String displayName) {
-    this.displayName.set(displayName);
-  }
-  public StringProperty displayNameProperty() {
-    return displayName;
-  }
+  public String getDisplayName() { return displayName.get(); }
+  public void setDisplayName(String displayName) { this.displayName.set(displayName); }
+  public StringProperty displayNameProperty() { return displayName; }
+
+  public String getDisplayNameNotLocalised() { return displayNameNotLocalised.get(); }
+  public void setDisplayNameNotLocalised(String displayNameNotLocalised) { this.displayNameNotLocalised.set(displayNameNotLocalised); }
+  public StringProperty displayNameNotLocalisedProperty() { return displayNameNotLocalised; }
 
   public String getWebsite() {
     return website.get();

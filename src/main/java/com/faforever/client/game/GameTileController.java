@@ -277,14 +277,17 @@ public class GameTileController implements Controller<Node> {
     ));
     liveReplayDelayLabel.textProperty().bind(createStringBinding(() -> {
       if (game.getReplayDelaySeconds() > 0) {
-        return game.getReplayDelaySeconds().toString() + " secs";
+        return i18n.get("duration.seconds", game.getReplayDelaySeconds());
       } else if (game.getReplayDelaySeconds() == 0) {
         return i18n.get("liveReplay.zeroDelay");
       } else {
         return i18n.get("liveReplay.disabled");
       }}, game.replayDelaySecondsProperty()
     ));
-    gameStatusLabel.textProperty().bind(game.statusProperty().asString());
+    gameStatusLabel.textProperty().bind(createObjectBinding(() ->
+        i18n.getWithDefault(game.getStatus().getString(), game.getStatus().getI18nKey()),
+        game.statusProperty()
+    ));
     gameStatusLabel.graphicProperty().bind(createObjectBinding(() -> {
       String themeImageFileName = game.getStatus().getThemeImageFileName();
       if (themeImageFileName != null) {

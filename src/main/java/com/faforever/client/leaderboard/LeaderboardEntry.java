@@ -127,9 +127,7 @@ public class LeaderboardEntry {
     this.totalGames.set(count);
   }
 
-  public IntegerProperty totalGamesProperty() {
-    return totalGames;
-  }
+  public IntegerProperty totalGamesProperty() { return totalGames; }
 
   public int getWonGames() {
     return wonGames.get();

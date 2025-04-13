@@ -74,7 +74,7 @@ public class GamesTableController implements Controller<Node> {
   public TableColumn<Game, Image> mapPreviewColumn;
   public TableColumn<Game, String> modsColumn;
   public TableColumn<Game, Boolean> rankedColumn;
-  public TableColumn<Game, GameStatus> statusColumn;
+  public TableColumn<Game, String> statusColumn;
   public TableColumn<Game, String> gameTitleColumn;
   public TableColumn<Game, PlayerFill> playersColumn;
   public TableColumn<Game, Number> averageRatingColumn;
@@ -151,7 +151,11 @@ public class GamesTableController implements Controller<Node> {
         param.getValue().numPlayersProperty(), param.getValue().maxPlayersProperty())
     );
     playersColumn.setCellFactory(param -> playersCell());
-    statusColumn.setCellValueFactory(param -> param.getValue().statusProperty());
+    statusColumn.setCellValueFactory(param -> {
+      GameStatus status = param.getValue().getStatus();
+      String localizedStatus = i18n.getWithDefault(status.getString(), status.getI18nKey());
+      return new SimpleStringProperty(localizedStatus);
+    });
     ratingRangeColumn.setCellValueFactory(param -> new SimpleObjectProperty<>(new RatingRange(param.getValue().getMinRating(), param.getValue().getMaxRating())));
     ratingRangeColumn.setCellFactory(param -> ratingTableCell());
     hostColumn.setCellValueFactory(param -> param.getValue().hostProperty());
