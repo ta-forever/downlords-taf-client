@@ -201,14 +201,14 @@
                               <TableView fx:id="ratingTable" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
                                          minHeight="0.0" minWidth="0.0" VBox.vgrow="ALWAYS">
                                   <columns>
-                                      <TableColumn fx:id="ratingTableLeaderboardnameColumn" text="Leaderboard"/>
-                                      <TableColumn fx:id="ratingTableRatingColumn" text="Rating"/>
-                                      <TableColumn fx:id="ratingTableGamesPlayedColumn" text="Games Played"/>
-                                      <TableColumn fx:id="ratingTableWinRateColumn" text="Win Rate"/>
-                                      <TableColumn fx:id="ratingTableAllResultsColumn" text="Win-Draw-Loss"/>
-                                      <TableColumn fx:id="ratingTableRecentResultsColumn" text="Win-Draw-Loss(10)"/>
-                                      <TableColumn fx:id="ratingTableStreakColumn" text="Streak"/>
-                                      <TableColumn fx:id="ratingTableBestStreakColumn" text="Record Streak"/>
+                                      <TableColumn fx:id="ratingTableLeaderboardnameColumn" text="%leaderboard.displayName"/>
+                                      <TableColumn fx:id="ratingTableRatingColumn" text="%leaderboard.column.rating"/>
+                                      <TableColumn fx:id="ratingTableGamesPlayedColumn" text="%leaderboard.column.numberOfGames"/>
+                                      <TableColumn fx:id="ratingTableWinRateColumn" text="%leaderboard.column.winRate"/>
+                                      <TableColumn fx:id="ratingTableAllResultsColumn" text="%leaderboard.column.winDrawLoss"/>
+                                      <TableColumn fx:id="ratingTableRecentResultsColumn" text="%leaderboard.column.winDrawLoss10"/>
+                                      <TableColumn fx:id="ratingTableStreakColumn" text="%leaderboard.column.streak"/>
+                                      <TableColumn fx:id="ratingTableBestStreakColumn" text="%leaderboard.column.recordStreak"/>
                                   </columns>
                                   <columnResizePolicy>
                                       <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
