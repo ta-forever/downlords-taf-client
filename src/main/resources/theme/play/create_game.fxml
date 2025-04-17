@@ -23,9 +23,9 @@
 <StackPane xmlns:fx="http://javafx.com/fxml/1" fx:id="createGameRoot" styleClass="create-game-root" xmlns="http://javafx.com/javafx/8.0.141" fx:controller="com.faforever.client.game.CreateGameController">
 <GridPane hgap="10.0" styleClass="create-game-root" vgap="10.0">
     <columnConstraints>
-        <ColumnConstraints hgrow="NEVER" minWidth="10.0" prefWidth="256.0"/>
-        <ColumnConstraints hgrow="NEVER" minWidth="10.0" prefWidth="256.0"/>
-        <ColumnConstraints hgrow="NEVER" minWidth="10.0" prefWidth="360.0"/>
+        <ColumnConstraints hgrow="NEVER" minWidth="10.0" prefWidth="200.0"/>
+        <ColumnConstraints hgrow="NEVER" minWidth="10.0" prefWidth="200.0"/>
+        <ColumnConstraints hgrow="NEVER" minWidth="10.0" prefWidth="400.0"/>
     </columnConstraints>
     <rowConstraints>
         <RowConstraints vgrow="NEVER"/>
@@ -40,50 +40,50 @@
     	<!-- Title, Password, Rating -->
         <TextField fx:id="titleTextField" promptText="%game.create.title" styleClass="game-title-input" GridPane.columnSpan="2147483647" />
 
-        <VBox GridPane.columnIndex="0" GridPane.rowIndex="1" spacing="2.0">
-            <PasswordField fx:id="passwordTextField" promptText="%game.create.password" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
-        </VBox>
-
-        <HBox GridPane.columnIndex="1" GridPane.rowIndex="1" alignment="TOP_CENTER" spacing="10.0">
+        <GridPane GridPane.rowIndex="1" GridPane.columnIndex="0" GridPane.columnSpan="2147483647" hgap="10.0" styleClass="create-game-root" vgap="10.0">
+            <columnConstraints>
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="120.0"/>
+                <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="200.0"/>
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="140.0"/>
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="140.0"/>
+                <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="200.0"/>
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints vgrow="NEVER"/>
+                <RowConstraints vgrow="NEVER"/>
+              </rowConstraints>
             <children>
-                <Label text="%game.create.liveReplay"/>
-                <ComboBox fx:id="liveReplayOptionComboBox"/>
+                <CheckBox fx:id="onlyForFriendsCheckBox" mnemonicParsing="false" text="%game.create.onlyFriends" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                <PasswordField fx:id="passwordTextField" promptText="%game.create.password" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                <Label text="%game.create.liveReplay" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                <ComboBox fx:id="liveReplayOptionComboBox" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                <Label maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="%games.create.maxPlayers" wrapText="true"
+                       GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+                <ComboBox fx:id="maxPlayersComboBox" maxWidth="1.7976931348623157E308" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+                <HBox fx:id="enforceRankingContainer" maxWidth="1.7976931348623157E308" spacing="10.0" GridPane.columnIndex="4" GridPane.rowIndex="0">
+                    <children>
+                        <Label text="%games.create.enforceRating" GridPane.columnIndex="3" GridPane.rowIndex="0"/>
+                        <CheckBox fx:id="enforceRankingCheckBox" GridPane.columnIndex="4" GridPane.rowIndex="0"/>
+                    </children>
+                    <padding>
+                        <Insets left="2.0" right="2.0" top="2.0" />
+                    </padding>
+                </HBox>
+                <HBox fx:id="rankingRangeContainer" maxWidth="1.7976931348623157E308" spacing="10.0" GridPane.columnIndex="3" GridPane.rowIndex="1" GridPane.columnSpan="2">
+                    <children>
+                        <Label alignment="CENTER_RIGHT" text="%game.create.rating" />
+                        <TextField fx:id="minRankingTextField" minWidth="30.0" prefWidth="60.0" promptText="%games.create.minRating" HBox.hgrow="NEVER" />
+                        <Label text="%games.create.minRating" />
+                        <Label text="%games.create.maxRating" />
+                        <TextField fx:id="maxRankingTextField" minWidth="30.0" prefWidth="60.0" promptText="%games.create.maxRating" HBox.hgrow="NEVER" />
+                    </children>
+                    <padding>
+                        <Insets left="2.0" right="2.0" top="2.0" />
+                    </padding>
+                </HBox>
+
             </children>
-            <padding>
-                <Insets left="2.0" right="2.0" top="2.0" />
-            </padding>
-        </HBox>
-
-        <HBox GridPane.columnIndex="2" GridPane.rowIndex="1" alignment="CENTER_RIGHT" maxWidth="1.7976931348623157E308" spacing="10.0">
-        <children>
-            <CheckBox fx:id="onlyForFriendsCheckBox" mnemonicParsing="false" text="%game.create.onlyFriends" />
-            <Region HBox.hgrow="ALWAYS" minWidth="10"/>
-            <ComboBox fx:id="maxPlayersComboBox" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" />
-            <Label alignment="CENTER_RIGHT" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="%games.create.maxPlayers" wrapText="true"/>
-        </children>
-            <padding>
-                <Insets left="2.0" right="2.0" top="2.0" />
-            </padding>
-        </HBox>
-
-        <VBox visible="false" managed="false" GridPane.columnIndex="2" GridPane.columnSpan="2147483647" GridPane.rowIndex="1" spacing="2.0">
-            <HBox alignment="CENTER_RIGHT" maxWidth="1.7976931348623157E308" spacing="10.0">
-                <children>
-                    <Label alignment="CENTER_RIGHT" text="%game.create.rating" />
-                    <TextField fx:id="minRankingTextField" minWidth="30.0" prefWidth="60.0" promptText="%games.create.minRating" HBox.hgrow="NEVER" />
-                    <Label text="%games.create.minRating" />
-                    <Label text="%games.create.maxRating" />
-                    <TextField fx:id="maxRankingTextField" minWidth="30.0" prefWidth="60.0" promptText="%games.create.maxRating" HBox.hgrow="NEVER" />
-                </children>
-                <padding>
-                    <Insets left="2.0" right="2.0" top="2.0" />
-                </padding>
-            </HBox>
-            <HBox alignment="CENTER_RIGHT" spacing="10.0">
-                <Label text="%games.create.enforceRating"/>
-                <CheckBox fx:id="enforceRankingCheckBox"/>
-            </HBox>
-        </VBox>
+        </GridPane>
 
         <Separator maxWidth="1.7976931348623157E308" GridPane.columnSpan="2147483647" GridPane.rowIndex="2">
             <padding>

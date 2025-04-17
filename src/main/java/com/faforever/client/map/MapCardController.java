@@ -52,8 +52,6 @@ public class MapCardController implements Controller<Node> {
   public DefaultImageView thumbnailImageView;
   public Label nameLabel;
   public Node mapTileRoot;
-  public Label mapVersionLabel;
-  public Label mapHpiArchiveNameLabel;
   public StarsController starsController;
   public Label numberOfReviewsLabel;
   public Label numberOfPlaysLabel;
@@ -118,7 +116,6 @@ public class MapCardController implements Controller<Node> {
     }
     thumbnailImageView.setBackgroundLoadingImage(image);
     nameLabel.setText(map.getMapName());
-    mapHpiArchiveNameLabel.setText(Optional.ofNullable(map.getHpiArchiveName()).orElse("<unknown archive>"));
     numberOfPlaysLabel.setText(i18n.number(map.getNumberOfPlays()));
 
     MapSize size = map.getSize();
@@ -128,11 +125,6 @@ public class MapCardController implements Controller<Node> {
     ObservableList<Review> reviews = map.getReviews();
     JavaFxUtil.addListener(reviews, new WeakInvalidationListener(reviewsChangedListener));
     reviewsChangedListener.invalidated(reviews);
-
-    mapVersionLabel.setText(String.format("v%s / CRC32 %s",
-        map.getVersion() != null ? map.getVersion().toString() : "?",
-        map.getCrcValue() != null ? map.getCrcValue() : "????????"));
-    mapVersionLabel.setVisible(map.getVersion() != null || map.getCrcValue() != null);
 
     if (mapService.isOfficialMap(map.getMapName())) {
       installButton.setVisible(false);

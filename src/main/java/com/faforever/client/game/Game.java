@@ -1,5 +1,6 @@
 package com.faforever.client.game;
 
+import com.faforever.client.i18n.I18n;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.remote.domain.VictoryCondition;
@@ -207,6 +208,24 @@ public class Game {
 
   public double getAverageRating() {
     return averageRating.get();
+  }
+
+  public String getRatingRangeString(I18n i18n) {
+    if (getStatus().isInProgress()) {
+      return String.valueOf(Math.round(getAverageRating() / 100.0) * 100.0);
+    }
+    else if (getMinRating() == null && getMaxRating() == null) {
+      return "-";
+    }
+    else if (getMinRating() == null) {
+      return i18n.get("game.ratingFormat.maxOnly", getMaxRating());
+    }
+    else if (getMaxRating() == null) {
+      return i18n.get("game.ratingFormat.minOnly", getMinRating());
+    }
+    else {
+      return i18n.get("game.ratingFormat.minMax", getMinRating(), getMaxRating());
+    }
   }
 
   public DoubleProperty averageRatingProperty() {

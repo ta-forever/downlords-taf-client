@@ -19,6 +19,7 @@ import com.faforever.client.remote.domain.RatingRange;
 import com.faforever.client.theme.UiService;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
@@ -156,7 +157,11 @@ public class GamesTableController implements Controller<Node> {
       String localizedStatus = i18n.getWithDefault(status.getString(), status.getI18nKey());
       return new SimpleStringProperty(localizedStatus);
     });
-    ratingRangeColumn.setCellValueFactory(param -> new SimpleObjectProperty<>(new RatingRange(param.getValue().getMinRating(), param.getValue().getMaxRating())));
+    ratingRangeColumn.setCellValueFactory(param -> {
+      Game game = param.getValue();
+      return Bindings.createObjectBinding(() -> new RatingRange(game.getMinRating(), game.getMaxRating()),
+          game.minRatingProperty(), game.maxRatingProperty());
+    });
     ratingRangeColumn.setCellFactory(param -> ratingTableCell());
     hostColumn.setCellValueFactory(param -> param.getValue().hostProperty());
     hostColumn.setCellFactory(param -> new StringCell<>(String::toString));

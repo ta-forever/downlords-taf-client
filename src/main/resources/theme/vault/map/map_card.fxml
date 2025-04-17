@@ -53,10 +53,6 @@
           <children>
               <Label fx:id="nameLabel" alignment="BOTTOM_LEFT" maxWidth="1.7976931348623157E308" styleClass="card-title"
                      text="Long text to test whether it's being wrapped" wrapText="true"/>
-              <Label fx:id="mapVersionLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" styleClass="card-subtitle"
-                     text="Label" wrapText="false"/>
-              <Label fx:id="mapHpiArchiveNameLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" styleClass="card-subtitle"
-                     text="Label" wrapText="false"/>
           </children>
       </VBox>
       <Label fx:id="numberOfPlaysLabel" text="Label" GridPane.columnSpan="2" GridPane.rowIndex="1">

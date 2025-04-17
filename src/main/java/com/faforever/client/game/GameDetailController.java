@@ -24,6 +24,7 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.value.ChangeListener;
@@ -107,6 +108,7 @@ public class GameDetailController implements Controller<Pane> {
   public StackPane mapContainer;
   public GridPane pingTableGridPane;
   public VBox pingTableContainer;
+  public Label gameRatingRangeLabel;
   private Timeline gameTimeSinceStartUpdater;
   public Label gameTimeSinceStartLabel;
   public GameDetailMapContextMenuController mapContextMenuController;
@@ -386,9 +388,17 @@ public class GameDetailController implements Controller<Pane> {
     game.ratingTypeProperty().addListener(gameRatingTypeInvalidationListener);
     gameRatingTypeInvalidationListener.invalidated(game.ratingTypeProperty());
 
+    gameRatingRangeLabel.textProperty().bind(Bindings.createObjectBinding(
+        () -> game.getRatingRangeString(i18n),
+        game.statusProperty(),
+        game.minRatingProperty(),
+        game.maxRatingProperty()
+    ));
+
     gameTypeLabel.visibleProperty().bind(game.ratingTypeProperty().isEqualTo(DEFAULT_RATING_TYPE));
     gameRatingTypeGlobalLabel.visibleProperty().bind(gameTypeLabel.visibleProperty());
     gameRatingTypeLabel.visibleProperty().bind(gameTypeLabel.visibleProperty().not());
+    gameRatingRangeLabel.visibleProperty().bind(gameTypeLabel.visibleProperty().not());
 
     JavaFxUtil.addListener(game.getTeams(), weakThisGameTeamsListener);
     thisGameTeamsInvalidationListener.invalidated(game.getTeams());

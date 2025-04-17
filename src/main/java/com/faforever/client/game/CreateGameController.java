@@ -56,6 +56,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundImage;
 import javafx.scene.layout.BackgroundSize;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -92,6 +93,8 @@ import static javafx.scene.layout.BackgroundRepeat.NO_REPEAT;
 public class CreateGameController implements Controller<Pane> {
 
   public Button mapPreviewContextButton;
+  public HBox enforceRankingContainer;
+  public HBox rankingRangeContainer;
   String ALL_MAPS_PSUEDO_QUEUE_NAME_KEY = "games.create.mappool.allmaps";
 
   public static final String STYLE_CLASS_DUAL_LIST_CELL = "create-game-dual-list-cell";
@@ -403,8 +406,6 @@ public class CreateGameController implements Controller<Pane> {
     featuredModListView.disableProperty().bind(updateGameButton.visibleProperty());
     installGameButton.disableProperty().bind(updateGameButton.visibleProperty());
     openGameFolderButton.disableProperty().bind(updateGameButton.visibleProperty());
-    minRankingTextField.disableProperty().bind(updateGameButton.visibleProperty());
-    maxRankingTextField.disableProperty().bind(updateGameButton.visibleProperty());
   }
 
   public void sever() {
@@ -702,6 +703,9 @@ public class CreateGameController implements Controller<Pane> {
     enforceRankingCheckBox.selectedProperty()
         .bindBidirectional(preferencesService.getPreferences().getLastGame().lastGameEnforceRatingProperty());
     enforceRankingCheckBox.selectedProperty().addListener(observable -> preferencesService.storeInBackground());
+    enforceRankingContainer.disableProperty().bind(rankedEnabledCheckBox.selectedProperty().not().or(
+        rankedEnabledCheckBox.disabledProperty()));
+    rankingRangeContainer.disableProperty().bind(enforceRankingContainer.disabledProperty());
   }
 
   private void selectAppropriateMap() {
@@ -784,17 +788,17 @@ public class CreateGameController implements Controller<Pane> {
   private void hostGame(MapBean map) {
     Integer minRating = null;
     Integer maxRating = null;
-    boolean enforceRating;
 
-    if (!minRankingTextField.getText().isEmpty()) {
+    boolean enforceRating = enforceRankingCheckBox.isSelected() && rankedEnabledCheckBox.isSelected() && !rankedEnabledCheckBox.isDisabled();
+    boolean enableRatingRange = rankedEnabledCheckBox.isSelected() && !rankedEnabledCheckBox.isDisabled();
+
+    if (enableRatingRange && !minRankingTextField.getText().isEmpty()) {
       minRating = Integer.parseInt(minRankingTextField.getText());
     }
 
-    if (!maxRankingTextField.getText().isEmpty()) {
+    if (enableRatingRange && !maxRankingTextField.getText().isEmpty()) {
       maxRating = Integer.parseInt(maxRankingTextField.getText());
     }
-
-    enforceRating = enforceRankingCheckBox.isSelected();
 
     NewGameInfo newGameInfo = new NewGameInfo(
         titleTextField.getText(),
@@ -822,19 +826,39 @@ public class CreateGameController implements Controller<Pane> {
   }
 
   public void onUpdateButtonClicked() {
-      mapService.optionalEnsureMap(
-          featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(),
-          mapListView.getSelectionModel().getSelectedItem(), null, null)
-          .thenRun(() -> gameService.updateSettingsForStagingGame(
-              titleTextField.getText(),
-              mapListView.getSelectionModel().getSelectedItem().getMapName(),
-              rankedEnabledCheckBox.isSelected()
-                  ? mapPoolListView.getSelectionModel().getSelectedItem().getLeaderboard().getTechnicalName()
-                  : DEFAULT_RATING_TYPE,
-              liveReplayOptionComboBox.getSelectionModel().getSelectedItem(),
-              passwordTextField.getText(),
-              maxPlayersComboBox.getValue()
-              ));
+
+    Integer minRating;
+    Integer maxRating;
+
+    boolean enforceRating = enforceRankingCheckBox.isSelected() && rankedEnabledCheckBox.isSelected() && !rankedEnabledCheckBox.isDisabled();
+    boolean enableRatingRange = rankedEnabledCheckBox.isSelected() && !rankedEnabledCheckBox.isDisabled();
+
+    if (enableRatingRange && !minRankingTextField.getText().isEmpty()) {
+      minRating = Integer.parseInt(minRankingTextField.getText());
+    } else {
+      minRating = null;
+    }
+
+    if (enableRatingRange && !maxRankingTextField.getText().isEmpty()) {
+      maxRating = Integer.parseInt(maxRankingTextField.getText());
+    } else {
+      maxRating = null;
+    }
+
+    mapService.optionalEnsureMap(
+        featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(),
+        mapListView.getSelectionModel().getSelectedItem(), null, null)
+        .thenRun(() -> gameService.updateSettingsForStagingGame(
+            titleTextField.getText(),
+            mapListView.getSelectionModel().getSelectedItem().getMapName(),
+            rankedEnabledCheckBox.isSelected()
+                ? mapPoolListView.getSelectionModel().getSelectedItem().getLeaderboard().getTechnicalName()
+                : DEFAULT_RATING_TYPE,
+            liveReplayOptionComboBox.getSelectionModel().getSelectedItem(),
+            passwordTextField.getText(),
+            maxPlayersComboBox.getValue(),
+            enforceRating, minRating, maxRating
+            ));
   }
 
   public Pane getRoot() {

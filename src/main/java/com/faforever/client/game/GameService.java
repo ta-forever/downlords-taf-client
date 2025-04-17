@@ -7,6 +7,7 @@ import com.faforever.client.fa.CloseGameEvent;
 import com.faforever.client.fa.DemoFileInfo;
 import com.faforever.client.fa.MapTool;
 import com.faforever.client.fa.TotalAnnihilationService;
+import com.faforever.client.fa.relay.GpgGameMessage;
 import com.faforever.client.fa.relay.event.AutoJoinRequestEvent;
 import com.faforever.client.fa.relay.event.RehostRequestEvent;
 import com.faforever.client.fa.relay.ice.IceAdapter;
@@ -840,7 +841,7 @@ public class GameService implements InitializingBean {
     }
   }
 
-  public void updateSettingsForStagingGame(String title, String mapName, String ratingType, LiveReplayOption liveReplayOption, String password, int maxPlayers) {
+  public void updateSettingsForStagingGame(String title, String mapName, String ratingType, LiveReplayOption liveReplayOption, String password, int maxPlayers, boolean enforceRating, Integer minRating, Integer maxRating) {
     Game currentGame = getCurrentGame();
     if (isGameRunning() && currentGame != null && currentGame.getStatus()==GameStatus.STAGING) {
       try {
@@ -867,6 +868,19 @@ public class GameService implements InitializingBean {
         }
         if (maxPlayers > 0 && maxPlayers <= 10) {
           this.totalAnnihilationService.sendToConsole(String.format("/max_players %d", maxPlayers));
+        }
+
+        if (minRating != null && maxRating != null) {
+          this.fafService.sendGpgGameMessage(new GpgGameMessage("SetGameRatingRange", List.of(minRating, maxRating, enforceRating)));
+        }
+        else if (minRating != null) {
+          this.fafService.sendGpgGameMessage(new GpgGameMessage("SetGameRatingMin", List.of(minRating, enforceRating)));
+        }
+        else if (maxRating != null) {
+          this.fafService.sendGpgGameMessage(new GpgGameMessage("SetGameRatingMax", List.of(maxRating, enforceRating)));
+        }
+        else {
+          this.fafService.sendGpgGameMessage(new GpgGameMessage("ClearGameRatingRange", List.of()));
         }
       }
       catch (IOException e) {

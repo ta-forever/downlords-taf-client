@@ -79,7 +79,7 @@ public class GameTileController implements Controller<Node> {
   public Label gameTitleLabel;
   public Label gameStatusLabel;
   public Label numberOfPlayersLabel;
-  public Label avgRatingLabel;
+  public Label ratingLabel;
   public Label hostLabel;
   public Label modsLabel;
   public Label liveReplayDelayLabel;
@@ -125,7 +125,7 @@ public class GameTileController implements Controller<Node> {
     modsLabel.visibleProperty().bind(modsLabel.textProperty().isNotEmpty());
     gameTypeLabel.managedProperty().bind(gameTypeLabel.visibleProperty());
     gameRatingTypeLabel.managedProperty().bind(gameRatingTypeLabel.visibleProperty());
-    avgRatingLabel.visibleProperty().bind(gameRatingTypeLabel.visibleProperty());
+    ratingLabel.visibleProperty().bind(gameRatingTypeLabel.visibleProperty());
     lockIconLabel.managedProperty().bind(lockIconLabel.visibleProperty());
 
     // make a bit more room for the autoJoin button's text
@@ -299,9 +299,9 @@ public class GameTileController implements Controller<Node> {
     ));
     gameTimeSinceStartUpdater.play();
 
-    avgRatingLabel.textProperty().bind(createStringBinding(
-        () -> i18n.get("game.avgRating.format", Math.round(game.getAverageRating() / 100.0) * 100.0),
-        game.teamsProperty()
+    ratingLabel.textProperty().bind(createStringBinding(
+        () -> game.getRatingRangeString(i18n),
+        game.teamsProperty(), game.minRatingProperty(), game.maxRatingProperty(), game.statusProperty()
     ));
 
     ObservableMap<String, String> simMods = game.getSimMods();

@@ -32,7 +32,6 @@
         <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
         <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
         <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
-        <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
     </rowConstraints>
     <children>
         <StackPane fx:id="mapContainer" GridPane.columnSpan="2147483647" GridPane.halignment="CENTER">
@@ -46,43 +45,48 @@
             </AnchorPane>
         </StackPane>
         <Label fx:id="gameTitleLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" styleClass="game-title" text="&lt;A pretty long game title&gt;" wrapText="true" GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" />
-        <Label fx:id="gameTypeLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Game type&gt;" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-        <Label fx:id="gameRatingTypeLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Rating Type&gt;" GridPane.rowIndex="2" GridPane.columnIndex="0">
+        <Label fx:id="gameTypeLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Game type&gt;" GridPane.rowIndex="2" GridPane.columnSpan="2"/>
+        <Label fx:id="gameRatingTypeLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Rating Type&gt;" GridPane.rowIndex="2" GridPane.columnSpan="2">
             <graphic>
                 <Region styleClass="icon,icon-trophy"/>
             </graphic>
         </Label>
-        <Label fx:id="gameRatingTypeGlobalLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="%leaderboard.global.name" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
-        <Label fx:id="gameStatusLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map&gt;" wrapText="true" GridPane.rowIndex="3" GridPane.columnSpan="2">
+        <Label fx:id="gameRatingTypeGlobalLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="%leaderboard.global.name" GridPane.rowIndex="3" GridPane.columnSpan="2"/>
+        <Label fx:id="gameRatingRangeLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" wrapText="true" GridPane.rowIndex="3" GridPane.columnSpan="2">
+            <graphic>
+                <Region styleClass="icon,statistics-icon" />
+            </graphic>
+        </Label>
+        <Label fx:id="gameStatusLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map&gt;" wrapText="true" GridPane.rowIndex="4" GridPane.columnSpan="2">
             <graphic>
                 <Region styleClass="icon,info-icon" />
             </graphic>
         </Label>
-        <Label fx:id="gameTimeSinceStartLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map&gt;" wrapText="true" GridPane.columnIndex="1" GridPane.rowIndex="3"  GridPane.columnSpan="2"/>
-        <Label fx:id="numberOfPlayersLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Number of players&gt;" wrapText="true" GridPane.rowIndex="4"  GridPane.columnSpan="2">
+        <Label fx:id="gameTimeSinceStartLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map&gt;" wrapText="true" GridPane.columnIndex="1" GridPane.rowIndex="4"  GridPane.columnSpan="2"/>
+        <Label fx:id="numberOfPlayersLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Number of players&gt;" wrapText="true" GridPane.rowIndex="5"  GridPane.columnSpan="2">
             <graphic>
                 <Region styleClass="icon,players-icon" />
             </graphic>
         </Label>
-        <Label fx:id="hostLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Host&gt;" wrapText="true" GridPane.rowIndex="5" GridPane.columnSpan="2">
+        <Label fx:id="hostLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Host&gt;" wrapText="true" GridPane.rowIndex="6" GridPane.columnSpan="2">
             <graphic>
                 <Region styleClass="icon,host-icon" />
             </graphic>
         </Label>
-        <Label fx:id="liveReplayDelayLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Number of players&gt;" wrapText="true" GridPane.rowIndex="6"  GridPane.columnSpan="2">
+        <Label fx:id="liveReplayDelayLabel" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Number of players&gt;" wrapText="true" GridPane.rowIndex="7"  GridPane.columnSpan="2">
             <graphic>
                 <Region styleClass="icon,live-tv-icon" />
             </graphic>
         </Label>
-        <HBox alignment="CENTER" GridPane.columnSpan="2147483647" GridPane.rowIndex="7">
+        <HBox alignment="CENTER" GridPane.columnSpan="2147483647" GridPane.rowIndex="8">
             <fx:include fx:id="watchButton" source="../vault/replay/watch_button.fxml"/>
             <Button fx:id="leaveButton" mnemonicParsing="false" onAction="#onLeaveButtonClicked" text="%game.leave" styleClass="leave-game-button"><tooltip><Tooltip text="%game.leave.tooltip"/></tooltip></Button>
             <Button fx:id="startButton" mnemonicParsing="false" onAction="#onStartButtonClicked" text="%game.start" styleClass="start-game-button"><tooltip><Tooltip text="%game.start.tooltip"/></tooltip></Button>
             <Button fx:id="joinButton" mnemonicParsing="false" onAction="#onJoinButtonClicked" text="%game.join" styleClass="join-game-button"><tooltip><Tooltip text="%game.join.tooltip"/></tooltip></Button>
             <Button fx:id="autoJoinButton" mnemonicParsing="false" onAction="#onAutoJoinButtonClicked" text="%game.autojoin" styleClass="autojoin-game-button-not-active"><tooltip><Tooltip text="%game.autojoin.tooltip"/></tooltip></Button>
         </HBox>
-        <VBox alignment="BOTTOM_CENTER" fx:id="teamListPane" maxWidth="1.7976931348623157E308" spacing="10.0" GridPane.columnSpan="2147483647" GridPane.rowIndex="8" />
-        <VBox fx:id="pingTableContainer" alignment="BOTTOM_CENTER" maxWidth="1.7976931348623157E308" spacing="10.0" GridPane.columnSpan="2147483647" GridPane.rowIndex="9">
+        <VBox alignment="BOTTOM_CENTER" fx:id="teamListPane" maxWidth="1.7976931348623157E308" spacing="10.0" GridPane.columnSpan="2147483647" GridPane.rowIndex="9" />
+        <VBox fx:id="pingTableContainer" alignment="BOTTOM_CENTER" maxWidth="1.7976931348623157E308" spacing="10.0" GridPane.columnSpan="2147483647" GridPane.rowIndex="10">
             <Label text="%game.detail.pingtable.title"/>
             <GridPane fx:id="pingTableGridPane" alignment="TOP_CENTER" minWidth="40" minHeight="40" prefWidth="100" prefHeight="100" onMouseClicked="#setPingTableTooltip" onMouseExited="#hidePingTableTooltip">
                 <columnConstraints>
