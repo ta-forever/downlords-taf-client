@@ -18,13 +18,13 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map.Entry;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static com.faforever.client.leaderboard.LeaderboardService.DEFAULT_RATING_TYPE;
 
@@ -34,6 +34,7 @@ public class JSkillsRatingService implements RatingService {
   private final GameInfo gameInfo;
   private final PlayerService playerService;
   private final FafService fafService;
+  private final String autoBalanceMetric = "kl";
 
   public JSkillsRatingService(ClientProperties clientProperties, PlayerService playerService, FafService fafService) {
     this.playerService = playerService;
@@ -41,6 +42,11 @@ public class JSkillsRatingService implements RatingService {
     TrueSkill trueSkill = clientProperties.getTrueSkill();
     gameInfo = new GameInfo(trueSkill.getInitialMean(), trueSkill.getInitialStandardDeviation(), trueSkill.getBeta(),
         trueSkill.getDynamicFactor(), trueSkill.getDrawProbability());
+  }
+
+  @Override
+  public LeaderboardRating createNewLeaderboardRating() {
+    return LeaderboardRating.create((float)gameInfo.getInitialMean(), (float)gameInfo.getInitialStandardDeviation());
   }
 
   @Override
@@ -56,14 +62,285 @@ public class JSkillsRatingService implements RatingService {
         .map(players -> {
           Team team = new Team();
           players.forEach(stats -> team.addPlayer(
-              new jskills.Player<>(stats.getPlayerId()), new Rating(stats.getBeforeMean(), stats.getBeforeDeviation())
-          ));
+              new jskills.Player<>(stats.getPlayerId()), new Rating(
+                  stats.getBeforeMean() == null ? gameInfo.getInitialMean() : stats.getBeforeMean(),
+                  stats.getBeforeDeviation() == null ? gameInfo.getInitialStandardDeviation() : stats.getAfterDeviation()
+              )));
           return team;
         })
         .collect(Collectors.toList()));
   }
 
-  private static LeaderboardRating aggregateRatings(List<LeaderboardRating> leaderboardRatings) {
+  @Override
+  public List<Player> getBalancedTeams(Game game) {
+    Optional<Player> host = playerService.getPlayerForUsername(game.getHost());
+    if (host.isEmpty()) return List.of();
+
+    Set<String> teamsLeaderboards = getLeaderboards(game.getFeaturedMod(), true);
+    Set<String> singlesLeaderboards = getLeaderboards(game.getFeaturedMod(), false);
+
+    Map<?, List<String>> currentTeams = game.getTeams();
+    currentTeams.entrySet().removeIf(entry -> entry.getKey().equals("-1"));
+
+    List<Player> players = getNonHostPlayers(currentTeams, game.getHost());
+    boolean isHostWatching = game.getTeams().getOrDefault("-1", List.of()).contains(game.getHost());
+
+    List<Player> hostAndPlayers = new ArrayList<>();
+    if (!isHostWatching) hostAndPlayers.add(host.get());
+    hostAndPlayers.addAll(players);
+    if (hostAndPlayers.isEmpty()) return hostAndPlayers;
+
+    Map<Integer, javafx.util.Pair<String, LeaderboardRating>> playerRatings =
+        getDistilledPlayerRatings(hostAndPlayers, teamsLeaderboards, singlesLeaderboards, "teams");
+
+    return balancePlayers(hostAndPlayers, playerRatings);
+  }
+
+  @Override
+  public List<Player> getBalancedTeams(Replay replay) {
+    List<Player> players = replay.getTeamPlayerStats().values().stream()
+        .flatMap(List::stream)
+        .map(stats -> {
+          Player player = new Player(new com.faforever.client.remote.domain.Player());
+          player.setId(stats.getPlayerId());
+          player.setUsername(String.valueOf(stats.getPlayerId()));
+          return player;
+        })
+        .collect(Collectors.toList());
+
+    Map<Integer, javafx.util.Pair<String, LeaderboardRating>> distilledRatings = replay.getTeamPlayerStats().values().stream()
+        .flatMap(List::stream)
+        .collect(Collectors.toMap(
+            PlayerStats::getPlayerId,
+            stats -> new javafx.util.Pair<>("replay",
+                LeaderboardRating.create(
+                    stats.getBeforeMean() == null ? (float)gameInfo.getInitialMean() : stats.getBeforeMean().floatValue(),
+                    stats.getBeforeDeviation() == null ? (float)gameInfo.getInitialStandardDeviation() : stats.getBeforeDeviation().floatValue()
+            ))));
+
+    return balancePlayers(players, distilledRatings);
+  }
+
+  private List<Player> balancePlayers(List<Player> allPlayers,
+                                      Map<Integer, javafx.util.Pair<String, LeaderboardRating>> distilledRatings) {
+    List<Player> firstPlayersPartnersPool = allPlayers.subList(1, allPlayers.size());
+    int numTeammates = firstPlayersPartnersPool.size() / 2;
+    List<List<Player>> combinations = generateCombinations(firstPlayersPartnersPool, numTeammates);
+
+    List<Player> bestTeams = null;
+    Double bestScore = null;
+
+    for (List<Player> teammates : combinations) {
+      //Collections.shuffle(teammates);
+      List<Player> team1 = new ArrayList<>(List.of(allPlayers.get(0)));
+      team1.addAll(teammates);
+
+      Set<Integer> team1Ids = team1.stream().map(Player::getId).collect(Collectors.toSet());
+      List<Player> team2 = allPlayers.stream().filter(p -> !team1Ids.contains(p.getId())).collect(Collectors.toList());
+      //Collections.shuffle(team2);
+
+      double score = computeScore(team1, team2, distilledRatings);
+
+      if (bestTeams == null || score < bestScore) {
+        bestScore = score;
+        bestTeams = interleave(team1, team2);
+      }
+    }
+
+    logTeamRatings(bestTeams, distilledRatings);
+    return bestTeams;
+  }
+
+  private Set<String> getLeaderboards(String mod, boolean isTeam) {
+    try {
+      return fafService.getMatchmakerQueueMapPools().get().stream()
+          .filter(mq -> mq.getFeaturedMod().getTechnicalName().equals(mod))
+          .filter(mq -> (isTeam ? mq.getTeamSize() > 1 : mq.getTeamSize() == 1))
+          .map(mq -> mq.getLeaderboard().getTechnicalName())
+          .collect(Collectors.toSet());
+    } catch (InterruptedException | ExecutionException e) {
+      return Set.of();
+    }
+  }
+
+  private List<Player> getNonHostPlayers(Map<?, List<String>> teams, String hostUsername) {
+    return teams.values().stream()
+        .flatMap(Collection::stream)
+        .filter(name -> !name.equals(hostUsername))
+        .map(playerService::getPlayerForUsername)
+        .filter(Optional::isPresent)
+        .map(Optional::get)
+        .collect(Collectors.toList());
+  }
+
+  // priority: "teams", "singles", "default" or "all
+  @Override
+  public Map<Integer, javafx.util.Pair<String, LeaderboardRating>> getDistilledPlayerRatings(
+      List<Player> players, Set<String> teamBoards, Set<String> singleBoards, String priority) {
+
+    LeaderboardRating defaultRating = LeaderboardRating.create(
+        (float) gameInfo.getInitialMean(), (float) gameInfo.getInitialStandardDeviation());
+
+    // for each player+host find a suitable rating
+    // most preferred: aggregate over all teams leaderboards for the mod
+    // next preferred: aggregate over all singles leaderboards for the mod
+    // next preferred: the global leaderboard (DEFAULT_RATING_TYPE)
+    // next preferred: aggregate over all leaderboards
+
+    return players.stream().collect(Collectors.toMap(
+        Player::getId, player -> {
+          LeaderboardRating lbrTeam = aggregateRatings(player.getLeaderboardRatings().entrySet().stream()
+              .filter(e -> teamBoards.contains(e.getKey()))
+              .map(Map.Entry::getValue)
+              .toList());
+
+          LeaderboardRating lbrSingle = aggregateRatings(player.getLeaderboardRatings().entrySet().stream()
+              .filter(e -> singleBoards.contains(e.getKey()))
+              .map(Map.Entry::getValue)
+              .toList());
+
+          LeaderboardRating lbrDefault = player.getLeaderboardRatings().getOrDefault(DEFAULT_RATING_TYPE, defaultRating);
+
+          LeaderboardRating lbrEverything = aggregateRatings(player.getLeaderboardRatings().values().stream()
+              .toList());
+
+          List<javafx.util.Pair<String,LeaderboardRating>> lbrList = null;
+          if ("teams".equals(priority)) {
+            lbrList = List.of(
+                new javafx.util.Pair<>("teams", lbrTeam),
+                new javafx.util.Pair<>("singles", lbrSingle),
+                new javafx.util.Pair<>("default", lbrDefault),
+                new javafx.util.Pair<>("all", lbrEverything));
+          }
+          else if ("singles".equals(priority)) {
+            lbrList = List.of(
+                new javafx.util.Pair<>("singles", lbrSingle),
+                new javafx.util.Pair<>("teams", lbrTeam),
+                new javafx.util.Pair<>("default", lbrDefault),
+                new javafx.util.Pair<>("all", lbrEverything));
+          }
+          else if ("default".equals(priority)) {
+            lbrList = List.of(
+                new javafx.util.Pair<>("default", lbrDefault),
+                new javafx.util.Pair<>("teams", lbrTeam),
+                new javafx.util.Pair<>("singles", lbrSingle),
+                new javafx.util.Pair<>("all", lbrEverything));
+          }
+          else  if ("all".equals(priority)){
+            lbrList = List.of(
+                new javafx.util.Pair<>("all", lbrEverything),
+                new javafx.util.Pair<>("default", lbrDefault),
+                new javafx.util.Pair<>("teams", lbrTeam),
+                new javafx.util.Pair<>("singles", lbrSingle));
+          }
+
+          assert lbrList != null;
+          if (lbrList.get(0).getValue().getNumberOfGames() >= 10) {
+            return lbrList.get(0);
+          }
+          if (lbrList.get(1).getValue().getNumberOfGames() >= 10) {
+            return lbrList.get(1);
+          }
+          if (lbrList.get(2).getValue().getNumberOfGames() >= 10) {
+            return lbrList.get(2);
+          }
+          return lbrList.get(3);
+        }
+    ));
+  }
+
+  private double computeScore(List<Player> team1, List<Player> team2,
+                              Map<Integer, javafx.util.Pair<String, LeaderboardRating>> ratings) {
+    double score = switch (autoBalanceMetric) {
+      case "kl" -> computeKLDivergence(team1, team2, ratings);
+      case "wasserstein" -> computeWasserstein(team1, team2, ratings);
+      case "trueskill" -> computeTrueSkillQuality(team1, team2, ratings);
+      default -> computeKLDivergence(team1, team2, ratings);
+    };
+    return score;
+  }
+
+  private double computeKLDivergence(List<Player> team1, List<Player> team2, Map<Integer, javafx.util.Pair<String, LeaderboardRating>> ratings) {
+    double m1 = 0, m2 = 0, v1 = 0, v2 = 0;
+    for (Player p : team1) {
+      LeaderboardRating r = ratings.get(p.getId()).getValue();
+      m1 += r.getMean();
+      v1 += r.getDeviation() * r.getDeviation();
+    }
+    for (Player p : team2) {
+      LeaderboardRating r = ratings.get(p.getId()).getValue();
+      m2 += r.getMean();
+      v2 += r.getDeviation() * r.getDeviation();
+    }
+    return 0.5 * ((m1 - m2) * (m1 - m2) + v1 + v2) * (1.0 / v1 + 1.0 / v2) - 2.0;
+  }
+
+  private double computeWasserstein(List<Player> team1, List<Player> team2, Map<Integer, javafx.util.Pair<String, LeaderboardRating>> ratings) {
+    double m1 = 0, m2 = 0, d1 = 0, d2 = 0;
+    for (Player p : team1) {
+      LeaderboardRating r = ratings.get(p.getId()).getValue();
+      m1 += r.getMean();
+      d1 += r.getDeviation();
+    }
+    for (Player p : team2) {
+      LeaderboardRating r = ratings.get(p.getId()).getValue();
+      m2 += r.getMean();
+      d2 += r.getDeviation();
+    }
+    return Math.sqrt((m1 - m2) * (m1 - m2) + (d1 - d2) * (d1 - d2));
+  }
+
+  private double computeTrueSkillQuality(List<Player> team1, List<Player> team2, Map<Integer, javafx.util.Pair<String, LeaderboardRating>> ratings) {
+    jskills.Team jsTeam1 = new jskills.Team();
+    for (Player p : team1) {
+      LeaderboardRating r = ratings.get(p.getId()).getValue();
+      jsTeam1.addPlayer(new jskills.Player<>(p.getId()), new Rating(r.getMean(), r.getDeviation()));
+    }
+    jskills.Team jsTeam2 = new jskills.Team();
+    for (Player p : team2) {
+      LeaderboardRating r = ratings.get(p.getId()).getValue();
+      jsTeam2.addPlayer(new jskills.Player<>(p.getId()), new Rating(r.getMean(), r.getDeviation()));
+    }
+    return TrueSkillCalculator.calculateMatchQuality(gameInfo, List.of(jsTeam1, jsTeam2));
+  }
+
+  private List<Player> interleave(List<Player> a, List<Player> b) {
+    List<Player> result = new ArrayList<>();
+    for (int i = 0; i < Math.max(a.size(), b.size()); i++) {
+      if (i < a.size()) result.add(a.get(i));
+      if (i < b.size()) result.add(b.get(i));
+    }
+    return result;
+  }
+
+  private void logTeamRatings(List<Player> bestTeams,
+                              Map<Integer, javafx.util.Pair<String, LeaderboardRating>> ratings) {
+    for (int parity = 0; parity < 2; ++parity) {
+      int finalParity = parity;
+      List<Player> subset = IntStream.range(0, bestTeams.size())
+          .filter(i -> i % 2 == finalParity)
+          .mapToObj(bestTeams::get).toList();
+
+      double sumMean = subset.stream()
+          .mapToDouble(p -> ratings.get(p.getId()).getValue().getMean()).sum();
+
+      double sumVar = subset.stream()
+          .mapToDouble(p -> {
+            double d = ratings.get(p.getId()).getValue().getDeviation();
+            return d * d;
+          }).sum();
+
+      String names = subset.stream().map(player -> String.format("%s(%d/%d)",
+          player.getUsername(),
+          (int)ratings.get(player.getId()).getValue().getMean(),
+          (int)ratings.get(player.getId()).getValue().getDeviation())
+      ).collect(Collectors.joining(","));
+      log.info("[getBalancedTeams] rating={}/{} [{}]",
+          (int) sumMean, (int) Math.sqrt(sumVar), names);
+    }
+  }
+
+  private LeaderboardRating aggregateRatings(List<LeaderboardRating> leaderboardRatings) {
     double posteriorMean = 0.0;
     double posteriorPrecision = 0.0;
     int totalGames = 0;
@@ -78,138 +355,34 @@ public class JSkillsRatingService implements RatingService {
     posteriorMean /= posteriorPrecision;
     double posteriorVariance = totalGames / posteriorPrecision;
 
-    LeaderboardRating lbr = null;
-    if (totalGames > 0.0) {
-      lbr = LeaderboardRating.create((float) posteriorMean, (float) Math.sqrt(posteriorVariance));
+    if (totalGames > 0) {
+      LeaderboardRating lbr = LeaderboardRating.create((float) posteriorMean, (float) Math.sqrt(posteriorVariance));
       lbr.setNumberOfGames(totalGames);
+      return lbr;
     }
+    LeaderboardRating lbr = LeaderboardRating.create((float) gameInfo.getInitialMean(), (float) gameInfo.getInitialStandardDeviation());
+    lbr.setNumberOfGames(0);
     return lbr;
   }
 
-  @Override
-  public List<Player> getBalancedTeams(Game game) {
+  public static <T> List<List<T>> generateCombinations(List<T> items, int k) {
+    List<List<T>> result = new ArrayList<>();
+    generateCombinationsRecursive(items, 0, k, new ArrayList<>(), result);
+    return result;
+  }
 
-    // we must be host
-    Optional<Player> host = playerService.getPlayerForUsername(game.getHost());
-    if (host.isEmpty()) {
-      return List.of();
+  private static <T> void generateCombinationsRecursive(List<T> items, int start, int k,
+                                                        List<T> current, List<List<T>> result) {
+    if (current.size() == k) {
+      result.add(new ArrayList<>(current));
+      return;
     }
 
-    // get all leaderboards for the game's mod, and sort them into teams and singles leaderboards
-    Set<String> teamsLeaderboards = null;
-    Set<String> singlesLeaderboards = null;
-    try {
-      teamsLeaderboards = fafService.getMatchmakerQueueMapPools().get().stream()
-          .filter(mq -> mq.getFeaturedMod().getTechnicalName().equals(game.getFeaturedMod()))
-          .filter(mq -> mq.getTeamSize() > 1)
-          .map(mq -> mq.getLeaderboard().getTechnicalName())
-          .collect(Collectors.toSet());
-
-      singlesLeaderboards = fafService.getMatchmakerQueueMapPools().get().stream()
-          .filter(mq -> mq.getFeaturedMod().getTechnicalName().equals(game.getFeaturedMod()))
-          .filter(mq -> mq.getTeamSize() == 1)
-          .map(mq -> mq.getLeaderboard().getTechnicalName())
-          .collect(Collectors.toSet());
-
-    } catch (InterruptedException e) {
-    } catch (ExecutionException e) {
+    for (int i = start; i < items.size(); i++) {
+      current.add(items.get(i));
+      generateCombinationsRecursive(items, i + 1, k, current, result);
+      current.remove(current.size() - 1);
     }
-
-    java.util.Map<?, List<String>> currentTeams = game.getTeams();
-    currentTeams.entrySet().removeIf(entry -> entry.getKey().equals("-1"));
-
-    // get a list of al players excluding the host
-    List<Player> players = currentTeams.values().stream()
-        .flatMap(Collection::stream)
-        .filter(playerName -> !playerName.equals(game.getHost()))
-        .map(playerService::getPlayerForUsername)
-        .filter(Optional::isPresent)
-        .map(Optional::get)
-        .collect(Collectors.toList());
-
-    boolean isHostWatching = currentTeams.containsKey("-1") &&
-        currentTeams.get("-1").contains(game.getHost());
-
-    // prepend the host
-    List<Player> hostAndPlayers = isHostWatching ? new ArrayList<>() : new ArrayList<>(List.of(host.get()));
-    hostAndPlayers.addAll(players);
-    if (hostAndPlayers.size() < 1) {
-      return hostAndPlayers;
-    }
-
-    // for each player+host find a suitable rating
-    // most preferred: aggregate over all teams leaderboards for the mod
-    // next preferred: aggregate over all singles leaderboards for the mod
-    // next preferred: the global leaderboard (DEFAULT_RATING_TYPE)
-    java.util.Map<Integer, javafx.util.Pair<String,LeaderboardRating>> distilledRatings = new java.util.HashMap<>();
-    LeaderboardRating defaultRating = LeaderboardRating.create(
-        (float) gameInfo.getInitialMean(), (float) gameInfo.getInitialStandardDeviation());
-    for (int n=0; n<hostAndPlayers.size(); ++n) {
-      LeaderboardRating lbr;
-      if (teamsLeaderboards != null && singlesLeaderboards != null) {
-        Set<String> finalTeamsLeaderboards = teamsLeaderboards;
-        lbr = aggregateRatings(hostAndPlayers.get(n).getLeaderboardRatings().entrySet().stream()
-            .filter(e -> finalTeamsLeaderboards.contains(e.getKey()))
-            .map(Entry::getValue)
-            .toList());
-        distilledRatings.put(hostAndPlayers.get(n).getId(), new javafx.util.Pair("teams", lbr));
-        if (lbr == null || lbr.getNumberOfGames() < 10) {
-          Set<String> finalSinglesLeaderboards = singlesLeaderboards;
-          lbr = aggregateRatings(hostAndPlayers.get(n).getLeaderboardRatings().entrySet().stream()
-              .filter(e -> finalSinglesLeaderboards.contains(e.getKey()))
-              .map(Entry::getValue)
-              .toList());
-          distilledRatings.put(hostAndPlayers.get(n).getId(), new javafx.util.Pair("singles", lbr));
-        }
-        if (lbr == null || lbr.getNumberOfGames() < 10) {
-          lbr = hostAndPlayers.get(n).getLeaderboardRatings().getOrDefault(DEFAULT_RATING_TYPE, defaultRating);
-          distilledRatings.put(hostAndPlayers.get(n).getId(), new javafx.util.Pair(DEFAULT_RATING_TYPE, lbr));
-        }
-      } else {
-        lbr = hostAndPlayers.get(n).getLeaderboardRatings().getOrDefault(game.getRatingType(), defaultRating);
-        distilledRatings.put(hostAndPlayers.get(n).getId(), new javafx.util.Pair("default", lbr));
-      }
-    }
-
-    // search random combinations of teams to optimise balance
-    List<Player> bestTeams = null;
-    Double bestScore = null;
-    for (int nSearch = 0; nSearch < 30; ++nSearch) {
-      Collections.shuffle(players);
-      hostAndPlayers = new ArrayList<>(List.of(host.get()));
-      hostAndPlayers.addAll(players);
-
-      double m1 = 0.0, m2 = 0.0, v1 = 0.0, v2 = 0.0;
-      for (int n=0; n<hostAndPlayers.size(); ++n) {
-        LeaderboardRating lbr = distilledRatings.get(hostAndPlayers.get(n).getId()).getValue();
-        if (n % 2 == 0) {
-          m1 += lbr.getMean();
-          v1 += lbr.getDeviation() * lbr.getDeviation();
-        } else {
-          m2 += lbr.getMean();
-          v2 += lbr.getDeviation() * lbr.getDeviation();
-        }
-      }
-
-      // https://stats.stackexchange.com/questions/66271/kullback-leibler-divergence-of-two-normal-distributions
-      double kl = 0.5 * ((m1-m2)*(m1-m2) + v1+v2) * (1.0/v1 + 1.0/v2) - 2.0;
-
-      if (bestTeams == null || kl < bestScore) {
-        bestTeams = hostAndPlayers;
-        bestScore = kl;
-
-        log.info("[getBalancedTeams] {} {}. kl={}",
-            game.getRatingType(),
-            String.join(",", hostAndPlayers.stream().map(p -> String.format("%s(%s:%d/%d)",
-                    p.getUsername(),
-                    distilledRatings.get(p.getId()).getKey(),
-                    (int)distilledRatings.get(p.getId()).getValue().getMean(),
-                    (int)distilledRatings.get(p.getId()).getValue().getDeviation()))
-                .toList()),
-            bestScore);
-      }
-    }
-    return bestTeams;
   }
 
 }

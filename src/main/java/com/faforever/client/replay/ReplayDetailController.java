@@ -12,6 +12,7 @@ import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.game.RatingPrecision;
 import com.faforever.client.game.TeamCardController;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.leaderboard.LeaderboardRating;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
@@ -391,10 +392,8 @@ public class ReplayDetailController implements Controller<Node> {
       TeamCardController controller = uiService.loadFxml("theme/team_card.fxml");
       teamCardControllers.add(controller);
 
-      Function<Player, Integer> playerRatingFunction = player -> getPlayerRating(player, statsByPlayerId);
-
+      Function<Player, LeaderboardRating> playerRatingFunction = player -> getPlayerLeaderboardRating(player, statsByPlayerId);
       Function<Player, Faction> playerFactionFunction = player -> getPlayerFaction(player, statsByPlayerId);
-
       Boolean hidePlayerRatings = statsByPlayerId.values().stream()
           .map(PlayerStats::getLeaderboard)
           .anyMatch(lb -> lb == null || lb.getLeaderboardHidden());
@@ -420,6 +419,16 @@ public class ReplayDetailController implements Controller<Node> {
       return RatingUtil.getRating(playerStats.getBeforeMean(), playerStats.getBeforeDeviation());
     } else {
       return null;
+    }
+  }
+
+  @VisibleForTesting
+  LeaderboardRating getPlayerLeaderboardRating(Player player, Map<Integer, PlayerStats> statsByPlayerId) {
+    PlayerStats playerStats = statsByPlayerId.get(player.getId());
+    if (playerStats.getBeforeDeviation() != null && playerStats.getBeforeMean() != null) {
+      return LeaderboardRating.create(playerStats.getBeforeMean().floatValue(), playerStats.getBeforeDeviation().floatValue());
+    } else {
+      return ratingService.createNewLeaderboardRating();
     }
   }
 

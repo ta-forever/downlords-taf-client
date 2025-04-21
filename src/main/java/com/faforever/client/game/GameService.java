@@ -831,10 +831,16 @@ public class GameService implements InitializingBean {
   }
 
   public void setStartPositions() {
-    if (isGameRunning()) {
-      Game game = getCurrentGame();
-      List<Player> positions = this.ratingService.getBalancedTeams(game);
-      if (positions.size() > 0 && preferencesService.getPreferences().getAutoTeamBalanceEnabled()) {
+    Game game = getCurrentGame();
+    if (game != null) {
+      setStartPositions(game);
+    }
+  }
+
+  public void setStartPositions(Game game) {
+    List<Player> positions = this.ratingService.getBalancedTeams(game);
+    if (isGameRunning() && getCurrentGame() == game) {
+      if (!positions.isEmpty() && preferencesService.getPreferences().getAutoTeamBalanceEnabled()) {
         this.totalAnnihilationService.sendToConsole("/startpositions " +
             String.join(",", positions.stream().map(p -> String.valueOf(p.getId())).toList()));
       }

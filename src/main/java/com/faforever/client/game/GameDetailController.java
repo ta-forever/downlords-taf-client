@@ -15,6 +15,7 @@ import com.faforever.client.mod.ModService;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.event.CurrentPlayerInfo;
+import com.faforever.client.rating.RatingService;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.vault.replay.WatchButtonController;
@@ -75,6 +76,7 @@ public class GameDetailController implements Controller<Pane> {
   private final UiService uiService;
   private final ChatService chatService;
   private final LeaderboardService leaderboardService;
+  private final RatingService ratingService;
   private final JoinGameHelper joinGameHelper;
   private final EventBus eventBus;
 
@@ -134,7 +136,7 @@ public class GameDetailController implements Controller<Pane> {
   public GameDetailController(I18n i18n, MapService mapService, ModService modService,
                               GameService gameService, PlayerService playerService,
                               UiService uiService, ChatService chatService,
-                              LeaderboardService leaderboardService,
+                              LeaderboardService leaderboardService, RatingService ratingService,
                               JoinGameHelper joinGameHelper, EventBus eventBus) {
     this.i18n = i18n;
     this.mapService = mapService;
@@ -144,6 +146,7 @@ public class GameDetailController implements Controller<Pane> {
     this.uiService = uiService;
     this.chatService = chatService;
     this.leaderboardService = leaderboardService;
+    this.ratingService = ratingService;
     this.joinGameHelper = joinGameHelper;
     this.eventBus = eventBus;
     this.pingTableTooltip = new Tooltip();
@@ -424,7 +427,8 @@ public class GameDetailController implements Controller<Pane> {
         .thenAccept(leaderboards -> JavaFxUtil.runLater(() -> {
           boolean hidePlayerRatings = leaderboards.stream().noneMatch(lb -> lb.getTechnicalName().equals(game.get().getRatingType()));
           teamListPane.getChildren().clear();
-          TeamCardController.createAndAdd(game.get().getTeams(), game.get().getRatingType(), playerService, uiService,
+          TeamCardController.createAndAdd(game.get().getTeams(), game.get().getRatingType(),
+              playerService, uiService, ratingService,
               teamListPane, hidePlayerRatings);
         }));
   }

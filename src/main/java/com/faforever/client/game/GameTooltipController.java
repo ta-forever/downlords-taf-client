@@ -5,6 +5,7 @@ import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.leaderboard.LeaderboardService;
 import com.faforever.client.player.PlayerService;
+import com.faforever.client.rating.RatingService;
 import com.faforever.client.theme.UiService;
 import com.google.common.base.Joiner;
 import javafx.beans.InvalidationListener;
@@ -30,6 +31,7 @@ public class GameTooltipController implements Controller<Node> {
   private final UiService uiService;
   private final PlayerService playerService;
   private final LeaderboardService leaderboardService;
+  private final RatingService ratingService;
 
   public TitledPane modsPane;
   public TilePane teamsPane;
@@ -89,7 +91,7 @@ public class GameTooltipController implements Controller<Node> {
         boolean hidePlayerRatings = leaderboards.stream().noneMatch(lb -> lb.getTechnicalName().equals(ratingType));
         synchronized (teamsList) {
           teamsPane.getChildren().clear();
-          TeamCardController.createAndAdd(teamsList, ratingType, playerService, uiService, teamsPane, hidePlayerRatings);
+          TeamCardController.createAndAdd(teamsList, ratingType, playerService, uiService, ratingService, teamsPane, hidePlayerRatings);
           teamsPane.setPrefColumns(Math.min(teamsList.size(), maxPrefColumns));
         }
       }));

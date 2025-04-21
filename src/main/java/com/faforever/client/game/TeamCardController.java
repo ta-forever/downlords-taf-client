@@ -4,8 +4,10 @@ package com.faforever.client.game;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.leaderboard.LeaderboardRating;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
+import com.faforever.client.rating.RatingService;
 import com.faforever.client.replay.Replay.PlayerStats;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.util.RatingUtil;
@@ -52,7 +54,8 @@ public class TeamCardController implements Controller<Node> {
    * @param playerService the service to use to look up players by name
    */
   static void createAndAdd(ObservableMap<? extends String, ? extends List<String>> teamsList, String ratingType,
-                           PlayerService playerService, UiService uiService, Pane teamsPane, Boolean hidePlayerRatings) {
+                           PlayerService playerService, UiService uiService, RatingService ratingService,
+                           Pane teamsPane, Boolean hidePlayerRatings) {
     JavaFxUtil.assertApplicationThread();
     for (Map.Entry<? extends String, ? extends List<String>> entry : teamsList.entrySet()) {
       List<Player> players = entry.getValue().stream()
@@ -63,14 +66,15 @@ public class TeamCardController implements Controller<Node> {
 
       TeamCardController teamCardController = uiService.loadFxml("theme/team_card.fxml");
       teamCardController.setPlayersInTeam(
-          entry.getKey(), players, player -> RatingUtil.getLeaderboardRating(player, ratingType), null,
-          RatingPrecision.ROUNDED, hidePlayerRatings);
+          entry.getKey(), players,
+          player -> player.getLeaderboardRatings().getOrDefault(ratingType, ratingService.createNewLeaderboardRating()),
+          null, RatingPrecision.ROUNDED, hidePlayerRatings);
       teamsPane.getChildren().add(teamCardController.getRoot());
     }
   }
 
   public void setPlayersInTeam(
-      String team, List<Player> playerList, Function<Player, Integer> ratingProvider, Function<Player,
+      String team, List<Player> playerList, Function<Player, LeaderboardRating> ratingProvider, Function<Player,
       Faction> playerFactionProvider, RatingPrecision ratingPrecision, Boolean hidePlayerRatings) {
     int totalRating = 0;
     for (Player player : playerList) {
@@ -79,7 +83,7 @@ public class TeamCardController implements Controller<Node> {
         continue;
       }
       PlayerCardTooltipController playerCardTooltipController = uiService.loadFxml("theme/player_card_tooltip.fxml");
-      Integer playerRating = ratingProvider.apply(player);
+      Integer playerRating = RatingUtil.getRating(ratingProvider.apply(player));
       if (playerRating != null) {
         totalRating += playerRating;
 
