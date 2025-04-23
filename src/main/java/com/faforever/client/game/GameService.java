@@ -89,6 +89,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -1244,20 +1245,22 @@ public class GameService implements InitializingBean {
         java.util.Map<?, List<String>> currentGameTeams = currentGame.get().getTeams();
         java.util.Map<?, List<String>> gameInfoTeams = gameInfoMessage.getTeams();
         if (currentGameTeams != null && gameInfoTeams != null) {
-          currentGameTeams.entrySet().removeIf(entry -> entry.getKey().equals("-1"));
-          gameInfoTeams.entrySet().removeIf(entry -> entry.getKey().equals("-1"));
-          List<String> currentGamePlayers = currentGameTeams.values().stream().flatMap(List::stream).sorted().toList();
-          List<String> gameInfoGamePlayers = gameInfoTeams.values().stream().flatMap(List::stream).sorted().toList();
-          isCurrentGameAndPlayersChanged &= !gameInfoGamePlayers.equals(currentGamePlayers);
+          List<String> currentGamePlayers = currentGameTeams.entrySet().stream()
+              .filter(entry -> Integer.parseInt(entry.getKey().toString()) >= 2)
+              .map(Entry::getValue)
+              .flatMap(List::stream)
+              .sorted().toList();
+          List<String> gameInfoGamePlayers = gameInfoTeams.entrySet().stream()
+              .filter(entry -> Integer.parseInt(entry.getKey().toString()) >= 2)
+              .map(Entry::getValue)
+              .flatMap(List::stream)
+              .sorted().toList();
+          isCurrentGameAndPlayersChanged = !gameInfoGamePlayers.equals(currentGamePlayers);
         } else {
           isCurrentGameAndPlayersChanged = currentGameTeams != null || gameInfoTeams != null;
         }
       }
     }
-
-    //boolean isCurrentGameAndPlayersChanged =
-    //        currentGame.get() != null && currentGame.get().getId() == gameInfoMessage.getUid() &&
-    //        gameInfoMessage.getTeams() != null && !gameInfoMessage.getTeams().equals(currentGame.get().getTeams());
 
     String currentGameRatingType = null;
     if (currentGame.get() != null) {

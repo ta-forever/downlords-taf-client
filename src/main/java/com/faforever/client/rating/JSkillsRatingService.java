@@ -80,8 +80,9 @@ public class JSkillsRatingService implements RatingService {
     Set<String> teamsLeaderboards = getLeaderboards(game.getFeaturedMod(), true);
     Set<String> singlesLeaderboards = getLeaderboards(game.getFeaturedMod(), false);
 
-    Map<?, List<String>> currentTeams = game.getTeams();
-    currentTeams.entrySet().removeIf(entry -> entry.getKey().equals("-1"));
+    Map<?, List<String>> currentTeams = game.getTeams().entrySet().stream()
+        .filter(entry -> Integer.parseInt(entry.getKey()) >= 2)
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
     List<Player> players = getNonHostPlayers(currentTeams, game.getHost());
     boolean isHostWatching = game.getTeams().getOrDefault("-1", List.of()).contains(game.getHost());
@@ -342,11 +343,13 @@ public class JSkillsRatingService implements RatingService {
   }
 
   private LeaderboardRating aggregateRatings(List<LeaderboardRating> leaderboardRatings) {
-    LeaderboardRating lbr = RatingUtil.getAggregateRating(leaderboardRatings);
-    if (lbr.getNumberOfGames() > 0) {
-      return lbr;
+    if (!leaderboardRatings.isEmpty()) {
+      LeaderboardRating lbr = RatingUtil.getAggregateRating(leaderboardRatings);
+      if (lbr != null && lbr.getNumberOfGames() > 0) {
+        return lbr;
+      }
     }
-    lbr = LeaderboardRating.create((float) gameInfo.getInitialMean(), (float) gameInfo.getInitialStandardDeviation());
+    LeaderboardRating lbr = LeaderboardRating.create((float) gameInfo.getInitialMean(), (float) gameInfo.getInitialStandardDeviation());
     lbr.setNumberOfGames(0);
     return lbr;
   }
