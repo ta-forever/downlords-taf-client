@@ -218,6 +218,10 @@ public class PreferencesService implements InitializingBean {
       preferences.getChat().initToxicitySettings2Property();
     }
 
+    if (preferences.getColorBlindFriendlyProperty() == null) {
+      preferences.initColorBlindFriendlyProperty(false);
+    }
+
     storeInBackground();
   }
 

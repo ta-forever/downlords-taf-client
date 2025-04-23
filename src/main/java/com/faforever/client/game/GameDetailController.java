@@ -15,6 +15,7 @@ import com.faforever.client.mod.ModService;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.event.CurrentPlayerInfo;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.rating.RatingService;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.theme.UiService;
@@ -76,6 +77,7 @@ public class GameDetailController implements Controller<Pane> {
   private final UiService uiService;
   private final ChatService chatService;
   private final LeaderboardService leaderboardService;
+  private final PreferencesService preferencesService;
   private final RatingService ratingService;
   private final JoinGameHelper joinGameHelper;
   private final EventBus eventBus;
@@ -137,7 +139,8 @@ public class GameDetailController implements Controller<Pane> {
                               GameService gameService, PlayerService playerService,
                               UiService uiService, ChatService chatService,
                               LeaderboardService leaderboardService, RatingService ratingService,
-                              JoinGameHelper joinGameHelper, EventBus eventBus) {
+                              PreferencesService preferencesService, JoinGameHelper joinGameHelper,
+                              EventBus eventBus) {
     this.i18n = i18n;
     this.mapService = mapService;
     this.modService = modService;
@@ -147,6 +150,7 @@ public class GameDetailController implements Controller<Pane> {
     this.chatService = chatService;
     this.leaderboardService = leaderboardService;
     this.ratingService = ratingService;
+    this.preferencesService = preferencesService;
     this.joinGameHelper = joinGameHelper;
     this.eventBus = eventBus;
     this.pingTableTooltip = new Tooltip();
@@ -488,9 +492,20 @@ public class GameDetailController implements Controller<Pane> {
           Integer peerOrdinal = playerOrdinalsById.get(peerId);
           String peerUsername = playersInGameById.get(peerId).getUsername();
           Integer ping = peerPingPair.get(1);
-          double red = min(1.0, (double) ping / (double) 1000);
-          double green = 1.0 - red;
-          double blue = 0.0;
+
+          double red, green, blue;
+          if (preferencesService.getPreferences().getColorBlindFriend()) {
+            double t = Math.min(1.0, (double) ping / 1000.0);
+            red = (float) t;
+            green = (float) (1.0 - t);
+            blue = (float) (1.0 - t);
+          }
+          else {
+            double t = Math.min(1.0, (double) ping / 1000.0);
+            red = (float) t;
+            green = (float) (1.0 - t);
+            blue = (float) 0.0;
+          }
 
           Region cell = new Region();
           cell.setStyle(

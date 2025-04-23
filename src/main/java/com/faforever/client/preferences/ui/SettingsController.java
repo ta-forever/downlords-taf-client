@@ -190,6 +190,7 @@ public class SettingsController implements Controller<Node> {
   public CheckBox debugLogToggle;
 
   private final InvalidationListener availableLanguagesListener;
+  public CheckBox colorBlindFriendlyToggle;
 
   private ChangeListener<Theme> selectedThemeChangeListener;
   private ChangeListener<Theme> currentThemeChangeListener;
@@ -370,20 +371,6 @@ public class SettingsController implements Controller<Node> {
           return modList;
         });
 
-//    gameLocationExecutableTableColumn.setCellFactory(TextFieldTableCell.forTableColumn());
-//    gameLocationExecutableTableColumn.setOnEditCommit(
-//        t -> t.getTableView()
-//            .getItems()
-//            .get(t.getTablePosition().getRow())
-//            .setInstalledPath(Paths.get(t.getNewValue())));
-//
-//    gameLocationCommandLineOptionsTableColumn.setCellFactory(TextFieldTableCell.forTableColumn());
-//    gameLocationCommandLineOptionsTableColumn.setOnEditCommit(
-//       t -> t.getTableView()
-//            .getItems()
-//            .get(t.getTablePosition().getRow())
-//            .setCommandLineOptions(t.getNewValue()));
-
     JavaFxUtil.bindBidirectional(iceAcceptableLatencyTextField.textProperty(), preferences.getIceAcceptableLatencyProperty(), numberToStringConverter);
     forceRelayToggle.selectedProperty().bindBidirectional(preferences.getForceRelayEnabledProperty());
     proactiveResendToggle.selectedProperty().bindBidirectional(preferences.getProactiveResendEnabledProperty());
@@ -396,6 +383,7 @@ public class SettingsController implements Controller<Node> {
     enableSequencedLaunchToggle.selectedProperty().bindBidirectional(preferences.getSequencedLaunchProperty());
     enableAutoJoinToggle.selectedProperty().bindBidirectional(preferences.getAutoJoinEnabledProperty());
     requireUacToggle.selectedProperty().bindBidirectional(preferences.getRequireUacEnabledProperty());
+    colorBlindFriendlyToggle.selectedProperty().bindBidirectional(preferences.getColorBlindFriendlyProperty());
     updateGameLocationTable();
 
     backgroundImageLocation.textProperty().bindBidirectional(preferences.getMainWindow().backgroundImagePathProperty(), PATH_STRING_CONVERTER);

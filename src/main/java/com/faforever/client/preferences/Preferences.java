@@ -50,6 +50,7 @@ public class Preferences {
   private final BooleanProperty showPasswordProtectedGames;
   // TA options @todo they need to be in TotalAnnilationPreferences()
   private final BooleanProperty forceRelayEnabled;
+  private BooleanProperty colorBlindFriendly;
   private final IntegerProperty iceAcceptableLatency;
   private final BooleanProperty proactiveResendEnabled;
   private final ObjectProperty<MaxPacketSizeOption> maxPacketSizeOption;
@@ -112,6 +113,7 @@ public class Preferences {
     storedCookies = new SimpleMapProperty<>(FXCollections.observableHashMap());
     showPasswordProtectedGames = new SimpleBooleanProperty(true);
     forceRelayEnabled = new SimpleBooleanProperty(false);
+    colorBlindFriendly = new SimpleBooleanProperty(false);
     iceAcceptableLatency = new SimpleIntegerProperty(-1);
     proactiveResendEnabled = new SimpleBooleanProperty(false);
     maxPacketSizeOption = new SimpleObjectProperty<>(MaxPacketSizeOption.NORMAL);
@@ -199,6 +201,8 @@ public class Preferences {
   public ObservableList<TotalAnnihilationPrefs> getTotalAnnihilationAllMods() { return totalAnnihilation; }
 
   public BooleanProperty getForceRelayEnabledProperty() { return forceRelayEnabled; }
+  public BooleanProperty getColorBlindFriendlyProperty() { return colorBlindFriendly; }
+  public void initColorBlindFriendlyProperty(boolean value) { colorBlindFriendly = new SimpleBooleanProperty(value); }
 
   public IntegerProperty getIceAcceptableLatencyProperty() { return iceAcceptableLatency; }
 
@@ -261,6 +265,7 @@ public class Preferences {
   }
 
   public boolean getForceRelayEnabled() { return forceRelayEnabled.get(); }
+  public boolean getColorBlindFriend() { return colorBlindFriendly.get(); }
 
   public int getIceAcceptableLatency() { return iceAcceptableLatency.get(); }
 
