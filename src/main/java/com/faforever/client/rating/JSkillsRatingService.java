@@ -9,6 +9,7 @@ import com.faforever.client.player.PlayerService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.replay.Replay;
 import com.faforever.client.replay.Replay.PlayerStats;
+import com.faforever.client.util.RatingUtil;
 import jskills.GameInfo;
 import jskills.Rating;
 import jskills.Team;
@@ -341,26 +342,11 @@ public class JSkillsRatingService implements RatingService {
   }
 
   private LeaderboardRating aggregateRatings(List<LeaderboardRating> leaderboardRatings) {
-    double posteriorMean = 0.0;
-    double posteriorPrecision = 0.0;
-    int totalGames = 0;
-
-    for (LeaderboardRating rating : leaderboardRatings) {
-      double precision = rating.getNumberOfGames() / rating.getDeviation() / rating.getDeviation();
-      posteriorMean += rating.getMean() * precision;
-      posteriorPrecision += precision;
-      totalGames += rating.getNumberOfGames();
-    }
-
-    posteriorMean /= posteriorPrecision;
-    double posteriorVariance = totalGames / posteriorPrecision;
-
-    if (totalGames > 0) {
-      LeaderboardRating lbr = LeaderboardRating.create((float) posteriorMean, (float) Math.sqrt(posteriorVariance));
-      lbr.setNumberOfGames(totalGames);
+    LeaderboardRating lbr = RatingUtil.getAggregateRating(leaderboardRatings);
+    if (lbr.getNumberOfGames() > 0) {
       return lbr;
     }
-    LeaderboardRating lbr = LeaderboardRating.create((float) gameInfo.getInitialMean(), (float) gameInfo.getInitialStandardDeviation());
+    lbr = LeaderboardRating.create((float) gameInfo.getInitialMean(), (float) gameInfo.getInitialStandardDeviation());
     lbr.setNumberOfGames(0);
     return lbr;
   }

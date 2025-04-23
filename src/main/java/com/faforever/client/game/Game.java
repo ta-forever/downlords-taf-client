@@ -212,10 +212,10 @@ public class Game {
 
   public String getRatingRangeString(I18n i18n) {
     if (getStatus().isInProgress()) {
-      return String.valueOf(Math.round(getAverageRating() / 100.0) * 100.0);
+      return String.valueOf((int)(Math.round(getAverageRating() / 100.0) * 100.0));
     }
     else if (getMinRating() == null && getMaxRating() == null) {
-      return "-";
+      return i18n.get("game.ratingFormat.open");
     }
     else if (getMinRating() == null) {
       return i18n.get("game.ratingFormat.maxOnly", getMaxRating());

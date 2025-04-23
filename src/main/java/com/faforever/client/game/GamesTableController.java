@@ -78,7 +78,7 @@ public class GamesTableController implements Controller<Node> {
   public TableColumn<Game, String> statusColumn;
   public TableColumn<Game, String> gameTitleColumn;
   public TableColumn<Game, PlayerFill> playersColumn;
-  public TableColumn<Game, Number> averageRatingColumn;
+  public TableColumn<Game, Double> averageRatingColumn;
   public TableColumn<Game, RatingRange> ratingRangeColumn;
   public TableColumn<Game, String> hostColumn;
   public TableColumn<Game, Boolean> passwordProtectionColumn;
@@ -176,13 +176,13 @@ public class GamesTableController implements Controller<Node> {
         Set<String> visibleLeaderboards = leaderBoards.stream()
             .map(Leaderboard::getTechnicalName)
             .collect(Collectors.toSet());
-          averageRatingColumn.setCellValueFactory(param -> Bindings.createDoubleBinding(() -> {
+          averageRatingColumn.setCellValueFactory(param -> Bindings.createObjectBinding(() -> {
             boolean isVisibleRatingType = visibleLeaderboards.contains(param.getValue().getRatingType());
-            return isVisibleRatingType ? param.getValue().getAverageRating() : 0.0;
+            return isVisibleRatingType ? param.getValue().getAverageRating() : null;
           }, param.getValue().ratingTypeProperty(), param.getValue().averageRatingProperty()));
           averageRatingColumn.setCellFactory(param -> new DecimalCell<>(
               new DecimalFormat("0"),
-              number -> Math.round(number.doubleValue() / 100.0) * 100.0)
+              number -> Math.round(number / 100.0) * 100.0)
           );
       });
     }

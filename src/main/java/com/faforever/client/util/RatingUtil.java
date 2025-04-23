@@ -5,6 +5,7 @@ import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.leaderboard.LeaderboardRating;
 import com.faforever.client.player.Player;
 
+import java.util.List;
 import java.util.Optional;
 
 public final class RatingUtil {
@@ -43,6 +44,31 @@ public final class RatingUtil {
 
   public static int getRating(LeaderboardRating leaderboardRating) {
     return (int) (leaderboardRating.getMean() - 3f * leaderboardRating.getDeviation());
+  }
+
+  public static LeaderboardRating getAggregateRating(List<LeaderboardRating> leaderboardRatings) {
+    double posteriorMean = 0.0;
+    double posteriorPrecision = 0.0;
+    int totalGames = 0;
+
+    for (LeaderboardRating rating : leaderboardRatings) {
+      double precision = 1.0 / rating.getDeviation() / rating.getDeviation();
+      posteriorMean += rating.getMean() * precision;
+      posteriorPrecision += precision;
+      totalGames += rating.getNumberOfGames();
+    }
+
+    posteriorMean /= posteriorPrecision;
+    double posteriorVariance = 1.0 / posteriorPrecision;
+
+    if (totalGames > 0) {
+      LeaderboardRating lbr = LeaderboardRating.create((float) posteriorMean, (float) Math.sqrt(posteriorVariance));
+      lbr.setNumberOfGames(totalGames);
+      return lbr;
+    }
+    else {
+      return null;
+    }
   }
 
   public static int getRating(double ratingMean, double ratingDeviation) {
