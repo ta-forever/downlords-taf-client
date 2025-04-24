@@ -269,7 +269,7 @@ public class ChatPrefs {
     toxicitySettings2.clear();
     toxicitySettings2.add(new ToxicitySetting(SocialStatus.FOE, 0.67, ToxicityAction.SUPPRESS));
     toxicitySettings2.add(new ToxicitySetting(SocialStatus.FRIEND, 0.95, ToxicityAction.MASK));
-    toxicitySettings2.add(new ToxicitySetting(SocialStatus.OTHER, 0.9, ToxicityAction.MASK));
+    toxicitySettings2.add(new ToxicitySetting(SocialStatus.OTHER, 0.9, ToxicityAction.SUPPRESS));
   }
 
   public boolean isPlayerListShown() {
