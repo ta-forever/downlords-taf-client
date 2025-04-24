@@ -28,13 +28,12 @@
         <ColumnConstraints hgrow="NEVER" minWidth="10.0" prefWidth="400.0"/>
     </columnConstraints>
     <rowConstraints>
-        <RowConstraints vgrow="NEVER"/>
-        <RowConstraints minHeight="10.0" vgrow="NEVER"/>
-        <RowConstraints vgrow="NEVER" />
-        <RowConstraints valignment="TOP" vgrow="SOMETIMES"/>
-        <RowConstraints vgrow="NEVER" />
-        <RowConstraints vgrow="ALWAYS" />
-        <RowConstraints vgrow="NEVER" />
+        <RowConstraints minHeight="80.0" vgrow="NEVER"/>
+        <RowConstraints minHeight="35.0" vgrow="NEVER"/>
+        <RowConstraints minHeight="10.0" vgrow="NEVER" />
+        <RowConstraints minHeight="35.0" vgrow="NEVER" valignment="TOP"/>
+        <RowConstraints minHeight="35.0" vgrow="NEVER" />
+        <RowConstraints maxHeight="480" vgrow="ALWAYS" />
     </rowConstraints>
     <children>
     	<!-- Title, Password, Rating -->
@@ -174,21 +173,21 @@
                 <Label fx:id="mapDescriptionLabel" alignment="TOP_LEFT" maxHeight="1.7976931348623157E308"
                        maxWidth="360" text="&lt;Description&gt;" wrapText="true"/>
             </ScrollPane>
-            <Separator GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS"/>
         </VBox>
 
         <!-- Dismiss, Ok -->
         <Button minWidth="-Infinity" mnemonicParsing="false" onAction="#onCloseButtonClicked"
-                   styleClass="more-button-padding" text="%dismiss" GridPane.columnIndex="2" GridPane.halignment="CENTER"
-                   GridPane.rowIndex="6">
+                   styleClass="more-button-padding" text="%dismiss" GridPane.columnIndex="2"
+                   GridPane.halignment="CENTER" GridPane.valignment="BOTTOM"
+                   GridPane.rowIndex="5">
         </Button>
         <Button fx:id="createGameButton" defaultButton="true" minWidth="-Infinity" mnemonicParsing="false"
                    onAction="#onCreateButtonClicked" styleClass="more-button-padding" text="%game.create.create"
-                   GridPane.columnIndex="2" GridPane.halignment="RIGHT" GridPane.rowIndex="6">
+                   GridPane.columnIndex="2" GridPane.halignment="RIGHT" GridPane.valignment="BOTTOM" GridPane.rowIndex="5">
         </Button>
         <Button fx:id="updateGameButton" defaultButton="true" minWidth="-Infinity" mnemonicParsing="false"
                 onAction="#onUpdateButtonClicked" styleClass="more-button-padding" text="%game.create.update"
-                GridPane.columnIndex="2" GridPane.halignment="RIGHT" GridPane.rowIndex="6">
+                GridPane.columnIndex="2" GridPane.halignment="RIGHT" GridPane.valignment="BOTTOM" GridPane.rowIndex="5">
         </Button>
 
     </children>
