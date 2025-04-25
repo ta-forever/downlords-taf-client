@@ -25,7 +25,6 @@ import javafx.scene.paint.Color;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 
 import static com.faforever.client.chat.ChatColorMode.DEFAULT;
 import static com.faforever.client.preferences.LanguageChannel.FRENCH;
@@ -57,7 +56,7 @@ public class ChatPrefs {
   private final ObjectProperty<DateInfo> dateFormat = new SimpleObjectProperty<>(DateInfo.AUTO);
   private final ObjectProperty<ChatFormat> chatFormat = new SimpleObjectProperty<>(ChatFormat.COMPACT);
   private final IntegerProperty idleThreshold = new SimpleIntegerProperty(10);
-  private final ListProperty<ToxicitySetting> toxicitySettings2 = new SimpleListProperty<>(FXCollections.observableArrayList());
+  private final ListProperty<ToxicitySetting> toxicitySettings3 = new SimpleListProperty<>(FXCollections.observableArrayList());
   private ListProperty<String> autoJoinChannels2;
 
   private ChatPrefs() {
@@ -74,10 +73,10 @@ public class ChatPrefs {
       autoJoinChannels2 = new SimpleListProperty<>(observableList);
     }
 
-    if (toxicitySettings2.isEmpty()) {
-      toxicitySettings2.add(new ToxicitySetting(SocialStatus.FOE, 0.67, ToxicityAction.SUPPRESS));
-      toxicitySettings2.add(new ToxicitySetting(SocialStatus.FRIEND, 0.95, ToxicityAction.MASK));
-      toxicitySettings2.add(new ToxicitySetting(SocialStatus.OTHER, 0.9, ToxicityAction.SUPPRESS));
+    if (toxicitySettings3.isEmpty()) {
+      toxicitySettings3.add(new ToxicitySetting(SocialStatus.FOE, 0.67, ToxicityAction.HIDE));
+      toxicitySettings3.add(new ToxicitySetting(SocialStatus.FRIEND, 0.95, ToxicityAction.CENSOR));
+      toxicitySettings3.add(new ToxicitySetting(SocialStatus.OTHER, 0.9, ToxicityAction.HIDE));
     }
   }
 
@@ -245,8 +244,8 @@ public class ChatPrefs {
   public ObservableList<String> getAutoJoinChannels2() { return autoJoinChannels2.get(); }
   public ListProperty<String> autoJoinChannels2Property() { return autoJoinChannels2; }
 
-  public ObservableList<ToxicitySetting> getToxicitySettings2() { return toxicitySettings2.get(); }
-  public ListProperty<ToxicitySetting> toxicitySettings2Property() { return toxicitySettings2; }
+  public ObservableList<ToxicitySetting> getToxicitySettings3() { return toxicitySettings3.get(); }
+  public ListProperty<ToxicitySetting> toxicitySettings3Property() { return toxicitySettings3; }
 
   public boolean isPlayerListShown() {
     return playerListShown.get();

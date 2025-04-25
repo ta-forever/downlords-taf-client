@@ -1,9 +1,9 @@
 package com.faforever.client.preferences;
 
 public enum ToxicityAction {
-  SUPPRESS("chat.toxicity.filter.suppress"),
-  MASK("chat.toxicity.filter.mask"),
-  DISPLAY("chat.toxicity.filter.display");
+  HIDE("chat.toxicity.filter.hide"),
+  CENSOR("chat.toxicity.filter.censor"),
+  ALLOW("chat.toxicity.filter.allow");
 
   private final String i18nKey;
 

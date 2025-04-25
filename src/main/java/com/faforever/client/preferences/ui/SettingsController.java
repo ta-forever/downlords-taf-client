@@ -475,8 +475,8 @@ public class SettingsController implements Controller<Node> {
     toxicitySettingsTable.setEditable(true);
 
     // Load existing settings into the table
-    toxicitySettingsTable.setItems(preferencesService.getPreferences().getChat().getToxicitySettings2());
-    toxicitySettingsTable.itemsProperty().bindBidirectional(preferencesService.getPreferences().getChat().toxicitySettings2Property());
+    toxicitySettingsTable.setItems(preferencesService.getPreferences().getChat().getToxicitySettings3());
+    toxicitySettingsTable.itemsProperty().bindBidirectional(preferencesService.getPreferences().getChat().toxicitySettings3Property());
   }
 
   private void initGameDataCache() {
