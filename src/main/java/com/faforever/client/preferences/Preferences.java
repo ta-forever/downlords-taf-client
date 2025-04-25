@@ -33,117 +33,80 @@ public class Preferences {
 
   public static final String DEFAULT_THEME_NAME = "default";
 
-  private final WindowPrefs mainWindow;
-  private final GeneratorPrefs generator;
-  private final ListProperty<TotalAnnihilationPrefs> totalAnnihilation;
-  private final LoginPrefs login;
-  private final ChatPrefs chat;
-  private final NotificationsPrefs notification;
-  private final LocalizationPrefs localization;
-  private final LastGamePrefs lastGame;
-  private final MatchmakerPrefs matchmaker;
-  private final NewsPrefs news;
-  private final DeveloperPrefs developer;
-  private final VaultPrefs vault;
-  private final StringProperty themeName;
-  private final BooleanProperty preReleaseCheckEnabled;
-  private final BooleanProperty showPasswordProtectedGames;
-  // TA options @todo they need to be in TotalAnnilationPreferences()
-  private final BooleanProperty forceRelayEnabled;
-  private BooleanProperty colorBlindFriendly;
-  private final IntegerProperty iceAcceptableLatency;
-  private final BooleanProperty proactiveResendEnabled;
-  private final ObjectProperty<MaxPacketSizeOption> maxPacketSizeOption;
-  private final BooleanProperty suppressReplayChatEnabled;
-  private final BooleanProperty ircIntegrationEnabled;
-  private final BooleanProperty autoLaunchOnHostEnabled;
-  private final BooleanProperty autoLaunchOnJoinEnabled;
-  private final BooleanProperty autoRehostEnabled;
-  private final BooleanProperty autoTeamBalanceEnabled;
-  private final BooleanProperty sequencedLaunchEnabled;
-  private final BooleanProperty autoJoinEnabled;
-  private final BooleanProperty requireUacEnabled;
-  // end TA options
-  private final ListProperty<String> ignoredNotifications;
-  private final StringProperty gamesViewMode;
-  private final StringProperty lastPlayTab; // matchmaker or custom
-  private final ListProperty<Pair<String, SortType>> gameListSorting;
-  private final ObjectProperty<TilesSortingOrder> gameTileSortingOrder;
-  private final ObjectProperty<UnitDataBaseType> unitDataBaseType;
-  private final MapProperty<URI, ArrayList<HttpCookie>> storedCookies;
-  private final BooleanProperty disallowJoinsViaDiscord;
-  private final BooleanProperty showGameDetailsSidePane;
-  private final BooleanProperty advancedIceLogEnabled;
-  private final IntegerProperty cacheLifeTimeInDays;
-  private final BooleanProperty gameDataCacheActivated;
-  private final BooleanProperty gameDataMapManagementEnabled;
-  private final BooleanProperty gameDataPromptDownloadActivated;
-  private final BooleanProperty gameDataMapDownloadKeepVersionTag;
-  private final BooleanProperty debugLogEnabled;
-  private final ObjectProperty<TadaIntegrationOption> tadaIntegrationOption;
-  private final ObjectProperty<AskAlwaysOrNever> featuredModRevertOption;
-  private final ObjectProperty<RatingMetric> userInfoRatingMetric;
-  private final ObjectProperty<AutoUploadLogsOption> autoUploadLogsOption;
-  private final StringProperty lastLeaderboardSelection;
-  private final BooleanProperty lastLeaderboardFriendsOnlySelection;
-  private final ListProperty<String> LeaderBoardsSelectionFilter;
-  private final BooleanProperty gameRoomPopout;
+  private final WindowPrefs mainWindow = new WindowPrefs();
+  private final GeneratorPrefs generator = new GeneratorPrefs();
+  private final ListProperty<TotalAnnihilationPrefs> totalAnnihilation = new SimpleListProperty<>(FXCollections.observableArrayList());
+  private final LoginPrefs login = new LoginPrefs();
+  private ChatPrefs chat; // depends on defaultAutoJoinChatChannels, set in init()
+
+  private final NotificationsPrefs notification = new NotificationsPrefs();
+  private final LocalizationPrefs localization = new LocalizationPrefs();
+  private final LastGamePrefs lastGame = new LastGamePrefs();
+  private final MatchmakerPrefs matchmaker = new MatchmakerPrefs();
+  private final NewsPrefs news = new NewsPrefs();
+  private final DeveloperPrefs developer = new DeveloperPrefs();
+  private final VaultPrefs vault = new VaultPrefs();
+
+  private final StringProperty themeName = new SimpleStringProperty(DEFAULT_THEME_NAME);
+  private final BooleanProperty preReleaseCheckEnabled = new SimpleBooleanProperty(false);
+  private final BooleanProperty showPasswordProtectedGames = new SimpleBooleanProperty(true);
+
+  private final BooleanProperty forceRelayEnabled = new SimpleBooleanProperty(false);
+  private final BooleanProperty colorBlindFriendly = new SimpleBooleanProperty(false);
+  private final IntegerProperty iceAcceptableLatency = new SimpleIntegerProperty(-1);
+  private final BooleanProperty proactiveResendEnabled = new SimpleBooleanProperty(false);
+  private final ObjectProperty<MaxPacketSizeOption> maxPacketSizeOption = new SimpleObjectProperty<>(MaxPacketSizeOption.NORMAL);
+  private final BooleanProperty suppressReplayChatEnabled = new SimpleBooleanProperty(false);
+  private final BooleanProperty ircIntegrationEnabled = new SimpleBooleanProperty(true);
+  private final BooleanProperty autoLaunchOnHostEnabled = new SimpleBooleanProperty(false);
+  private final BooleanProperty autoLaunchOnJoinEnabled = new SimpleBooleanProperty(true);
+  private final BooleanProperty autoRehostEnabled = new SimpleBooleanProperty(false);
+  private final BooleanProperty autoTeamBalanceEnabled = new SimpleBooleanProperty(true);
+  private final BooleanProperty sequencedLaunchEnabled = new SimpleBooleanProperty(false);
+  private final BooleanProperty autoJoinEnabled = new SimpleBooleanProperty(false);
+  private final BooleanProperty requireUacEnabled = new SimpleBooleanProperty(true);
+
+  private final ListProperty<String> ignoredNotifications = new SimpleListProperty<>(observableArrayList());
+  private final StringProperty gamesViewMode = new SimpleStringProperty("tableButton");
+  private final StringProperty lastPlayTab = new SimpleStringProperty();
+  private final ListProperty<Pair<String, SortType>> gameListSorting = new SimpleListProperty<>(observableArrayList());
+  private final ObjectProperty<TilesSortingOrder> gameTileSortingOrder = new SimpleObjectProperty<>(TilesSortingOrder.PLAYER_DES);
+  private final ObjectProperty<UnitDataBaseType> unitDataBaseType = new SimpleObjectProperty<>(UnitDataBaseType.SPOOKY);
+  private final MapProperty<URI, ArrayList<HttpCookie>> storedCookies = new SimpleMapProperty<>(FXCollections.observableHashMap());
+
+  private final BooleanProperty disallowJoinsViaDiscord = new SimpleBooleanProperty(false);
+  private final BooleanProperty showGameDetailsSidePane = new SimpleBooleanProperty(false);
+  private final BooleanProperty advancedIceLogEnabled = new SimpleBooleanProperty(false);
+  private final IntegerProperty cacheLifeTimeInDays = new SimpleIntegerProperty(30);
+  private final BooleanProperty gameDataCacheActivated = new SimpleBooleanProperty(false);
+  private final BooleanProperty gameDataMapManagementEnabled = new SimpleBooleanProperty(true);
+  private final BooleanProperty gameDataPromptDownloadActivated = new SimpleBooleanProperty(true);
+  private final BooleanProperty gameDataMapDownloadKeepVersionTag = new SimpleBooleanProperty(false);
+  private final BooleanProperty debugLogEnabled = new SimpleBooleanProperty(false);
+  private final ObjectProperty<AutoUploadLogsOption> autoUploadLogsOption = new SimpleObjectProperty<>(AutoUploadLogsOption.ASK);
+  private final ObjectProperty<TadaIntegrationOption> tadaIntegrationOption = new SimpleObjectProperty<>(TadaIntegrationOption.BROWSER);
+  private final ObjectProperty<AskAlwaysOrNever> featuredModRevertOption = new SimpleObjectProperty<>(AskAlwaysOrNever.ASK);
+  private final ObjectProperty<RatingMetric> userInfoRatingMetric = new SimpleObjectProperty<>(RatingMetric.TRUESKILL);
+  private final StringProperty lastLeaderboardSelection = new SimpleStringProperty("global");
+  private final BooleanProperty lastLeaderboardFriendsOnlySelection = new SimpleBooleanProperty(false);
+  private final ListProperty<String> LeaderBoardsSelectionFilter = new SimpleListProperty<>(observableArrayList());
+  private final BooleanProperty gameRoomPopout = new SimpleBooleanProperty(true);
+
+  private Preferences() {
+    // Only for Gson
+  }
 
   public Preferences(List<String> defaultAutoJoinChatChannels) {
-    gameTileSortingOrder = new SimpleObjectProperty<>(TilesSortingOrder.PLAYER_DES);
-    chat = new ChatPrefs(defaultAutoJoinChatChannels);
-    login = new LoginPrefs();
-    generator = new GeneratorPrefs();
+    init(defaultAutoJoinChatChannels);
+  }
 
-    localization = new LocalizationPrefs();
-    lastGame = new LastGamePrefs();
-    mainWindow = new WindowPrefs();
-    totalAnnihilation = new SimpleListProperty<>(FXCollections.observableArrayList());
-    themeName = new SimpleStringProperty(DEFAULT_THEME_NAME);
-    ignoredNotifications = new SimpleListProperty<>(observableArrayList());
-    notification = new NotificationsPrefs();
-    matchmaker = new MatchmakerPrefs();
-    gamesViewMode = new SimpleStringProperty();
-    lastPlayTab = new SimpleStringProperty();
-    news = new NewsPrefs();
-    developer = new DeveloperPrefs();
-    gameListSorting = new SimpleListProperty<>(observableArrayList());
-    vault = new VaultPrefs();
-    unitDataBaseType = new SimpleObjectProperty<>(UnitDataBaseType.SPOOKY);
-    storedCookies = new SimpleMapProperty<>(FXCollections.observableHashMap());
-    showPasswordProtectedGames = new SimpleBooleanProperty(true);
-    forceRelayEnabled = new SimpleBooleanProperty(false);
-    colorBlindFriendly = new SimpleBooleanProperty(false);
-    iceAcceptableLatency = new SimpleIntegerProperty(-1);
-    proactiveResendEnabled = new SimpleBooleanProperty(false);
-    maxPacketSizeOption = new SimpleObjectProperty<>(MaxPacketSizeOption.NORMAL);
-    suppressReplayChatEnabled = new SimpleBooleanProperty(false);
-    ircIntegrationEnabled = new SimpleBooleanProperty(true);
-    autoLaunchOnHostEnabled = new SimpleBooleanProperty(false);
-    autoLaunchOnJoinEnabled = new SimpleBooleanProperty(true);
-    autoRehostEnabled = new SimpleBooleanProperty(false);
-    autoTeamBalanceEnabled = new SimpleBooleanProperty(true);
-    sequencedLaunchEnabled = new SimpleBooleanProperty(false);
-    autoJoinEnabled = new SimpleBooleanProperty(false);
-    requireUacEnabled = new SimpleBooleanProperty(true);
-    disallowJoinsViaDiscord = new SimpleBooleanProperty();
-    showGameDetailsSidePane = new SimpleBooleanProperty(false);
-    advancedIceLogEnabled = new SimpleBooleanProperty(false);
-    preReleaseCheckEnabled = new SimpleBooleanProperty(false);
-    cacheLifeTimeInDays = new SimpleIntegerProperty(30);
-    gameDataCacheActivated = new SimpleBooleanProperty(false);
-    gameDataMapManagementEnabled = new SimpleBooleanProperty(true);
-    gameDataPromptDownloadActivated = new SimpleBooleanProperty(true);
-    gameDataMapDownloadKeepVersionTag = new SimpleBooleanProperty(false);
-    debugLogEnabled = new SimpleBooleanProperty(false);
-    autoUploadLogsOption = new SimpleObjectProperty<>(AutoUploadLogsOption.ASK);
-    tadaIntegrationOption = new SimpleObjectProperty<>(TadaIntegrationOption.BROWSER);
-    featuredModRevertOption = new SimpleObjectProperty<>(AskAlwaysOrNever.ASK);
-    userInfoRatingMetric = new SimpleObjectProperty<>(RatingMetric.TRUESKILL);
-    lastLeaderboardSelection = new SimpleStringProperty("global");
-    lastLeaderboardFriendsOnlySelection = new SimpleBooleanProperty(false);
-    LeaderBoardsSelectionFilter = new SimpleListProperty<>(observableArrayList());
-    gameRoomPopout = new SimpleBooleanProperty(true);
+  public void init(List<String> defaultAutoJoinChatChannels) {
+    if (chat == null) {
+      chat = new ChatPrefs(defaultAutoJoinChatChannels);
+    }
+    else {
+      chat.init(defaultAutoJoinChatChannels);
+    }
   }
 
   public VaultPrefs getVault() {
@@ -202,7 +165,6 @@ public class Preferences {
 
   public BooleanProperty getForceRelayEnabledProperty() { return forceRelayEnabled; }
   public BooleanProperty getColorBlindFriendlyProperty() { return colorBlindFriendly; }
-  public void initColorBlindFriendlyProperty(boolean value) { colorBlindFriendly = new SimpleBooleanProperty(value); }
 
   public IntegerProperty getIceAcceptableLatencyProperty() { return iceAcceptableLatency; }
 

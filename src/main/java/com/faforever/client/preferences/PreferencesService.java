@@ -174,7 +174,6 @@ public class PreferencesService implements InitializingBean {
         }
         else {
           readExistingFile(clientRemoteConfiguration, preferencesFilePath);
-          migratePreferences(clientRemoteConfiguration, preferences);
         }
       } catch (IOException e) {
         logger.error("[afterPropertiesSet(on clientConfigurationFuture): {}", e.getMessage());
@@ -208,18 +207,6 @@ public class PreferencesService implements InitializingBean {
     taPrefs.clear();
     for(Map.Entry<String,TotalAnnihilationPrefs> prefs: toKeep.entrySet()) {
       taPrefs.add(prefs.getValue());
-    }
-
-    if (preferences.getChat().autoJoinChannels2Property() == null) {
-      preferences.getChat().initAutoJoinChannels2(remotePreferences.getDefaultChatChannels());
-    }
-
-    if (preferences.getChat().toxicitySettings2Property() == null) {
-      preferences.getChat().initToxicitySettings2Property();
-    }
-
-    if (preferences.getColorBlindFriendlyProperty() == null) {
-      preferences.initColorBlindFriendlyProperty(false);
     }
 
     storeInBackground();
@@ -265,6 +252,7 @@ public class PreferencesService implements InitializingBean {
     try (Reader reader = Files.newBufferedReader(path, CHARSET)) {
       logger.debug("Reading preferences file {}", preferencesFilePath.toAbsolutePath());
       preferences = gson.fromJson(reader, Preferences.class);
+      preferences.init(remotePreferences.getDefaultChatChannels());
       migratePreferences(remotePreferences, preferences);
     } catch (Exception e) {
       logger.warn("Preferences file " + path.toAbsolutePath() + " could not be read", e);
@@ -277,15 +265,17 @@ public class PreferencesService implements InitializingBean {
           try {
             Files.delete(path);
             preferences = new Preferences(remotePreferences.getDefaultChatChannels());
-            waitForUser.countDown();
           } catch (Exception ex) {
             logger.error("Error deleting settings file", ex);
             Alert errorDeleting = new Alert(AlertType.ERROR, MessageFormat.format("Error deleting setting. Please delete them yourself. You find them under {} .", preferencesFilePath.toAbsolutePath()), ButtonType.OK);
             errorDeleting.showAndWait();
             preferences = new Preferences(remotePreferences.getDefaultChatChannels());
-            waitForUser.countDown();
           }
         }
+        else {
+          Platform.exit();
+        }
+        waitForUser.countDown();
       });
       noCatch((NoCatchRunnable) waitForUser::await);
     }

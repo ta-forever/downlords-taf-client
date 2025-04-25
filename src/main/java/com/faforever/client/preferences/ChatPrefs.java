@@ -42,47 +42,43 @@ public class ChatPrefs {
       .put(new Locale("be"), RUSSIAN)
       .build();
 
-  private final DoubleProperty zoom;
-  private final BooleanProperty learnedAutoComplete;
-  private final BooleanProperty previewImageUrls;
-  private final IntegerProperty maxMessages;
-  private final ObjectProperty<ChatColorMode> chatColorMode;
-  private final IntegerProperty channelTabScrollPaneWidth;
-  private final MapProperty<String, Color> userToColor;
-  private final MapProperty<ChatUserCategory, Color> groupToColor;
-  private final BooleanProperty hideFoeMessages;
-  private final BooleanProperty showToxicity;
-  private final BooleanProperty playerListShown;
-  private final ObjectProperty<TimeInfo> timeFormat;
-  private final ObjectProperty<DateInfo> dateFormat;
-  private final ObjectProperty<ChatFormat> chatFormat;
+  private final DoubleProperty zoom = new SimpleDoubleProperty(1);
+  private final BooleanProperty learnedAutoComplete = new SimpleBooleanProperty(false);
+  private final BooleanProperty previewImageUrls = new SimpleBooleanProperty(true);
+  private final IntegerProperty maxMessages = new SimpleIntegerProperty(500);
+  private final ObjectProperty<ChatColorMode> chatColorMode = new SimpleObjectProperty<>(DEFAULT);
+  private final IntegerProperty channelTabScrollPaneWidth = new SimpleIntegerProperty(250);
+  private final MapProperty<String, Color> userToColor = new SimpleMapProperty<>(FXCollections.observableHashMap());
+  private final MapProperty<ChatUserCategory, Color> groupToColor = new SimpleMapProperty<>(FXCollections.observableHashMap());
+  private final BooleanProperty hideFoeMessages = new SimpleBooleanProperty(true);
+  private final BooleanProperty showToxicity = new SimpleBooleanProperty(false);
+  private final BooleanProperty playerListShown = new SimpleBooleanProperty(true);
+  private final ObjectProperty<TimeInfo> timeFormat = new SimpleObjectProperty<>(TimeInfo.AUTO);
+  private final ObjectProperty<DateInfo> dateFormat = new SimpleObjectProperty<>(DateInfo.AUTO);
+  private final ObjectProperty<ChatFormat> chatFormat = new SimpleObjectProperty<>(ChatFormat.COMPACT);
+  private final IntegerProperty idleThreshold = new SimpleIntegerProperty(10);
+  private final ListProperty<ToxicitySetting> toxicitySettings2 = new SimpleListProperty<>(FXCollections.observableArrayList());
   private ListProperty<String> autoJoinChannels2;
-  /**
-   * Time in minutes a player has to be inactive to be considered idle.
-   */
-  private final IntegerProperty idleThreshold;
 
-  private ListProperty<ToxicitySetting> toxicitySettings2;
+  private ChatPrefs() {
+    // Only for Gson
+  }
 
   public ChatPrefs(List<String> defaultAutoJoinChannels) {
-    timeFormat = new SimpleObjectProperty<>(TimeInfo.AUTO);
-    dateFormat = new SimpleObjectProperty<>(DateInfo.AUTO);
-    maxMessages = new SimpleIntegerProperty(500);
-    zoom = new SimpleDoubleProperty(1);
-    learnedAutoComplete = new SimpleBooleanProperty(false);
-    previewImageUrls = new SimpleBooleanProperty(true);
-    hideFoeMessages = new SimpleBooleanProperty(true);
-    showToxicity = new SimpleBooleanProperty(false);
-    channelTabScrollPaneWidth = new SimpleIntegerProperty(250);
-    userToColor = new SimpleMapProperty<>(FXCollections.observableHashMap());
-    groupToColor = new SimpleMapProperty<>(FXCollections.observableHashMap());
-    chatColorMode = new SimpleObjectProperty<>(DEFAULT);
-    idleThreshold = new SimpleIntegerProperty(10);
-    chatFormat = new SimpleObjectProperty<>(ChatFormat.COMPACT);
-    playerListShown = new SimpleBooleanProperty(true);
+    init(defaultAutoJoinChannels);
+  }
 
-    initAutoJoinChannels2(defaultAutoJoinChannels);
-    initToxicitySettings2Property();
+  public void init(List<String> defaultAutoJoinChannels) {
+    if (autoJoinChannels2 == null) {
+      ObservableList<String> observableList = FXCollections.observableArrayList(defaultAutoJoinChannels);
+      autoJoinChannels2 = new SimpleListProperty<>(observableList);
+    }
+
+    if (toxicitySettings2.isEmpty()) {
+      toxicitySettings2.add(new ToxicitySetting(SocialStatus.FOE, 0.67, ToxicityAction.SUPPRESS));
+      toxicitySettings2.add(new ToxicitySetting(SocialStatus.FRIEND, 0.95, ToxicityAction.MASK));
+      toxicitySettings2.add(new ToxicitySetting(SocialStatus.OTHER, 0.9, ToxicityAction.SUPPRESS));
+    }
   }
 
   public ChatColorMode getChatColorMode() {
@@ -248,29 +244,9 @@ public class ChatPrefs {
 
   public ObservableList<String> getAutoJoinChannels2() { return autoJoinChannels2.get(); }
   public ListProperty<String> autoJoinChannels2Property() { return autoJoinChannels2; }
-  void initAutoJoinChannels2(List<String> channels) {
-    if (autoJoinChannels2 == null) {
-      ObservableList<String> observableList = FXCollections.observableArrayList(channels);
-      autoJoinChannels2 = new SimpleListProperty<>(observableList);
-    }
-    else {
-      autoJoinChannels2.clear();
-      autoJoinChannels2.addAll(channels);
-    }
-  }
 
   public ObservableList<ToxicitySetting> getToxicitySettings2() { return toxicitySettings2.get(); }
-    public ListProperty<ToxicitySetting> toxicitySettings2Property() { return toxicitySettings2; }
-
-  void initToxicitySettings2Property() {
-    if (toxicitySettings2 == null) {
-      toxicitySettings2 = new SimpleListProperty<>(FXCollections.observableArrayList());
-    }
-    toxicitySettings2.clear();
-    toxicitySettings2.add(new ToxicitySetting(SocialStatus.FOE, 0.67, ToxicityAction.SUPPRESS));
-    toxicitySettings2.add(new ToxicitySetting(SocialStatus.FRIEND, 0.95, ToxicityAction.MASK));
-    toxicitySettings2.add(new ToxicitySetting(SocialStatus.OTHER, 0.9, ToxicityAction.SUPPRESS));
-  }
+  public ListProperty<ToxicitySetting> toxicitySettings2Property() { return toxicitySettings2; }
 
   public boolean isPlayerListShown() {
     return playerListShown.get();
