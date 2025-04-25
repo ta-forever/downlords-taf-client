@@ -152,11 +152,13 @@ public class GamesTableController implements Controller<Node> {
         param.getValue().numPlayersProperty(), param.getValue().maxPlayersProperty())
     );
     playersColumn.setCellFactory(param -> playersCell());
-    statusColumn.setCellValueFactory(param -> {
-      GameStatus status = param.getValue().getStatus();
-      String localizedStatus = i18n.getWithDefault(status.getString(), status.getI18nKey());
-      return new SimpleStringProperty(localizedStatus);
-    });
+    statusColumn.setCellValueFactory(param -> Bindings.createStringBinding(
+        () -> {
+          GameStatus status = param.getValue().getStatus();
+          return status != null ? i18n.getWithDefault(status.getString(), status.getI18nKey()) : "";
+        },
+        param.getValue().statusProperty()
+    ));
     ratingRangeColumn.setCellValueFactory(param -> {
       Game game = param.getValue();
       return Bindings.createObjectBinding(() -> new RatingRange(game.getMinRating(), game.getMaxRating()),
