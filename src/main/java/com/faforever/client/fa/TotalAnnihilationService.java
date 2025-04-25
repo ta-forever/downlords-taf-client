@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.stream.Collectors;
 
 /**
  * Knows how to starts/stop Total Annihilation with proper parameters. Downloading maps, mods and updates as well as
@@ -120,8 +121,10 @@ public class TotalAnnihilationService {
         "--maxpacketsize", String.valueOf(maxPacketSize)
     ));
 
+    args = args.stream()
+        .map(s -> s.startsWith("/") ? "--" + s.substring(1) : s)
+        .collect(Collectors.toList());
     command.addAll(args);
-    command.replaceAll(s -> s.startsWith("/") ? "--" + s.substring(1) : s);
 
     preferencesService.getClientRemoteConfiguration().getGameFilesWhitelist().stream()
         .filter(entry -> entry.getModTechnical().equals(gameMod))
