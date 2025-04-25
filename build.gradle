@@ -266,20 +266,20 @@ task downloadIceAdapter(type: Download) {
 }
 
 def uidPlatform = ""
-def gpgnetPlatform = ""
+def gpgnetPlatforms = []
 def tafPlatform = ""
 
 if (javafxPlatform.contains("linux")) {
   uidPlatform = "linux64"
-  gpgnetPlatform = "ubuntu-focal-x64"
+  gpgnetPlatforms = ["ubuntu-focal-x64", "win-x86"]
   tafPlatform = "ubuntu-focal-x64"
 } else if (javafxPlatform.contains("win") && javafxPlatform.contains("x86")) {
   uidPlatform = "win32"
-  gpgnetPlatform = "win-x86"
+  gpgnetPlatforms = ["win-x86"]
   tafPlatform = "win-x86"
 } else if (javafxPlatform.contains("win")) {
   uidPlatform = "win64"
-  gpgnetPlatform = "win-x86"
+  gpgnetPlatforms = ["win-x86"]
   tafPlatform = "win-x86"
 } else {
   throw new GradleException("Unsupported platform: $javafxPlatform")
@@ -303,19 +303,26 @@ task extractFafUid(type: Copy, dependsOn: [downloadFafUid]) {
   }
 }
 
-task downloadGpgnet4Ta(type: Download) {
-  group "native dependencies"
-  def ext = gpgnetPlatform.contains("win") ? "zip" : "tar.gz"
-  src "https://github.com/ta-forever/gpgnet4ta/releases/download/${gpgnet4ta_version}/gpgnet4ta-${gpgnetPlatform}.${ext}"
-  dest file("${buildDir}/resources/gpgnet4ta-${gpgnetPlatform}.${ext}")
-  onlyIfNewer true
-}
+gpgnetPlatforms.each { platform ->
+  def ext = platform.contains("win") ? "zip" : "tar.gz"
+  def downloadTaskName = "downloadGpgnet4Ta_${platform}"
+  def extractTaskName = "extractGpgnet4Ta_${platform}"
+  def archivePath = "${buildDir}/resources/gpgnet4ta-${platform}.${ext}"
 
-task extractGpgnet4Ta(type: Copy, dependsOn: [downloadGpgnet4Ta]) {
-  group "native dependencies"
-  def archive = file("${buildDir}/resources/gpgnet4ta-${gpgnetPlatform}.${gpgnetPlatform.contains('win') ? 'zip' : 'tar.gz'}")
-  from gpgnetPlatform.contains('win') ? zipTree(archive) : tarTree(resources.gzip(archive))
-  into file("${buildDir}/resources/native")
+  tasks.register(downloadTaskName, Download) {
+    group = "native dependencies"
+    src "https://github.com/ta-forever/gpgnet4ta/releases/download/${gpgnet4ta_version}/gpgnet4ta-${platform}.${ext}"
+    dest file(archivePath)
+    onlyIfNewer true
+  }
+
+  tasks.register(extractTaskName, Copy) {
+    group = "native dependencies"
+    dependsOn downloadTaskName
+    def archiveFile = file(archivePath)
+    from platform.contains("win") ? zipTree(archiveFile) : tarTree(resources.gzip(archiveFile))
+    into file("${buildDir}/resources/native")
+  }
 }
 
 task downloadTafToolbox(type: Download) {
@@ -333,16 +340,17 @@ task extractTafToolbox(type: Copy, dependsOn: [downloadTafToolbox]) {
   into file("${buildDir}/resources/native")
 }
 
-task downloadNativeDependencies(dependsOn: [
-        downloadFafUid,
-        extractFafUid,
-        downloadGpgnet4Ta,
-        extractGpgnet4Ta,
-        downloadTafToolbox,
-        extractTafToolbox,
-        downloadIceAdapter
-]) {
-  group "native dependencies"
+def gpgnetTasks = gpgnetPlatforms.collectMany { platform ->
+  [
+          tasks.named("downloadGpgnet4Ta_${platform}"),
+          tasks.named("extractGpgnet4Ta_${platform}")
+  ]
+}
+
+tasks.register("downloadNativeDependencies") {
+  group = "native dependencies"
+  dependsOn downloadFafUid, extractFafUid, downloadTafToolbox, extractTafToolbox, downloadIceAdapter
+  dependsOn gpgnetTasks
 }
 
 compileJava.dependsOn 'downloadNativeDependencies'
