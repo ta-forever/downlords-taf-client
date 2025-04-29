@@ -1,12 +1,14 @@
-QUICK START FOR UBUNTU 22.04 LTS
+QUICK START FOR LINUX
 
 
-1. Install dependencies
+1. Install dependencies (examples given are for Ubuntu)
 
-   $ sudo apt-get install qtbase5-dev zlib1g git git-lfs wine winetricks openjdk-19-jre
+   $ sudo apt-get install qtbase5-dev zlib1g git git-lfs wine winetricks openjdk-21-jre
 
-2. Configure 32 bit wine and install directplay
-
+2.  Configure  32 bit wine and  install  directplay.  This is best done with a
+fresh  WINEPREFIX.  Remember  to set  WINEPREFIX=~/.tafwine  when  running the
+client in the future or at session startup.
+   $ export WINEPREFIX=~/.tafwine
    $ WINEARCH=win32 winecfg
    $ winetricks directplay
 
@@ -17,14 +19,22 @@ QUICK START FOR UBUNTU 22.04 LTS
    $ cd ~/games/TA
    $ chmod +x TotalA.exe
    $ wine TotalA.exe
-    
-4. Extract tarball
+
+4. Run the cnc-ddraw config tool.
+   Without the appropriate DLL overrides, cnc-ddraw won't be used when you
+   run TA. Running the config tool will set the overrides and let you
+   configure your graphics options.
+   
+   $ cd ~/games/TA
+   $ wine cnc-ddraw\ config.exe
+
+5. Extract tarball
 
    $ cd ~
    $ tar -zxf Downloads/tafclient_unix_1_4_3-taf-0_15_1.tar.gz
    $ cd downlords-taf-client-1.4.3-taf-0.15.1
 
-5. Check dependencies.
+6. Check dependencies.
    following commands should display command line options for the tools.
    If they instead complain about missing libraries, use apt-get to install them.
 
@@ -32,6 +42,6 @@ QUICK START FOR UBUNTU 22.04 LTS
    $ natives/bin/maptool --help
    $ wine natives/bin/talauncher.exe --help
 
-6. Start TAF client
+7. Start TAF client
 
-   $ ./downlords-taf-client
+   $ ./taf-java-client
