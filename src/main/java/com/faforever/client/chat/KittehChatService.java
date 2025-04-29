@@ -250,7 +250,20 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   @Handler
   public void onConnect(ClientNegotiationCompleteEvent event) {
     log.debug("[onConnect]");
+
     connectionState.set(ConnectionState.CONNECTED);
+
+    String nick = client.getNick();
+    String password = getPassword();
+    String email = String.format("%s@users.faforever.com", nick);
+
+    // Always try to REGISTER (ignore errors if already registered)
+    log.debug("[onConnect] registering ...");
+    client.sendMessage("NickServ", String.format("REGISTER %s %s", password, email));
+
+    // Always try to IDENTIFY
+    log.debug("[onConnect] identifying ...");
+    client.sendMessage("NickServ", String.format("IDENTIFY %s", password));
   }
 
   @Handler
@@ -343,10 +356,15 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     User user = event.getActor();
     log.debug("[onPrivateMessage] Received private message: {}", event);
 
+    if ("NickServ".equalsIgnoreCase(user.getNick())) {
+      log.info("[onPrivateMessage] Suppressed NickServ private message: {}", event.getMessage());
+      return;
+    }
+
     ChatChannelUser sender = getOrCreateChatUser(user.getNick(), user.getNick(), false);
     if (sender.getPlayer().map(Player::getSocialStatus).filter(status -> status == SocialStatus.FOE).isPresent()
         && preferencesService.getPreferences().getChat().getHideFoeMessages()) {
-      log.debug("Suppressing chat message from foe '{}'", user.getNick());
+      log.debug("[onPrivateMessage] Suppressing chat message from foe '{}'", user.getNick());
       return;
     }
 
@@ -429,9 +447,8 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   }
 
   private void onMessage(String message) {
-    log.debug("[onMessage] {}", message);
     message = message.replace(getPassword(), "*****");
-    log.debug(message);
+    log.debug("[onMessage] {}", message);
   }
 
   @Handler
