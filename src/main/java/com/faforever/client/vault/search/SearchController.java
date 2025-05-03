@@ -386,7 +386,7 @@ public class SearchController implements Controller<Pane> {
     for (LogicalNodeController queryNode : queryNodes) {
       Optional<Condition> currentCondition = queryNode.appendTo(condition.get());
       if (!currentCondition.isPresent()) {
-        break;
+        continue;
       }
       condition = currentCondition;
     }
