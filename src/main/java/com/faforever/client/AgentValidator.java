@@ -26,14 +26,6 @@ public class AgentValidator {
       System.exit(1);
     }
 
-    if (!Files.exists(path1) && !Files.exists(path)) {
-      JOptionPane.showMessageDialog(null,
-          "No webview patch detected",
-          "Agent Validation Error",
-          JOptionPane.ERROR_MESSAGE);
-      System.exit(1);
-    }
-
     for (String arg : inputArgs) {
       if (arg.startsWith("-javaagent:")) {
         String agentPath = arg.substring("-javaagent:".length());
