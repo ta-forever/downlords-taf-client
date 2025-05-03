@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfi
 })
 public class Main {
 	public static void main(String[] args) {
+		AgentValidator.checkForConflictingJavaAgents();
 		FafClientApplication.applicationMain(args);
 	}
 }
