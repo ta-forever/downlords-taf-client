@@ -1,5 +1,7 @@
 import com.install4j.gradle.Install4jTask
 import org.gradle.internal.os.OperatingSystem
+import java.security.MessageDigest
+import java.util.regex.Pattern
 
 buildscript {
   repositories {
@@ -202,9 +204,7 @@ distributions {
       from {
         [
             configurations.runtimeClasspath,
-            jar,
-            downloadIceAdapter.outputs.files,
-            downloadFafUid.outputs.files
+            jar
         ]
       }
       exclude('**/i4jruntime*.jar')
@@ -218,6 +218,54 @@ install4j {
   }
   if (project.hasProperty('install4jLicense')) {
     license = install4jLicense
+  }
+}
+
+task generateJarChecksums {
+  def outputFile = file("$buildDir/install4j/downlords-faf-client-${version}-${javafxPlatform}.txt")
+  def distLibsDir = file("$buildDir/install/${project.name}/")
+  def nativesDir = file("$buildDir/resources/native/bin")
+
+  inputs.dir distLibsDir
+  inputs.dir nativesDir
+  outputs.file outputFile
+
+  doLast {
+    if (!distLibsDir.exists()) {
+      throw new GradleException("Jar output directory does not exist: $distLibsDir")
+    }
+
+    def digest = MessageDigest.getInstance("SHA-256")
+    outputFile.text = ''
+
+    def writeHash = { String category, File f ->
+      f.withInputStream { stream ->
+        digest.reset()
+        byte[] buffer = new byte[8192]
+        int read
+        while ((read = stream.read(buffer)) != -1) {
+          digest.update(buffer, 0, read)
+        }
+        def hash = digest.digest().collect { String.format("%02x", it) }.join()
+        outputFile << "${category} ${f.name} ${hash}\n"
+      }
+    }
+
+    def processMatchingFiles = { String category, File dir, Pattern pattern ->
+      if (dir.exists() && dir.isDirectory()) {
+        dir.eachFileMatch(pattern) { File f ->
+          if (f.isFile()) {
+            writeHash(category, f)
+          }
+        }
+      }
+    }
+
+    processMatchingFiles("lib", distLibsDir, ~/.*\.jar/)
+    processMatchingFiles("natives", nativesDir, ~/.*\.exe/)
+    processMatchingFiles("natives", nativesDir, ~/[^.]+$/) // files with no extension
+
+    println "Wrote JAR checksums to: $outputFile"
   }
 }
 
@@ -255,6 +303,9 @@ task buildInstall4jMediaFiles(type: Install4jTask) {
     }
   }
 }
+
+buildInstall4jMediaFiles.dependsOn generateJarChecksums
+generateJarChecksums.mustRunAfter installDist
 
 task downloadIceAdapter(type: Download) {
   group "native dependencies"
