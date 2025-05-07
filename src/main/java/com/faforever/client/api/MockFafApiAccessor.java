@@ -83,6 +83,11 @@ public class MockFafApiAccessor implements FafApiAccessor {
   }
 
   @Override
+  public String getAccessToken() {
+    return "<access token>";
+  }
+
+  @Override
   public List<Mod> getMods() {
     Player uploader = new Player();
     return Arrays.asList(

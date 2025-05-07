@@ -137,6 +137,7 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   private RestTemplateBuilder templateBuilder;
   private CountDownLatch authorizedLatch = new CountDownLatch(1);
   private RestOperations restOperations;
+  private OAuth2RestTemplate restTemplate;
 
   private static String rsql(Condition<?> eq) {
     return eq.query(new RSQLVisitor());
@@ -701,12 +702,18 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
     details.setUsername(username);
     details.setPassword(password);
 
+    restTemplate = new OAuth2RestTemplate(details);
     restOperations = templateBuilder
         // Base URL can be changed in login window
         .rootUri(apiProperties.getBaseUrl())
-        .configure(new OAuth2RestTemplate(details));
+        .configure(restTemplate);
 
     authorizedLatch.countDown();
+  }
+
+  @Override
+  public String getAccessToken() {
+    return restTemplate.getAccessToken().getValue();
   }
 
   @NotNull

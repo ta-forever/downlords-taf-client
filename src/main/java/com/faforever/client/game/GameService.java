@@ -821,6 +821,7 @@ public class GameService implements InitializingBean {
       mapService.optionalEnsureMap(game.getFeaturedMod(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null)
           .thenRun(() -> {
             List<Player> joinOrder = this.ratingService.getBalancedTeams(game);
+            this.totalAnnihilationService.sendToConsole("/set_hash_api_token " + this.fafService.getApiAccessToken());
             if (joinOrder.size() > 2 && preferencesService.getPreferences().getSequencedLaunchEnabled()) {
               this.totalAnnihilationService.sendToConsole("/launch " +
                   String.join(",", joinOrder.stream().map(p -> String.valueOf(p.getId())).toList()));

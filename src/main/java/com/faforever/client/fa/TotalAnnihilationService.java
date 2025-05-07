@@ -1,9 +1,11 @@
 package com.faforever.client.fa;
 
+import com.faforever.client.config.ClientProperties;
 import com.faforever.client.player.Player;
 import com.faforever.client.preferences.MaxPacketSizeOption;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
+import com.faforever.client.remote.FafService;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -39,6 +41,9 @@ public class TotalAnnihilationService {
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   private final PreferencesService preferencesService;
+
+  private final ClientProperties clientProperties;
+  private final FafService fafService;
 
   private Process launchServerProcess;
   private boolean launchServerHasUac;
@@ -101,7 +106,7 @@ public class TotalAnnihilationService {
   }
 
   private List<String> getGpgNet4TaCommand(
-      String bindAddress, int consolePort, String gameMod, Path gamePath, boolean autoLaunch, boolean lockOptions,
+      String bindAddress, int consolePort, String gameMod, int gameId, Path gamePath, boolean autoLaunch, boolean lockOptions,
       boolean proactiveResend, int maxPacketSize, String gpgNetUrl, String demoCompilerUrl, @Nullable String ircUrl,
       Path logFile, int launchServerPort, boolean isRated, List<String> args
   ) {
@@ -113,12 +118,15 @@ public class TotalAnnihilationService {
         "--lobbybindaddress", bindAddress,
         "--consoleport", String.valueOf(consolePort),
         "--gamemod", gameMod,
+        "--gameid", String.valueOf(gameId),
         "--gamepath", gamePath.toString(),
         "--gpgnet", gpgNetUrl,
         "--logfile", logFile.toString(),
         "--launchserverport", String.valueOf(launchServerPort),
         "--democompilerurl", demoCompilerUrl,
-        "--maxpacketsize", String.valueOf(maxPacketSize)
+        "--maxpacketsize", String.valueOf(maxPacketSize),
+        "--hashendpoint", clientProperties.getApi().getBaseUrl() + "/game/launch_codes",
+        "--hashtoken", fafService.getApiAccessToken()
     ));
 
     args = args.stream()
@@ -319,7 +327,7 @@ public class TotalAnnihilationService {
     }
 
     List<String> gpgnet4taCommand = getGpgNet4TaCommand(
-        loopbackAddress, this.consolePort, prefs.getBaseGameName(), prefs.getInstalledPath(), autoLaunch,
+        loopbackAddress, this.consolePort, prefs.getBaseGameName(), uid, prefs.getInstalledPath(), autoLaunch,
         false, proactiveResend, maxPacketSize, gpgNetUrl, demoCompilerUrl, ircUrl,
         preferencesService.getNewLogFile("game", uid), this.launchServerPort, isRated, additionalArgs);
 

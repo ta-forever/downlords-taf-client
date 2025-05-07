@@ -54,6 +54,8 @@ public interface FafApiAccessor {
 
   void authorize(int playerId, String username, String password);
 
+  String getAccessToken();
+
   List<Mod> getMods();
 
   List<com.faforever.client.api.dto.FeaturedMod> getFeaturedMods();

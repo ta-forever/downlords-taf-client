@@ -818,4 +818,8 @@ public class FafService {
   public void setGameMapDetails(String mapName, String hpiArchive, String crc) {
     fafServerAccessor.setGameMapDetails(mapName, hpiArchive, crc);
   }
+
+  public String getApiAccessToken() {
+    return fafApiAccessor.getAccessToken();
+  }
 }
