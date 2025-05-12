@@ -250,20 +250,30 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   @Handler
   public void onConnect(ClientNegotiationCompleteEvent event) {
     log.debug("[onConnect]");
-
     connectionState.set(ConnectionState.CONNECTED);
 
+    registerIrc();
+  }
+
+  private void registerIrc() {
     String nick = client.getNick();
-    String password = getPassword();
-    String email = String.format("%s@users.faforever.com", nick);
+    if (!nick.endsWith("`")) {
+      String password = getPassword();
+      String email = String.format("%s@users.taforever.com", nick);
 
-    // Always try to REGISTER (ignore errors if already registered)
-    log.debug("[onConnect] registering ...");
-    client.sendMessage("NickServ", String.format("REGISTER %s %s", password, email));
+      log.debug("[registerIrc] registering ...");
+      client.sendMessage("NickServ", String.format("REGISTER %s %s", password, email));
+    }
+  }
 
-    // Always try to IDENTIFY
-    log.debug("[onConnect] identifying ...");
-    client.sendMessage("NickServ", String.format("IDENTIFY %s", password));
+  private void identifyIrc() {
+    String nick = client.getNick();
+    if (!nick.endsWith("`")) {
+      String password = getPassword();
+
+      log.debug("[identifyIrc] identifying ...");
+      client.sendMessage("NickServ", String.format("IDENTIFY %s", password));
+    }
   }
 
   @Handler
@@ -356,8 +366,11 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     User user = event.getActor();
     log.debug("[onPrivateMessage] Received private message: {}", event);
 
-    if ("NickServ".equalsIgnoreCase(user.getNick())) {
+    if ("NickServ".equals(user.getNick())) {
       log.info("[onPrivateMessage] Suppressed NickServ private message: {}", event.getMessage());
+      if (event.getMessage().contains("This nickname is registered and protected")) {
+        identifyIrc();
+      }
       return;
     }
 
