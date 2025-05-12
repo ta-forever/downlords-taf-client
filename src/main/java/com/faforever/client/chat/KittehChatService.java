@@ -251,8 +251,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   public void onConnect(ClientNegotiationCompleteEvent event) {
     log.debug("[onConnect]");
     connectionState.set(ConnectionState.CONNECTED);
-
-    registerIrc();
+    identifyIrc();
   }
 
   private void registerIrc() {
@@ -261,19 +260,14 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
       String password = getPassword();
       String email = String.format("%s@users.taforever.com", nick);
 
-      log.debug("[registerIrc] registering ...");
+      log.info("[registerIrc] registering ...");
       client.sendMessage("NickServ", String.format("REGISTER %s %s", password, email));
     }
   }
 
   private void identifyIrc() {
-    String nick = client.getNick();
-    if (!nick.endsWith("`")) {
-      String password = getPassword();
-
-      log.debug("[identifyIrc] identifying ...");
-      client.sendMessage("NickServ", String.format("IDENTIFY %s", password));
-    }
+    log.info("[identifyIrc] identifying ...");
+    nickServ.startAuthentication();
   }
 
   @Handler
@@ -368,8 +362,10 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
     if ("NickServ".equals(user.getNick())) {
       log.info("[onPrivateMessage] Suppressed NickServ private message: {}", event.getMessage());
-      if (event.getMessage().contains("This nickname is registered and protected")) {
-        identifyIrc();
+      if (event.getMessage().contains("choose a different nick")) {
+        this.identifyIrc();
+      } else if (event.getMessage().contains("isn't registered")) {
+        this.registerIrc();
       }
       return;
     }
@@ -392,13 +388,13 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Handler
   private void onNotice(PrivateNoticeEvent event) {
-    log.debug("[onNotice]");
     String message = event.getMessage();
+    log.info("[onNotice] {}", message);
 
     if (message.contains("choose a different nick")) {
-      nickServ.startAuthentication();
+      this.identifyIrc();
     } else if (message.contains("isn't registered")) {
-      client.sendMessage("NickServ", String.format("register %s %s@users.faforever.com", getPassword(), client.getNick()));
+      this.registerIrc();
     }
   }
 
