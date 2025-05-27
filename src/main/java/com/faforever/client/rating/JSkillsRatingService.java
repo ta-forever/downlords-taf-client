@@ -19,6 +19,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -145,12 +147,56 @@ public class JSkillsRatingService implements RatingService {
 
       if (bestTeams == null || score < bestScore) {
         bestScore = score;
+        team2 = orderIsomorphTeam2(team1, team2, distilledRatings);
         bestTeams = interleave(team1, team2);
       }
     }
 
     logTeamRatings(bestTeams, distilledRatings);
     return bestTeams;
+  }
+
+  List<Player> orderIsomorphTeam2(List<Player> _team1, List<Player> team2,
+                                  Map<Integer, javafx.util.Pair<String, LeaderboardRating>> ratings) {
+
+    Comparator<Player> ratingComparator = Comparator.comparingDouble(
+        p -> {
+          LeaderboardRating r = ratings.get(p.getId()).getValue();
+          return r.getMean() - 3 * r.getDeviation();
+        }
+    );
+
+    List<Player> team1 = _team1;
+    if (team1.size() > team2.size()) {
+      team1 = team1.subList(0, team2.size());
+    }
+    List<Player> team1Sorted = new ArrayList<>(team1);
+
+    team1Sorted.sort(ratingComparator);
+    Map<Integer, Integer> team1RanksByPlayerId = new HashMap<>();
+    for (int i = 0; i < team1Sorted.size(); i++) {
+      team1RanksByPlayerId.put(team1Sorted.get(i).getId(), i);
+    }
+
+    List<Player> team2Sorted = new ArrayList<>(team2);
+    team2Sorted.sort(ratingComparator);
+
+    List<Player> newTeam2 = new ArrayList<>();
+    for (int i=0; i<team2.size(); ++i) {
+      if (i < team1.size()) {
+        int team1PlayerId = team1.get(i).getId();
+        int rank = team1RanksByPlayerId.get(team1PlayerId);
+        assert(rank < team1.size());
+        Player team2Player = team2Sorted.get(rank);
+        newTeam2.add(team2Player);
+      }
+      else {
+        Player team2Player = team2Sorted.get(i);
+        newTeam2.add(team2Player);
+      }
+    }
+
+    return newTeam2;
   }
 
   private Set<String> getLeaderboards(String mod, boolean isTeam) {
