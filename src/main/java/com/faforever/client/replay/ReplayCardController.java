@@ -80,7 +80,8 @@ public class ReplayCardController implements Controller<Node> {
   public void setReplay(Replay replay) {
     this.replay = replay;
 
-    jSkillsRatingService.getBalancedTeams(replay);
+    // for debugging auto balance
+    // jSkillsRatingService.getBalancedTeams(replay);
 
     mapThumbnailImageView.setDefaultImage(uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
     Optional<MapBean> optionalMap = Optional.ofNullable(replay.getMap());
