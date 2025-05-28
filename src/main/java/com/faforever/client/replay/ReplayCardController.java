@@ -10,6 +10,7 @@ import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.player.PlayerService;
+import com.faforever.client.rating.JSkillsRatingService;
 import com.faforever.client.rating.RatingService;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.user.UserService;
@@ -52,6 +53,7 @@ public class ReplayCardController implements Controller<Node> {
   private final UiService uiService;
   private final UserService userService;
   private final PlayerService playerService;
+  private final JSkillsRatingService jSkillsRatingService;
   private final I18n i18n;
   public Label dateLabel;
   public DefaultImageView mapThumbnailImageView;
@@ -77,6 +79,8 @@ public class ReplayCardController implements Controller<Node> {
 
   public void setReplay(Replay replay) {
     this.replay = replay;
+
+    jSkillsRatingService.getBalancedTeams(replay);
 
     mapThumbnailImageView.setDefaultImage(uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
     Optional<MapBean> optionalMap = Optional.ofNullable(replay.getMap());

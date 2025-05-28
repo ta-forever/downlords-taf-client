@@ -6,6 +6,7 @@ import com.faforever.client.game.Game;
 import com.faforever.client.leaderboard.LeaderboardRating;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.replay.Replay;
 import com.faforever.client.replay.Replay.PlayerStats;
@@ -37,11 +38,13 @@ public class JSkillsRatingService implements RatingService {
   private final GameInfo gameInfo;
   private final PlayerService playerService;
   private final FafService fafService;
-  private final String autoBalanceMetric = "kl";
+  private final PreferencesService preferencesService;
 
-  public JSkillsRatingService(ClientProperties clientProperties, PlayerService playerService, FafService fafService) {
+  public JSkillsRatingService(ClientProperties clientProperties, PreferencesService preferencesService,
+                              PlayerService playerService, FafService fafService) {
     this.playerService = playerService;
     this.fafService = fafService;
+    this.preferencesService = preferencesService;
     TrueSkill trueSkill = clientProperties.getTrueSkill();
     gameInfo = new GameInfo(trueSkill.getInitialMean(), trueSkill.getInitialStandardDeviation(), trueSkill.getBeta(),
         trueSkill.getDynamicFactor(), trueSkill.getDrawProbability());
@@ -97,11 +100,14 @@ public class JSkillsRatingService implements RatingService {
     Map<Integer, javafx.util.Pair<String, LeaderboardRating>> playerRatings =
         getDistilledPlayerRatings(hostAndPlayers, teamsLeaderboards, singlesLeaderboards, "teams");
 
-    return balancePlayers(hostAndPlayers, playerRatings);
+    List<Player> result = balancePlayers(hostAndPlayers, playerRatings);
+    logTeamRatings(game.getId(), result, playerRatings);
+    return result;
   }
 
   @Override
   public List<Player> getBalancedTeams(Replay replay) {
+
     List<Player> players = replay.getTeamPlayerStats().values().stream()
         .flatMap(List::stream)
         .map(stats -> {
@@ -122,7 +128,9 @@ public class JSkillsRatingService implements RatingService {
                     stats.getBeforeDeviation() == null ? (float)gameInfo.getInitialStandardDeviation() : stats.getBeforeDeviation().floatValue()
             ))));
 
-    return balancePlayers(players, distilledRatings);
+    List<Player> result = balancePlayers(players, distilledRatings);
+    logTeamRatings(replay.getId(), result, distilledRatings);
+    return result;
   }
 
   private List<Player> balancePlayers(List<Player> allPlayers,
@@ -131,29 +139,60 @@ public class JSkillsRatingService implements RatingService {
     int numTeammates = firstPlayersPartnersPool.size() / 2;
     List<List<Player>> combinations = generateCombinations(firstPlayersPartnersPool, numTeammates);
 
-    List<Player> bestTeams = null;
-    Double bestScore = null;
+    class ScoredTeam {
+      final double score;
+      final List<Player> team;
+      ScoredTeam(double score, List<Player> team) {
+        this.score = score;
+        this.team = team;
+      }
+    }
 
+    List<ScoredTeam> scoredTeams = new ArrayList<>();
     for (List<Player> teammates : combinations) {
-      //Collections.shuffle(teammates);
       List<Player> team1 = new ArrayList<>(List.of(allPlayers.get(0)));
       team1.addAll(teammates);
 
       Set<Integer> team1Ids = team1.stream().map(Player::getId).collect(Collectors.toSet());
-      List<Player> team2 = allPlayers.stream().filter(p -> !team1Ids.contains(p.getId())).collect(Collectors.toList());
-      //Collections.shuffle(team2);
+      List<Player> team2 = allPlayers.stream()
+          .filter(p -> !team1Ids.contains(p.getId()))
+          .collect(Collectors.toList());
 
       double score = computeScore(team1, team2, distilledRatings);
 
-      if (bestTeams == null || score < bestScore) {
-        bestScore = score;
-        team2 = orderIsomorphTeam2(team1, team2, distilledRatings);
-        bestTeams = interleave(team1, team2);
+      team2 = orderIsomorphTeam2(team1, team2, distilledRatings);
+      List<Player> combined = interleave(team1, team2);
+      scoredTeams.add(new ScoredTeam(score, combined));
+    }
+
+    if (scoredTeams.isEmpty()) {
+      return null;
+    }
+
+    // Compute sigmoid weights
+    double th = this.preferencesService.getClientRemoteConfiguration().getAutoBalance().getThreshold();
+    double k = this.preferencesService.getClientRemoteConfiguration().getAutoBalance().getScale();
+    List<Double> weights = scoredTeams.stream()
+        .map(t -> (t.score - th) / k)
+        .map(z -> 1.0 / (1.0 + Math.exp(-z)))
+        .toList();
+
+    // Compute cumulative distribution
+    double totalWeight = weights.stream().mapToDouble(Double::doubleValue).sum();
+    double r = Math.random() * totalWeight;
+    double cumulative = 0.0;
+
+    for (int i = 0; i < scoredTeams.size(); i++) {
+      cumulative += weights.get(i);
+      if (r <= cumulative) {
+        ScoredTeam selected = scoredTeams.get(i);
+        return selected.team;
       }
     }
 
-    logTeamRatings(bestTeams, distilledRatings);
-    return bestTeams;
+    // Fallback (shouldn't occur due to rounding)
+    ScoredTeam fallback = scoredTeams.get(scoredTeams.size() - 1);
+    return fallback.team;
   }
 
   List<Player> orderIsomorphTeam2(List<Player> _team1, List<Player> team2,
@@ -299,7 +338,7 @@ public class JSkillsRatingService implements RatingService {
 
   private double computeScore(List<Player> team1, List<Player> team2,
                               Map<Integer, javafx.util.Pair<String, LeaderboardRating>> ratings) {
-    double score = switch (autoBalanceMetric) {
+    double score = switch (this.preferencesService.getClientRemoteConfiguration().getAutoBalance().getMetric()) {
       case "kl" -> computeKLDivergence(team1, team2, ratings);
       case "wasserstein" -> computeWasserstein(team1, team2, ratings);
       case "trueskill" -> computeTrueSkillQuality(team1, team2, ratings);
@@ -361,7 +400,7 @@ public class JSkillsRatingService implements RatingService {
     return result;
   }
 
-  private void logTeamRatings(List<Player> bestTeams,
+  private void logTeamRatings(int gameId, List<Player> bestTeams,
                               Map<Integer, javafx.util.Pair<String, LeaderboardRating>> ratings) {
     for (int parity = 0; parity < 2; ++parity) {
       int finalParity = parity;
@@ -383,8 +422,8 @@ public class JSkillsRatingService implements RatingService {
           (int)ratings.get(player.getId()).getValue().getMean(),
           (int)ratings.get(player.getId()).getValue().getDeviation())
       ).collect(Collectors.joining(","));
-      log.info("[getBalancedTeams] rating={}/{} [{}]",
-          (int) sumMean, (int) Math.sqrt(sumVar), names);
+      log.info("[getBalancedTeams] gameId={}, team={}: rating={}/{} [{}]",
+          gameId, parity, (int) sumMean, (int) Math.sqrt(sumVar), names);
     }
   }
 
