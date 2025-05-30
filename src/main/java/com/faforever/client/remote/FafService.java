@@ -363,20 +363,20 @@ public class FafService {
       tdrawLog = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath().resolve("tdrawlog.txt").toFile();
     }
 
+    File[] files = {
+        logClient, logIceAdapter, logLauncher,
+        logGpgnet4ta, logReplay, taErrorLog, tdrawLog};
+
+    files = java.util.Arrays.stream(files)
+        .filter(Objects::nonNull)
+        .toArray(File[]::new);
+
+    java.util.Arrays.sort(files, Comparator.comparingLong(File::length).reversed());
+
     try {
-      File[] files = {
-          logClient, logIceAdapter, logLauncher,
-          logGpgnet4ta, logReplay, taErrorLog, tdrawLog};
-
-      files = java.util.Arrays.stream(files)
-          .filter(file -> file != null)
-          .toArray(File[]::new);
-
-      java.util.Arrays.sort(files, Comparator.comparingLong(File::length).reversed());
-
       int MAX_FILE_SIZE = 1000000; // limited by MAX_FILE_SIZE on the API side
       while (true) {
-        ZipUtil.zipFile(files, targetZipFile.toFile());
+        ZipUtil.zipFile(files, targetZipFile.toFile(), true);
         long zipFileSize = targetZipFile.toFile().length();
         if (zipFileSize <= MAX_FILE_SIZE) {
           break;
@@ -405,7 +405,7 @@ public class FafService {
     } catch (Exception e) {
       log.error("[uploadGameLogs] unable to submit logs", e);
     } finally {
-      ResourceLocks.freeUploadLock();
+      try { ResourceLocks.freeUploadLock(); } catch(Exception ignored) {}
       try { Files.delete(targetZipFile); } catch(Exception ignored) {}
     }
   }

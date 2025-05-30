@@ -18,25 +18,34 @@ public class ZipUtil {
    * @throws IOException
    *           IO error exception can be thrown when copying ...
    */
-  public static void zipFile(final File[] files, final File targetZipFile) throws IOException {
-    FileOutputStream   fos = new FileOutputStream(targetZipFile);
-    ZipOutputStream zos = new ZipOutputStream(fos);
-    byte[] buffer = new byte[128];
-    for (int i = 0; i < files.length; i++) {
-      File currentFile = files[i];
-      if (currentFile != null && !currentFile.isDirectory() && currentFile.exists()) {
-        ZipEntry entry = new ZipEntry(currentFile.getName());
-        FileInputStream fis = new FileInputStream(currentFile);
-        zos.putNextEntry(entry);
-        int read = 0;
-        while ((read = fis.read(buffer)) != -1) {
-          zos.write(buffer, 0, read);
+  public static void zipFile(final File[] files, final File targetZipFile, boolean ignoreIoException) throws IOException {
+    try (
+        FileOutputStream fos = new FileOutputStream(targetZipFile);
+        ZipOutputStream zos = new ZipOutputStream(fos)
+    ) {
+      byte[] buffer = new byte[128];
+      for (File currentFile : files) {
+        if (currentFile == null || currentFile.isDirectory() || !currentFile.exists()) {
+          continue;
         }
-        zos.closeEntry();
-        fis.close();
+
+        try (
+            FileInputStream fis = new FileInputStream(currentFile)
+        ) {
+          ZipEntry entry = new ZipEntry(currentFile.getName());
+          zos.putNextEntry(entry);
+          int read;
+          while ((read = fis.read(buffer)) != -1) {
+            zos.write(buffer, 0, read);
+          }
+          zos.closeEntry();
+        } catch (IOException e) {
+          if (!ignoreIoException) {
+            throw e;
+          }
+        }
       }
     }
-    zos.close();
-    fos.close();
   }
+
 }
