@@ -828,6 +828,10 @@ public class GameService implements InitializingBean {
             } else {
               this.totalAnnihilationService.sendToConsole("/launch");
             }
+          })
+          .exceptionally(throwable -> {
+            log.error("[startBattleRoom] error starting battleroom", throwable);
+            return null;
           });
     }
   }
@@ -1038,7 +1042,6 @@ public class GameService implements InitializingBean {
       String commandFileName = Paths.get(command).getFileName().toString();
       Integer exitCode = waitForTermination(process);
 
-      submitLogs(gameId, modTechnical);
       if (exitCode != null && exitCode != 0) {
         if (triggerTerminationHandler == null || !triggerTerminationHandler.get()) {
           String message = String.format("'%s' exited with code %d", command, exitCode);
@@ -1058,6 +1061,8 @@ public class GameService implements InitializingBean {
         catch (TaskRejectedException e) {
         }
       });
+
+      submitLogs(gameId, modTechnical);
     });
   }
 

@@ -165,12 +165,21 @@ public class PreferencesService implements InitializingBean {
     return Paths.get(System.getProperty("user.home")).resolve(USER_HOME_SUB_FOLDER);
   }
 
+  private List<String> defaultChatChannels(ClientConfiguration clientConfiguration) {
+    if (clientConfiguration == null) {
+      return List.of("#coreprime");
+    }
+    else {
+      return clientRemoteConfiguration.getDefaultChatChannels();
+    }
+  }
+
   @Override
   public void afterPropertiesSet() {
     if (Files.exists(preferencesFilePath)) {
       try {
         if (deleteFileIfEmpty()) {
-          preferences = new Preferences(clientRemoteConfiguration.getDefaultChatChannels());
+          preferences = new Preferences(defaultChatChannels(clientRemoteConfiguration));
         }
         else {
           readExistingFile(clientRemoteConfiguration, preferencesFilePath);
@@ -179,7 +188,7 @@ public class PreferencesService implements InitializingBean {
         logger.error("[afterPropertiesSet(on clientConfigurationFuture): {}", e.getMessage());
       }
     } else {
-      preferences = new Preferences(clientRemoteConfiguration.getDefaultChatChannels());
+      preferences = new Preferences(defaultChatChannels(clientRemoteConfiguration));
     }
 
     setLoggingLevel();
@@ -252,7 +261,7 @@ public class PreferencesService implements InitializingBean {
     try (Reader reader = Files.newBufferedReader(path, CHARSET)) {
       logger.debug("Reading preferences file {}", preferencesFilePath.toAbsolutePath());
       preferences = gson.fromJson(reader, Preferences.class);
-      preferences.init(remotePreferences.getDefaultChatChannels());
+      preferences.init(defaultChatChannels(clientRemoteConfiguration));
       migratePreferences(remotePreferences, preferences);
     } catch (Exception e) {
       logger.warn("Preferences file " + path.toAbsolutePath() + " could not be read", e);
@@ -264,12 +273,12 @@ public class PreferencesService implements InitializingBean {
         if (errorReading.getResult() == ButtonType.YES) {
           try {
             Files.delete(path);
-            preferences = new Preferences(remotePreferences.getDefaultChatChannels());
+            preferences = new Preferences(defaultChatChannels(clientRemoteConfiguration));
           } catch (Exception ex) {
             logger.error("Error deleting settings file", ex);
             Alert errorDeleting = new Alert(AlertType.ERROR, MessageFormat.format("Error deleting setting. Please delete them yourself. You find them under {} .", preferencesFilePath.toAbsolutePath()), ButtonType.OK);
             errorDeleting.showAndWait();
-            preferences = new Preferences(remotePreferences.getDefaultChatChannels());
+            preferences = new Preferences(defaultChatChannels(clientRemoteConfiguration));
           }
         }
         else {
