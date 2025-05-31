@@ -287,6 +287,7 @@ public class TotalAnnihilationService {
     logger.info("[startLaunchServer] starting on port {}", this.launchServerPort);
     List<String> startLaunchServerCommand = getLaunchServerCommand(this.launchServerPort, this.launchServerHasUac, gameGUID);
     this.launchServerProcess = launch(getNativeGpgnet4taDir(), startLaunchServerCommand);
+    this.launchServerProcess.onExit().thenRun(() -> launchServerKeepAliveTimer.cancel());
     return this.launchServerProcess;
   }
 
