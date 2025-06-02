@@ -172,25 +172,27 @@ public class JSkillsRatingService implements RatingService {
     // Compute sigmoid weights
     double th = this.preferencesService.getClientRemoteConfiguration().getAutoBalance().getThreshold();
     double k = this.preferencesService.getClientRemoteConfiguration().getAutoBalance().getScale();
-    List<Double> weights = scoredTeams.stream()
-        .map(t -> (t.score - th) / k)
-        .map(z -> 1.0 / (1.0 + Math.exp(-z)))
-        .toList();
+    if (java.lang.Math.abs(k) > 1e-3) {
+      List<Double> weights = scoredTeams.stream()
+          .map(t -> (t.score - th) / k)
+          .map(z -> 1.0 / (1.0 + Math.exp(-z)))
+          .toList();
 
-    // Compute cumulative distribution
-    double totalWeight = weights.stream().mapToDouble(Double::doubleValue).sum();
-    double r = Math.random() * totalWeight;
-    double cumulative = 0.0;
+      // Compute cumulative distribution
+      double totalWeight = weights.stream().mapToDouble(Double::doubleValue).sum();
+      double r = Math.random() * totalWeight;
+      double cumulative = 0.0;
 
-    for (int i = 0; i < scoredTeams.size(); i++) {
-      cumulative += weights.get(i);
-      if (r <= cumulative) {
-        ScoredTeam selected = scoredTeams.get(i);
-        return selected.team;
+      for (int i = 0; i < scoredTeams.size(); i++) {
+        cumulative += weights.get(i);
+        if (r <= cumulative) {
+          ScoredTeam selected = scoredTeams.get(i);
+          return selected.team;
+        }
       }
     }
 
-    // Fallback (shouldn't occur due to rounding)
+    scoredTeams.sort(Comparator.comparingDouble(a -> a.score));
     ScoredTeam fallback = scoredTeams.get(scoredTeams.size() - 1);
     return fallback.team;
   }
@@ -339,10 +341,10 @@ public class JSkillsRatingService implements RatingService {
   private double computeScore(List<Player> team1, List<Player> team2,
                               Map<Integer, javafx.util.Pair<String, LeaderboardRating>> ratings) {
     double score = switch (this.preferencesService.getClientRemoteConfiguration().getAutoBalance().getMetric()) {
-      case "kl" -> computeKLDivergence(team1, team2, ratings);
-      case "wasserstein" -> computeWasserstein(team1, team2, ratings);
+      case "kl" -> -computeKLDivergence(team1, team2, ratings);
+      case "wasserstein" -> -computeWasserstein(team1, team2, ratings);
       case "trueskill" -> computeTrueSkillQuality(team1, team2, ratings);
-      default -> computeKLDivergence(team1, team2, ratings);
+      default -> -computeKLDivergence(team1, team2, ratings);
     };
     return score;
   }

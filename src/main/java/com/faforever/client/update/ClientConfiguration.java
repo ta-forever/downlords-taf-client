@@ -23,7 +23,7 @@ public class ClientConfiguration {
   @Data
   public static class AutoBalance {
     String metric;   // eg "trueskill"
-    Double threshold; // eg 0.8
+    Double threshold;// eg 0.8
     Double scale;    // eg 0.03
   }
 
