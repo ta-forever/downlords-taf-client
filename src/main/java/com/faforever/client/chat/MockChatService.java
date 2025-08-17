@@ -3,6 +3,7 @@ package com.faforever.client.chat;
 import com.faforever.client.FafClientApplication;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.net.ConnectionState;
+import com.faforever.client.remote.domain.ChatBanNoticeMessage;
 import com.faforever.client.task.TaskService;
 import com.faforever.client.user.UserService;
 import com.faforever.client.user.event.LoginSuccessEvent;
@@ -220,4 +221,11 @@ public class MockChatService implements ChatService, InitializingBean {
     return new ChatChannelUser(username, false);
   }
 
+  @Override
+  public ObjectProperty<ChatBanNoticeMessage> getChatBanNoticeMessage() {
+    return new SimpleObjectProperty<ChatBanNoticeMessage>(null);
+  }
+
+  @Override
+  public boolean isChatBanned() { return false; }
 }

@@ -1,6 +1,8 @@
 package com.faforever.client.chat;
 
 import com.faforever.client.net.ConnectionState;
+import com.faforever.client.remote.domain.ChatBanNoticeMessage;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.collections.MapChangeListener;
@@ -66,4 +68,8 @@ public interface ChatService {
   void incrementUnreadMessagesCount(int delta);
 
   ReadOnlyIntegerProperty unreadMessagesCount();
+
+  public ObjectProperty<ChatBanNoticeMessage> getChatBanNoticeMessage();
+
+  public boolean isChatBanned();
 }

@@ -7,7 +7,7 @@ import lombok.Getter;
 @Getter
 public class BanPlayerMessage extends ClientMessage {
   final private int user_id;
-  final private String action = "closelobby";
+  final private String action = "chatban";
   final private Ban ban;
 
   public BanPlayerMessage(int user_id, String reason, int duration, String period) {

@@ -17,6 +17,7 @@ public enum FafServerMessageType implements ServerMessageType {
   MATCH_CANCELLED("match_cancelled", MatchCancelledMessage.class),
   SOCIAL("social", SocialMessage.class),
   AUTHENTICATION_FAILED("authentication_failed", AuthenticationFailedMessage.class),
+  CHAT_BAN_NOTICE("chat_ban_notice", ChatBanNoticeMessage.class),
   UPDATED_ACHIEVEMENTS("updated_achievements", UpdatedAchievementsMessage.class),
   NOTICE("notice", NoticeMessage.class),
   ICE_SERVERS("ice_servers", IceServersServerMessage.class),

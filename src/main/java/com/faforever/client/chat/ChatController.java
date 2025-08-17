@@ -3,12 +3,14 @@ package com.faforever.client.chat;
 import com.faforever.client.chat.event.ChatMessageEvent;
 import com.faforever.client.fx.AbstractViewController;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.JoinChannelEvent;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.main.event.NavigationItem;
 import com.faforever.client.net.ConnectionState;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.remote.domain.ChatBanNoticeMessage;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.user.UserService;
 import com.faforever.client.user.event.LoggedOutEvent;
@@ -19,6 +21,7 @@ import javafx.collections.ListChangeListener;
 import javafx.event.Event;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
@@ -53,10 +56,13 @@ public class ChatController extends AbstractViewController<Node> {
   private final NotificationService notificationService;
   private final EventBus eventBus;
   private final PreferencesService preferencesService;
+  private final I18n i18n;
   public Node chatRoot;
   public HBox chatContainer;
   public TabPane tabPane;
   public Pane connectingProgressPane;
+  public ProgressIndicator connectingProgress;
+  public Label connectingText;
   public VBox noOpenTabsContainer;
   public TextField channelNameTextField;
   public Label tabButtonSpacer;
@@ -72,15 +78,62 @@ public class ChatController extends AbstractViewController<Node> {
     return (ChatController) controller;
   }
 
-  public ChatController(ChatService chatService, UiService uiService, UserService userService, NotificationService notificationService, EventBus eventBus, PreferencesService preferencesService) {
+  public ChatController(ChatService chatService, UiService uiService, UserService userService, NotificationService notificationService, EventBus eventBus, PreferencesService preferencesService, I18n i18n) {
     this.chatService = chatService;
     this.uiService = uiService;
     this.userService = userService;
     this.notificationService = notificationService;
     this.eventBus = eventBus;
     this.preferencesService = preferencesService;
+    this.i18n = i18n;
 
     nameToChatTabController = new HashMap<>();
+  }
+
+  @Override
+  public void initialize() {
+    super.initialize();
+    eventBus.register(this);
+
+    chatService.getChatBanNoticeMessage().addListener((obs, oldVal, newVal) -> JavaFxUtil.runLater(this::updateConnectingMessage));
+    this.updateConnectingMessage();
+
+    String prompt = String.format("eg: %s", String.join(", ", preferencesService.getClientRemoteConfiguration().getAllChatChannels()));
+    this.channelNameTextField.setPromptText(prompt);
+    Tooltip tooltip = new Tooltip(prompt);
+    this.channelNameTextField.setTooltip(tooltip);
+
+    chatService.addChannelsListener(change -> {
+      log.debug("[chatService.addChannelsListener] change.wasRemoved()={}, change.wasAdded()={}", change.wasRemoved(), change.wasAdded());
+      if (change.wasRemoved() && !isMatchmakerPartyMessage(change.getValueRemoved().getName())) {
+        log.debug("[chatService.addChannelsListener] change.getValueRemoved()={}", change.getValueRemoved().getName());
+        onChannelLeft(change.getValueRemoved());
+      }
+      if (change.wasAdded() && !isMatchmakerPartyMessage(change.getValueAdded().getName())) {
+        log.debug("[chatService.addChannelsListener] change.getValueAdded()={}", change.getValueAdded().getName());
+        onChannelJoined(change.getValueAdded());
+      }
+    });
+    if (userService.getUsername() != null) {
+      chatService.getUserChannels(userService.getUsername()).stream()
+          .filter(channelName -> !isMatchmakerPartyMessage(channelName))
+          .forEach(channelName -> getOrCreateChannelTab(channelName));
+    }
+
+    JavaFxUtil.addListener(chatService.connectionStateProperty(), (observable, oldValue, newValue) -> onConnectionStateChange(newValue));
+    onConnectionStateChange(chatService.connectionStateProperty().get());
+
+    JavaFxUtil.addListener(tabPane.getTabs(), (ListChangeListener<Tab>) change -> {
+      while (change.next()) {
+        change.getRemoved().forEach(tab -> {
+          AbstractChatTabController controller = nameToChatTabController.get(tab.getId());
+          if (controller != null) {
+            controller.close();
+            nameToChatTabController.remove(tab.getId());
+          }
+        });
+      }
+    });
   }
 
   private void onChannelLeft(ChatChannel chatChannel) {
@@ -213,49 +266,6 @@ public class ChatController extends AbstractViewController<Node> {
       }});
     stealUserListNode(tabController);
   }
-
-  @Override
-  public void initialize() {
-    super.initialize();
-    eventBus.register(this);
-
-    String prompt = String.format("eg: %s", String.join(", ", preferencesService.getClientRemoteConfiguration().getAllChatChannels()));
-    this.channelNameTextField.setPromptText(prompt);
-    Tooltip tooltip = new Tooltip(prompt);
-    this.channelNameTextField.setTooltip(tooltip);
-
-    chatService.addChannelsListener(change -> {
-      log.debug("[chatService.addChannelsListener] change.wasRemoved()={}, change.wasAdded()={}", change.wasRemoved(), change.wasAdded());
-      if (change.wasRemoved() && !isMatchmakerPartyMessage(change.getValueRemoved().getName())) {
-        log.debug("[chatService.addChannelsListener] change.getValueRemoved()={}", change.getValueRemoved().getName());
-        onChannelLeft(change.getValueRemoved());
-      }
-      if (change.wasAdded() && !isMatchmakerPartyMessage(change.getValueAdded().getName())) {
-        log.debug("[chatService.addChannelsListener] change.getValueAdded()={}", change.getValueAdded().getName());
-        onChannelJoined(change.getValueAdded());
-      }
-    });
-    if (userService.getUsername() != null) {
-      chatService.getUserChannels(userService.getUsername()).stream()
-          .filter(channelName -> !isMatchmakerPartyMessage(channelName))
-          .forEach(channelName -> getOrCreateChannelTab(channelName));
-    }
-
-    JavaFxUtil.addListener(chatService.connectionStateProperty(), (observable, oldValue, newValue) -> onConnectionStateChange(newValue));
-    onConnectionStateChange(chatService.connectionStateProperty().get());
-
-    JavaFxUtil.addListener(tabPane.getTabs(), (ListChangeListener<Tab>) change -> {
-      while (change.next()) {
-        change.getRemoved().forEach(tab -> {
-          AbstractChatTabController controller = nameToChatTabController.get(tab.getId());
-          if (controller != null) {
-            controller.close();
-            nameToChatTabController.remove(tab.getId());
-          }
-        });
-      }
-    });
- }
 
   @Subscribe
   public void onLoggedOutEvent(LoggedOutEvent event) {
@@ -400,6 +410,18 @@ public class ChatController extends AbstractViewController<Node> {
     if (!tabPane.getTabs().isEmpty()) {
       Tab tab = tabPane.getSelectionModel().getSelectedItem();
       Optional.ofNullable(nameToChatTabController.get(tab.getId())).ifPresent(AbstractChatTabController::onHide);
+    }
+  }
+
+  private void updateConnectingMessage() {
+    ChatBanNoticeMessage msg = chatService.getChatBanNoticeMessage().get();
+    if (msg != null && msg.getIsBanned()) {
+      connectingProgress.setVisible(false);
+      connectingText.setText(this.i18n.get("chat.banned.message", msg.getExpiry(), msg.getReason()));
+    }
+    else {
+      connectingProgress.setVisible(true);
+      connectingText.setText(this.i18n.get("chat.connecting.message"));
     }
   }
 }

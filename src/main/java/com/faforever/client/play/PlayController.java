@@ -2,6 +2,7 @@ package com.faforever.client.play;
 
 import com.faforever.client.chat.ChatController;
 import com.faforever.client.chat.ChatMessage;
+import com.faforever.client.chat.ChatService;
 import com.faforever.client.chat.MatchmakingChatController;
 import com.faforever.client.chat.event.ChatMessageEvent;
 import com.faforever.client.fx.AbstractViewController;
@@ -22,7 +23,6 @@ import javafx.scene.control.SplitPane;
 import javafx.scene.control.TabPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +39,7 @@ public class PlayController extends AbstractViewController<Node> {
   private final UiService uiService;
   private final EventBus eventBus;
   private final PreferencesService preferencesService;
+  private final ChatService chatService;
   private final I18n i18n;
 
   public StackPane playRoot;
@@ -61,11 +62,12 @@ public class PlayController extends AbstractViewController<Node> {
   private GamePopoutController gamePopoutController;
 
   public PlayController(GameService gameService, UiService uiService, EventBus eventBus,
-                        PreferencesService preferencesService, I18n i18n) {
+                        PreferencesService preferencesService, ChatService chatService, I18n i18n) {
     this.gameService = gameService;
     this.uiService = uiService;
     this.eventBus = eventBus;
     this.preferencesService = preferencesService;
+    this.chatService = chatService;
     this.i18n = i18n;
 
     eventBus.register(this);
@@ -199,7 +201,7 @@ public class PlayController extends AbstractViewController<Node> {
   private void enableGameChatBox(boolean enable) {
     double mainViewContainerWidth = mainViewContainer.getWidth();
 
-    if (mainViewContainerWidth > 0.0 && enable) {
+    if (mainViewContainerWidth > 0.0 && enable && !chatService.isChatBanned()) {
       gameChatContainer.setVisible(true);
     }
     else {

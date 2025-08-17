@@ -9,15 +9,16 @@ import com.faforever.client.config.ClientProperties.Irc;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.net.ConnectionState;
+import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerOnlineEvent;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.SocialStatus;
 import com.faforever.client.player.UserOfflineEvent;
 import com.faforever.client.preferences.ChatPrefs;
-import com.faforever.client.preferences.LocalizationPrefs;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
+import com.faforever.client.remote.domain.ChatBanNoticeMessage;
 import com.faforever.client.remote.domain.NewTadaReplayMessage;
 import com.faforever.client.remote.domain.SocialMessage;
 import com.faforever.client.ui.tray.event.UpdateApplicationBadgeEvent;
@@ -34,7 +35,6 @@ import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.MapChangeListener;
-import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.scene.paint.Color;
 import lombok.RequiredArgsConstructor;
@@ -75,7 +75,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -105,6 +104,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   private final EventBus eventBus;
   private final ClientProperties clientProperties;
   private final PlayerService playerService;
+  private final NotificationService notificationService;
   private final I18n i18n;
   /**
    * Maps channels by name.
@@ -124,12 +124,14 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
    */
   private boolean autoChannelsJoined;
   private boolean newbieChannelJoined;
+  private ObjectProperty<ChatBanNoticeMessage> chatBanNoticeMessage = new SimpleObjectProperty<ChatBanNoticeMessage>(null);
 
   @Override
   public void afterPropertiesSet() {
     eventBus.register(this);
     fafService.addOnMessageListener(SocialMessage.class, this::onSocialMessage);
     fafService.addOnMessageListener(NewTadaReplayMessage.class, this::onNewTadaReplayMessage);
+    fafService.addOnMessageListener(ChatBanNoticeMessage.class, this::onChatBanNotification);
 
     connectionState.addListener((observable, oldValue, newValue) -> {
       switch (newValue) {
@@ -408,8 +410,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
       while (iterator.hasPrevious()) {
         joinChannel(iterator.previous());
       }
-    }
-    else {
+    } else {
       channels.forEach(this::joinChannel);
     }
   }
@@ -449,8 +450,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     }
     // The server doesn't yet tell us when a user goes offline, so we have to rely on the user leaving IRC.
     if (preferencesService.getClientRemoteConfiguration().getAllChatChannels().stream()
-        .noneMatch(chan -> this.chatChannelUsersByChannelAndName.containsKey(mapKey(username, chan))))
-    {
+        .noneMatch(chan -> this.chatChannelUsersByChannelAndName.containsKey(mapKey(username, chan)))) {
       eventBus.post(new UserOfflineEvent(username));
     }
   }
@@ -485,6 +485,10 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Override
   public void connect() {
+    if (isChatBanned()) {
+      return;
+    }
+
     String username = userService.getUsername();
 
     Irc irc = clientProperties.getIrc();
@@ -517,8 +521,10 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Override
   public void disconnect() {
-    log.info("Disconnecting from IRC");
-    client.shutdown("Goodbye");
+    if (client != null) {
+      log.info("Disconnecting from IRC");
+      client.shutdown("Goodbye");
+    }
   }
 
   @Override
@@ -589,7 +595,9 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   @Override
   public void leaveChannel(String channelName) {
     log.debug("[leaveChannel] {}", channelName);
-    client.removeChannel(channelName);
+    if (client != null) {
+      client.removeChannel(channelName);
+    }
   }
 
   @Override
@@ -602,8 +610,10 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Override
   public void joinChannel(String channelName) {
-    log.debug("[joinChannel] {}", channelName);
-    client.addChannel(channelName);
+    if (client != null) {
+      log.debug("[joinChannel] {}", channelName);
+      client.addChannel(channelName);
+    }
   }
 
   @Override
@@ -651,6 +661,11 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     return unreadMessagesCount;
   }
 
+  @Override
+  public ObjectProperty<ChatBanNoticeMessage> getChatBanNoticeMessage() {
+    return chatBanNoticeMessage;
+  }
+
   private void onModeratorSet(String channelName, String username) {
     getOrCreateChatUser(username, channelName, true).setModerator(true);
   }
@@ -678,5 +693,17 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
               return msg;
             })
         );
+  }
+
+  @Override
+  public boolean isChatBanned() {
+    return this.chatBanNoticeMessage.get() != null && this.chatBanNoticeMessage.get().getIsBanned();
+  }
+
+  private void onChatBanNotification(ChatBanNoticeMessage msg) {
+    this.chatBanNoticeMessage.set(msg);
+    if (msg.getIsBanned()) {
+      disconnect();
+    }
   }
 }
