@@ -287,6 +287,8 @@
 
 .chat-user-item-username {
   -fx-text-fill: -fx-text-color;
+  -fx-font-family: "Consolas";
+  -fx-font-size: 14px;
 }
 
 .chat-user-list-view .list-cell {
@@ -858,9 +860,9 @@
 }
 
 .player-card-text {
-  -fx-font-size: 14px;
-  -fx-font-family: 'Source Sans Pro';
-  -fx-text-fill: #8f8f8f;
+  -fx-font-size: 12px;
+  -fx-font-family: "Consolas";
+  -fx-text-fill: -fx-text-color;
 }
 
 .invite-button {

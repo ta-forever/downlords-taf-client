@@ -18,7 +18,7 @@
          </ImageView>
       </children>
    </StackPane>
-   <Label fx:id="playerInfo" styleClass="player-card-tooltip" text="&lt;PlayerInfo&gt;" wrapText="true">
+   <Label fx:id="playerInfo" styleClass="player-card-text" text="&lt;PlayerInfo&gt;" wrapText="true">
       <graphic>
          <ImageView fx:id="countryImageView" pickOnBounds="true" preserveRatio="true" />
       </graphic>

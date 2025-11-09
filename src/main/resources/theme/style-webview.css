@@ -79,14 +79,17 @@ img.country-flag {
   color: #fafafa;
   cursor: pointer;
   font-weight: bold;
+  font-family: "Consolas";
 }
 
 .chat-section.extended .username {
   margin-right: 0.5em;
+  font-family: "Consolas";
 }
 
 .chat-section .username:hover {
   text-decoration: underline;
+  font-family: "Consolas";
 }
 
 .chat-section .clan-tag {
