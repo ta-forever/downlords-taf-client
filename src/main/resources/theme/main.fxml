@@ -37,7 +37,7 @@
                                   <MenuItem onAction="#onExitItemSelected" text="%menu.exit"/>
                               </items>
                           </MenuButton>
-                      <ToggleButton fx:id="newsButton" minWidth="-Infinity" mnemonicParsing="false"
+                      <ToggleButton fx:id="newsButton" disable="true" minWidth="-Infinity" mnemonicParsing="false"
                                     onAction="#onNavigateButtonClicked" styleClass="main-navigation-button"
                                     text="%main.news">
                           <toggleGroup>
