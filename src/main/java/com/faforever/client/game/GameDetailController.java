@@ -113,11 +113,10 @@ public class GameDetailController implements Controller<Pane> {
   public GridPane pingTableGridPane;
   public VBox pingTableContainer;
   public Label gameRatingRangeLabel;
+  public Label pingTableValue;
   private Timeline gameTimeSinceStartUpdater;
   public Label gameTimeSinceStartLabel;
   public GameDetailMapContextMenuController mapContextMenuController;
-
-  private final Tooltip pingTableTooltip;
 
   @SuppressWarnings("FieldCanBeLocal")
   private InvalidationListener featuredModInvalidationListener;
@@ -153,7 +152,6 @@ public class GameDetailController implements Controller<Pane> {
     this.preferencesService = preferencesService;
     this.joinGameHelper = joinGameHelper;
     this.eventBus = eventBus;
-    this.pingTableTooltip = new Tooltip();
 
     game = new ReadOnlyObjectWrapper<>();
 
@@ -518,14 +516,14 @@ public class GameDetailController implements Controller<Pane> {
               "-fx-border-width: 1px;" +
               "-fx-border-style: solid;"
           );
-          cell.setMinSize(10, 10); // Set cell size as needed
+          cell.setMinSize(10, 20); // Set cell size as needed
           cell.setPrefSize(20, 20);
 
           if (ping < 2000) {
-            cell.setUserData(String.format("%s\n%s\n%s", playerUsername, peerUsername, i18n.get("duration.milliseconds", ping)));
+            cell.setUserData(String.format("%s / %s\n%s", playerUsername, peerUsername, i18n.get("duration.milliseconds", ping)));
           }
           else {
-            cell.setUserData(String.format("%s\n%s\n(timeout)", playerUsername, peerUsername, i18n.get("duration.timeout")));
+            cell.setUserData(String.format("%s / %s\n%s", playerUsername, peerUsername, i18n.get("duration.timeout")));
           }
           pingTableGridPane.add(cell, 1+peerOrdinal, playerOrdinal);
         }
@@ -535,12 +533,13 @@ public class GameDetailController implements Controller<Pane> {
   }
 
   public void setPingTableTooltip(MouseEvent mouseEvent) {
+    pingTableValue.setVisible(false);
     try {
       Region cell = (Region) mouseEvent.getTarget();
       String text = (String) cell.getUserData();
       if (text != null) {
-        pingTableTooltip.setText(text);
-        pingTableTooltip.show(pingTableGridPane, mouseEvent.getScreenX(), mouseEvent.getScreenY() + 20);
+        pingTableValue.setText(text);
+        pingTableValue.setVisible(true);
       }
     }
     catch (java.lang.ClassCastException ignored)
@@ -548,7 +547,7 @@ public class GameDetailController implements Controller<Pane> {
   }
 
   public void hidePingTableTooltip(MouseEvent mouseEvent) {
-    pingTableTooltip.hide();
+    pingTableValue.setVisible(false);
   }
 
   @Override

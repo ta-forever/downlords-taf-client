@@ -85,14 +85,15 @@
             <Button fx:id="joinButton" mnemonicParsing="false" onAction="#onJoinButtonClicked" text="%game.join" styleClass="join-game-button"><tooltip><Tooltip text="%game.join.tooltip"/></tooltip></Button>
             <Button fx:id="autoJoinButton" mnemonicParsing="false" onAction="#onAutoJoinButtonClicked" text="%game.autojoin" styleClass="autojoin-game-button-not-active"><tooltip><Tooltip text="%game.autojoin.tooltip"/></tooltip></Button>
         </HBox>
-        <VBox alignment="BOTTOM_CENTER" fx:id="teamListPane" maxWidth="1.7976931348623157E308" spacing="10.0" GridPane.columnSpan="2147483647" GridPane.rowIndex="9" />
-        <VBox fx:id="pingTableContainer" alignment="BOTTOM_CENTER" maxWidth="1.7976931348623157E308" spacing="10.0" GridPane.columnSpan="2147483647" GridPane.rowIndex="10">
+        <VBox alignment="BOTTOM_CENTER" fx:id="teamListPane" maxWidth="1.7976931348623157E308" VBox.vgrow="ALWAYS" spacing="10.0" GridPane.columnSpan="2147483647" GridPane.rowIndex="9" />
+        <VBox fx:id="pingTableContainer" alignment="TOP_CENTER" maxWidth="1.7976931348623157E308" spacing="10.0" GridPane.columnSpan="2147483647" GridPane.rowIndex="10">
             <Label text="%game.detail.pingtable.title"/>
-            <GridPane fx:id="pingTableGridPane" alignment="TOP_CENTER" minWidth="40" minHeight="40" prefWidth="100" prefHeight="100" onMouseClicked="#setPingTableTooltip" onMouseExited="#hidePingTableTooltip">
+            <GridPane fx:id="pingTableGridPane" alignment="TOP_CENTER" minWidth="40" prefWidth="100" onMouseMoved="#setPingTableTooltip" onMouseExited="#hidePingTableTooltip">
                 <columnConstraints>
                     <ColumnConstraints hgrow="SOMETIMES"/>
                 </columnConstraints>
             </GridPane>
+            <Label fx:id="pingTableValue" visible="false" alignment="CENTER_RIGHT" textAlignment="RIGHT" wrapText="true" maxWidth="Infinity"/>
         </VBox>
     </children>
     <padding>
