@@ -6,6 +6,8 @@ public class ChatBanNoticeMessage extends FafServerMessage {
   private String expiry;
   private String reason;
 
+  private String channels; // if empty, applies to all channels
+
   public ChatBanNoticeMessage() {
     super(FafServerMessageType.CHAT_BAN_NOTICE);
   }
@@ -23,6 +25,13 @@ public class ChatBanNoticeMessage extends FafServerMessage {
   }
   public void setReason(String reason) {
     this.reason = reason;
+  }
+
+  public String getChannels() {
+    return channels;
+  }
+  public void setChannels(String channels) {
+    this.channels = channels;
   }
 
 }

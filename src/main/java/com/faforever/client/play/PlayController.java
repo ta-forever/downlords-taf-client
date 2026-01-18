@@ -201,7 +201,7 @@ public class PlayController extends AbstractViewController<Node> {
   private void enableGameChatBox(boolean enable) {
     double mainViewContainerWidth = mainViewContainer.getWidth();
 
-    if (mainViewContainerWidth > 0.0 && enable && !chatService.isChatBanned()) {
+    if (mainViewContainerWidth > 0.0 && enable && !chatService.isChatBannedAllChannels()) {
       gameChatContainer.setVisible(true);
     }
     else {

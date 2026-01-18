@@ -72,4 +72,6 @@ public interface ChatService {
   public ObjectProperty<ChatBanNoticeMessage> getChatBanNoticeMessage();
 
   public boolean isChatBanned();
+
+  public boolean isChatBannedAllChannels();
 }

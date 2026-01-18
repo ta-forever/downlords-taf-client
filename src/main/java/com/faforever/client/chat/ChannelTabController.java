@@ -12,6 +12,7 @@ import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.SocialStatus;
 import com.faforever.client.preferences.ChatPrefs;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.remote.domain.ChatBanNoticeMessage;
 import com.faforever.client.reporting.ReportingService;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.uploader.ImageUploadService;
@@ -176,6 +177,20 @@ public class ChannelTabController extends AbstractChatTabController {
     return chatUser.getPlayer().isPresent() && chatUser.getPlayer().get().getSocialStatus() == SocialStatus.SELF;
   }
 
+  private void onChatBanMessage(ChatBanNoticeMessage chatBanMessage) {
+    if (chatBanMessage != null && chatBanMessage.getIsBanned()) {
+      boolean thisChannel = chatBanMessage.getChannels() == null || chatBanMessage.getChannels().contains(this.getReceiver());
+      if (thisChannel) {
+        messageTextField.setDisable(true);
+        String banText = this.i18n.get("chat.banned.message", chatBanMessage.getExpiry(), chatBanMessage.getReason());
+        messageTextField.setPromptText(banText);
+        return;
+      }
+    }
+    messageTextField.setDisable(false);
+    messageTextField.setPromptText(this.i18n.get("chat.messagePrompt"));
+  }
+
   public void setChatChannel(ChatChannel chatChannel) {
     Assert.state(this.chatChannel == null, "Channel has already been set");
     this.chatChannel = chatChannel;
@@ -186,6 +201,9 @@ public class ChannelTabController extends AbstractChatTabController {
     channelTabRoot.setText(channelName);
     userListTitleLabel.setText(channelName);
     onPlayerCount(chatChannel.getUsers().size());
+
+    this.onChatBanMessage(chatService.getChatBanNoticeMessage().get());
+    this.chatService.getChatBanNoticeMessage().addListener((obs, oldValue, newValue) -> this.onChatBanMessage(newValue));
 
     // Maybe there already were some users; fetch them
     chatChannel.getUsers().forEach(this::onPlayerConnected);

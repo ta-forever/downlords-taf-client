@@ -228,4 +228,7 @@ public class MockChatService implements ChatService, InitializingBean {
 
   @Override
   public boolean isChatBanned() { return false; }
+
+  @Override
+  public boolean isChatBannedAllChannels() { return false; }
 }

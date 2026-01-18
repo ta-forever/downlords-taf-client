@@ -414,8 +414,8 @@ public class ChatController extends AbstractViewController<Node> {
   }
 
   private void updateConnectingMessage() {
-    ChatBanNoticeMessage msg = chatService.getChatBanNoticeMessage().get();
-    if (msg != null && msg.getIsBanned()) {
+    if (chatService.isChatBannedAllChannels()) {
+      ChatBanNoticeMessage msg = chatService.getChatBanNoticeMessage().get();
       connectingProgress.setVisible(false);
       connectingText.setText(this.i18n.get("chat.banned.message", msg.getExpiry(), msg.getReason()));
     }

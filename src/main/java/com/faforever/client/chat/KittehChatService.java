@@ -485,7 +485,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
 
   @Override
   public void connect() {
-    if (isChatBanned()) {
+    if (isChatBannedAllChannels()) {
       return;
     }
 
@@ -700,9 +700,21 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     return this.chatBanNoticeMessage.get() != null && this.chatBanNoticeMessage.get().getIsBanned();
   }
 
+  @Override
+  public boolean isChatBannedAllChannels() {
+    if (!isChatBanned()) {
+      return false;
+    }
+    String channels = this.chatBanNoticeMessage.get().getChannels();
+    if (channels == null || channels.isEmpty()) {
+      return true;
+    }
+    return false;
+  }
+
   private void onChatBanNotification(ChatBanNoticeMessage msg) {
     this.chatBanNoticeMessage.set(msg);
-    if (msg.getIsBanned()) {
+    if (msg.getIsBanned() && "".equals(msg.getChannels())) {
       disconnect();
     }
   }
