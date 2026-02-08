@@ -249,10 +249,20 @@ public class PlanetDetailController implements Controller<Node> {
           playerNameColumn.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().getAlias()));
           belligerentsTableView.getColumns().add(playerNameColumn);
 
-          for (Faction faction: factions) {
-            TableColumn<Player, Number> factionScoreColumn = new TableColumn<>(faction.getString());
-            factionScoreColumn.setCellValueFactory(param -> new SimpleIntegerProperty(
-                planet.getBelligerents().get(param.getValue().getId()).getOrDefault(faction, 0.0).intValue()));
+          for (Faction faction : factions) {
+            TableColumn<Player, Number> factionScoreColumn =
+                new TableColumn<>(faction.getString());
+
+            factionScoreColumn.setCellValueFactory(param -> {
+              GwPlayerScore score =
+                  planet.getBelligerents()
+                      .getOrDefault(param.getValue().getId(), Map.of())
+                      .getOrDefault(faction, GwPlayerScore.EMPTY_SCORE);
+
+              int totalScore = (int)(score.getCumWinningScores() + score.getCumLosingScores());
+              return new SimpleIntegerProperty(totalScore);
+            });
+
             belligerentsTableView.getColumns().add(factionScoreColumn);
           }
           belligerentsTableView.setVisible(true);

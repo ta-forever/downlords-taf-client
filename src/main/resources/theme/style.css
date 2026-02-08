@@ -1228,3 +1228,12 @@
   -fx-border-radius: 1;
   -fx-border-color: #636363;
 }
+
+/************ GalacticWar ********/
+.galactic-war-background {
+    -fx-background-image: url("images/galactic_war_bg2.jpg");
+    -fx-background-repeat: no-repeat;
+    -fx-background-position: center;
+    -fx-background-size: cover;
+    -fx-opacity: 0.2;
+}

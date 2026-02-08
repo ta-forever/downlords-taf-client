@@ -3,10 +3,12 @@ package com.faforever.client.galacticwar;
 import com.brunomnsilva.smartgraph.graph.Graph;
 import com.brunomnsilva.smartgraph.graph.GraphEdgeList;
 import com.brunomnsilva.smartgraph.graph.Vertex;
+import com.brunomnsilva.smartgraph.graphview.SmartCircularSortedPlacementStrategy;
 import com.brunomnsilva.smartgraph.graphview.SmartGraphPanel;
 import com.brunomnsilva.smartgraph.graphview.SmartGraphProperties;
 import com.brunomnsilva.smartgraph.graphview.SmartGraphVertex;
 import com.brunomnsilva.smartgraph.graphview.SmartGraphVertexNode;
+import com.brunomnsilva.smartgraph.graphview.SmartPlacementStrategy;
 import com.brunomnsilva.smartgraph.graphview.UtilitiesJavaFX;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.game.Faction;
@@ -20,7 +22,6 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Text;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayInputStream;
@@ -33,9 +34,7 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -75,7 +74,8 @@ public class GalacticMapView {
   private GalacticMapView (
     Graph<Planet, String> theGraph, SmartGraphProperties properties, URI styleSheetUri, UiService uiService) {
 
-    this.smartGraphPanel = new SmartGraphPanel<>(theGraph, properties, null, styleSheetUri);
+    SmartPlacementStrategy initialPlacement = new SmartCircularSortedPlacementStrategy();
+    this.smartGraphPanel = new SmartGraphPanel<>(theGraph, properties, initialPlacement, styleSheetUri);
     this.smartGraphPanel.setAutomaticLayout(false);
 
     this.uiService = uiService;
@@ -192,14 +192,17 @@ public class GalacticMapView {
     return smartGraphPanel;
   }
 
-  public static GalacticMapView fromFile(String path, String styleSheetFile, UiService uiService) throws IOException, URISyntaxException {
-    Scenario scenario = Scenario.fromFile(Path.of(path));
+  public static GalacticMapView fromScenario(Scenario scenario, String styleSheetFile, UiService uiService) throws IOException, URISyntaxException {
     com.brunomnsilva.smartgraph.graph.Graph<Planet, String> theGraph = toSmartGraph(scenario);
-
     InputStream propertiesInputStream = new ByteArrayInputStream(smartGraphProperties.getBytes());
     SmartGraphProperties properties = new SmartGraphProperties(propertiesInputStream);
     URI styleSheetUri = new URI(styleSheetFile);
     return new GalacticMapView(theGraph, properties, styleSheetUri, uiService);
+  }
+
+  public static GalacticMapView fromFile(String path, String styleSheetFile, UiService uiService) throws IOException, URISyntaxException {
+    Scenario scenario = Scenario.fromFile(Path.of(path));
+    return fromScenario(scenario, styleSheetFile, uiService);
   }
 
   public void setMouseClickConsumer(Consumer<Optional<Planet>> consumer) {

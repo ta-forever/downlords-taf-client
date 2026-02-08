@@ -2,7 +2,6 @@
 
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ProgressIndicator?>
-<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.geometry.Insets?>
@@ -11,27 +10,73 @@
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Button?>
-<StackPane xmlns:fx="http://javafx.com/fxml/1" fx:id="rootPane" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" xmlns="http://javafx.com/javafx/8.0.141" fx:controller="com.faforever.client.galacticwar.GalacticWarController">
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.layout.Region?>
+<StackPane xmlns:fx="http://javafx.com/fxml/1"
+           xmlns="http://javafx.com/javafx/8.0.141"
+           fx:id="rootPane"
+           fx:controller="com.faforever.client.galacticwar.GalacticWarController">
+
     <padding>
-        <Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/>
+        <Insets top="10" right="10" bottom="10" left="10"/>
     </padding>
+
     <GridPane>
         <columnConstraints>
-            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" />
-            <ColumnConstraints hgrow="NEVER" minWidth="240.0" />
+            <ColumnConstraints hgrow="ALWAYS"/>
+            <ColumnConstraints minWidth="240" prefWidth="240" maxWidth="240"/>
         </columnConstraints>
+
         <rowConstraints>
-            <RowConstraints minHeight="10.0" vgrow="NEVER" />
-            <RowConstraints minHeight="10.0" vgrow="ALWAYS" />
+            <RowConstraints vgrow="ALWAYS"/>
         </rowConstraints>
-        <ScrollPane fx:id="galacticWarGraphContainer" fitToWidth="TRUE" fitToHeight="TRUE"
-                    GridPane.rowIndex="0" GridPane.columnIndex="0" GridPane.rowSpan="2"/>
-        <VBox fx:id="planetDetailContainer" GridPane.rowIndex="0" GridPane.columnIndex="1" GridPane.rowSpan="2"/>
-        <Button alignment="CENTER_RIGHT" onAction="#resetView" text="%galactic_war.view.reset" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+
+        <SplitPane orientation="HORIZONTAL"
+                   dividerPositions="0.25"
+                   GridPane.columnIndex="0"
+                   GridPane.rowIndex="0">
+
+            <!-- LEFT: Leaderboard -->
+            <VBox spacing="6" minWidth="48" maxWidth="400" prefWidth="280">
+                <Label text="%leaderboard.displayName" styleClass="h1"/>
+
+                <ScrollPane fitToWidth="true" fitToHeight="true" styleClass="game-detail-framed" VBox.vgrow="ALWAYS">
+                    <content>
+                        <VBox fx:id="leaderboardContainer" spacing="4"/>
+                    </content>
+                </ScrollPane>
+            </VBox>
+
+            <!-- RIGHT: Map + Reset button -->
+            <StackPane>
+                <Region styleClass="galactic-war-background"/>
+                <StackPane>
+                    <ScrollPane fx:id="galacticWarGraphContainer"
+                                fitToWidth="true"
+                                fitToHeight="true"/>
+
+                    <Button text="%galactic_war.view.reset"
+                            onAction="#resetView"
+                            StackPane.alignment="TOP_RIGHT"
+                            styleClass="reset-view-button"/>
+                </StackPane>
+            </StackPane>
+        </SplitPane>
+
+        <!-- FIXED RIGHT PANEL -->
+        <VBox fx:id="planetDetailContainer"
+              GridPane.columnIndex="1"
+              GridPane.rowIndex="0"/>
+
     </GridPane>
-    <Label fx:id="loadingIndicator" contentDisplay="TOP" text="%loading" HBox.hgrow="ALWAYS">
+
+    <!-- Loading overlay -->
+    <Label fx:id="loadingIndicator"
+           text="%loading"
+           contentDisplay="TOP">
         <graphic>
-            <ProgressIndicator maxHeight="80.0" maxWidth="80.0"/>
+            <ProgressIndicator maxWidth="80" maxHeight="80"/>
         </graphic>
     </Label>
+
 </StackPane>

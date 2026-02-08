@@ -19,6 +19,7 @@ public class ClientConfiguration {
   List<String> defaultChatChannels;
   List<String> allChatChannels;
   AutoBalance autoBalance;
+  List<Integer> galacticWarRankThresholds;
 
   @Data
   public static class AutoBalance {
