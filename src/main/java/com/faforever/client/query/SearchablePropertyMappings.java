@@ -18,7 +18,7 @@ public class SearchablePropertyMappings {
 
   public static final Map<String, Property> GAME_PROPERTY_MAPPING = ImmutableMap.<String, Property>builder()
       .put("playerStats.player.login", new Property("game.player.username", false))
-      .put("replayMeta", new Property("game.allPlayerLogins", false))
+      .put("replayMeta", new Property("game.replayMetadata", false))
       .put("featuredMod.technicalName", new Property("featuredMod.technicalName", false))
       .put("mapVersion.map.displayName", new Property("game.map.displayName", false))
       .put("playerStats.faction", new Property("game.player.faction", false))
