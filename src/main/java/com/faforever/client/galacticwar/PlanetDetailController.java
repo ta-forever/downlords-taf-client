@@ -14,7 +14,11 @@ import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.FeaturedMod;
+import com.faforever.client.notification.Action;
+import com.faforever.client.notification.Action.Type;
+import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.NotificationService;
+import com.faforever.client.notification.Severity;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
@@ -54,7 +58,9 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static java.util.Collections.emptySet;
 
@@ -91,6 +97,18 @@ public class PlanetDetailController implements Controller<Node> {
   SimpleObjectProperty<MapBean> mapBean;
   SimpleObjectProperty<FeaturedMod> featuredMod;
   SimpleObjectProperty<Leaderboard> leaderboard;
+  String galaxyTechnicalName;
+  String galaxyDisplayName;
+  Optional<Faction> playerFaction;
+  List<Faction> galaxyFactions = List.of(Faction.ARM, Faction.CORE);
+
+  void setPlayerFaction(Optional<Faction> playerFaction) {
+    this.playerFaction = playerFaction;
+  }
+
+  void setGalaxyFactions(List<Faction> galaxyFactions) {
+    this.galaxyFactions = galaxyFactions;
+  }
 
   @Override
   public void initialize() {
@@ -113,6 +131,14 @@ public class PlanetDetailController implements Controller<Node> {
   @Override
   public Node getRoot() {
     return planetDetailRoot;
+  }
+
+  public void setGalaxyTechnicalName(String galaxyTechnicalName) {
+    this.galaxyTechnicalName = galaxyTechnicalName;
+  }
+
+  public void setGalaxyDisplayName(String galaxyDisplayName) {
+    this.galaxyDisplayName = galaxyDisplayName;
   }
 
   public void setPlanet(Planet planet) {
@@ -231,6 +257,7 @@ public class PlanetDetailController implements Controller<Node> {
   }
 
   private void populateBelligerentsTable(Planet planet) {
+
     Set<Faction> factions = new HashSet<>();
     planet.getBelligerents().values()
         .forEach(scores -> factions.addAll(scores.keySet()));
@@ -241,42 +268,99 @@ public class PlanetDetailController implements Controller<Node> {
     }
 
     belligerentsTableView.getColumns().clear();
+
     playerService.getPlayersByIds(planet.getBelligerents().keySet())
         .thenAccept(players -> {
-          belligerentsTableView.setItems(FXCollections.observableArrayList(players));
 
-          TableColumn<Player, String> playerNameColumn = new TableColumn<>("Belligerent");
-          playerNameColumn.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().getAlias()));
+          // Filter players with positive score in ANY faction
+          List<Player> filteredPlayers = players.stream()
+              .filter(player -> {
+                Map<Faction, GwPlayerScore> scores =
+                    planet.getBelligerents().getOrDefault(player.getId(), Map.of());
+
+                return scores.values().stream()
+                    .mapToDouble(GwPlayerScore::getCumWinningScores)
+                    .anyMatch(total -> total > 0.0);
+              })
+              .toList();
+
+          belligerentsTableView.setItems(
+              FXCollections.observableArrayList(filteredPlayers)
+          );
+
+          // Player column
+          TableColumn<Player, String> playerNameColumn =
+              new TableColumn<>("Belligerent");
+
+          playerNameColumn.setCellValueFactory(param ->
+              new SimpleStringProperty(param.getValue().getAlias())
+          );
+
           belligerentsTableView.getColumns().add(playerNameColumn);
 
+          // Faction score columns
           for (Faction faction : factions) {
+
             TableColumn<Player, Number> factionScoreColumn =
                 new TableColumn<>(faction.getString());
 
             factionScoreColumn.setCellValueFactory(param -> {
+
               GwPlayerScore score =
                   planet.getBelligerents()
                       .getOrDefault(param.getValue().getId(), Map.of())
                       .getOrDefault(faction, GwPlayerScore.EMPTY_SCORE);
 
-              int totalScore = (int)(score.getCumWinningScores() + score.getCumLosingScores());
-              return new SimpleIntegerProperty(totalScore);
+              Float rawTotal = score.getCumWinningScores();
+
+              // Clip negative scores to 0
+              int clippedTotal = (int) Math.max(0, rawTotal);
+
+              return new SimpleIntegerProperty(clippedTotal);
             });
 
             belligerentsTableView.getColumns().add(factionScoreColumn);
           }
+
           belligerentsTableView.setVisible(true);
         });
   }
 
+
   public void onCreateGameButtonPressed(ActionEvent actionEvent) {
+    CompletableFuture<Faction> factionFuture;
+    factionFuture = this.playerFaction.map(CompletableFuture::completedFuture).orElseGet(this::promptUserFaction);
+    factionFuture.thenAccept(this::createGame);
+  }
+
+  public CompletableFuture<Faction> promptUserFaction() {
+    CompletableFuture<Faction> future = new CompletableFuture<>();
+    List<Action> actions = galaxyFactions.stream().map(faction -> new Action(
+        faction.getString(), Type.OK_DONE, a -> future.complete(faction)
+        )).toList();
+
+    notificationService.addNotification(new ImmediateNotification(
+        i18n.get("galactic_war.select_faction.title"),
+        i18n.get("galactic_war.select_faction.text"),
+        Severity.INFO, actions));
+
+    return future;
+  }
+
+  public void createGame(Faction userFaction) {
     LiveReplayOption lastGameLiveReplayOption = preferencesService.getPreferences().getLastGame().getLastGameLiveReplayOption();
     lastGameLiveReplayOption = lastGameLiveReplayOption == LiveReplayOption.DISABLED
         ? LiveReplayOption.FIVE_MINUTES
         : lastGameLiveReplayOption;
 
+    String planetName = this.getPlanet().getName();
+    if (this.galaxyTechnicalName != null && !this.galaxyTechnicalName.isEmpty()) {
+      planetName = this.galaxyTechnicalName + "/" + planetName;
+    }
+
+    String GALACTIC_WAR_GAME_TITLE_TEMPLATE = "Galactic War: %s is attacking %s!";
     NewGameInfo newGameInfo = new NewGameInfo(
-        i18n.get("galactic_war.game_title_template", this.planet.getName()),
+        String.format(GALACTIC_WAR_GAME_TITLE_TEMPLATE, userFaction, this.getPlanet().getName()),
         null,
         this.featuredMod.get(),
         this.featuredMod.get().getGitBranch(),
@@ -286,7 +370,7 @@ public class PlanetDetailController implements Controller<Node> {
         null, null, false,
         lastGameLiveReplayOption.getDelaySeconds(),
         this.leaderboard.get().getTechnicalName(),
-        this.planet.getName(),
+        planetName,
         2);
 
     mapService.optionalEnsureMapLatestVersion(this.planet.getModTechnical(), this.mapBean.get())

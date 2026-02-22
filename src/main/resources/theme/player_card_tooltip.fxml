@@ -11,7 +11,7 @@
    <StackPane prefHeight="24.0" prefWidth="24.0" styleClass="faction-icon">
       <children>
          <Region fx:id="factionIcon" styleClass="icon" visible="false" />
-         <ImageView fx:id="factionImage" fitHeight="22.0" fitWidth="22.0" pickOnBounds="true" preserveRatio="true" visible="false">
+         <ImageView fx:id="factionImage" fitHeight="16.0" fitWidth="16.0" pickOnBounds="true" preserveRatio="true" visible="false">
             <HBox.margin>
                <Insets right="4.0" />
             </HBox.margin>

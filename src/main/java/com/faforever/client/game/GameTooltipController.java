@@ -3,6 +3,7 @@ package com.faforever.client.game;
 
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.galacticwar.GalacticWarService;
 import com.faforever.client.leaderboard.LeaderboardService;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.rating.RatingService;
@@ -32,6 +33,7 @@ public class GameTooltipController implements Controller<Node> {
   private final PlayerService playerService;
   private final LeaderboardService leaderboardService;
   private final RatingService ratingService;
+  private final GalacticWarService galacticWarService;
 
   public TitledPane modsPane;
   public TilePane teamsPane;
@@ -91,7 +93,11 @@ public class GameTooltipController implements Controller<Node> {
         boolean hidePlayerRatings = leaderboards.stream().noneMatch(lb -> lb.getTechnicalName().equals(ratingType));
         synchronized (teamsList) {
           teamsPane.getChildren().clear();
-          TeamCardController.createAndAdd(teamsList, ratingType, playerService, uiService, ratingService, teamsPane, hidePlayerRatings);
+          TeamCardController.createAndAdd(
+              teamsList, ratingType,
+              playerService, uiService, ratingService, galacticWarService,
+              teamsPane, hidePlayerRatings,
+              game != null ? game.getGalacticWarPlanetName() : null);
           teamsPane.setPrefColumns(Math.min(teamsList.size(), maxPrefColumns));
         }
       }));

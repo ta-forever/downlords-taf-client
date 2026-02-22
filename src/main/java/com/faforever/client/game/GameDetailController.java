@@ -5,6 +5,7 @@ import com.faforever.client.fa.relay.event.AutoJoinRequestEvent;
 import com.faforever.client.fx.DefaultImageView;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.galacticwar.GalacticWarService;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.leaderboard.LeaderboardService;
@@ -79,6 +80,7 @@ public class GameDetailController implements Controller<Pane> {
   private final LeaderboardService leaderboardService;
   private final PreferencesService preferencesService;
   private final RatingService ratingService;
+  private final GalacticWarService galacticWarService;
   private final JoinGameHelper joinGameHelper;
   private final EventBus eventBus;
 
@@ -138,6 +140,7 @@ public class GameDetailController implements Controller<Pane> {
                               GameService gameService, PlayerService playerService,
                               UiService uiService, ChatService chatService,
                               LeaderboardService leaderboardService, RatingService ratingService,
+                              GalacticWarService galacticWarService,
                               PreferencesService preferencesService, JoinGameHelper joinGameHelper,
                               EventBus eventBus) {
     this.i18n = i18n;
@@ -150,6 +153,7 @@ public class GameDetailController implements Controller<Pane> {
     this.leaderboardService = leaderboardService;
     this.ratingService = ratingService;
     this.preferencesService = preferencesService;
+    this.galacticWarService = galacticWarService;
     this.joinGameHelper = joinGameHelper;
     this.eventBus = eventBus;
 
@@ -430,8 +434,8 @@ public class GameDetailController implements Controller<Pane> {
           boolean hidePlayerRatings = leaderboards.stream().noneMatch(lb -> lb.getTechnicalName().equals(game.get().getRatingType()));
           teamListPane.getChildren().clear();
           TeamCardController.createAndAdd(game.get().getTeams(), game.get().getRatingType(),
-              playerService, uiService, ratingService,
-              teamListPane, hidePlayerRatings);
+              playerService, uiService, ratingService, galacticWarService,
+              teamListPane, hidePlayerRatings, game.get().getGalacticWarPlanetName());
         }));
   }
 

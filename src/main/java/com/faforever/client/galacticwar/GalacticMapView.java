@@ -46,8 +46,7 @@ public class GalacticMapView {
   private static final double CAPITAL_PLANET_RADIUS = 30.0;
   private static final double PLANET_RADIUS = 20.0;
   private static final double ZOOM_CHANGE_MULTIPLIER = 1.05;
-  private static final double WARNING_DOMINANCE_RATIO = 3.0;
-  private static final String smartGraphProperties = """
+    private static final String smartGraphProperties = """
     vertex.allow-user-move = false
     vertex.radius = 15
     vertex.tooltip = true
@@ -71,8 +70,10 @@ public class GalacticMapView {
   Consumer<Optional<Planet>> mousePressedHook;
   Consumer<Optional<Planet>> mouseReleasedHook;
 
+  Float dominanceThreshold = 3.0f;
+
   private GalacticMapView (
-    Graph<Planet, String> theGraph, SmartGraphProperties properties, URI styleSheetUri, UiService uiService) {
+      Scenario scenario, Graph<Planet, String> theGraph, SmartGraphProperties properties, URI styleSheetUri, UiService uiService) {
 
     SmartPlacementStrategy initialPlacement = new SmartCircularSortedPlacementStrategy();
     this.smartGraphPanel = new SmartGraphPanel<>(theGraph, properties, initialPlacement, styleSheetUri);
@@ -83,6 +84,9 @@ public class GalacticMapView {
     this.zoomFactor = 1.0;
     this.xOffset = 0.0;
     this.yOffset = 0.0;
+    if (scenario.getDominanceThreshold() != null) {
+      this.dominanceThreshold = scenario.getDominanceThreshold();
+    }
 
     accessVertexNodes();
     addCapitalIcons();
@@ -197,12 +201,7 @@ public class GalacticMapView {
     InputStream propertiesInputStream = new ByteArrayInputStream(smartGraphProperties.getBytes());
     SmartGraphProperties properties = new SmartGraphProperties(propertiesInputStream);
     URI styleSheetUri = new URI(styleSheetFile);
-    return new GalacticMapView(theGraph, properties, styleSheetUri, uiService);
-  }
-
-  public static GalacticMapView fromFile(String path, String styleSheetFile, UiService uiService) throws IOException, URISyntaxException {
-    Scenario scenario = Scenario.fromFile(Path.of(path));
-    return fromScenario(scenario, styleSheetFile, uiService);
+    return new GalacticMapView(scenario, theGraph, properties, styleSheetUri, uiService);
   }
 
   public void setMouseClickConsumer(Consumer<Optional<Planet>> consumer) {
@@ -361,7 +360,7 @@ public class GalacticMapView {
             Comparator.comparingDouble(Map.Entry::getValue)).getKey();
         Faction losing =  Collections.min(v.element().getScore().entrySet(),
             Comparator.comparingDouble(Map.Entry::getValue)).getKey();
-        if (v.element().getScore().get(winning) > WARNING_DOMINANCE_RATIO * v.element().getScore().get(losing) ||
+        if (v.element().getScore().get(winning) > dominanceThreshold * v.element().getScore().get(losing) ||
             v.element().getSize() > 10.0 * v.element().getScore().get(losing)) {
           Label label = new Label("!");
           label.setStyle("-fx-font: 14 arial;");

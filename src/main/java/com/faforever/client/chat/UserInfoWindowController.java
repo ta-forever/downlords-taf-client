@@ -1,6 +1,11 @@
 package com.faforever.client.chat;
 
 import ch.micheljung.fxwindow.FxStage;
+import com.faforever.client.achievements.AchievementItemController;
+import com.faforever.client.achievements.AchievementService;
+import com.faforever.client.achievements.AchievementService.AchievementState;
+import com.faforever.client.api.dto.AchievementDefinition;
+import com.faforever.client.api.dto.PlayerAchievement;
 import com.faforever.client.api.dto.PlayerEvent;
 import com.faforever.client.domain.RatingHistoryDataPoint;
 import com.faforever.client.events.EventService;
@@ -27,9 +32,12 @@ import com.faforever.client.util.RatingUtil;
 import com.faforever.client.util.TimeService;
 import com.faforever.client.vault.search.SearchController.SortConfig;
 import com.faforever.client.vault.search.SearchController.SortOrder;
+import javafx.beans.InvalidationListener;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleFloatProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.PieChart;
@@ -38,6 +46,7 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.chart.XYChart.Data;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -63,11 +72,13 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+import static com.faforever.client.achievements.AchievementService.AchievementState.UNLOCKED;
 import static com.faforever.client.events.EventService.EVENT_CORE_PLAYS;
 import static com.faforever.client.events.EventService.EVENT_CORE_WINS;
 import static com.faforever.client.events.EventService.EVENT_BUILT_AIR_UNITS;
@@ -90,6 +101,7 @@ public class UserInfoWindowController implements Controller<Node> {
 
   private final StatisticsService statisticsService;
   private final CountryFlagService countryFlagService;
+  private final AchievementService achievementService;
   private final EventService eventService;
   private final I18n i18n;
   private final UiService uiService;
@@ -99,6 +111,24 @@ public class UserInfoWindowController implements Controller<Node> {
   private final LeaderboardService leaderboardService;
   private final FafService fafService;
   private final PreferencesService preferencesService;
+
+  private final Map<String, AchievementItemController> achievementItemById = new HashMap<>();
+  private final Map<String, AchievementDefinition> achievementDefinitionById = new HashMap<>();
+  public Label lockedAchievementsHeaderLabel;
+  public Label unlockedAchievementsHeaderLabel;
+  public Pane unlockedAchievementsHeader;
+  public Pane lockedAchievementsHeader;
+  public ScrollPane achievementsPane;
+  public ImageView mostRecentAchievementImageView;
+  public Label mostRecentAchievementDescriptionLabel;
+  public Label loadingProgressLabel;
+  public Pane mostRecentAchievementPane;
+  public Label mostRecentAchievementNameLabel;
+  public Pane lockedAchievementsContainer;
+  public Pane unlockedAchievementsContainer;
+
+
+
   public TabPane tabPane;
   public PieChart gamesPlayedByLeaderboardChart;
   public PieChart gamesPlayedByModChart;
@@ -140,8 +170,29 @@ public class UserInfoWindowController implements Controller<Node> {
   private Window ownerWindow;  private List<RatingHistoryDataPoint> ratingData;
   private List<Replay> replayHistory;
 
+  private static boolean isUnlocked(PlayerAchievement playerAchievement) {
+    return UNLOCKED == AchievementState.valueOf(playerAchievement.getState().name());
+  }
+
   public void initialize() {
-    JavaFxUtil.bindManagedToVisible(loadingHistoryPane, ratingHistoryChart);
+    JavaFxUtil.bindManagedToVisible(loadingHistoryPane, loadingProgressLabel, achievementsPane, mostRecentAchievementPane,
+        unlockedAchievementsHeader, unlockedAchievementsContainer, lockedAchievementsHeader, lockedAchievementsContainer,
+        ratingHistoryChart);
+
+    unlockedAchievementsHeader.visibleProperty().bind(unlockedAchievementsContainer.visibleProperty());
+    unlockedAchievementsContainer.visibleProperty().bind(Bindings.createBooleanBinding(
+        () -> !unlockedAchievementsContainer.getChildren().isEmpty(), unlockedAchievementsContainer.getChildren()));
+
+    lockedAchievementsHeader.visibleProperty().bind(lockedAchievementsContainer.visibleProperty());
+    lockedAchievementsContainer.visibleProperty().bind(Bindings.createBooleanBinding(
+        () -> !lockedAchievementsContainer.getChildren().isEmpty(), lockedAchievementsContainer.getChildren()));
+
+    lockedAchievementsContainer.getChildren().addListener((InvalidationListener) observable ->
+        lockedAchievementsHeaderLabel.setText(i18n.get("achievements.locked", lockedAchievementsContainer.getChildren().size()))
+    );
+    unlockedAchievementsContainer.getChildren().addListener((InvalidationListener) observable ->
+        unlockedAchievementsHeaderLabel.setText(i18n.get("achievements.unlocked", unlockedAchievementsContainer.getChildren().size()))
+    );
 
     nameColumn.setCellValueFactory(param -> param.getValue().nameProperty());
     changeDateColumn.setCellValueFactory(param -> param.getValue().changeDateProperty());
@@ -209,6 +260,19 @@ public class UserInfoWindowController implements Controller<Node> {
     return userInfoRoot;
   }
 
+  private void setAvailableAchievements(List<AchievementDefinition> achievementDefinitions) {
+    ObservableList<Node> children = lockedAchievementsContainer.getChildren();
+    JavaFxUtil.runLater(children::clear);
+
+    achievementDefinitions.forEach(achievementDefinition -> {
+      AchievementItemController controller = uiService.loadFxml("theme/achievement_item.fxml");
+      controller.setAchievementDefinition(achievementDefinition);
+      achievementDefinitionById.put(achievementDefinition.getId(), achievementDefinition);
+      achievementItemById.put(achievementDefinition.getId(), controller);
+      JavaFxUtil.runLater(() -> children.add(controller.getRoot()));
+    });
+  }
+
   public void setPlayer(Player player) {
     this.player = player;
 
@@ -220,8 +284,14 @@ public class UserInfoWindowController implements Controller<Node> {
 
     onRatingTypeChange();
 
+    loadAchievements();
     eventService.getPlayerEvents(player.getId())
-        .thenAccept(events -> plotGamesPlayedByLeaderboardChart())
+        .thenAccept(events -> {
+          plotFactionsChart(events);
+          plotUnitsByCategoriesChart(events);
+          plotTechBuiltChart(events);
+          plotGamesPlayedByLeaderboardChart();
+        })
         .exceptionally(throwable -> {
           log.warn("Could not load player events", throwable);
           notificationService.addImmediateErrorNotification(throwable, "userInfo.statistics.errorLoading");
@@ -230,6 +300,7 @@ public class UserInfoWindowController implements Controller<Node> {
 
     loadReplayHistory(100)
         .thenAccept((x) -> plotGamesPlayedByModChart());
+
   }
 
   private void updateRatingGrids(List<LeaderboardEntry> leaderboardEntries) {
@@ -264,6 +335,27 @@ public class UserInfoWindowController implements Controller<Node> {
         .exceptionally(throwable -> {
           log.warn("Could not load player name history", throwable);
           notificationService.addImmediateErrorNotification(throwable, "userInfo.nameHistory.errorLoading");
+          return null;
+        });
+  }
+
+  private void loadAchievements() {
+    enterAchievementsLoadingState();
+    achievementService.getAchievementDefinitions()
+        .exceptionally(throwable -> {
+          log.warn("Player achievements could not be loaded", throwable);
+          notificationService.addImmediateErrorNotification(throwable, "userInfo.achievements.errorLoading");
+          return Collections.emptyList();
+        })
+        .thenAccept(this::setAvailableAchievements)
+        .thenCompose(aVoid -> achievementService.getPlayerAchievements(player.getId()))
+        .thenAccept(playerAchievements -> {
+          updatePlayerAchievements(playerAchievements);
+          enterAchievementsLoadedState();
+        })
+        .exceptionally(throwable -> {
+          log.warn("Could not display achievement definitions", throwable);
+          notificationService.addImmediateErrorNotification(throwable, "userInfo.achievements.errorLDisplaying");
           return null;
         });
   }
@@ -325,6 +417,54 @@ public class UserInfoWindowController implements Controller<Node> {
             name, playCount)))
       );
     }
+  }
+
+  private void enterAchievementsLoadingState() {
+    loadingProgressLabel.setVisible(true);
+    achievementsPane.setVisible(false);
+  }
+
+  private void updatePlayerAchievements(List<? extends PlayerAchievement> playerAchievements) {
+    PlayerAchievement mostRecentPlayerAchievement = null;
+
+    ObservableList<Node> children = unlockedAchievementsContainer.getChildren();
+    JavaFxUtil.runLater(children::clear);
+
+    for (PlayerAchievement playerAchievement : playerAchievements) {
+      AchievementItemController achievementItemController = achievementItemById.get(playerAchievement.getAchievement().getId());
+      achievementItemController.setPlayerAchievement(playerAchievement);
+
+      if (isUnlocked(playerAchievement)) {
+        JavaFxUtil.runLater(() -> children.add(achievementItemController.getRoot()));
+        if (mostRecentPlayerAchievement == null
+            || playerAchievement.getUpdateTime().compareTo(mostRecentPlayerAchievement.getUpdateTime()) > 0) {
+          mostRecentPlayerAchievement = playerAchievement;
+        }
+      }
+    }
+
+    if (mostRecentPlayerAchievement == null) {
+      mostRecentAchievementPane.setVisible(false);
+    } else {
+      mostRecentAchievementPane.setVisible(true);
+      AchievementDefinition mostRecentAchievement = achievementDefinitionById.get(mostRecentPlayerAchievement.getAchievement().getId());
+      if (mostRecentAchievement == null) {
+        return;
+      }
+      String mostRecentAchievementName = mostRecentAchievement.getName();
+      String mostRecentAchievementDescription = mostRecentAchievement.getDescription();
+
+      JavaFxUtil.runLater(() -> {
+        mostRecentAchievementNameLabel.setText(mostRecentAchievementName);
+        mostRecentAchievementDescriptionLabel.setText(mostRecentAchievementDescription);
+        mostRecentAchievementImageView.setImage(achievementService.getImage(mostRecentAchievement, UNLOCKED));
+      });
+    }
+  }
+
+  private void enterAchievementsLoadedState() {
+    loadingProgressLabel.setVisible(false);
+    achievementsPane.setVisible(true);
   }
 
   private void plotGamesPlayedByLeaderboardChart() {

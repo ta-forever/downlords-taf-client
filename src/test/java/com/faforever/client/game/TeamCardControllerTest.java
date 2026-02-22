@@ -1,5 +1,6 @@
 package com.faforever.client.game;
 
+import com.faforever.client.galacticwar.GalacticWarService;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
@@ -36,6 +37,8 @@ public class TeamCardControllerTest extends AbstractPlainJavaFxTest {
   @Mock
   private PlayerService playerService;
   @Mock
+  private GalacticWarService galacticWarService;
+  @Mock
   private PlayerCardTooltipController playerCardTooltipController;
   @Mock
   private RatingChangeLabelController ratingChangeLabelController;
@@ -46,7 +49,7 @@ public class TeamCardControllerTest extends AbstractPlainJavaFxTest {
 
   @Before
   public void setUp() throws IOException {
-    instance = new TeamCardController(uiService, playerService, i18n);
+    instance = new TeamCardController(uiService, playerService, galacticWarService, i18n);
     playerList = new ArrayList<>();
     playerList.add(player);
     teams = FXCollections.observableHashMap();

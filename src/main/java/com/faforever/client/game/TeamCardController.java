@@ -3,6 +3,7 @@ package com.faforever.client.game;
 
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.galacticwar.GalacticWarService;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.LeaderboardRating;
 import com.faforever.client.player.Player;
@@ -14,6 +15,7 @@ import com.faforever.client.util.RatingUtil;
 import javafx.collections.ObservableMap;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
@@ -33,15 +35,17 @@ import java.util.stream.Collectors;
 public class TeamCardController implements Controller<Node> {
   private final UiService uiService;
   private final PlayerService playerService;
+  private final GalacticWarService galacticWarService;
   private final I18n i18n;
   public Pane teamPaneRoot;
   public VBox teamPane;
   public Label teamNameLabel;
   private final Map<Integer, RatingChangeLabelController> ratingChangeControllersByPlayerId;
 
-  public TeamCardController(UiService uiService, PlayerService playerService, I18n i18n) {
+  public TeamCardController(UiService uiService, PlayerService playerService, GalacticWarService galacticWarService, I18n i18n) {
     this.uiService = uiService;
     this.playerService = playerService;
+    this.galacticWarService = galacticWarService;
     this.i18n = i18n;
     ratingChangeControllersByPlayerId = new HashMap<>();
   }
@@ -55,7 +59,8 @@ public class TeamCardController implements Controller<Node> {
    */
   static void createAndAdd(ObservableMap<? extends String, ? extends List<String>> teamsList, String ratingType,
                            PlayerService playerService, UiService uiService, RatingService ratingService,
-                           Pane teamsPane, Boolean hidePlayerRatings) {
+                           GalacticWarService galacticWarService,
+                           Pane teamsPane, Boolean hidePlayerRatings, String galacticWarPlanetName) {
     JavaFxUtil.assertApplicationThread();
     for (Map.Entry<? extends String, ? extends List<String>> entry : teamsList.entrySet()) {
       List<Player> players = entry.getValue().stream()
@@ -68,14 +73,19 @@ public class TeamCardController implements Controller<Node> {
       teamCardController.setPlayersInTeam(
           entry.getKey(), players,
           player -> player.getLeaderboardRatings().getOrDefault(ratingType, ratingService.createNewLeaderboardRating()),
-          null, RatingPrecision.ROUNDED, hidePlayerRatings);
+          null,
+          galacticWarPlanetName != null ? player -> galacticWarService.getMedalIcon(player.getId(), galacticWarPlanetName).getImage() : null,
+          RatingPrecision.ROUNDED, hidePlayerRatings);
       teamsPane.getChildren().add(teamCardController.getRoot());
     }
   }
 
   public void setPlayersInTeam(
-      String team, List<Player> playerList, Function<Player, LeaderboardRating> ratingProvider, Function<Player,
-      Faction> playerFactionProvider, RatingPrecision ratingPrecision, Boolean hidePlayerRatings) {
+      String team, List<Player> playerList,
+      Function<Player, LeaderboardRating> ratingProvider,
+      Function<Player, Faction> playerFactionProvider,
+      Function<Player, Image> playerGwMedalProvider,
+      RatingPrecision ratingPrecision, Boolean hidePlayerRatings) {
     int totalRating = 0;
     for (Player player : playerList) {
       // If the server wasn't bugged, this would never be the case.
@@ -95,7 +105,11 @@ public class TeamCardController implements Controller<Node> {
       if (playerFactionProvider != null) {
         faction = playerFactionProvider.apply(player);
       }
-      playerCardTooltipController.setPlayer(player, hidePlayerRatings ? null : playerRating, faction);
+      Image gwMedalIcon = null;
+      if (playerGwMedalProvider != null) {
+        gwMedalIcon = playerGwMedalProvider.apply(player);
+      }
+      playerCardTooltipController.setPlayer(player, hidePlayerRatings ? null : playerRating, faction, gwMedalIcon);
       playerCardTooltipController.getRoot().setOnContextMenuRequested(event -> {
         if (TeamCardPlayerContextMenuController.isMenuAvailable(playerService.getCurrentPlayer().orElse(null), player)) {
           TeamCardPlayerContextMenuController ctrl = uiService.loadFxml("theme/play/team_card_player_context_menu.fxml");

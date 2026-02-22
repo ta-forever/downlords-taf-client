@@ -399,7 +399,7 @@ public class ReplayDetailController implements Controller<Node> {
           .anyMatch(lb -> lb == null || lb.getLeaderboardHidden());
       playerService.getPlayersByIds(playerIds)
           .thenAccept(players ->
-              controller.setPlayersInTeam(team, players, playerRatingFunction, playerFactionFunction, RatingPrecision.EXACT,
+              controller.setPlayersInTeam(team, players, playerRatingFunction, playerFactionFunction, null, RatingPrecision.EXACT,
                   hidePlayerRatings)
           );
 

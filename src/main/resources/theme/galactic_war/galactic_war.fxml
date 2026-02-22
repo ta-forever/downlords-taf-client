@@ -1,17 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ProgressIndicator?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.layout.GridPane?>
-<?import javafx.scene.layout.ColumnConstraints?>
-<?import javafx.scene.layout.RowConstraints?>
-<?import javafx.scene.control.ScrollPane?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.SplitPane?>
-<?import javafx.scene.layout.Region?>
+<?import javafx.scene.control.TabPane?>
 <StackPane xmlns:fx="http://javafx.com/fxml/1"
            xmlns="http://javafx.com/javafx/8.0.141"
            fx:id="rootPane"
@@ -21,62 +13,8 @@
         <Insets top="10" right="10" bottom="10" left="10"/>
     </padding>
 
-    <GridPane>
-        <columnConstraints>
-            <ColumnConstraints hgrow="ALWAYS"/>
-            <ColumnConstraints minWidth="240" prefWidth="240" maxWidth="240"/>
-        </columnConstraints>
-
-        <rowConstraints>
-            <RowConstraints vgrow="ALWAYS"/>
-        </rowConstraints>
-
-        <SplitPane orientation="HORIZONTAL"
-                   dividerPositions="0.25"
-                   GridPane.columnIndex="0"
-                   GridPane.rowIndex="0">
-
-            <!-- LEFT: Leaderboard -->
-            <VBox spacing="6" minWidth="48" maxWidth="400" prefWidth="280">
-                <Label text="%leaderboard.displayName" styleClass="h1"/>
-
-                <ScrollPane fitToWidth="true" fitToHeight="true" styleClass="game-detail-framed" VBox.vgrow="ALWAYS">
-                    <content>
-                        <VBox fx:id="leaderboardContainer" spacing="4"/>
-                    </content>
-                </ScrollPane>
-            </VBox>
-
-            <!-- RIGHT: Map + Reset button -->
-            <StackPane>
-                <Region styleClass="galactic-war-background"/>
-                <StackPane>
-                    <ScrollPane fx:id="galacticWarGraphContainer"
-                                fitToWidth="true"
-                                fitToHeight="true"/>
-
-                    <Button text="%galactic_war.view.reset"
-                            onAction="#resetView"
-                            StackPane.alignment="TOP_RIGHT"
-                            styleClass="reset-view-button"/>
-                </StackPane>
-            </StackPane>
-        </SplitPane>
-
-        <!-- FIXED RIGHT PANEL -->
-        <VBox fx:id="planetDetailContainer"
-              GridPane.columnIndex="1"
-              GridPane.rowIndex="0"/>
-
-    </GridPane>
-
-    <!-- Loading overlay -->
-    <Label fx:id="loadingIndicator"
-           text="%loading"
-           contentDisplay="TOP">
-        <graphic>
-            <ProgressIndicator maxWidth="80" maxHeight="80"/>
-        </graphic>
-    </Label>
+    <VBox spacing="8">
+        <TabPane fx:id="galaxyTabs" VBox.vgrow="ALWAYS"/>
+    </VBox>
 
 </StackPane>

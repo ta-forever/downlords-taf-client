@@ -38,11 +38,16 @@ public class PlayerCardTooltipController implements Controller<Node> {
   public Region factionIcon;
   public ImageView factionImage;
 
-  public void setPlayer(Player player, Integer rating, Faction faction) {
+  public void setPlayer(Player player, Integer rating, Faction faction, Image gwMedalIcon) {
     if (player == null) {
       return;
     }
     countryFlagService.loadCountryFlag(player.getCountry()).ifPresent(image -> countryImageView.setImage(image));
+    if (gwMedalIcon != null) {
+      factionImage.setImage(gwMedalIcon);
+      factionImage.setVisible(true);
+      factionIcon.setVisible(true);
+    }
 
     String playerInfoLocalized;
     if (rating != null) {
@@ -50,7 +55,7 @@ public class PlayerCardTooltipController implements Controller<Node> {
     } else {
       playerInfoLocalized = i18n.get("userInfo.tooltipFormat.noRating", player.getUsername());
     }
-    setFactionIcon(faction);
+    //setFactionIcon(faction);
     playerInfo.setText(playerInfoLocalized);
     foeIconText.visibleProperty().bind(Bindings.createBooleanBinding(() -> player.getSocialStatus() == SocialStatus.FOE, player.socialStatusProperty()));
     friendIconText.visibleProperty().bind(Bindings.createBooleanBinding(() -> player.getSocialStatus() == SocialStatus.FRIEND, player.socialStatusProperty()));

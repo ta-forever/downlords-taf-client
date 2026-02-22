@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.net.URL;
 import java.util.List;
+import java.util.Map;
 
 @Data
 // TODO since this class contains both, update info and configuration, the package 'update' doesn't really fit.
@@ -19,7 +20,6 @@ public class ClientConfiguration {
   List<String> defaultChatChannels;
   List<String> allChatChannels;
   AutoBalance autoBalance;
-  List<Integer> galacticWarRankThresholds;
 
   @Data
   public static class AutoBalance {
@@ -50,6 +50,7 @@ public class ClientConfiguration {
     SocketEndpoint liveReplay;
     UrlEndpoint api;
     UrlEndpoint galacticWar;
+    List<String> galacticWar2;
   }
 
   @Data
