@@ -7,6 +7,7 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.fx.StringListCell;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.main.event.SelectGalacticWarMapEvent;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapBean.Type;
 import com.faforever.client.map.MapService;
@@ -14,7 +15,10 @@ import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.map.MapSize;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.mod.ModService;
+import com.faforever.client.notification.Action;
+import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.NotificationService;
+import com.faforever.client.notification.Severity;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.LastGamePrefs;
 import com.faforever.client.preferences.PreferencesService;
@@ -70,18 +74,25 @@ import org.springframework.stereotype.Component;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.faforever.client.leaderboard.LeaderboardService.DEFAULT_RATING_TYPE;
 import static com.faforever.client.net.ConnectionState.CONNECTED;
+import static java.util.Arrays.asList;
 import static java.util.Collections.emptySet;
 import static javafx.scene.layout.BackgroundPosition.CENTER;
 import static javafx.scene.layout.BackgroundRepeat.NO_REPEAT;
@@ -150,8 +161,13 @@ public class CreateGameController implements Controller<Pane> {
   private StringProperty interactionLevelProperty; // "CREATE", "UPDATE", "BROWSE"
   private BooleanProperty loadingMapsProperty;
   private BooleanProperty rankedMapPoolsAvailableProperty;
+  private ObjectProperty<SelectGalacticWarMapEvent> selectGalacticWarMapEvent;
 
   private ObjectProperty<Game> contextGameProperty; // is player actually creating a new game (contextGame==null), or inspecting settings for an existing game?
+
+  void setSelectingGalacticWarMap(SelectGalacticWarMapEvent selecting) {
+    selectGalacticWarMapEvent.set(selecting);
+  }
 
   void setContextGame(Game game) {
     if (game != null) {
@@ -182,12 +198,40 @@ public class CreateGameController implements Controller<Pane> {
     return interactionLevelProperty;
   }
 
+  static final private ConcurrentHashMap<String, Pattern> mapFilterRegexPatterns = new ConcurrentHashMap<>();
   private void setFilteredMapBeansPredicate(String filter) {
+
     if (filter.isEmpty()) {
       filteredMapBeans.setPredicate(null);
+
+    } else if (filter.startsWith("regex:")) {
+      final List<Pattern> patterns = new ArrayList<>();
+      for (String part : filter.substring(6).split(";")) {
+        if (part.isEmpty()) {
+          continue;
+        }
+        try {
+          mapFilterRegexPatterns.computeIfAbsent(part, Pattern::compile);
+        }
+        catch (PatternSyntaxException e) {
+          continue;
+        }
+        patterns.add(mapFilterRegexPatterns.get(part));
+      }
+      if (patterns.isEmpty()) {
+        filteredMapBeans.setPredicate(null);
+      }
+      else {
+        filteredMapBeans.setPredicate(mapInfoBean ->
+            patterns.stream()
+                .anyMatch(p -> p.matcher(mapInfoBean.getMapName()).find())
+        );
+      }
+
     } else {
       filteredMapBeans.setPredicate(mapInfoBean -> mapInfoBean.getMapName().toLowerCase().contains(filter.toLowerCase()));
     }
+
     if (!filteredMapBeans.isEmpty() && mapListView.getSelectionModel().getSelectedItem() == null) {
       mapListView.getSelectionModel().select(0);
     }
@@ -200,6 +244,7 @@ public class CreateGameController implements Controller<Pane> {
     contextGameProperty = new SimpleObjectProperty<>();
     loadingMapsProperty = new SimpleBooleanProperty();
     rankedMapPoolsAvailableProperty = new SimpleBooleanProperty();
+    selectGalacticWarMapEvent = new SimpleObjectProperty<>();
 
     JavaFxUtil.addLabelContextMenus(uiService, hpiArchiveLabel, mapDescriptionLabel);
     versionLabel.managedProperty().bind(versionLabel.visibleProperty());
@@ -286,7 +331,12 @@ public class CreateGameController implements Controller<Pane> {
     modVersionUpdateCompletedProperty.set(true);
   }
 
+  public Optional<MapBean> getCurrentSelectedMap() {
+    return Optional.ofNullable(mapListView.getSelectionModel().getSelectedItem());
+  }
+
   public void onCloseButtonClicked() {
+    selectGalacticWarMapEvent.set(null);
     onCloseButtonClickedListener.run();
   }
 
@@ -332,6 +382,10 @@ public class CreateGameController implements Controller<Pane> {
     final boolean isCurrentGameGalacticWar = gameService.getCurrentGame() != null &&
             gameService.getCurrentGame().getGalacticWarPlanetName() != null;
 
+    if (selectGalacticWarMapEvent.get() != null) {
+      return "SELECT_MAP_GW";
+    }
+
     if (gameService.getCurrentGame() == null || playerService.getCurrentPlayer().isEmpty() || contextGameProperty.get() == null) {
       if (!isCurrentGameGalacticWar) {
         return "CREATE";
@@ -340,6 +394,8 @@ public class CreateGameController implements Controller<Pane> {
 
     if (isCurrentGameSameAsContextGame && isPlayerHost && isGameStaging) {
       if (isCurrentGameGalacticWar) {
+        setFriendsOnly(false);
+        setPassword("");
         return "UPDATE_GW";
       } else {
         return "UPDATE";
@@ -381,13 +437,17 @@ public class CreateGameController implements Controller<Pane> {
             .or(mapPoolListView.getSelectionModel().selectedItemProperty().isNull())
     );
     interactionLevelProperty.bind(Bindings.createStringBinding(
-        this::calcInteractionLevel, gameService.getCurrentGameStatusProperty(), contextGameProperty));
+        this::calcInteractionLevel, gameService.getCurrentGameStatusProperty(), contextGameProperty, selectGalacticWarMapEvent));
 
     createGameButton.disableProperty().bind(validatedButtonsDisableProperty);
     updateGameButton.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
-    mapPoolListView.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
-    liveReplayOptionComboBox.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
-    passwordTextField.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE"));
+    mapPoolListView.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE")
+        .or(interactionLevelProperty.isEqualTo("UPDATE_GW")));
+    liveReplayOptionComboBox.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE")
+        .or(interactionLevelProperty.isEqualTo("SELECT_MAP_GW")));
+    passwordTextField.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE")
+        .or(interactionLevelProperty.isEqualTo("SELECT_MAP_GW")
+            .or(interactionLevelProperty.isEqualTo("UPDATE_GW"))));
     mapListView.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE")
             .or(interactionLevelProperty.isEqualTo("UPDATE_GW")).or(loadingMapsProperty));
     randomMapButton.disableProperty().bind(mapListView.disabledProperty());
@@ -395,7 +455,9 @@ public class CreateGameController implements Controller<Pane> {
 
     rankedEnabledCheckBox.setSelected(true);
     rankedEnabledCheckBox.disableProperty().bind(
-        interactionLevelProperty.isEqualTo("BROWSE").or(interactionLevelProperty.isEqualTo("UPDATE_GW"))
+        interactionLevelProperty.isEqualTo("BROWSE")
+            .or(interactionLevelProperty.isEqualTo("UPDATE_GW"))
+            .or(interactionLevelProperty.isEqualTo("SELECT_MAP_GW"))
             .or(rankedMapPoolsAvailableProperty.not()));
     rankedEnabledLabel.disableProperty().bind(rankedEnabledCheckBox.disabledProperty());
 
@@ -632,8 +694,11 @@ public class CreateGameController implements Controller<Pane> {
 
     modService.getFeaturedMods().thenAccept(featuredModBeans -> JavaFxUtil.runLater(() -> {
       featuredModListView.setItems(FXCollections.observableList(featuredModBeans).filtered(FeaturedMod::isVisible));
-      featuredModListView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) ->
-          JavaFxUtil.runLater(() -> setButtonStatesForFeaturedMod(newValue)));
+      featuredModListView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+        if (newValue != null) {
+          JavaFxUtil.runLater(() -> setButtonStatesForFeaturedMod(newValue));
+        }
+      });
       selectLastOrDefaultGameType();
     }));
   }
@@ -827,6 +892,27 @@ public class CreateGameController implements Controller<Pane> {
 
   public void onUpdateButtonClicked() {
 
+    if (this.selectGalacticWarMapEvent.get() != null) {
+      Optional<MapBean> selectedMap = getCurrentSelectedMap();
+      selectedMap.ifPresent(mapBean ->
+        notificationService.addNotification(new ImmediateNotification(i18n.get("galactic_war.confirm_change_map.title"),
+            i18n.get("galactic_war.confirm_change_map.text",
+                selectGalacticWarMapEvent.get().getPlanet().getName(), selectedMap.get().getMapName()),
+            Severity.INFO,
+            asList(
+                new Action(i18n.get("yes"), ev -> {
+                  fafService.setGalacticWarMap(
+                      selectGalacticWarMapEvent.get().getGalaxyTechnicalName(), selectGalacticWarMapEvent.get().getPlanet().getName(), mapBean.getMapName()
+                  );
+                  onCloseButtonClicked();
+                }),
+                new Action(i18n.get("no"), ev -> {
+                })
+            )))
+      );
+      return;
+    }
+
     Integer minRating;
     Integer maxRating;
 
@@ -867,6 +953,14 @@ public class CreateGameController implements Controller<Pane> {
 
   void resetMapSearch() {
     mapSearchTextField.clear();
+  }
+
+  void setMapSearch(String spec) {
+    mapSearchTextField.setText(spec);
+  }
+
+  void setMapSearch(List<String> specs) {
+    mapSearchTextField.setText("regex:" + String.join(";", specs));
   }
 
   /**
@@ -952,5 +1046,42 @@ public class CreateGameController implements Controller<Pane> {
 
   public void hideMapPreviewContextButton(MouseEvent mouseEvent) {
     mapPreviewContextButton.setVisible(false);
+  }
+
+  public void setRankedEnabled(boolean enabled) {
+    rankedEnabledCheckBox.setSelected(enabled);
+  }
+
+  public CompletableFuture<Void> setSelectedMod(String modTechnical) {
+    final CompletableFuture<Void> done = new CompletableFuture<>();
+    modService.getFeaturedMod(modTechnical)
+            .thenAccept(fm -> JavaFxUtil.runLater(() -> {
+              OptionalInt idx = IntStream.range(0, featuredModListView.getItems().size())
+                  .filter(i -> featuredModListView.getItems()
+                      .get(i)
+                      .getTechnicalName()
+                      .equals(fm.getTechnicalName()))
+                  .findFirst();
+              if (idx.isPresent()) {
+                featuredModListView.getSelectionModel().select(idx.getAsInt());
+              }
+              done.complete(null);
+            }));
+    return done;
+  }
+
+  public void setSelectedMapPool(Integer id) {
+    Optional<MatchmakingQueue> queue = mapPoolListView.getItems().stream()
+        .filter(q -> q.getQueueId() == id)
+        .findAny();
+    queue.ifPresent(matchmakingQueue -> mapPoolListView.getSelectionModel().select(matchmakingQueue));
+  }
+
+  public void setFriendsOnly(boolean friendsOnly) {
+    this.onlyForFriendsCheckBox.setSelected(friendsOnly);
+  }
+
+  public void setPassword(String password) {
+    this.passwordTextField.setText(password);
   }
 }

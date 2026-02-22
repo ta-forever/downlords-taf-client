@@ -72,6 +72,8 @@ public interface FafServerAccessor {
 
   void broadcastMessage(String message);
 
+  void setGalacticWarMap(String galaxyTechnicalName, String planetName, String mapName);
+
   CompletableFuture<List<IceServer>> getIceServers();
 
   void restoreGameSession(int id);

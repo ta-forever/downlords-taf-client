@@ -33,12 +33,21 @@
                 <ImageView fx:id="factionImage" fitWidth="230" fitHeight="230" preserveRatio="true"/>
             </StackPane>
             <Label fx:id="mapDescription" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map Description&gt;" alignment="CENTER" wrapText="true"/>
+            <HBox alignment="CENTER">
+                <Label fx:id="scoresAnnotationsLabel" alignment="CENTER"/>
+            </HBox>
             <HBox fx:id="scoresContainer" alignment="CENTER" minHeight="100" prefHeight="100" maxHeight="100"/>
             <HBox alignment="CENTER">
                 <Button fx:id="createGameButton" mnemonicParsing="false" onAction="#onCreateGameButtonPressed"
                         text="%planet_detail.create_game" styleClass="start-game-button" alignment="CENTER">
                     <tooltip>
                         <Tooltip text="%planet_detail.create_game.tooltip"/>
+                    </tooltip>
+                </Button>
+                <Button fx:id="setMapButton" mnemonicParsing="false" onAction="#onSetMapButtonPressed"
+                        text="%planet_detail.set_map" styleClass="start-game-button" alignment="CENTER">
+                    <tooltip>
+                        <Tooltip text="%planet_detail.set_map.tooltip"/>
                     </tooltip>
                 </Button>
             </HBox>

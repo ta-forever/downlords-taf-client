@@ -2,12 +2,15 @@ package com.faforever.client.game;
 
 import com.faforever.client.fx.AbstractViewController;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.galacticwar.GwMapSelectStrategy;
 import com.faforever.client.game.GamesTilesContainerController.TilesSortingOrder;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.HostGameEvent;
 import com.faforever.client.main.event.NavigateEvent;
+import com.faforever.client.main.event.OpenGalacticWarEvent;
+import com.faforever.client.main.event.SelectGalacticWarMapEvent;
 import com.faforever.client.preferences.PreferencesService;
-import com.faforever.client.remote.domain.GameStatus;
+import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.dialog.Dialog;
@@ -50,6 +53,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
   private final UiService uiService;
   private final GameService gameService;
   private final PreferencesService preferencesService;
+  private final FafService fafService;
   private final EventBus eventBus;
   private final I18n i18n;
 
@@ -84,11 +88,12 @@ public class CustomGamesController extends AbstractViewController<Node> {
     return (CustomGamesController) controller;
   }
 
-  public CustomGamesController(UiService uiService, GameService gameService, PreferencesService preferencesService,
+  public CustomGamesController(UiService uiService, GameService gameService, PreferencesService preferencesService, FafService fafService,
                                EventBus eventBus, I18n i18n) {
     this.uiService = uiService;
     this.gameService = gameService;
     this.preferencesService = preferencesService;
+    this.fafService = fafService;
     this.eventBus = eventBus;
     this.i18n = i18n;
   }
@@ -166,9 +171,11 @@ public class CustomGamesController extends AbstractViewController<Node> {
 
   @Override
   protected void onDisplay(NavigateEvent navigateEvent) {
-    if (navigateEvent instanceof HostGameEvent) {
-      HostGameEvent hostGameEvent = (HostGameEvent) navigateEvent;
+    if (navigateEvent instanceof HostGameEvent hostGameEvent) {
       onCreateGame(hostGameEvent.getMapFolderName(), hostGameEvent.getContextGame());
+    }
+    else if (navigateEvent instanceof SelectGalacticWarMapEvent selectGalacticWarMapEvent) {
+      onSelectGalacticWarMapEvent(selectGalacticWarMapEvent);
     }
     updateFilteredItems();
   }
@@ -192,6 +199,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
       createGameController = uiService.loadFxml("theme/play/create_game.fxml");
     }
     createGameController.setContextGame(contextGame);
+    createGameController.setSelectingGalacticWarMap(null);
 
     if (mapFolderName != null) {
       createGameController.resetMapSearch();
@@ -218,6 +226,34 @@ public class CustomGamesController extends AbstractViewController<Node> {
     createGameDialog = uiService.showInDialog(createGameDialogRoot, root, title);
     createGameController.setOnCloseButtonClickedListener(() -> createGameDialog.close());
     createGameController.setGameTitle();
+    root.requestFocus();
+  }
+
+  private void onSelectGalacticWarMapEvent(SelectGalacticWarMapEvent selectGalacticWarMapEvent) {
+    if (createGameController == null) {
+      createGameController = uiService.loadFxml("theme/play/create_game.fxml");
+    }
+
+    createGameController.resetMapSearch();
+    createGameController.setRankedEnabled(true);
+    createGameController.setSelectedMod(selectGalacticWarMapEvent.getPlanet().getModTechnical())
+        .thenRun(() -> {
+          if (selectGalacticWarMapEvent.getMapSelectStrategy() == GwMapSelectStrategy.MAP_POOL) {
+            createGameController.setSelectedMapPool(selectGalacticWarMapEvent.getMapSelectMapPoolId());
+          }
+          else {
+            createGameController.setMapSearch(selectGalacticWarMapEvent.getMapSelectRegexes());
+          }
+        });
+
+    Pane root = createGameController.getRoot();
+    String title = i18n.get("planet_detail.set_map");
+    createGameDialog = uiService.showInDialog(createGameDialogRoot, root, title);
+    createGameController.setSelectingGalacticWarMap(selectGalacticWarMapEvent);
+    createGameController.setOnCloseButtonClickedListener(() -> {
+      eventBus.post(new OpenGalacticWarEvent());
+      createGameDialog.close();
+    });
     root.requestFocus();
   }
 

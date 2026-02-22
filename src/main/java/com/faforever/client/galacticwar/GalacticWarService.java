@@ -2,9 +2,7 @@ package com.faforever.client.galacticwar;
 
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.galacticwar.Scenario.FactionScoreRank;
-import com.faforever.client.game.Faction;
 import com.faforever.client.io.DownloadService;
-import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.task.CompletableTask;
@@ -13,7 +11,6 @@ import com.faforever.client.task.TaskService;
 import com.faforever.client.update.ClientConfiguration;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import javafx.scene.Node;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import lombok.RequiredArgsConstructor;
@@ -55,6 +52,9 @@ public class GalacticWarService implements InitializingBean {
 
   @Override
   public void afterPropertiesSet() throws Exception {
+    for (String url : getGwEndpoints()) {
+      fetchScenario(url);
+    }
   }
 
   List<String> getGwEndpoints() {

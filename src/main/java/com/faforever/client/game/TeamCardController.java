@@ -16,6 +16,7 @@ import javafx.collections.ObservableMap;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
@@ -70,11 +71,20 @@ public class TeamCardController implements Controller<Node> {
           .collect(Collectors.toList());
 
       TeamCardController teamCardController = uiService.loadFxml("theme/team_card.fxml");
+      Function<Player, Image> medalIconProvider = player -> {
+        ImageView imv = galacticWarService.getMedalIcon(player.getId(), galacticWarPlanetName);
+        if (imv != null) {
+          return imv.getImage();
+        }
+        else {
+          return null;
+        }
+      };
       teamCardController.setPlayersInTeam(
           entry.getKey(), players,
           player -> player.getLeaderboardRatings().getOrDefault(ratingType, ratingService.createNewLeaderboardRating()),
           null,
-          galacticWarPlanetName != null ? player -> galacticWarService.getMedalIcon(player.getId(), galacticWarPlanetName).getImage() : null,
+          galacticWarPlanetName != null ? medalIconProvider : null,
           RatingPrecision.ROUNDED, hidePlayerRatings);
       teamsPane.getChildren().add(teamCardController.getRoot());
     }

@@ -10,6 +10,7 @@ import com.faforever.client.game.LiveReplayOption;
 import com.faforever.client.game.NewGameInfo;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.Leaderboard;
+import com.faforever.client.main.event.SelectGalacticWarMapEvent;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
@@ -24,6 +25,7 @@ import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.theme.UiService;
+import com.google.common.eventbus.EventBus;
 import com.sun.javafx.charts.Legend;
 import com.sun.javafx.charts.Legend.LegendItem;
 import javafx.beans.binding.Bindings;
@@ -47,7 +49,6 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -78,6 +79,8 @@ public class PlanetDetailController implements Controller<Node> {
   private final PreferencesService preferencesService;
   private final NotificationService notificationService;
   private final PlayerService playerService;
+  private final GalacticWarService galacticWarService;
+  private final EventBus eventBus;
 
   public StackPane planetDetailRoot;
   public ImageView factionImage;
@@ -85,13 +88,14 @@ public class PlanetDetailController implements Controller<Node> {
   public Button createGameButton;
   public Label mapLabel;
   public Label mapDescription;
-  public VBox mapLabelContainer;
   public Label planetTitleLabel;
   public Label modLabel;
   public HBox scoresContainer;
+  public Label scoresAnnotationsLabel;
   public AnchorPane planetNotSelectedContainer;
   public ScrollPane planetSelectedContainer;
   public TableView<Player> belligerentsTableView;
+  public Button setMapButton;
 
   Planet planet;
   SimpleObjectProperty<MapBean> mapBean;
@@ -122,6 +126,8 @@ public class PlanetDetailController implements Controller<Node> {
 
     createGameButton.disableProperty().bind(
         mapBean.isNull().or(featuredMod.isNull().or(leaderboard.isNull().or(gameService.getCurrentGameProperty().isNotNull()))));
+    //createGameButton.managedProperty().bind(createGameButton.visibleProperty());
+    //setMapButton.managedProperty().bind(setMapButton.visibleProperty());
     mapDescription.textProperty().bind(Bindings.createStringBinding(
         () -> mapBean.getValue() == null ? "" : mapBean.getValue().getDescription(), mapBean));
     modLabel.textProperty().bind(Bindings.createStringBinding(
@@ -149,6 +155,13 @@ public class PlanetDetailController implements Controller<Node> {
     }
 
     createGameButton.setVisible(planet.getControlledBy() == null);
+
+    Optional<Integer> heroicPlayerId = planet.getHeroicPlayerId();
+    setMapButton.setVisible(
+        planet.getControlledBy() != null &&
+        this.playerService.getCurrentPlayer().isPresent() &&
+            heroicPlayerId.isPresent() &&
+            heroicPlayerId.get() == this.playerService.getCurrentPlayer().get().getId());
     planetTitleLabel.setText(planet.getName());
     mapLabel.setText(planet.getMapName());
 
@@ -190,6 +203,9 @@ public class PlanetDetailController implements Controller<Node> {
 
     scoresContainer.getChildren().setAll(createScoresChart(planet));
     scoresContainer.setVisible(faction == null);
+    scoresAnnotationsLabel.setVisible(faction == null);
+    scoresContainer.managedProperty().bind(scoresContainer.visibleProperty());
+    scoresAnnotationsLabel.managedProperty().bind(scoresAnnotationsLabel.visibleProperty());
     populateBelligerentsTable(planet);
 
     planetSelectedContainer.setVisible(true);
@@ -209,6 +225,15 @@ public class PlanetDetailController implements Controller<Node> {
       series.getData().add(datum);
       seriesList.add(series);
     }
+
+    List<String> scoresAnnotationsTexts = new ArrayList<>();
+    for (Faction faction: planet.getScore().keySet()) {
+      scoresAnnotationsTexts.add(String.format("%s:%d",
+          faction.getString(),
+          planet.getScore().getOrDefault(faction, 0.0).intValue()
+      ));
+    }
+    scoresAnnotationsLabel.setText(String.join(" ", scoresAnnotationsTexts));
 
     final CategoryAxis yAxis = new CategoryAxis();
     final NumberAxis xAxis = new NumberAxis();
@@ -290,7 +315,7 @@ public class PlanetDetailController implements Controller<Node> {
 
           // Player column
           TableColumn<Player, String> playerNameColumn =
-              new TableColumn<>("Belligerent");
+              new TableColumn<>(i18n.get("galactic_war.column.combatants"));
 
           playerNameColumn.setCellValueFactory(param ->
               new SimpleStringProperty(param.getValue().getAlias())
@@ -385,5 +410,15 @@ public class PlanetDetailController implements Controller<Node> {
               notificationService.addImmediateErrorNotification(throwable, "game.create.failed");
               return null;
             }));
+  }
+
+  public void onSetMapButtonPressed(ActionEvent actionEvent) {
+    Scenario scenario = galacticWarService.getScenario(this.galaxyTechnicalName);
+    eventBus.post(new SelectGalacticWarMapEvent(
+        this.galaxyTechnicalName,
+        this.planet,
+        scenario.getMapSelectStrategy(),
+        scenario.getMapSelectRegexes().getOrDefault(this.planet.getModTechnical(), List.of(".*")),
+        scenario.getMapSelectMapPoolId().getOrDefault(this.planet.getModTechnical(), null)));
   }
 }

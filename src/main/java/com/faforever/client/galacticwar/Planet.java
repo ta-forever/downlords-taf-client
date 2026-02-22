@@ -2,11 +2,17 @@ package com.faforever.client.galacticwar;
 
 import com.faforever.client.game.Faction;
 import com.google.gson.annotations.SerializedName;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.Value;
 
+import java.util.Comparator;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
-@Value
+@Getter
+@Setter
 public class Planet {
   Integer id;
 
@@ -33,4 +39,28 @@ public class Planet {
   public String toString() {
     return name;
   }
+
+  Optional<Integer> getHeroicPlayerId() {
+    if (controlledBy == null || belligerents == null || belligerents.isEmpty()) {
+      return Optional.empty();
+    }
+
+    return belligerents.entrySet().stream()
+        .map(entry -> {
+          Integer playerId = entry.getKey();
+          GwPlayerScore score =
+              entry.getValue().get(controlledBy);
+
+          if (score == null) {
+            return null;
+          }
+
+          return Map.entry(playerId, score.getCumWinningScores());
+        })
+        .filter(Objects::nonNull)
+        .filter(e -> e.getValue() > 0.0)
+        .max(Comparator.comparingDouble(Map.Entry::getValue))
+        .map(Map.Entry::getKey);
+  }
+
 }

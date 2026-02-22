@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Getter
 @NoArgsConstructor
@@ -41,7 +42,16 @@ public class Scenario {
   Float dominanceThreshold = 3.0f;
 
   @SerializedName("factions")
-  List<String> factions = List.of("arm", "core");
+  List<Faction> factions = List.of(Faction.ARM, Faction.CORE);
+
+  @SerializedName("map_select_strategy")
+  GwMapSelectStrategy mapSelectStrategy;
+
+  @SerializedName("map_select_regexes")
+  Map<String, List<String>> mapSelectRegexes = new ConcurrentHashMap<>();
+
+  @SerializedName("map_select_map_pool_id")
+  Map<String, Integer> mapSelectMapPoolId = new ConcurrentHashMap<>();
 
   static public Scenario fromFile(Path path) throws IOException {
     return new Gson().fromJson(Files.newBufferedReader(path), Scenario.class);

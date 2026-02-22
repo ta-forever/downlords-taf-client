@@ -804,6 +804,11 @@ public class FafService {
   }
 
   @Async
+  public void setGalacticWarMap(String galaxyTechnicalName, String planetName, String mapName) {
+    fafServerAccessor.setGalacticWarMap(galaxyTechnicalName, planetName, mapName);
+  }
+
+  @Async
   public CompletableFuture<List<TutorialCategory>> getTutorialCategories() {
     return CompletableFuture.completedFuture(fafApiAccessor.getTutorialCategories().stream()
         .map(TutorialCategory::fromDto)

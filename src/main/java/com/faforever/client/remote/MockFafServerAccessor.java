@@ -287,6 +287,12 @@ public class MockFafServerAccessor implements FafServerAccessor {
   }
 
   @Override
+  public void setGalacticWarMap(String galaxyName, String planetName, String mapName) {
+
+  }
+
+
+  @Override
   public List<Avatar> getAvailableAvatars() {
     return emptyList();
   }

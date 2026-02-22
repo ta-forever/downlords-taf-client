@@ -37,6 +37,7 @@ import com.faforever.client.remote.domain.ClientMessageType;
 import com.faforever.client.remote.domain.ClosePlayersFAMessage;
 import com.faforever.client.remote.domain.ClosePlayersLobbyMessage;
 import com.faforever.client.remote.domain.FafServerMessageType;
+import com.faforever.client.remote.domain.SetGalacticWarMapMessage;
 import com.faforever.client.remote.domain.GameAccess;
 import com.faforever.client.remote.domain.GameLaunchMessage;
 import com.faforever.client.remote.domain.GameMatchmakingMessage;
@@ -484,6 +485,11 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
   @Override
   public void broadcastMessage(String message) {
     writeToServer(new MakeBroadcastMessage(message));
+  }
+
+  @Override
+  public void setGalacticWarMap(String galaxyTechnicalName, String planetName, String mapName) {
+    writeToServer(new SetGalacticWarMapMessage(galaxyTechnicalName, planetName, mapName));
   }
 
   @Override

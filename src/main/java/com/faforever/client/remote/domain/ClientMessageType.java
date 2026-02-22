@@ -31,7 +31,8 @@ public enum ClientMessageType {
   SET_GAME_PASSWORD("set_game_password"),
   MATCHMAKER_INFO("matchmaker_info"),
   GAME_MATCHMAKING("game_matchmaking"),
-  UPLOAD_REPLAY_TO_TADA("upload_replay_to_tada");
+  UPLOAD_REPLAY_TO_TADA("upload_replay_to_tada"),
+  GALACTIC_WAR_SET_MAP("galactic_war_set_map");
 
   private static Map<String, ClientMessageType> fromString;
 

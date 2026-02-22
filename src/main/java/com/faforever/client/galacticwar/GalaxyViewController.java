@@ -169,7 +169,7 @@ public class GalaxyViewController extends AbstractViewController<Node> {
           setDisplayName(scenario.getDisplayName());
           planetDetailController.setGalaxyTechnicalName(scenario.getTechnicalName());
           planetDetailController.setGalaxyDisplayName(scenario.getDisplayName());
-          planetDetailController.setGalaxyFactions(scenario.getFactions().stream().map(Faction::fromString).toList());
+          planetDetailController.setGalaxyFactions(scenario.getFactions());
           planetDetailController.setPlayerFaction(
               playerService.getCurrentPlayer().flatMap(
                   player -> scenario.getPlayerFaction(player.getId()))
@@ -202,7 +202,7 @@ public class GalaxyViewController extends AbstractViewController<Node> {
       }
     }).thenRun(() -> JavaFxUtil.runLater(() -> loadingIndicator.setVisible(false)))
         .exceptionally((throwable) -> {
-          notificationService.addImmediateErrorNotification(throwable, "error.galactic_war.cannotUpdate",
+          notificationService.addImmediateErrorNotification(throwable, "galactic_war.error.cannot_update",
               endpointUrl);
           return null;
         });
