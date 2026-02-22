@@ -1380,6 +1380,11 @@ public class GameService implements InitializingBean {
     }
 
     if (gameInfoMessage.getHost() != null) {
+      game.setMinRating(gameInfoMessage.getRatingMin());
+      game.setMaxRating(gameInfoMessage.getRatingMax());
+      game.setEnforceRating(gameInfoMessage.getEnforceRatingRange());
+      game.setReplayDelaySeconds(gameInfoMessage.getReplayDelaySeconds());
+
       game.setHost(gameInfoMessage.getHost());
       game.setTitle(StringEscapeUtils.unescapeHtml4(gameInfoMessage.getTitle()));
       game.setMapName(gameInfoMessage.getMapName());
@@ -1419,11 +1424,6 @@ public class GameService implements InitializingBean {
           game.getTeams().putAll(gameInfoMessage.getTeams());
         }
       }
-
-      game.setMinRating(gameInfoMessage.getRatingMin());
-      game.setMaxRating(gameInfoMessage.getRatingMax());
-      game.setEnforceRating(gameInfoMessage.getEnforceRatingRange());
-      game.setReplayDelaySeconds(gameInfoMessage.getReplayDelaySeconds());
     }
   }
 
