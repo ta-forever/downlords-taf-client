@@ -2,6 +2,7 @@ package com.faforever.client.galacticwar;
 
 import com.faforever.client.fx.AbstractViewController;
 import com.faforever.client.main.event.NavigateEvent;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.theme.UiService;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
@@ -22,6 +23,7 @@ public class GalacticWarController extends AbstractViewController<Node> {
 
   final private GalacticWarService galacticWarService;
   final private UiService uiService;
+  final private PreferencesService preferencesService;
 
   public StackPane rootPane;
 
@@ -39,10 +41,34 @@ public class GalacticWarController extends AbstractViewController<Node> {
 
   @Override
   public void initialize() {
+    String preferredUrl = preferencesService.getPreferences().getGalacticWarInitialGalaxy();
+    Tab tabToSelect = null;
+
     for (String url : galacticWarService.getGwEndpoints()) {
       Tab tab = createGalaxyTab(url);
+      tab.setUserData(url);
       galaxyTabs.getTabs().add(tab);
+
+      if (url.equals(preferredUrl)) {
+        tabToSelect = tab;
+      }
     }
+
+    if (tabToSelect != null) {
+      galaxyTabs.getSelectionModel().select(tabToSelect);
+    } else if (!galaxyTabs.getTabs().isEmpty()) {
+      galaxyTabs.getSelectionModel().selectFirst();
+    }
+
+    galaxyTabs.getSelectionModel()
+        .selectedItemProperty()
+        .addListener((obs, oldTab, newTab) -> {
+          if (newTab != null) {
+            preferencesService.getPreferences()
+                .setGalacticWarInitialGalaxy((String) newTab.getUserData());
+            preferencesService.storeInBackground();
+          }
+        });
   }
 
   private Tab createGalaxyTab(String url) {

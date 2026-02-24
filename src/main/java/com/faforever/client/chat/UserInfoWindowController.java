@@ -451,8 +451,8 @@ public class UserInfoWindowController implements Controller<Node> {
       if (mostRecentAchievement == null) {
         return;
       }
-      String mostRecentAchievementName = mostRecentAchievement.getName();
-      String mostRecentAchievementDescription = mostRecentAchievement.getDescription();
+      String mostRecentAchievementName = i18n.get(mostRecentAchievement.getName());
+      String mostRecentAchievementDescription = i18n.get(mostRecentAchievement.getDescription());
 
       JavaFxUtil.runLater(() -> {
         mostRecentAchievementNameLabel.setText(mostRecentAchievementName);

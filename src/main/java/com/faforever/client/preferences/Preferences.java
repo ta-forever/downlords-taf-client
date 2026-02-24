@@ -91,6 +91,7 @@ public class Preferences {
   private final BooleanProperty lastLeaderboardFriendsOnlySelection = new SimpleBooleanProperty(false);
   private final ListProperty<String> LeaderBoardsSelectionFilter = new SimpleListProperty<>(observableArrayList());
   private final BooleanProperty gameRoomPopout = new SimpleBooleanProperty(true);
+  private final StringProperty galacticWarInitialGalaxy = new SimpleStringProperty("");
 
   private Preferences() {
     // Only for Gson
@@ -584,4 +585,8 @@ public class Preferences {
   public ListProperty<String> leaderBoardsSelectionFilterProperty() {
     return LeaderBoardsSelectionFilter;
   }
+
+  public String getGalacticWarInitialGalaxy() { return galacticWarInitialGalaxy.get(); }
+  public void setGalacticWarInitialGalaxy(String galacticWarInitialGalaxy) { this.galacticWarInitialGalaxy.set(galacticWarInitialGalaxy); }
+  public StringProperty galacticWarInitialGalaxyProperty() { return galacticWarInitialGalaxy; }
 }

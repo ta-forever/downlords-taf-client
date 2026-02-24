@@ -419,6 +419,6 @@ public class PlanetDetailController implements Controller<Node> {
         this.planet,
         scenario.getMapSelectStrategy(),
         scenario.getMapSelectRegexes().getOrDefault(this.planet.getModTechnical(), List.of(".*")),
-        scenario.getMapSelectMapPoolId().getOrDefault(this.planet.getModTechnical(), null)));
+        scenario.getMapSelectMMQId().getOrDefault(this.planet.getModTechnical(), null)));
   }
 }

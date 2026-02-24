@@ -16,5 +16,5 @@ public class SelectGalacticWarMapEvent extends OpenCustomGamesEvent {
   final private Planet planet;
   final private GwMapSelectStrategy mapSelectStrategy;
   final private List<String> mapSelectRegexes;
-  final private Integer mapSelectMapPoolId;
+  final private Integer mapSelectMMQId;
 }

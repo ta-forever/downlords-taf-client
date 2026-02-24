@@ -239,7 +239,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
     createGameController.setSelectedMod(selectGalacticWarMapEvent.getPlanet().getModTechnical())
         .thenRun(() -> {
           if (selectGalacticWarMapEvent.getMapSelectStrategy() == GwMapSelectStrategy.MAP_POOL) {
-            createGameController.setSelectedMapPool(selectGalacticWarMapEvent.getMapSelectMapPoolId());
+            createGameController.setSelectedMapPool(selectGalacticWarMapEvent.getMapSelectMMQId());
           }
           else {
             createGameController.setMapSearch(selectGalacticWarMapEvent.getMapSelectRegexes());

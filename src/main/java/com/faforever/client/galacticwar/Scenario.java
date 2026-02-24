@@ -48,10 +48,10 @@ public class Scenario {
   GwMapSelectStrategy mapSelectStrategy;
 
   @SerializedName("map_select_regexes")
-  Map<String, List<String>> mapSelectRegexes = new ConcurrentHashMap<>();
+  Map<String, List<String>> mapSelectRegexes = new ConcurrentHashMap<>();// keyed by mod technical name
 
-  @SerializedName("map_select_map_pool_id")
-  Map<String, Integer> mapSelectMapPoolId = new ConcurrentHashMap<>();
+  @SerializedName("map_select_mmq_id")
+  Map<String, Integer> mapSelectMMQId = new ConcurrentHashMap<>();  // keyed by mod technical name
 
   static public Scenario fromFile(Path path) throws IOException {
     return new Gson().fromJson(Files.newBufferedReader(path), Scenario.class);

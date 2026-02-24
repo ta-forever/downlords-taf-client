@@ -49,8 +49,8 @@ public class AchievementItemController implements Controller<Node> {
   public void setAchievementDefinition(AchievementDefinition achievementDefinition) {
     this.achievementDefinition = achievementDefinition;
 
-    nameLabel.setText(achievementDefinition.getName());
-    descriptionLabel.setText(achievementDefinition.getDescription());
+    nameLabel.setText(i18n.get(achievementDefinition.getName()));
+    descriptionLabel.setText(i18n.get(achievementDefinition.getDescription()));
     pointsLabel.setText(i18n.number(achievementDefinition.getExperiencePoints()));
     imageView.setImage(achievementService.getImage(achievementDefinition, AchievementService.AchievementState.REVEALED));
     progressLabel.setText(i18n.get("achievement.stepsFormat", 0, achievementDefinition.getTotalSteps()));

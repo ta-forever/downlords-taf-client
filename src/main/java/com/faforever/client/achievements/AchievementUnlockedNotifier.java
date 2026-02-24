@@ -57,7 +57,7 @@ public class AchievementUnlockedNotifier implements InitializingBean {
     }
     notificationService.addNotification(new TransientNotification(
             i18n.get("achievement.unlockedTitle"),
-            achievementDefinition.getName(),
+            i18n.get(achievementDefinition.getName()),
         achievementService.getImage(achievementDefinition, AchievementState.UNLOCKED)
         )
     );
