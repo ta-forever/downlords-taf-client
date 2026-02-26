@@ -129,6 +129,11 @@ public class TotalAnnihilationService {
         "--hashtoken", fafService.getApiAccessToken()
     ));
 
+    if (preferencesService.getClientRemoteConfiguration().getRepairAsymmetricAlliances() != null &&
+        preferencesService.getClientRemoteConfiguration().getRepairAsymmetricAlliances()) {
+      command.add("--repairAsymmetricAlliances");
+    }
+
     args = args.stream()
         .map(s -> s.startsWith("/") ? "--" + s.substring(1) : s)
         .collect(Collectors.toList());

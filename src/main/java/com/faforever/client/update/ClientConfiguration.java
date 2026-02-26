@@ -20,6 +20,7 @@ public class ClientConfiguration {
   List<String> defaultChatChannels;
   List<String> allChatChannels;
   AutoBalance autoBalance;
+  Boolean repairAsymmetricAlliances;
 
   @Data
   public static class AutoBalance {
