@@ -160,6 +160,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
       selectAppropriateLeaderboard();
     });
     selectAppropriateLeaderboard();
+    onLeaderboardSelected();
   }
 
   private void selectAppropriateLeaderboard() {
