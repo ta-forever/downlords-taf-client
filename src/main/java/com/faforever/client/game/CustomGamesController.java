@@ -78,6 +78,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
   private Dialog createGameDialog;
   private CreateGameController createGameController;
   private Consumer<Game> onSelectedListener;
+  private boolean eventBusRegistered = false;
 
   public static CustomGamesController getController(Node node) {
     Object controller;
@@ -157,6 +158,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
     });
 
     eventBus.register(this);
+    eventBusRegistered = true;
   }
 
   public void setOnSelectedListener(Consumer<Game> onSelectedListener) {
@@ -171,6 +173,10 @@ public class CustomGamesController extends AbstractViewController<Node> {
 
   @Override
   protected void onDisplay(NavigateEvent navigateEvent) {
+    if (!eventBusRegistered) {
+      eventBus.register(this);
+      eventBusRegistered = true;
+    }
     if (navigateEvent instanceof HostGameEvent hostGameEvent) {
       onCreateGame(hostGameEvent.getMapFolderName(), hostGameEvent.getContextGame());
     }
@@ -303,6 +309,10 @@ public class CustomGamesController extends AbstractViewController<Node> {
 
   @Override
   public void onHide() {
+    if (eventBusRegistered) {
+      eventBus.unregister(this);
+      eventBusRegistered = false;
+    }
     // Hide all games to free up memory
     filteredItems.setPredicate(game -> false);
   }

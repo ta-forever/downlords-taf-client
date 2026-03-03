@@ -151,6 +151,14 @@ public class PrivateChatTabController extends AbstractChatTabController {
   }
 
   @Override
+  public void close() {
+    super.close();
+    if (privateUserInfoController != null && privateUserInfoController.gameDetailController != null) {
+      privateUserInfoController.gameDetailController.sever();
+    }
+  }
+
+  @Override
   public Node detachSidePanelNode() {
     splitPane.getItems().remove(gameDetailScrollPane);
     return gameDetailScrollPane;

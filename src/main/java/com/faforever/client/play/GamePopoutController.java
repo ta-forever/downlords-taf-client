@@ -8,6 +8,7 @@ import com.faforever.client.game.GameDetailController;
 import com.faforever.client.game.GameService;
 import com.faforever.client.theme.UiService;
 import javafx.scene.Node;
+import org.springframework.beans.factory.DisposableBean;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TabPane;
@@ -22,7 +23,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @Slf4j
-public class GamePopoutController implements Controller<Node> {
+public class GamePopoutController implements Controller<Node>, DisposableBean {
 
   private final GameService gameService;
   private final UiService uiService;
@@ -94,6 +95,11 @@ public class GamePopoutController implements Controller<Node> {
   @Override
   public Node getRoot() {
     return this.root;
+  }
+
+  @Override
+  public void destroy() {
+    gameDetailController.sever();
   }
 
   private void setFocusedGame(Game game) {

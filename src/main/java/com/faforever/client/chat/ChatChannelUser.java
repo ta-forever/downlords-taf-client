@@ -419,7 +419,7 @@ public class ChatChannelUser {
       socialStatusChangeListener = null;
     }
     if (displayedChangeListener != null) {
-      JavaFxUtil.addListener(displayed, displayedChangeListener);
+      JavaFxUtil.removeListener(displayed, displayedChangeListener);
       displayedChangeListener = null;
     }
   }

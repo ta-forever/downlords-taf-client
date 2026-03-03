@@ -16,6 +16,7 @@ import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.theme.UiService;
 import com.google.common.eventbus.EventBus;
+import org.springframework.beans.factory.DisposableBean;
 import com.google.common.eventbus.Subscribe;
 import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
@@ -33,7 +34,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @Slf4j
-public class PlayController extends AbstractViewController<Node> {
+public class PlayController extends AbstractViewController<Node> implements DisposableBean {
 
   private final GameService gameService;
   private final UiService uiService;
@@ -133,6 +134,11 @@ public class PlayController extends AbstractViewController<Node> {
 
   @Override
   public void onHide() {
+  }
+
+  @Override
+  public void destroy() {
+    gameDetailController.sever();
   }
 
   @Override

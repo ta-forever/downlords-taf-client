@@ -49,6 +49,7 @@ import static com.faforever.client.chat.ChatService.GAME_CHANNEL_REGEX;
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class ChatController extends AbstractViewController<Node> {
 
+  private boolean eventBusRegistered = false;
   private final Map<String, AbstractChatTabController> nameToChatTabController;
   private final ChatService chatService;
   private final UiService uiService;
@@ -94,6 +95,7 @@ public class ChatController extends AbstractViewController<Node> {
   public void initialize() {
     super.initialize();
     eventBus.register(this);
+    eventBusRegistered = true;
 
     chatService.getChatBanNoticeMessage().addListener((obs, oldVal, newVal) -> JavaFxUtil.runLater(this::updateConnectingMessage));
     this.updateConnectingMessage();
@@ -389,6 +391,10 @@ public class ChatController extends AbstractViewController<Node> {
 
   @Override
   protected void onDisplay(NavigateEvent navigateEvent) {
+    if (!eventBusRegistered) {
+      eventBus.register(this);
+      eventBusRegistered = true;
+    }
     if (navigateEvent instanceof JoinChannelEvent) {
       String channelName = ((JoinChannelEvent) navigateEvent).getChannel();
       chatService.joinChannel(channelName);
@@ -406,6 +412,10 @@ public class ChatController extends AbstractViewController<Node> {
 
   @Override
   public void onHide() {
+    if (eventBusRegistered) {
+      eventBus.unregister(this);
+      eventBusRegistered = false;
+    }
     super.onHide();
     if (!tabPane.getTabs().isEmpty()) {
       Tab tab = tabPane.getSelectionModel().getSelectedItem();
