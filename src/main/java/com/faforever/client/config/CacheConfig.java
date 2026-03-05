@@ -75,7 +75,7 @@ public class CacheConfig extends CachingConfigurerSupport {
         new CaffeineCache(RATING_HISTORY, newBuilder().expireAfterWrite(1, MINUTES).build()),
         new CaffeineCache(COOP_LEADERBOARD, newBuilder().expireAfterWrite(1, MINUTES).build()),
         new CaffeineCache(CLAN, newBuilder().expireAfterWrite(1, HOURS).build()),
-        new CaffeineCache(FEATURED_MODS, newBuilder().build()),
+        new CaffeineCache(FEATURED_MODS, newBuilder().expireAfterWrite(24, HOURS).build()),
         new CaffeineCache(FEATURED_MOD_FILES, newBuilder().expireAfterWrite(10, MINUTES).build()),
         new CaffeineCache(MATCHMAKER_QUEUES, newBuilder().expireAfterWrite(24, HOURS).build()),
         new CaffeineCache(MATCHMAKER_QUEUES_BY_MOD, newBuilder().expireAfterWrite(24, HOURS).build()),

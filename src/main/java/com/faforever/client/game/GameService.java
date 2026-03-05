@@ -1326,14 +1326,6 @@ public class GameService implements InitializingBean {
       }
     }
 
-    JavaFxUtil.addListener(game.statusProperty(), (observable, oldValue, newValue) -> {
-      if (oldValue.isOpen()
-          && newValue.isInProgress()
-          && game.getTeams().values().stream().anyMatch(team -> playerService.getCurrentPlayer().isPresent() && team.contains(playerService.getCurrentPlayer().get().getUsername()))
-          && !platformService.isWindowFocused(faWindowTitle)) {
-        platformService.focusWindow(faWindowTitle);
-      }
-    });
   }
 
   private Game createOrUpdateGame(GameInfoMessage gameInfoMessage) {
@@ -1346,6 +1338,14 @@ public class GameService implements InitializingBean {
         game = new Game();
         uidToGameInfoBean.put(gameId, game);
         updateFromGameInfo(gameInfoMessage, game);
+        JavaFxUtil.addListener(game.statusProperty(), (observable, oldValue, newValue) -> {
+          if (oldValue.isOpen()
+              && newValue.isInProgress()
+              && game.getTeams().values().stream().anyMatch(team -> playerService.getCurrentPlayer().isPresent() && team.contains(playerService.getCurrentPlayer().get().getUsername()))
+              && !platformService.isWindowFocused(faWindowTitle)) {
+            platformService.focusWindow(faWindowTitle);
+          }
+        });
         eventBus.post(new GameAddedEvent(game));
       } else {
         game = uidToGameInfoBean.get(gameId);

@@ -109,6 +109,7 @@ public class PlayerService implements InitializingBean {
           .collect(Collectors.toList());
       updateGamePlayers(playersInGame, null);
     }
+    playersByGame.remove(game.getId());
   }
 
   private void updateGameForPlayersInGame(Game game) {
