@@ -16,6 +16,7 @@ import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.remote.domain.PlayerStatus;
+import com.faforever.client.remote.domain.PlayerLeftMessage;
 import com.faforever.client.remote.domain.PlayersMessage;
 import com.faforever.client.remote.domain.SocialMessage;
 import com.faforever.client.user.UserService;
@@ -58,10 +59,6 @@ public class PlayerService implements InitializingBean {
   private final ObservableMap<String, Player> playersByName;
   private final ObservableMap<Integer, Player> playersById;
 
-  // these users have disconnected from chat, but not necessarily from taf-python-server.
-  // therefore its kind of fuzzy don't use for core functionality. suitable to control eg friend online/offline notifications
-  private final ObservableMap<Integer, Player> usersOfflineById;
-
   private final List<Integer> foeList;
   private final List<Integer> friendList;
   private final ObjectProperty<Player> currentPlayer;
@@ -78,7 +75,6 @@ public class PlayerService implements InitializingBean {
 
     playersByName = FXCollections.observableMap(new ConcurrentHashMap<>());
     playersById = FXCollections.observableHashMap();
-    usersOfflineById = FXCollections.observableHashMap();
     friendList = new ArrayList<>();
     foeList = new ArrayList<>();
     currentPlayer = new SimpleObjectProperty<>();
@@ -89,6 +85,7 @@ public class PlayerService implements InitializingBean {
   public void afterPropertiesSet() {
     eventBus.register(this);
     fafService.addOnMessageListener(PlayersMessage.class, this::onPlayersInfo);
+    fafService.addOnMessageListener(PlayerLeftMessage.class, this::onPlayersLeft);
     fafService.addOnMessageListener(SocialMessage.class, this::onFoeList);
   }
 
@@ -111,14 +108,6 @@ public class PlayerService implements InitializingBean {
           .flatMap(stringListEntry -> stringListEntry.getValue().stream())
           .collect(Collectors.toList());
       updateGamePlayers(playersInGame, null);
-    }
-  }
-
-  @Subscribe
-  public void onUserOffline(UserOfflineEvent event) {
-    Player player = playersByName.getOrDefault(event.getUsername(), null);
-    if (player != null) {
-      usersOfflineById.put(player.getId(), player);
     }
   }
 
@@ -348,6 +337,29 @@ public class PlayerService implements InitializingBean {
     playersMessage.getPlayers().forEach(dto -> JavaFxUtil.runLater(() -> onPlayerInfo(dto)));
   }
 
+  private void onPlayersLeft(PlayerLeftMessage message) {
+    message.getPlayers().forEach(dto -> JavaFxUtil.runLater(() -> onPlayerLeft(dto)));
+  }
+
+  private void onPlayerLeft(com.faforever.client.remote.domain.Player dto) {
+    playersById.remove(dto.getId());
+    // playersByName is intentionally NOT modified here — IRC and FAF-server connectivity are
+    // independent.  Cleanup of playersByName happens in onUserOffline() once we can confirm
+    // the player is also absent from IRC.
+  }
+
+  @Subscribe
+  public void onUserOffline(UserOfflineEvent event) {
+    // UserOfflineEvent is posted by KittehChatService when a player leaves all IRC channels.
+    // Only remove from playersByName if the player is also absent from the FAF server,
+    // i.e. not in playersById.  If they are still on the FAF server we must keep the entry
+    // so that the existing ChatChannelUser→Player binding remains valid if they rejoin IRC.
+    Player player = playersByName.get(event.getUsername());
+    if (player != null && !playersById.containsKey(player.getId())) {
+      playersByName.remove(event.getUsername());
+    }
+  }
+
   private void onFoeList(SocialMessage socialMessage) {
     Optional.ofNullable(socialMessage.getFoes()).ifPresent(this::onFoeList);
     Optional.ofNullable(socialMessage.getFriends()).ifPresent(this::onFriendList);
@@ -376,10 +388,7 @@ public class PlayerService implements InitializingBean {
   }
 
   private void onPlayerInfo(com.faforever.client.remote.domain.Player dto) {
-    // isOnline() reflects what the taf-python-server tells us.  unfortunately taf-python-server doesn't tell us when user disconnects
-    // usersOfflineById reflects what the IRC server tells us.  This is more reliable, but unfortunately doesn't tell us anything about user's ability to join games (ie connection to taf-python-server)
-    boolean wasAlreadyOnline = isOnline(dto.getId()) && !usersOfflineById.containsKey(dto.getId());
-    usersOfflineById.remove(dto.getId());
+    boolean wasAlreadyOnline = isOnline(dto.getId());
 
     if (dto.getLogin().equalsIgnoreCase(userService.getUsername())) {
       Player player = getCurrentPlayer().orElseThrow(() -> new IllegalStateException("Player has not been set"));
@@ -398,6 +407,10 @@ public class PlayerService implements InitializingBean {
       }
 
       player.updateFromDto(dto);
+      // Explicitly re-register in playersById: the idProperty ChangeListener only fires when
+      // the id value changes, so it won't re-add the player after a reconnect where the same
+      // Player object is reused (id unchanged) but was removed by onPlayerLeft().
+      playersById.put(player.getId(), player);
 
       if (!wasAlreadyOnline && dto.getState() == PlayerStatus.IDLE) {
         eventBus.post(new PlayerOnlineEvent(player));

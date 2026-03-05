@@ -6,6 +6,7 @@ import com.faforever.client.game.GameRemovedEvent;
 import com.faforever.client.game.GameUpdatedEvent;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.domain.GameStatus;
+import com.faforever.client.remote.domain.PlayerLeftMessage;
 import com.faforever.client.remote.domain.PlayersMessage;
 import com.faforever.client.remote.domain.SocialMessage;
 import com.faforever.client.user.UserService;
@@ -70,6 +71,7 @@ public class PlayerServiceTest {
   @SuppressWarnings("unchecked")
   public void testPostConstruct() throws Exception {
     verify(fafService).addOnMessageListener(eq(PlayersMessage.class), any(Consumer.class));
+    verify(fafService).addOnMessageListener(eq(PlayerLeftMessage.class), any(Consumer.class));
     verify(fafService).addOnMessageListener(eq(SocialMessage.class), any(Consumer.class));
   }
 
@@ -206,6 +208,31 @@ public class PlayerServiceTest {
     assertThat(currentPlayer.getUsername(), is("junit"));
     assertThat(currentPlayer.getId(), is(1));
   }
+
+  @Test
+  public void testOnPlayerLeftRemovesFromPlayersById() throws Exception {
+    Player seedPlayer = instance.createAndGetPlayerForUsername("alice");
+    seedPlayer.setId(42);
+
+    assertTrue(instance.isOnline(42));
+    assertTrue(instance.getPlayerForUsername("alice").isPresent());
+
+    com.faforever.client.remote.domain.Player dto = new com.faforever.client.remote.domain.Player();
+    dto.setId(42);
+    dto.setLogin("alice");
+
+    java.lang.reflect.Method method = ReflectionUtils.findMethod(
+        PlayerService.class, "onPlayerLeft", com.faforever.client.remote.domain.Player.class);
+    ReflectionUtils.makeAccessible(method);
+    ReflectionUtils.invokeMethod(method, instance, dto);
+
+    // Player is removed from playersById (considered offline from FAF server) …
+    assertFalse(instance.isOnline(42));
+    // … but kept in playersByName so that existing ChatChannelUser→Player bindings remain valid
+    // during a FAF-server reconnect where the player stays in IRC.
+    assertTrue(instance.getPlayerForUsername("alice").isPresent());
+  }
+
 
   @Test
   public void testGetPlayerByName() throws Exception {
