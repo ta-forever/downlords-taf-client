@@ -72,7 +72,25 @@ public class MatchmakingChatController extends AbstractChatTabController {
     autoCompletionHelper = new AutoCompletionHelper(
         currentWord -> chatChannelUsers.stream()
             .map(ChatChannelUser::getUsername)
-            .filter(playerName -> playerName.toLowerCase(US).startsWith(currentWord.toLowerCase()))
+            .filter(playerName -> {
+                // Case-insensitive matching: lowercase both name and search word
+                String lowerName = playerName.toLowerCase(US);
+                String lowerCurrent = currentWord.toLowerCase(US);
+
+                if (lowerCurrent.contains("_")) {
+                    // If the user types an underscore, match the entire username directly
+                    return lowerName.startsWith(lowerCurrent);
+                } else {
+                    // Split the username into parts at all underscores and match any part
+                    for (String part : lowerName.split("_")) {
+                        if (part.startsWith(lowerCurrent)) {
+                            return true;
+                        }
+                    }
+                    // No part matched
+                    return false;
+                }
+            })
             .sorted()
             .collect(Collectors.toList())
     );
