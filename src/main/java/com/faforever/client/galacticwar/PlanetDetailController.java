@@ -34,6 +34,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
+import javafx.geometry.Bounds;
 import javafx.scene.Node;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
@@ -46,9 +47,13 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.image.ImageView;
+import javafx.application.Platform;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -56,6 +61,8 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -92,6 +99,8 @@ public class PlanetDetailController implements Controller<Node> {
   public Label modLabel;
   public HBox scoresContainer;
   public Label scoresAnnotationsLabel;
+  public Label contestedPeriodsLabel;
+  public Label effectiveThresholdLabel;
   public AnchorPane planetNotSelectedContainer;
   public ScrollPane planetSelectedContainer;
   public TableView<Player> belligerentsTableView;
@@ -206,6 +215,27 @@ public class PlanetDetailController implements Controller<Node> {
     scoresAnnotationsLabel.setVisible(faction == null);
     scoresContainer.managedProperty().bind(scoresContainer.visibleProperty());
     scoresAnnotationsLabel.managedProperty().bind(scoresAnnotationsLabel.visibleProperty());
+
+    boolean contested = faction == null;
+    if (contested && planet.getContestedPeriods() != null) {
+      String thresholdScore = "?";
+      if (planet.getEffectiveThreshold() != null && planet.getScore() != null) {
+        double winningScore = planet.getScore().values().stream().mapToDouble(Double::doubleValue).max().orElse(0);
+        double ts = winningScore / planet.getEffectiveThreshold();
+        thresholdScore = String.valueOf((int) ts);
+      }
+      contestedPeriodsLabel.setText(
+          i18n.get("galactic_war.planet_detail.contested_periods", planet.getContestedPeriods()));
+      effectiveThresholdLabel.setText(
+          i18n.get("galactic_war.planet_detail.effective_threshold", thresholdScore));
+      contestedPeriodsLabel.setVisible(true);
+      effectiveThresholdLabel.setVisible(true);
+    } else {
+      contestedPeriodsLabel.setVisible(false);
+      effectiveThresholdLabel.setVisible(false);
+    }
+    contestedPeriodsLabel.managedProperty().bind(contestedPeriodsLabel.visibleProperty());
+    effectiveThresholdLabel.managedProperty().bind(effectiveThresholdLabel.visibleProperty());
     populateBelligerentsTable(planet);
 
     planetSelectedContainer.setVisible(true);
@@ -216,24 +246,38 @@ public class PlanetDetailController implements Controller<Node> {
   }
 
   public Node createScoresChart(Planet planet) {
-    List<XYChart.Series<Number,String>> seriesList = new ArrayList<>();
-    for (Faction faction: planet.getScore().keySet()) {
-      XYChart.Series<Number,String> series = new XYChart.Series<>();
-      series.setName(faction.getString());
-      XYChart.Data<Number,String> datum = new XYChart.Data<>(
-          planet.getScore().getOrDefault(faction, 0.0), faction.getString());
-      series.getData().add(datum);
-      seriesList.add(series);
-    }
+    Map<Faction, Double> scores = planet.getScore();
 
     List<String> scoresAnnotationsTexts = new ArrayList<>();
-    for (Faction faction: planet.getScore().keySet()) {
+    for (Faction faction : planet.getScore().keySet()) {
       scoresAnnotationsTexts.add(String.format("%s:%d",
           faction.getString(),
           planet.getScore().getOrDefault(faction, 0.0).intValue()
       ));
     }
     scoresAnnotationsLabel.setText(String.join(" ", scoresAnnotationsTexts));
+
+    if (scores.isEmpty()) {
+      return new Pane();
+    }
+
+    Faction winningFaction = Collections.max(scores.entrySet(),
+        Map.Entry.comparingByValue()).getKey();
+    float threshold = planet.getEffectiveThreshold() != null
+        ? planet.getEffectiveThreshold()
+        : fallbackDominanceThreshold();
+
+    List<XYChart.Series<Number,String>> seriesList = new ArrayList<>();
+    Map<Faction, XYChart.Data<Number,String>> datumByFaction = new HashMap<>();
+    for (Faction faction : scores.keySet()) {
+      XYChart.Series<Number,String> series = new XYChart.Series<>();
+      series.setName(faction.getString());
+      XYChart.Data<Number,String> datum = new XYChart.Data<>(
+          scores.getOrDefault(faction, 0.0), faction.getString());
+      series.getData().add(datum);
+      seriesList.add(series);
+      datumByFaction.put(faction, datum);
+    }
 
     final CategoryAxis yAxis = new CategoryAxis();
     final NumberAxis xAxis = new NumberAxis();
@@ -255,7 +299,7 @@ public class PlanetDetailController implements Controller<Node> {
         "Core", "CORE_COLOR",
         "GoK", "GOK_COLOR");
 
-    for (Faction faction: planet.getScore().keySet()) {
+    for (Faction faction : scores.keySet()) {
       if (factionColours.containsKey(faction.getString())) {
         String colour = factionColours.get(faction.getString());
         for (XYChart.Series<Number,String> series : bc.getData()) {
@@ -278,7 +322,65 @@ public class PlanetDetailController implements Controller<Node> {
       }
     }
 
-    return bc;
+    // Overlay pane for white frame outlines, positioned after layout
+    Pane overlay = new Pane();
+    overlay.setMouseTransparent(true);
+    overlay.setStyle("-fx-background-color: transparent;");
+    StackPane wrapper = new StackPane(bc, overlay);
+    wrapper.setMinSize(220, 80);
+    wrapper.setPrefSize(220, 80);
+    wrapper.setMaxSize(220, 80);
+
+    final float finalThreshold = threshold;
+    bc.layoutBoundsProperty().addListener((obs, oldVal, newVal) -> {
+      if (newVal.getWidth() <= 0 || newVal.getHeight() <= 0) return;
+      // Defer until after the current layout pass so bar nodes have their final positions
+      Platform.runLater(() -> {
+        if (scores.values().stream().distinct().count() <= 1) return;
+        if (scores.values().stream().anyMatch(v -> v <= 0)) return;
+        XYChart.Data<Number,String> winningDatum = datumByFaction.get(winningFaction);
+        if (winningDatum == null || winningDatum.getNode() == null) return;
+
+        // bc and overlay are the same size at the same position inside the StackPane,
+        // so bc-local coordinates equal overlay-local coordinates.
+        Bounds winningBarBounds = bc.sceneToLocal(
+            winningDatum.getNode().localToScene(winningDatum.getNode().getBoundsInLocal()));
+        double winningBarWidthPx = winningBarBounds.getWidth();
+
+        overlay.getChildren().clear();
+        for (Map.Entry<Faction, XYChart.Data<Number,String>> entry : datumByFaction.entrySet()) {
+          XYChart.Data<Number,String> datum = entry.getValue();
+          if (datum.getNode() == null) continue;
+
+          boolean isWinning = entry.getKey().equals(winningFaction);
+          Bounds barBounds = bc.sceneToLocal(
+              datum.getNode().localToScene(datum.getNode().getBoundsInLocal()));
+
+          double frameWidth = isWinning
+              ? barBounds.getWidth()
+              : winningBarWidthPx / finalThreshold;
+
+          Rectangle frame = new Rectangle(
+              barBounds.getMinX(), barBounds.getMinY(),
+              frameWidth, barBounds.getHeight());
+          frame.setFill(Color.TRANSPARENT);
+          frame.setStroke(Color.WHITE);
+          frame.setStrokeWidth(1.5);
+          overlay.getChildren().add(frame);
+        }
+      });
+    });
+
+    return wrapper;
+  }
+
+  private float fallbackDominanceThreshold() {
+    Scenario scenario = galaxyTechnicalName != null
+        ? galacticWarService.getScenario(galaxyTechnicalName)
+        : null;
+    return (scenario != null && scenario.getDominanceThreshold() != null)
+        ? scenario.getDominanceThreshold()
+        : 3.0f;
   }
 
   private void populateBelligerentsTable(Planet planet) {

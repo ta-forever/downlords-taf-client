@@ -34,6 +34,15 @@ public class Planet {
   @SerializedName("controlled_by")
   Faction controlledBy;
 
+  @SerializedName("about_to_be_captured")
+  Boolean aboutToBeCaptured;
+
+  @SerializedName("effective_threshold")
+  Float effectiveThreshold;
+
+  @SerializedName("contested_periods")
+  Integer contestedPeriods;
+
   PlanetGraphics graphics;
 
   public String toString() {

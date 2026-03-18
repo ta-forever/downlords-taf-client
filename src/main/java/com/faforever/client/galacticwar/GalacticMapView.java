@@ -360,8 +360,18 @@ public class GalacticMapView {
             Comparator.comparingDouble(Map.Entry::getValue)).getKey();
         Faction losing =  Collections.min(v.element().getScore().entrySet(),
             Comparator.comparingDouble(Map.Entry::getValue)).getKey();
-        if (v.element().getScore().get(winning) > dominanceThreshold * v.element().getScore().get(losing) ||
-            v.element().getSize() > 10.0 * v.element().getScore().get(losing)) {
+        Boolean serverSays = v.element().getAboutToBeCaptured();
+        boolean showWarning;
+        if (serverSays != null) {
+          showWarning = serverSays;
+        } else {
+          float threshold = v.element().getEffectiveThreshold() != null
+              ? v.element().getEffectiveThreshold()
+              : dominanceThreshold;
+          showWarning = v.element().getScore().get(winning) > threshold * v.element().getScore().get(losing) ||
+              v.element().getSize() > 10.0 * v.element().getScore().get(losing);
+        }
+        if (showWarning) {
           Label label = new Label("!");
           label.setStyle("-fx-font: 14 arial;");
           Region iconRegion = new Region();

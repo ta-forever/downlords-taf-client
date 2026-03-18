@@ -36,6 +36,12 @@
             <HBox alignment="CENTER">
                 <Label fx:id="scoresAnnotationsLabel" alignment="CENTER"/>
             </HBox>
+            <HBox alignment="CENTER">
+                <Label fx:id="contestedPeriodsLabel" alignment="CENTER"/>
+            </HBox>
+            <HBox alignment="CENTER">
+                <Label fx:id="effectiveThresholdLabel" alignment="CENTER"/>
+            </HBox>
             <HBox fx:id="scoresContainer" alignment="CENTER" minHeight="100" prefHeight="100" maxHeight="100"/>
             <HBox alignment="CENTER">
                 <Button fx:id="createGameButton" mnemonicParsing="false" onAction="#onCreateGameButtonPressed"
