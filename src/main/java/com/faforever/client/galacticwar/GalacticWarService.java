@@ -9,6 +9,7 @@ import com.faforever.client.task.CompletableTask;
 import com.faforever.client.task.CompletableTask.Priority;
 import com.faforever.client.task.TaskService;
 import com.faforever.client.update.ClientConfiguration;
+import com.google.common.eventbus.EventBus;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.scene.image.Image;
@@ -46,6 +47,7 @@ public class GalacticWarService implements InitializingBean {
   final private TaskService taskService;
   final private DownloadService downloadService;
   final private PlayerService playerService;
+  final private EventBus eventBus;
 
   final private Map<String, Scenario> scenarios = new ConcurrentHashMap<>();
   final private Map<Integer, StringProperty> playerNames = new ConcurrentHashMap<>();
@@ -95,6 +97,9 @@ public class GalacticWarService implements InitializingBean {
           try {
             Scenario scenario = Scenario.fromFile(targetPath);
             scenarios.put(scenario.getTechnicalName(), scenario);
+            if (scenario.getLastGalaxyWinner() != null) {
+              eventBus.post(new GalacticWarWinnerChangedEvent(scenario.getLastGalaxyWinner()));
+            }
             return scenario;
           } catch (Exception e) {
             throw new CompletionException(e);
