@@ -6,6 +6,7 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.LeaderboardService;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.main.event.OpenOnlineReplayVaultEvent;
+import com.faforever.client.main.event.ShowPlanetReplaysEvent;
 import com.faforever.client.main.event.ShowReplayEvent;
 import com.faforever.client.main.event.ShowUserReplaysEvent;
 import com.faforever.client.mod.FeaturedMod;
@@ -30,6 +31,7 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -166,6 +168,8 @@ public class OnlineReplayVaultController extends VaultEntityController<Replay> {
       onShowReplayEvent((ShowReplayEvent) navigateEvent);
     } else if (navigateEvent instanceof ShowUserReplaysEvent) {
       onShowUserReplaysEvent((ShowUserReplaysEvent) navigateEvent);
+    } else if (navigateEvent instanceof ShowPlanetReplaysEvent) {
+      onShowPlanetReplaysEvent((ShowPlanetReplaysEvent) navigateEvent);
     } else {
       log.warn("No such NavigateEvent for this Controller: {}", navigateEvent.getClass());
     }
@@ -208,5 +212,20 @@ public class OnlineReplayVaultController extends VaultEntityController<Replay> {
     playerId = event.getPlayerId();
     SortConfig sortConfig = new SortConfig("startTime", SortOrder.DESC);
     displayFromSupplier(() -> replayService.getReplaysForPlayerWithPageCount(playerId, pageSize, 1, sortConfig), true);
+  }
+
+  private void onShowPlanetReplaysEvent(ShowPlanetReplaysEvent event) {
+    enterSearchingState();
+    searchType = SearchType.SEARCH;
+
+    List<String> clauses = new ArrayList<>();
+    clauses.add("name==\"*[gw:" + event.getGwPlanetHash() + "]*\"");
+    for (String name : event.getLegacyPlanetNames()) {
+      clauses.add("name==\"*" + name.replace("\"", "\\\"") + "*\"");
+    }
+    String query = String.join(",", clauses);
+
+    SortConfig sortConfig = new SortConfig("endTime", SortOrder.DESC);
+    displayFromSupplier(() -> replayService.findByQueryWithPageCount(query, pageSize, 1, sortConfig), true);
   }
 }

@@ -7,6 +7,7 @@ import lombok.Setter;
 import lombok.Value;
 
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -42,6 +43,9 @@ public class Planet {
 
   @SerializedName("contested_periods")
   Integer contestedPeriods;
+
+  @SerializedName("previous_names")
+  List<String> previousNames;
 
   PlanetGraphics graphics;
 

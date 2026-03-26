@@ -11,6 +11,7 @@ import com.faforever.client.game.NewGameInfo;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.main.event.SelectGalacticWarMapEvent;
+import com.faforever.client.main.event.ShowPlanetReplaysEvent;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
@@ -69,6 +70,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 import static java.util.Collections.emptySet;
 
@@ -105,6 +107,7 @@ public class PlanetDetailController implements Controller<Node> {
   public ScrollPane planetSelectedContainer;
   public TableView<Player> belligerentsTableView;
   public Button setMapButton;
+  public Button searchReplaysButton;
 
   Planet planet;
   SimpleObjectProperty<MapBean> mapBean;
@@ -132,6 +135,7 @@ public class PlanetDetailController implements Controller<Node> {
 
     planetSelectedContainer.setVisible(false);
     planetNotSelectedContainer.visibleProperty().bind(planetSelectedContainer.visibleProperty().not());
+    searchReplaysButton.managedProperty().bind(searchReplaysButton.visibleProperty());
 
     createGameButton.disableProperty().bind(
         mapBean.isNull().or(featuredMod.isNull().or(leaderboard.isNull().or(gameService.getCurrentGameProperty().isNotNull()))));
@@ -164,6 +168,7 @@ public class PlanetDetailController implements Controller<Node> {
     }
 
     createGameButton.setVisible(planet.getControlledBy() == null);
+    searchReplaysButton.setVisible(true);
 
     Optional<Integer> heroicPlayerId = planet.getHeroicPlayerId();
     setMapButton.setVisible(
@@ -485,9 +490,11 @@ public class PlanetDetailController implements Controller<Node> {
       planetName = this.galaxyTechnicalName + "/" + planetName;
     }
 
-    String GALACTIC_WAR_GAME_TITLE_TEMPLATE = "Galactic War: %s is attacking %s!";
+    String gwHash = getGwPlanetHash();
+    String gameTitle = String.format("Galactic War: %s is attacking %s! [gw:%s]",
+        userFaction, this.getPlanet().getName(), gwHash);
     NewGameInfo newGameInfo = new NewGameInfo(
-        String.format(GALACTIC_WAR_GAME_TITLE_TEMPLATE, userFaction, this.getPlanet().getName()),
+        gameTitle,
         null,
         this.featuredMod.get(),
         this.featuredMod.get().getGitBranch(),
@@ -512,6 +519,31 @@ public class PlanetDetailController implements Controller<Node> {
               notificationService.addImmediateErrorNotification(throwable, "game.create.failed");
               return null;
             }));
+  }
+
+  public void onSearchReplaysButtonPressed(ActionEvent actionEvent) {
+    Scenario scenario = galacticWarService.getScenario(this.galaxyTechnicalName);
+    int iteration = scenario != null && scenario.getIteration() != null ? scenario.getIteration() : 1;
+    String hash = GalacticWarService.gwPlanetHash(this.galaxyTechnicalName, iteration, planet.getId());
+
+    List<String> legacyNames;
+    if (iteration <= 1) {
+      List<String> previousNames = planet.getPreviousNames();
+      legacyNames = Stream.concat(
+          Stream.of(planet.getName()),
+          previousNames != null ? previousNames.stream() : Stream.empty()
+      ).distinct().toList();
+    } else {
+      legacyNames = List.of();
+    }
+
+    eventBus.post(new ShowPlanetReplaysEvent(hash, legacyNames));
+  }
+
+  private String getGwPlanetHash() {
+    Scenario scenario = galacticWarService.getScenario(this.galaxyTechnicalName);
+    int iteration = scenario != null && scenario.getIteration() != null ? scenario.getIteration() : 1;
+    return GalacticWarService.gwPlanetHash(this.galaxyTechnicalName, iteration, planet.getId());
   }
 
   public void onSetMapButtonPressed(ActionEvent actionEvent) {

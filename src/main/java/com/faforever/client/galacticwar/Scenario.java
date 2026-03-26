@@ -53,6 +53,9 @@ public class Scenario {
   @SerializedName("map_select_mmq_id")
   Map<String, Integer> mapSelectMMQId = new ConcurrentHashMap<>();  // keyed by mod technical name
 
+  @SerializedName("iteration")
+  Integer iteration = 1;
+
   @SerializedName("last_galaxy_winner")
   String lastGalaxyWinner;
 

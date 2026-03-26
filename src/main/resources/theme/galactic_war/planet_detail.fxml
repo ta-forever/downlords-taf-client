@@ -57,6 +57,14 @@
                     </tooltip>
                 </Button>
             </HBox>
+            <HBox alignment="CENTER">
+                <Button fx:id="searchReplaysButton" mnemonicParsing="false" onAction="#onSearchReplaysButtonPressed"
+                        text="%planet_detail.search_replays" alignment="CENTER" visible="false" managed="false">
+                    <tooltip>
+                        <Tooltip text="%planet_detail.search_replays.tooltip"/>
+                    </tooltip>
+                </Button>
+            </HBox>
             <Separator/>
             <HBox alignment="CENTER" maxHeight="1.797e308" VBox.vgrow="ALWAYS">
                 <TableView fx:id="belligerentsTableView" minHeight="100" maxWidth="230" maxHeight="1.797e308">

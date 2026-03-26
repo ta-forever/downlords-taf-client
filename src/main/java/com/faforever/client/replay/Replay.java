@@ -103,7 +103,7 @@ public class Replay {
   public Replay(LocalReplayInfo replayInfo, Path replayFile, FeaturedMod featuredMod, MapBean mapBean) {
     this();
     id.set(replayInfo.getUid());
-    title.set(StringEscapeUtils.unescapeHtml4(replayInfo.getTitle()));
+    setTitle(StringEscapeUtils.unescapeHtml4(replayInfo.getTitle()));
     replayAvailable.set(true);
     startTime.set(fromPythonTime(replayInfo.getGameTime() > 0 ? replayInfo.getGameTime() : replayInfo.getLaunchedAt()));
     endTime.set(fromPythonTime(replayInfo.getGameEnd()));
@@ -230,7 +230,7 @@ public class Replay {
   }
 
   public void setTitle(String title) {
-    this.title.set(title);
+    this.title.set(com.faforever.client.game.Game.stripGwTag(title));
   }
 
   public StringProperty titleProperty() {
