@@ -421,7 +421,7 @@ public class FafService {
       int i=1;
       Path backupPath;
       do {
-        backupPath = taPath.resolve(String.format("ErrorLog.txt(%d)", i++));
+        backupPath = taPath.resolve(String.format("ErrorLog(%d).txt", i++));
       }
       while (Files.exists(backupPath));
       try {
