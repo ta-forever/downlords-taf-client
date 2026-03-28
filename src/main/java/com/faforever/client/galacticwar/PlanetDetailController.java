@@ -535,7 +535,7 @@ public class PlanetDetailController implements Controller<Node> {
       legacyNames = List.of();
     }
 
-    eventBus.post(new ShowPlanetReplaysEvent(this.galaxyTechnicalName, planet.getId(), legacyNames));
+    eventBus.post(new ShowPlanetReplaysEvent(this.galaxyTechnicalName, iteration, planet.getId(), legacyNames));
   }
 
   public void onSetMapButtonPressed(ActionEvent actionEvent) {

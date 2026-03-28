@@ -32,6 +32,11 @@ public class ToggleFilterController implements FilterNodeController {
     QBuilder qBuilder = new QBuilder<>();
     StringProperty property = qBuilder.string(propertyName);
     if (checkBox.isSelected()) {
+      if ("*".equals(value)) {
+        // ne("__NOTNULL__") produces RSQL "property!=__NOTNULL__"
+        // which gets replaced to "property=isnull=false" by the query pipeline
+        return Optional.of(Collections.singletonList(property.ne("__NOTNULL__")));
+      }
       return Optional.of(Collections.singletonList(property.in(value)));
     } else {
       return Optional.empty();

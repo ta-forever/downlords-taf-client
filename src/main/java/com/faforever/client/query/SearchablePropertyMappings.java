@@ -41,6 +41,11 @@ public class SearchablePropertyMappings {
       .put("mapVersion.height", new Property("map.heightPixels", false))
       .put("mapVersion.folderName", new Property("game.map.folderName", false))
       .put("mapVersion.map.author.login", new Property("game.map.author", false))
+      .put("gwGameStats.galaxy", new Property("game.gw.galaxy", false))
+      .put("gwGameStats.iteration", new Property("game.gw.iteration", false))
+      .put("gwGameStats.planetId", new Property("game.gw.planetId", false))
+      .put("playerStats.gwGamePlayerStats.gwFaction", new Property("game.gw.faction", false))
+      .put("playerStats.gwGamePlayerStats.gwRank", new Property("game.gw.rank", false))
 
       .build();
 

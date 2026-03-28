@@ -155,6 +155,7 @@ public class OnlineReplayVaultController extends VaultEntityController<Replay> {
 
     searchController.addDateRangeFilter("endTime", i18n.get("game.date"), 1);
     searchController.addToggleFilter("validity", i18n.get("game.onlyRanked"), "VALID");
+    searchController.addToggleFilter("gwGameStats.galaxy", i18n.get("game.gw.onlyGwGames"), "*");
   }
 
   @Override
@@ -220,7 +221,7 @@ public class OnlineReplayVaultController extends VaultEntityController<Replay> {
 
     List<String> clauses = new ArrayList<>();
     // Structured search via gw_game_stats table
-    clauses.add("gwGameStats.galaxy==\"" + event.getGalaxy() + "\";gwGameStats.planetId==" + event.getPlanetId());
+    clauses.add("gwGameStats.galaxy==\"" + event.getGalaxy() + "\";gwGameStats.iteration==" + event.getIteration() + ";gwGameStats.planetId==" + event.getPlanetId());
     // Legacy fallback: title-based search for games created before structured GW stats
     for (String name : event.getLegacyPlanetNames()) {
       clauses.add("name==\"*" + name.replace("\"", "\\\"") + "*\"");

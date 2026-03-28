@@ -9,6 +9,7 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 public class ShowPlanetReplaysEvent extends OpenOnlineReplayVaultEvent {
   private final String galaxy;
+  private final int iteration;
   private final int planetId;
   private final List<String> legacyPlanetNames;
 }
