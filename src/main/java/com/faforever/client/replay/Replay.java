@@ -103,7 +103,7 @@ public class Replay {
   public Replay(LocalReplayInfo replayInfo, Path replayFile, FeaturedMod featuredMod, MapBean mapBean) {
     this();
     id.set(replayInfo.getUid());
-    setTitle(StringEscapeUtils.unescapeHtml4(replayInfo.getTitle()));
+    title.set(StringEscapeUtils.unescapeHtml4(replayInfo.getTitle()));
     replayAvailable.set(true);
     startTime.set(fromPythonTime(replayInfo.getGameTime() > 0 ? replayInfo.getGameTime() : replayInfo.getLaunchedAt()));
     endTime.set(fromPythonTime(replayInfo.getGameEnd()));
@@ -230,7 +230,7 @@ public class Replay {
   }
 
   public void setTitle(String title) {
-    this.title.set(com.faforever.client.game.Game.stripGwTag(title));
+    this.title.set(title);
   }
 
   public StringProperty titleProperty() {
@@ -511,6 +511,8 @@ public class Replay {
     private final int score;
     private final Faction faction;
     private final Leaderboard leaderboard;
+    private final String gwFaction;
+    private final Integer gwRank;
 
     public static PlayerStats fromDto(GamePlayerStats gamePlayerStats) {
       Optional<LeaderboardRatingJournal> ratingJournal = gamePlayerStats.getLeaderboardRatingJournals().stream().findFirst();
@@ -519,6 +521,12 @@ public class Replay {
       Double afterMean = ratingJournal.map(LeaderboardRatingJournal::getMeanAfter).orElse(null);
       Double afterDeviation = ratingJournal.map(LeaderboardRatingJournal::getDeviationAfter).orElse(null);
       Leaderboard leaderboard = ratingJournal.map(lb -> Leaderboard.fromDto(lb.getLeaderboard())).orElse(null);
+      String gwFaction = null;
+      Integer gwRank = null;
+      if (gamePlayerStats.getGwGamePlayerStats() != null) {
+        gwFaction = gamePlayerStats.getGwGamePlayerStats().getGwFaction();
+        gwRank = gamePlayerStats.getGwGamePlayerStats().getGwRank();
+      }
       return new PlayerStats(
           Integer.parseInt(gamePlayerStats.getPlayer().getId()),
           beforeMean,
@@ -527,7 +535,9 @@ public class Replay {
           afterDeviation,
           gamePlayerStats.getScore(),
           gamePlayerStats.getFaction(),
-          leaderboard
+          leaderboard,
+          gwFaction,
+          gwRank
       );
     }
   }

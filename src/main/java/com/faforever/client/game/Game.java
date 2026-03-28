@@ -107,13 +107,7 @@ public class Game {
   }
 
   public void setTitle(String title) {
-    this.title.set(stripGwTag(title));
-  }
-
-  /** Strip the [gw:...] hash tag appended to Galactic War game titles. */
-  public static String stripGwTag(String title) {
-    if (title == null) return null;
-    return title.replaceFirst("\\s*\\[gw:[0-9a-f]+]$", "");
+    this.title.set(title);
   }
 
   public StringProperty titleProperty() {

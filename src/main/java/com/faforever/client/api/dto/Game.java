@@ -46,4 +46,7 @@ public class Game {
 
   @Relationship("reviewsSummary")
   private GameReviewsSummary gameReviewsSummary;
+
+  @Relationship("gwGameStats")
+  private GwGameStats gwGameStats;
 }

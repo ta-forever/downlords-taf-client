@@ -104,7 +104,8 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   private static final String REPORT_ENDPOINT = "/data/moderationReport";
   private static final String TOURNAMENT_LIST_ENDPOINT = "/challonge/v1/tournaments.json";
   private static final String REPLAY_INCLUDES = "featuredMod,playerStats,host,playerStats.player,playerStats.ratingChanges,reviews," +
-      "reviews.player,mapVersion,mapVersion.map,reviewsSummary,playerStats.ratingChanges.leaderboard";
+      "reviews.player,mapVersion,mapVersion.map,reviewsSummary,playerStats.ratingChanges.leaderboard," +
+      "playerStats.gwGamePlayerStats,gwGameStats";
   private static final String MAP_INCLUDES = "latestVersion,author,statistics,reviewsSummary," +
       "versions.reviews,versions.reviews.player";
   private static final String MAP_VERSION_INCLUDES = "map,map.latestVersion,map.author,map.statistics," +

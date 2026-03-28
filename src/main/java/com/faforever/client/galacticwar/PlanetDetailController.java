@@ -490,9 +490,8 @@ public class PlanetDetailController implements Controller<Node> {
       planetName = this.galaxyTechnicalName + "/" + planetName;
     }
 
-    String gwHash = getGwPlanetHash();
-    String gameTitle = String.format("Galactic War: %s is attacking %s! [gw:%s]",
-        userFaction, this.getPlanet().getName(), gwHash);
+    String gameTitle = String.format("Galactic War: %s is attacking %s!",
+        userFaction, this.getPlanet().getName());
     NewGameInfo newGameInfo = new NewGameInfo(
         gameTitle,
         null,
@@ -524,7 +523,6 @@ public class PlanetDetailController implements Controller<Node> {
   public void onSearchReplaysButtonPressed(ActionEvent actionEvent) {
     Scenario scenario = galacticWarService.getScenario(this.galaxyTechnicalName);
     int iteration = scenario != null && scenario.getIteration() != null ? scenario.getIteration() : 1;
-    String hash = GalacticWarService.gwPlanetHash(this.galaxyTechnicalName, iteration, planet.getId());
 
     List<String> legacyNames;
     if (iteration <= 1) {
@@ -537,13 +535,7 @@ public class PlanetDetailController implements Controller<Node> {
       legacyNames = List.of();
     }
 
-    eventBus.post(new ShowPlanetReplaysEvent(hash, legacyNames));
-  }
-
-  private String getGwPlanetHash() {
-    Scenario scenario = galacticWarService.getScenario(this.galaxyTechnicalName);
-    int iteration = scenario != null && scenario.getIteration() != null ? scenario.getIteration() : 1;
-    return GalacticWarService.gwPlanetHash(this.galaxyTechnicalName, iteration, planet.getId());
+    eventBus.post(new ShowPlanetReplaysEvent(this.galaxyTechnicalName, planet.getId(), legacyNames));
   }
 
   public void onSetMapButtonPressed(ActionEvent actionEvent) {

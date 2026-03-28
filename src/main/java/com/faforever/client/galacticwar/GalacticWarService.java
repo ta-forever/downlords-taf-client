@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -37,7 +36,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.zip.CRC32;
 
 @Lazy
 @Service
@@ -146,13 +144,13 @@ public class GalacticWarService implements InitializingBean {
   }
 
   /**
-   * Deterministic 8-char hex hash that uniquely identifies a planet within a galaxy iteration.
-   * CRC32 of "{galaxyTechnicalName}.{iteration}.{planetId}".
+   * Get a GW rank icon from stored faction name and rank tier (0-based, as persisted in gw_game_player_stats).
    */
-  public static String gwPlanetHash(String galaxyTechnicalName, int iteration, int planetId) {
-    CRC32 crc = new CRC32();
-    crc.update((galaxyTechnicalName + "." + iteration + "." + planetId).getBytes(StandardCharsets.UTF_8));
-    return String.format("%08x", crc.getValue());
+  public Image getMedalImage(String gwFaction, int gwRankTier) {
+    if (gwFaction == null || gwRankTier < 0) return null;
+    int tier = gwRankTier + 1; // DB stores 0-based, icon paths use 1-based
+    String iconPath = String.format("images/ranks/RANK_%s%d.png", gwFaction.toUpperCase(), tier);
+    return MEDAL_IMAGE_CACHE.computeIfAbsent(iconPath, path -> new Image(path, true));
   }
 
   private static final Map<String, Image> MEDAL_IMAGE_CACHE = new ConcurrentHashMap<>();

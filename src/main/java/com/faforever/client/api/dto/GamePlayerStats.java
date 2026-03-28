@@ -44,4 +44,7 @@ public class GamePlayerStats {
 
   @Relationship("ratingChanges")
   private List<LeaderboardRatingJournal> leaderboardRatingJournals;
+
+  @Relationship("gwGamePlayerStats")
+  private GwGamePlayerStats gwGamePlayerStats;
 }

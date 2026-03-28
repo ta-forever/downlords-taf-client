@@ -7,6 +7,7 @@ import com.faforever.client.fx.DefaultImageView;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.StringCell;
+import com.faforever.client.galacticwar.GalacticWarService;
 import com.faforever.client.game.Faction;
 import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.game.RatingPrecision;
@@ -49,6 +50,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
@@ -89,6 +91,7 @@ public class ReplayDetailController implements Controller<Node> {
   private final NotificationService notificationService;
   private final ReviewService reviewService;
   private final UserService userService;
+  private final GalacticWarService galacticWarService;
   private final ArrayList<TeamCardController> teamCardControllers = new ArrayList<>();
   public Pane replayDetailRoot;
   public Label titleLabel;
@@ -397,9 +400,21 @@ public class ReplayDetailController implements Controller<Node> {
       Boolean hidePlayerRatings = statsByPlayerId.values().stream()
           .map(PlayerStats::getLeaderboard)
           .anyMatch(lb -> lb == null || lb.getLeaderboardHidden());
+      boolean hasGwData = statsByPlayerId.values().stream()
+          .anyMatch(ps -> ps.getGwFaction() != null);
+      Function<Player, Image> gwMedalProvider = hasGwData
+          ? player -> {
+              PlayerStats ps = statsByPlayerId.get(player.getId());
+              if (ps != null && ps.getGwFaction() != null && ps.getGwRank() != null) {
+                return galacticWarService.getMedalImage(ps.getGwFaction(), ps.getGwRank());
+              }
+              return null;
+            }
+          : null;
+
       playerService.getPlayersByIds(playerIds)
           .thenAccept(players ->
-              controller.setPlayersInTeam(team, players, playerRatingFunction, playerFactionFunction, null, RatingPrecision.EXACT,
+              controller.setPlayersInTeam(team, players, playerRatingFunction, playerFactionFunction, gwMedalProvider, RatingPrecision.EXACT,
                   hidePlayerRatings)
           );
 

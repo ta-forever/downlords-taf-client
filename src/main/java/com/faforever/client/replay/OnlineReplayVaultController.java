@@ -219,7 +219,9 @@ public class OnlineReplayVaultController extends VaultEntityController<Replay> {
     searchType = SearchType.SEARCH;
 
     List<String> clauses = new ArrayList<>();
-    clauses.add("name==\"*[gw:" + event.getGwPlanetHash() + "]*\"");
+    // Structured search via gw_game_stats table
+    clauses.add("gwGameStats.galaxy==\"" + event.getGalaxy() + "\";gwGameStats.planetId==" + event.getPlanetId());
+    // Legacy fallback: title-based search for games created before structured GW stats
     for (String name : event.getLegacyPlanetNames()) {
       clauses.add("name==\"*" + name.replace("\"", "\\\"") + "*\"");
     }
