@@ -97,16 +97,18 @@ public class MapBean implements Comparable<MapBean> {
     mapBean.setRanked(mapVersion.getRanked());
     mapBean.setHidden(mapVersion.getHidden());
     mapBean.setReviewsSummary(ReviewsSummary.fromDto(map.getMapReviewsSummary()));
-    map.getVersions().forEach(v -> {
-      if (v.getReviews() != null) {
-        v.getReviews().forEach(mapVersionReview -> {
-          Review review = Review.fromDto(mapVersionReview);
-          review.setVersion(mapVersion.getVersion());
-          review.setLatestVersion(map.getLatestVersion().getVersion());
-          mapBean.getReviews().add(review);
-        });
-      }
-    });
+    if (map.getVersions() != null) {
+      map.getVersions().forEach(v -> {
+        if (v.getReviews() != null) {
+          v.getReviews().forEach(mapVersionReview -> {
+            Review review = Review.fromDto(mapVersionReview);
+            review.setVersion(mapVersion.getVersion());
+            review.setLatestVersion(map.getLatestVersion().getVersion());
+            mapBean.getReviews().add(review);
+          });
+        }
+      });
+    }
     return mapBean;
   }
 
