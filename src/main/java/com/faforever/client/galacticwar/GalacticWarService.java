@@ -171,6 +171,25 @@ public class GalacticWarService implements InitializingBean {
     return icon;
   }
 
+  /**
+   * Get a GW rank icon Image for a player in the given galaxy (from live scenario data).
+   * Returns null if the player has no GW XP in that galaxy.
+   */
+  public Image getMedalImageForGalaxy(int playerId, String galaxyTechnicalName) {
+    Scenario scenario = scenarios.get(galaxyTechnicalName);
+    if (scenario == null) return null;
+
+    Optional<FactionScoreRank> scoreRank = scenario.getFactionScoreRank(playerId);
+    if (scoreRank.isEmpty()) return null;
+
+    String factionName = scoreRank.get().faction().getString().toUpperCase();
+    GwRank rank = scoreRank.get().rank();
+    if (factionName == null || rank == null) return null;
+
+    String iconPath = scenario.getMedalIconPath(factionName, rank);
+    return MEDAL_IMAGE_CACHE.computeIfAbsent(iconPath, path -> new Image(path, true));
+  }
+
   public ImageView getMedalIcon(int playerId, String planetName) {
 
     if (planetName == null || planetName.isBlank()) {

@@ -4,6 +4,9 @@ import com.faforever.client.chat.avatar.AvatarService;
 import com.faforever.client.clan.Clan;
 import com.faforever.client.clan.ClanService;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.galacticwar.GalacticWarService;
+import com.faforever.client.game.Game;
+import com.faforever.client.game.GameService;
 import com.faforever.client.game.PlayerStatus;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapService;
@@ -19,7 +22,13 @@ import javafx.scene.paint.Color;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -44,10 +53,35 @@ public class ChatUserService implements InitializingBean {
   private final PreferencesService preferencesService;
   private final I18n i18n;
   private final EventBus eventBus;
+  private final ObjectProvider<GameService> gameServiceProvider;
+  private final ObjectProvider<GalacticWarService> galacticWarServiceProvider;
+
+  private final Set<ChatChannelUser> trackedUsers = Collections.newSetFromMap(new WeakHashMap<>());
+
+  private boolean gameListenerRegistered = false;
 
   @Override
   public void afterPropertiesSet() {
     eventBus.register(this);
+  }
+
+  private void ensureGameListener() {
+    if (!gameListenerRegistered) {
+      gameListenerRegistered = true;
+      JavaFxUtil.addListener(gameServiceProvider.getObject().getCurrentGameProperty(), (obs, oldGame, newGame) -> {
+        boolean wasGw = oldGame != null && oldGame.getGalacticWarPlanetName() != null && !oldGame.getGalacticWarPlanetName().isBlank();
+        boolean isGw = newGame != null && newGame.getGalacticWarPlanetName() != null && !newGame.getGalacticWarPlanetName().isBlank();
+        if (wasGw != isGw || (wasGw && !Objects.equals(oldGame.getGalacticWarPlanetName(), newGame.getGalacticWarPlanetName()))) {
+          repopulateAllAvatars();
+        }
+      });
+    }
+  }
+
+  private void repopulateAllAvatars() {
+    synchronized (trackedUsers) {
+      trackedUsers.forEach(this::populateAvatar);
+    }
   }
 
   private void populateClan(ChatChannelUser chatChannelUser) {
@@ -73,17 +107,37 @@ public class ChatUserService implements InitializingBean {
     if (chatChannelUser.isDisplayed()) {
       chatChannelUser.getPlayer()
           .ifPresent(player -> {
-            Image avatar;
-            if (!Strings.isNullOrEmpty(player.getAvatarUrl())) {
-              avatar = avatarService.loadAvatar(player.getAvatarUrl());
-            } else {
-              avatar = null;
-            }
+            Image avatar = getGwAvatarOrDefault(player);
             JavaFxUtil.runLater(() -> chatChannelUser.setAvatar(avatar));
           });
     } else {
       chatChannelUser.setAvatar(null);
     }
+  }
+
+  private Image getGwAvatarOrDefault(Player player) {
+    String gwGalaxy = getActiveGwGalaxy();
+    if (gwGalaxy != null) {
+      // In a GW game: show GW rank icon, or null if no XP in this galaxy
+      return galacticWarServiceProvider.getObject().getMedalImageForGalaxy(player.getId(), gwGalaxy);
+    }
+    // Not in a GW game: show normal avatar
+    if (!Strings.isNullOrEmpty(player.getAvatarUrl())) {
+      return avatarService.loadAvatar(player.getAvatarUrl());
+    }
+    return null;
+  }
+
+  /**
+   * Returns the galaxy technical name if the current player is in a GW game, null otherwise.
+   */
+  private String getActiveGwGalaxy() {
+    Game currentGame = gameServiceProvider.getObject().getCurrentGame();
+    if (currentGame == null) return null;
+    String planetName = currentGame.getGalacticWarPlanetName();
+    if (planetName == null || planetName.isBlank()) return null;
+    int slashIdx = planetName.indexOf('/');
+    return slashIdx >= 0 ? planetName.substring(0, slashIdx) : null;
   }
 
   private void populateCountry(ChatChannelUser chatChannelUser) {
@@ -181,7 +235,9 @@ public class ChatUserService implements InitializingBean {
 
   public void associatePlayerToChatUser(ChatChannelUser chatChannelUser, Player player) {
     if (player != null && chatChannelUser.getPlayer().filter(userPlayer -> userPlayer.getUsername().equals(player.getUsername())).isEmpty()) {
+      ensureGameListener();
       chatChannelUser.setPlayer(player);
+      synchronized (trackedUsers) { trackedUsers.add(chatChannelUser); }
       populateGameImages(chatChannelUser);
       populateClan(chatChannelUser);
       populateCountry(chatChannelUser);
