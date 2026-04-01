@@ -18,6 +18,8 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleListProperty;
 import javafx.beans.property.SimpleMapProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
@@ -57,6 +59,7 @@ public class ChatPrefs {
   private final ObjectProperty<ChatFormat> chatFormat = new SimpleObjectProperty<>(ChatFormat.COMPACT);
   private final IntegerProperty idleThreshold = new SimpleIntegerProperty(10);
   private final ListProperty<ToxicitySetting> toxicitySettings3 = new SimpleListProperty<>(FXCollections.observableArrayList());
+  private final StringProperty iconMode = new SimpleStringProperty("avatar");
   private ListProperty<String> autoJoinChannels2;
 
   private ChatPrefs() {
@@ -258,5 +261,9 @@ public class ChatPrefs {
   public BooleanProperty playerListShownProperty() {
     return playerListShown;
   }
+
+  public String getIconMode() { return iconMode.get(); }
+  public void setIconMode(String mode) { iconMode.set(mode); }
+  public StringProperty iconModeProperty() { return iconMode; }
 
 }

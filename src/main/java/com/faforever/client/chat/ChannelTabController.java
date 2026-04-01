@@ -5,6 +5,7 @@ import com.faforever.client.chat.event.ChatUserCategoryChangeEvent;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.fx.WebViewConfigurer;
+import com.faforever.client.galacticwar.GalacticWarService;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.Player;
@@ -110,6 +111,7 @@ public class ChannelTabController extends AbstractChatTabController {
 
   private final AutoCompletionHelper autoCompletionHelper;
   private final PlatformService platformService;
+  private final GalacticWarService galacticWarService;
   public SplitPane splitPane;
   public ToggleButton advancedUserFilter;
   public HBox searchFieldContainer;
@@ -125,6 +127,7 @@ public class ChannelTabController extends AbstractChatTabController {
   public TextFlow topicText;
   public ToggleButton toggleSidePaneButton;
   public Label userListTitleLabel;
+  public javafx.scene.control.ComboBox<String> iconModeComboBox;
   private ChatChannel chatChannel;
   private final InvalidationListener channelTopicListener = observable -> JavaFxUtil.runLater(this::updateChannelTopic);
   private Popup filterUserPopup;
@@ -145,12 +148,14 @@ public class ChannelTabController extends AbstractChatTabController {
       PlayerService playerService, AudioService audioService, TimeService timeService, I18n i18n,
       ImageUploadService imageUploadService, NotificationService notificationService, ReportingService reportingService,
       UiService uiService, EventBus eventBus, WebViewConfigurer webViewConfigurer,
-      CountryFlagService countryFlagService, PlatformService platformService, ChatUserService chatUserService) {
+      CountryFlagService countryFlagService, PlatformService platformService, ChatUserService chatUserService,
+      GalacticWarService galacticWarService) {
 
     super(webViewConfigurer, userService, chatService, preferencesService, playerService, audioService,
         timeService, i18n, imageUploadService, notificationService, reportingService, uiService,
         eventBus, countryFlagService, chatUserService);
     this.platformService = platformService;
+    this.galacticWarService = galacticWarService;
 
     categoriesToUserListItems = new HashMap<>();
     categoriesToCategoryListItems = new HashMap<>();
@@ -277,6 +282,7 @@ public class ChannelTabController extends AbstractChatTabController {
   public void initialize() {
     super.initialize();
 
+    initIconModeComboBox();
     userSearchTextField.textProperty().addListener((observable, oldValue, newValue) -> userFilterController.filterUsers());
 
     channelTabScrollPaneVBox.setMinWidth(preferencesService.getPreferences().getChat().getChannelTabScrollPaneWidth());
@@ -303,6 +309,36 @@ public class ChannelTabController extends AbstractChatTabController {
   @Override
   public void setSidePaneEnabled(boolean enabled) {
     toggleSidePaneButton.setSelected(enabled);
+  }
+
+  private void initIconModeComboBox() {
+    Map<String, String> galaxyNames = galacticWarService.getGalaxyDisplayNames();
+
+    // Build value→display mapping
+    Map<String, String> valueToDisplay = new java.util.LinkedHashMap<>();
+    valueToDisplay.put(ChatUserService.ICON_MODE_NONE, i18n.get("chat.iconMode.none"));
+    valueToDisplay.put(ChatUserService.ICON_MODE_AVATAR, i18n.get("chat.iconMode.avatar"));
+    galaxyNames.forEach((techName, displayName) ->
+        valueToDisplay.put(techName, i18n.get("chat.iconMode.gwRanks", displayName)));
+
+    iconModeComboBox.getItems().addAll(valueToDisplay.keySet());
+    iconModeComboBox.setConverter(new javafx.util.StringConverter<>() {
+      @Override public String toString(String value) { return valueToDisplay.getOrDefault(value, value); }
+      @Override public String fromString(String string) { return string; }
+    });
+
+    // Sync combobox ↔ chatUserService.iconMode
+    iconModeComboBox.setValue(chatUserService.getIconMode());
+    iconModeComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
+      if (newVal != null && !newVal.equals(chatUserService.getIconMode())) {
+        chatUserService.setIconModeManual(newVal);
+      }
+    });
+    chatUserService.iconModeProperty().addListener((obs, oldVal, newVal) -> {
+      if (newVal != null && !newVal.equals(iconModeComboBox.getValue())) {
+        JavaFxUtil.runLater(() -> iconModeComboBox.setValue(newVal));
+      }
+    });
   }
 
   private void initializeSideToggle() {

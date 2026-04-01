@@ -17,6 +17,8 @@ import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.theme.UiService;
 import com.google.common.base.Strings;
 import com.google.common.eventbus.EventBus;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import lombok.RequiredArgsConstructor;
@@ -58,24 +60,60 @@ public class ChatUserService implements InitializingBean {
 
   private final Set<ChatChannelUser> trackedUsers = Collections.newSetFromMap(new WeakHashMap<>());
 
+  /** Icon mode: "avatar" for normal avatars, "none" for no icons, or a galaxy technical name for GW rank icons. */
+  public static final String ICON_MODE_AVATAR = "avatar";
+  public static final String ICON_MODE_NONE = "none";
+  private final StringProperty iconMode = new SimpleStringProperty(ICON_MODE_AVATAR);
+  private boolean inGwOverride = false;
   private boolean gameListenerRegistered = false;
+
+  public StringProperty iconModeProperty() { return iconMode; }
+  public String getIconMode() { return iconMode.get(); }
+
+  /** Called by the combobox when the user manually selects a mode. Always persists. */
+  public void setIconModeManual(String mode) {
+    iconMode.set(mode);
+    preferencesService.getPreferences().getChat().setIconMode(mode);
+    preferencesService.storeInBackground();
+  }
 
   @Override
   public void afterPropertiesSet() {
     eventBus.register(this);
+    // Load persisted setting
+    String persisted = preferencesService.getPreferences().getChat().getIconMode();
+    if (persisted != null) {
+      iconMode.set(persisted);
+    }
+    iconMode.addListener((obs, oldVal, newVal) -> repopulateAllAvatars());
   }
 
   private void ensureGameListener() {
     if (!gameListenerRegistered) {
       gameListenerRegistered = true;
       JavaFxUtil.addListener(gameServiceProvider.getObject().getCurrentGameProperty(), (obs, oldGame, newGame) -> {
-        boolean wasGw = oldGame != null && oldGame.getGalacticWarPlanetName() != null && !oldGame.getGalacticWarPlanetName().isBlank();
-        boolean isGw = newGame != null && newGame.getGalacticWarPlanetName() != null && !newGame.getGalacticWarPlanetName().isBlank();
-        if (wasGw != isGw || (wasGw && !Objects.equals(oldGame.getGalacticWarPlanetName(), newGame.getGalacticWarPlanetName()))) {
-          repopulateAllAvatars();
+        String newGwGalaxy = extractGalaxy(newGame);
+        String oldGwGalaxy = extractGalaxy(oldGame);
+        if (newGwGalaxy != null && !newGwGalaxy.equals(oldGwGalaxy)) {
+          // Entering a GW game: temporarily override without persisting
+          inGwOverride = true;
+          JavaFxUtil.runLater(() -> iconMode.set(newGwGalaxy));
+        } else if (newGwGalaxy == null && oldGwGalaxy != null) {
+          // Leaving a GW game: restore persisted setting
+          inGwOverride = false;
+          String persisted = preferencesService.getPreferences().getChat().getIconMode();
+          JavaFxUtil.runLater(() -> iconMode.set(persisted != null ? persisted : ICON_MODE_AVATAR));
         }
       });
     }
+  }
+
+  private static String extractGalaxy(Game game) {
+    if (game == null) return null;
+    String planetName = game.getGalacticWarPlanetName();
+    if (planetName == null || planetName.isBlank()) return null;
+    int slashIdx = planetName.indexOf('/');
+    return slashIdx >= 0 ? planetName.substring(0, slashIdx) : null;
   }
 
   private void repopulateAllAvatars() {
@@ -107,7 +145,7 @@ public class ChatUserService implements InitializingBean {
     if (chatChannelUser.isDisplayed()) {
       chatChannelUser.getPlayer()
           .ifPresent(player -> {
-            Image avatar = getGwAvatarOrDefault(player);
+            Image avatar = getIconForMode(player);
             JavaFxUtil.runLater(() -> chatChannelUser.setAvatar(avatar));
           });
     } else {
@@ -115,29 +153,19 @@ public class ChatUserService implements InitializingBean {
     }
   }
 
-  private Image getGwAvatarOrDefault(Player player) {
-    String gwGalaxy = getActiveGwGalaxy();
-    if (gwGalaxy != null) {
-      // In a GW game: show GW rank icon, or null if no XP in this galaxy
-      return galacticWarServiceProvider.getObject().getMedalImageForGalaxy(player.getId(), gwGalaxy);
+  private Image getIconForMode(Player player) {
+    String mode = getIconMode();
+    if (ICON_MODE_NONE.equals(mode)) {
+      return null;
     }
-    // Not in a GW game: show normal avatar
-    if (!Strings.isNullOrEmpty(player.getAvatarUrl())) {
-      return avatarService.loadAvatar(player.getAvatarUrl());
+    if (ICON_MODE_AVATAR.equals(mode)) {
+      if (!Strings.isNullOrEmpty(player.getAvatarUrl())) {
+        return avatarService.loadAvatar(player.getAvatarUrl());
+      }
+      return null;
     }
-    return null;
-  }
-
-  /**
-   * Returns the galaxy technical name if the current player is in a GW game, null otherwise.
-   */
-  private String getActiveGwGalaxy() {
-    Game currentGame = gameServiceProvider.getObject().getCurrentGame();
-    if (currentGame == null) return null;
-    String planetName = currentGame.getGalacticWarPlanetName();
-    if (planetName == null || planetName.isBlank()) return null;
-    int slashIdx = planetName.indexOf('/');
-    return slashIdx >= 0 ? planetName.substring(0, slashIdx) : null;
+    // Galaxy technical name: show GW rank icon
+    return galacticWarServiceProvider.getObject().getMedalImageForGalaxy(player.getId(), mode);
   }
 
   private void populateCountry(ChatChannelUser chatChannelUser) {

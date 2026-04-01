@@ -143,6 +143,13 @@ public class GalacticWarService implements InitializingBean {
     return scenarios.getOrDefault(galaxyTechnicalName, null);
   }
 
+  /** Returns a map of galaxy technical name → display name for all loaded scenarios. */
+  public Map<String, String> getGalaxyDisplayNames() {
+    Map<String, String> result = new java.util.LinkedHashMap<>();
+    scenarios.forEach((techName, scenario) -> result.put(techName, scenario.getDisplayName()));
+    return result;
+  }
+
   /**
    * Get a GW rank icon from stored faction name and rank tier (0-based, as persisted in gw_game_player_stats).
    */
