@@ -1,119 +1,94 @@
 # Contributing to FAF
 
-Thanks for your interest in contributing ❤️  
-We welcome contributions, but we also aim to keep the project maintainable and focused.  
-Please read this guide before starting any work.
+Thanks for your interest in contributing.
+
+This project accepts contributions, but we try to keep things focused and maintainable. Please read this before starting any work.
 
 ---
 
-## 🚦 Contribution Process (Read This First)
+## Contribution Process
 
-**Do not start coding immediately.**
+Please don’t start coding straight away.
 
 1. Create or find an existing GitHub issue describing the change
 2. Wait for a maintainer to confirm the idea or assign the issue
 3. Only then start implementation
 
-> Pull requests for unapproved or unassigned issues may be closed without review.
+Creating an issue alone is not enough — it needs to be acknowledged first.
 
-This helps avoid duplicate work and ensures contributions align with the project’s direction.
+Pull requests for unapproved or unassigned issues may be closed without review. This is mainly to avoid duplicated work and features that don’t fit the current direction.
 
 ---
 
-## 🎯 What to Work On
+## What to Work On
 
-Good contributions typically:
+Good contributions usually:
 - Fix bugs
 - Improve stability or performance
-- Implement features that have been discussed and approved
-- Address existing issues
+- Implement features that have already been discussed
 
-Before starting, ask:
-> “Is this something the maintainers actually want?”
+If you’re unsure whether something is worth doing, ask first.
 
 ---
 
-## 🔒 Maintainer Control & Expectations
+## Pull Requests
 
-- Maintainers have limited time; **not all PRs will be reviewed**
-- Meeting technical guidelines does **not guarantee acceptance**
-- Priority is given to contributions aligned with current goals
-- PRs that are out of scope may be closed
+Keep pull requests small and focused.
 
----
+- One feature or fix per PR
+- Avoid unrelated refactoring
+- Don’t bundle multiple changes together
 
-## 📦 Pull Request Guidelines
-
-Keep PRs:
-- **Small** – one feature or fix per PR
-- **Focused** – no unrelated refactoring
-- **Understandable** – easy to review quickly
-
-Avoid:
-- Large multi-feature PRs
-- Mixing refactoring with feature work
-- Rewriting existing systems without prior discussion
+Large or unfocused PRs are difficult to review and are likely to be closed.
 
 ---
 
-## 🤖 AI-Assisted Contributions
+## Expectations
+
+- Maintainers have limited time; not all PRs will be reviewed
+- Following the guidelines does not guarantee a PR will be merged
+- Work that doesn’t align with current priorities may be rejected
+
+---
+
+## AI-Assisted Contributions
 
 Tools like GitHub Copilot or Claude are fine to use.
 
-However:
-- You are responsible for understanding the code you submit
-- PRs must follow project standards and conventions
-- Low-effort or unreviewed AI-generated code may be rejected
+That said, you’re responsible for what you submit. PRs should meet the same standards as any other contribution. Low-effort or poorly understood code is unlikely to be accepted.
 
 ---
 
-## 🧪 Definition of Done
+## Definition of Done
 
-To be considered complete, a contribution must:
-- Follow existing code style and conventions
-- Be readable and maintainable
-- Include appropriate tests (aim for high coverage)
-- Be reviewed by another contributor (if applicable)
-- Be ready to merge into `develop`
-
----
-
-## 🧹 Code Quality Guidelines
-
-- Prefer readable, explicit code over clever or complex solutions
-- Keep style consistent with the existing codebase
-- Use clear, descriptive names
-- Avoid unnecessary comments — write self-explanatory code where possible
-- Mark temporary or incomplete work with `TODO` or `FIXME`
+A change is considered ready when it:
+- Follows existing code style and structure
+- Is readable and maintainable
+- Includes appropriate tests (aim for high coverage)
+- Is in a state that could be merged into `develop`
 
 ---
 
-## 🔀 Workflow
+## Code Guidelines
+
+- Prefer clear and explicit code over clever or complex solutions
+- Keep naming consistent and descriptive
+- Match the existing style of the codebase
+- Avoid unnecessary comments; code should be self-explanatory where possible
+- Use `TODO` and `FIXME` for incomplete or temporary work
+
+---
+
+## Workflow
 
 - Base your work on the latest `develop` branch
-- Create a feature branch: `feature/#<issue-id>-short-description`
+- Create a feature branch named like `feature/#123-short-description`
 - Reference the issue ID in commits and PRs
 
-Example:
-
-```
-feature/#123-replay-vault-toggle
-```
-
 ---
 
-## 🗣 Communication
+## Communication
 
-- Be respectful and constructive
-- Keep discussions focused and concise
-- If unsure about something, ask before implementing
+Keep discussion constructive and to the point.
 
----
-
-## ❗ Final Notes
-
-Contributions are appreciated, but **quality and maintainability come first**.
-
-It’s better to discuss and align early than to spend time on work that may not be merged.
-
-Thanks for helping improve FAF 🚀
+If something is unclear, it’s better to ask before implementing than after.
