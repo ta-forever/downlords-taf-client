@@ -380,6 +380,16 @@ public class Replay {
     this.teamPlayerStats.set(teamPlayerStats);
   }
 
+  public Optional<String> getWinningTeamId() {
+    if (getTeams().size() <= 1) {
+      return Optional.empty();
+    }
+    return getTeamPlayerStats().entrySet().stream()
+        .max(java.util.Comparator.comparingInt(entry ->
+            entry.getValue().stream().mapToInt(PlayerStats::getScore).sum()))
+        .map(java.util.Map.Entry::getKey);
+  }
+
   public MapProperty<String, List<PlayerStats>> teamPlayerStatsProperty() {
     return teamPlayerStats;
   }

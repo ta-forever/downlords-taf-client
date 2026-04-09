@@ -45,6 +45,7 @@
                 mnemonicParsing="false"
                 onAction="#onSavedQueriesButtonClicked" text="%vault.savedQueries"/>
         <CheckBox fx:id="displayQueryCheckBox" mnemonicParsing="false" text="%vault.replays.displayQuery"/>
+        <CheckBox fx:id="showWinnersCheckBox" mnemonicParsing="false" text="%vault.replays.showWinners" visible="false"/>
     </HBox>
     <TextField fx:id="queryTextField" onAction="#onSearchButtonClicked" maxWidth="1.7976931348623157E308"
                promptText="%vault.replays.queryPrompt"/>
