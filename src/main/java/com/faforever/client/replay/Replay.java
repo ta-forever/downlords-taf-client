@@ -41,6 +41,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -384,10 +385,30 @@ public class Replay {
     if (getTeams().size() <= 1) {
       return Optional.empty();
     }
-    return getTeamPlayerStats().entrySet().stream()
-        .max(java.util.Comparator.comparingInt(entry ->
-            entry.getValue().stream().mapToInt(PlayerStats::getScore).sum()))
-        .map(java.util.Map.Entry::getKey);
+
+    // 1. Try to determine winner by Score
+    Map<String, Integer> scoreTotals = getTeamPlayerStats().entrySet().stream()
+        .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().stream().mapToInt(PlayerStats::getScore).sum()));
+
+    Integer maxScore = scoreTotals.values().stream().max(Integer::compareTo).orElse(0);
+    List<String> scoreWinners = scoreTotals.entrySet().stream()
+        .filter(e -> e.getValue().equals(maxScore)).map(Map.Entry::getKey).toList();
+
+    if (scoreWinners.size() == 1) {
+      return Optional.of(scoreWinners.get(0));
+    }
+
+    // 2. Fallback: Determine winner by MeanDelta
+    Map<String, Double> deltaTotals = getTeamPlayerStats().entrySet().stream()
+        .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().stream()
+            .mapToDouble(s -> (s.getBeforeMean() == null || s.getAfterMean() == null) ? 0d : s.getAfterMean() - s.getBeforeMean())
+            .sum()));
+
+    double maxDelta = deltaTotals.values().stream().mapToDouble(Double::doubleValue).max().orElse(0.0);
+    List<String> deltaWinners = deltaTotals.entrySet().stream()
+        .filter(e -> Double.compare(e.getValue(), maxDelta) == 0).map(Map.Entry::getKey).toList();
+
+    return (deltaWinners.size() == 1) ? Optional.of(deltaWinners.get(0)) : Optional.empty();
   }
 
   public MapProperty<String, List<PlayerStats>> teamPlayerStatsProperty() {
