@@ -62,7 +62,7 @@
                       <ToggleButton fx:id="leaderboardsButton" minWidth="-Infinity" mnemonicParsing="false"
                                     onAction="#onNavigateButtonClicked" styleClass="main-navigation-button"
                                     text="%main.leaderboards" toggleGroup="$mainNavigation"/>
-                      <ToggleButton fx:id="tournamentsButton" disable="true"  minWidth="-Infinity" mnemonicParsing="false"
+                      <ToggleButton fx:id="tournamentsButton" minWidth="-Infinity" mnemonicParsing="false"
                                     onAction="#onNavigateButtonClicked" styleClass="main-navigation-button"
                                     text="%main.tournaments" toggleGroup="$mainNavigation"/>
                       <ToggleButton fx:id="tutorialsButton" disable="true" minWidth="-Infinity" mnemonicParsing="false"

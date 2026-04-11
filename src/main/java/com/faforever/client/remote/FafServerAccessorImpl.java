@@ -16,12 +16,15 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.legacy.UidService;
 import com.faforever.client.login.LoginFailedException;
 import com.faforever.client.net.ConnectionState;
+import com.faforever.client.notification.Action;
 import com.faforever.client.notification.CopyErrorAction;
 import com.faforever.client.notification.DismissAction;
 import com.faforever.client.notification.GetHelpAction;
 import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.NotificationService;
+import com.faforever.client.notification.PersistentNotification;
 import com.faforever.client.notification.Severity;
+import com.faforever.client.notification.TransientNotification;
 import com.faforever.client.player.Player;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.rankedmatch.MatchmakerInfoClientMessage;
@@ -38,6 +41,15 @@ import com.faforever.client.remote.domain.ClosePlayersFAMessage;
 import com.faforever.client.remote.domain.ClosePlayersLobbyMessage;
 import com.faforever.client.remote.domain.FafServerMessageType;
 import com.faforever.client.remote.domain.SetGalacticWarMapMessage;
+import com.faforever.client.remote.domain.TournamentSignupMessage;
+import com.faforever.client.remote.domain.TournamentTeamAcceptInviteMessage;
+import com.faforever.client.remote.domain.TournamentTeamCreateMessage;
+import com.faforever.client.remote.domain.TournamentTeamDeclineInviteMessage;
+import com.faforever.client.remote.domain.TournamentTeamDisbandMessage;
+import com.faforever.client.remote.domain.TournamentTeamInviteMessage;
+import com.faforever.client.remote.domain.TournamentTeamLeaveMessage;
+import com.faforever.client.remote.domain.TournamentTeamRemoveMemberMessage;
+import com.faforever.client.remote.domain.TournamentWithdrawMessage;
 import com.faforever.client.remote.domain.GameAccess;
 import com.faforever.client.remote.domain.GameLaunchMessage;
 import com.faforever.client.remote.domain.GameMatchmakingMessage;
@@ -229,15 +241,100 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
       }
     }
 
+    String kind = noticeMessage.getKind();
+    Integer tournamentId = noticeMessage.getTournamentId();
+
+    // Auto-refresh signal: any notice tagged with a tournament_id triggers a
+    // RefreshTournamentsEvent so the player client reloads the affected
+    // tournament without the user having to click Refresh. Fires regardless of
+    // kind (display + refresh both happen for tournament-tagged notices).
+    if (tournamentId != null) {
+      eventBus.post(new com.faforever.client.main.event.RefreshTournamentsEvent(tournamentId));
+    }
+
+    // "refresh" kind is display-only-skip — it exists purely to carry the
+    // tournament_id refresh signal above without showing anything to the user.
+    // Use cases: signup/withdraw, preview regeneration, mid-series score updates.
+    if ("refresh".equals(kind)) {
+      return;
+    }
+
     if (noticeMessage.getText() == null) {
       return;
     }
 
-    notificationService.addServerNotification(new ImmediateNotification(
-        i18n.get("messageFromServer"),
-        noticeMessage.getI18nKey() == null ? noticeMessage.getText() : i18n.get(noticeMessage.getI18nKey()),
-        noticeMessage.getSeverity(),
-        Collections.singletonList(new DismissAction(i18n))));
+    String body = noticeMessage.getI18nKey() == null
+        ? noticeMessage.getText()
+        : i18n.get(noticeMessage.getI18nKey());
+    String title = i18n.get("messageFromServer");
+
+    // Notification kind dispatch:
+    //  - "transient": brief toast (announce pings, auto-start, auto-cancel,
+    //    series progress, chain advancement — informational, no action needed)
+    //  - "persistent": bell-icon list (tournament-complete results — players
+    //    might want to see them later)
+    //  - "immediate" or null/unknown: modal dialog (urgent — match is ready,
+    //    server kick, kill, etc.). Defaulting to immediate preserves the legacy
+    //    behavior so any other server-side message that doesn't set kind keeps
+    //    its existing UX.
+    //
+    // Each tournament-categorized kind ALSO honours the corresponding settings
+    // toggle in Settings → Notifications. Legacy/non-tournament server messages
+    // (kind == null) bypass the gate so things like server kicks always reach
+    // the player.
+    com.faforever.client.preferences.NotificationsPrefs prefs =
+        preferencesService.getPreferences().getNotification();
+    // Build action list for immediate/persistent notifications. When
+    // tagged with a tournament_id, add a "View Tournament" button that
+    // navigates to the tournaments tab AND selects the specific tournament.
+    // Transient toasts don't get buttons (they fade too fast to be useful).
+    final Integer tid = tournamentId;
+    java.util.List<Action> tournamentActions = new java.util.ArrayList<>();
+    if (tid != null) {
+      tournamentActions.add(new Action(i18n.get("tournament.viewTournament"), e -> {
+        eventBus.post(new com.faforever.client.main.event.NavigateEvent(
+            com.faforever.client.main.event.NavigationItem.TOURNAMENTS));
+        // Post refresh with the tournament id so the tab selects it
+        eventBus.post(new com.faforever.client.main.event.RefreshTournamentsEvent(tid, true));
+      }));
+    }
+    tournamentActions.add(new DismissAction(i18n));
+
+    if ("transient".equals(kind)) {
+      if (!prefs.isTournamentAnnouncementsEnabled()) {
+        log.debug("Suppressing transient tournament notification (user disabled): {}", body);
+        return;
+      }
+      // Transient = plain toast, no buttons, even with tournament_id.
+      // Used for announce pings, chain advancement — informational only.
+      notificationService.addNotification(new TransientNotification(title, body));
+    } else if ("persistent".equals(kind)) {
+      if (!prefs.isTournamentResultsEnabled()) {
+        log.debug("Suppressing persistent tournament notification (user disabled): {}", body);
+        return;
+      }
+      // Bell-icon with "View Tournament" button. Used for tournament
+      // complete, started, cancelled.
+      notificationService.addNotification(new PersistentNotification(body, noticeMessage.getSeverity(), tournamentActions));
+    } else if ("immediate".equals(kind)) {
+      // Tournament match-ready alerts can be muted by users who don't play
+      // tournaments. Non-tournament immediate notices (kind == null) do NOT
+      // hit this branch and are always shown.
+      if (!prefs.isTournamentMatchReadyEnabled()) {
+        log.debug("Suppressing immediate tournament notification (user disabled): {}", body);
+        return;
+      }
+      // Modal dialog with "View Tournament" button. Used for match-ready,
+      // team invites.
+      notificationService.addServerNotification(new ImmediateNotification(
+          title, body, noticeMessage.getSeverity(), tournamentActions));
+    } else {
+      // kind == null: legacy server message (chat ban, kick, anti-cheat, etc.)
+      // — always shown, no gate, no tournament button.
+      notificationService.addServerNotification(new ImmediateNotification(
+          title, body, noticeMessage.getSeverity(),
+          Collections.singletonList(new DismissAction(i18n))));
+    }
   }
 
   @Override
@@ -491,6 +588,53 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
   public void setGalacticWarMap(String galaxyTechnicalName, String planetName, String mapName) {
     writeToServer(new SetGalacticWarMapMessage(galaxyTechnicalName, planetName, mapName));
   }
+
+  @Override
+  public void tournamentSignup(int tournamentId) {
+    writeToServer(new TournamentSignupMessage(tournamentId));
+  }
+
+  @Override
+  public void tournamentWithdraw(int tournamentId) {
+    writeToServer(new TournamentWithdrawMessage(tournamentId));
+  }
+
+  @Override
+  public void tournamentTeamCreate(int tournamentId, String name) {
+    writeToServer(new TournamentTeamCreateMessage(tournamentId, name));
+  }
+
+  @Override
+  public void tournamentTeamInvite(int teamId, int inviteeId) {
+    writeToServer(new TournamentTeamInviteMessage(teamId, inviteeId));
+  }
+
+  @Override
+  public void tournamentTeamAcceptInvite(int inviteId) {
+    writeToServer(new TournamentTeamAcceptInviteMessage(inviteId));
+  }
+
+  @Override
+  public void tournamentTeamDeclineInvite(int inviteId) {
+    writeToServer(new TournamentTeamDeclineInviteMessage(inviteId));
+  }
+
+  @Override
+  public void tournamentTeamLeave(int teamId) {
+    writeToServer(new TournamentTeamLeaveMessage(teamId));
+  }
+
+  @Override
+  public void tournamentTeamRemoveMember(int teamId, int targetPlayerId) {
+    writeToServer(new TournamentTeamRemoveMemberMessage(teamId, targetPlayerId));
+  }
+
+  @Override
+  public void tournamentTeamDisband(int teamId) {
+    writeToServer(new TournamentTeamDisbandMessage(teamId));
+  }
+
+  // tournamentTeamList removed — reads go through the API now.
 
   @Override
   @Cacheable(value = CacheNames.AVAILABLE_AVATARS, sync = true)

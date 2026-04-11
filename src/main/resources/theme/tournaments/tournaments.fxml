@@ -1,34 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ListView?>
-<?import javafx.scene.control.ProgressIndicator?>
-<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
 <?import javafx.scene.layout.AnchorPane?>
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.web.WebView?>
-<AnchorPane xmlns:fx="http://javafx.com/fxml/1" fx:id="tournamentRoot" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" xmlns="http://javafx.com/javafx/8.0.141" fx:controller="com.faforever.client.tournament.TournamentsController">
-   <children>
-        <VBox fx:id="loadingIndicator" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-            <children>
-                <ProgressIndicator prefHeight="80.0" prefWidth="80.0"/>
-                <Label text="%loading">
-                    <VBox.margin>
-                        <Insets bottom="28.0" top="14.0" />
-                    </VBox.margin>
-                </Label>
-            </children>
-        </VBox>
-      <SplitPane fx:id="contentPane" dividerPositions="0.2" layoutX="143.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-         <items>
-             <ListView fx:id="tournamentListView" styleClass="tournament-list" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minWidth="100.0" prefWidth="240.0" />
-              <AnchorPane maxWidth="1.7976931348623157E308">
-                  <children>
-                      <WebView fx:id="tournamentDetailWebView" prefHeight="-1.0" prefWidth="-1.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
-                  </children>
-              </AnchorPane>
-         </items>
-      </SplitPane>
-   </children>
+<?import javafx.scene.layout.HBox?>
+
+<AnchorPane xmlns:fx="http://javafx.com/fxml/1"
+            fx:id="tournamentsRootPane"
+            xmlns="http://javafx.com/javafx/19"
+            fx:controller="com.faforever.client.tournament.TournamentsRootController"
+            maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
+  <children>
+    <TabPane fx:id="tournamentsTabPane"
+             tabClosingPolicy="UNAVAILABLE"
+             AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
+             AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+      <tabs>
+        <Tab text="%tournament.tab.brackets">
+          <fx:include fx:id="bracketsTab" source="tournament_brackets.fxml"/>
+        </Tab>
+        <Tab text="%tournament.tab.hallOfFame">
+          <fx:include fx:id="hallOfFameTab" source="hall_of_fame.fxml"/>
+        </Tab>
+      </tabs>
+    </TabPane>
+    <!-- Overlaid on the tab header bar, anchored top-right -->
+    <HBox alignment="CENTER_RIGHT" spacing="6.0" pickOnBounds="false" mouseTransparent="false"
+          fx:id="modFilterBar" AnchorPane.topAnchor="2.0" AnchorPane.leftAnchor="250.0">
+      <Label text="%hallOfFame.modFilter.label" style="-fx-text-fill: -fx-text-base-color;"/>
+      <ComboBox fx:id="modFilterCombo" prefWidth="180.0"/>
+    </HBox>
+  </children>
 </AnchorPane>

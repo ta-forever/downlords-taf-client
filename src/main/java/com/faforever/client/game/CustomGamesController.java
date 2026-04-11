@@ -178,7 +178,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
       eventBusRegistered = true;
     }
     if (navigateEvent instanceof HostGameEvent hostGameEvent) {
-      onCreateGame(hostGameEvent.getMapFolderName(), hostGameEvent.getContextGame());
+      onCreateGame(hostGameEvent.getMapFolderName(), hostGameEvent.getContextGame(), hostGameEvent);
     }
     else if (navigateEvent instanceof SelectGalacticWarMapEvent selectGalacticWarMapEvent) {
       onSelectGalacticWarMapEvent(selectGalacticWarMapEvent);
@@ -197,10 +197,11 @@ public class CustomGamesController extends AbstractViewController<Node> {
   }
 
   public void onCreateGameButtonClicked() {
-    onCreateGame(null, null);
+    onCreateGame(null, null, null);
   }
 
-  private void onCreateGame(@Nullable String mapFolderName, @Nullable Game contextGame) {
+  private void onCreateGame(@Nullable String mapFolderName, @Nullable Game contextGame,
+                              @Nullable HostGameEvent hostGameEvent) {
     if (createGameController == null) {
       createGameController = uiService.loadFxml("theme/play/create_game.fxml");
     }
@@ -209,10 +210,6 @@ public class CustomGamesController extends AbstractViewController<Node> {
 
     if (mapFolderName != null) {
       createGameController.resetMapSearch();
-    }
-
-    if (mapFolderName != null && !createGameController.selectMap(mapFolderName)) {
-      log.warn("Map with folder name '{}' could not be found in map list", mapFolderName);
     }
 
     Pane root = createGameController.getRoot();
@@ -232,6 +229,18 @@ public class CustomGamesController extends AbstractViewController<Node> {
     createGameDialog = uiService.showInDialog(createGameDialogRoot, root, title);
     createGameController.setOnCloseButtonClickedListener(() -> createGameDialog.close());
     createGameController.setGameTitle();
+
+    // Apply tournament-game presets first — this may switch the featured mod which
+    // triggers an asynchronous reload of the installed-maps list. selectMapWhenAvailable
+    // (below) installs a one-shot listener that selects the map as soon as it appears.
+    if (hostGameEvent != null) {
+      createGameController.applyHostGamePresets(hostGameEvent);
+    }
+
+    if (mapFolderName != null) {
+      createGameController.selectMapWhenAvailable(mapFolderName);
+    }
+
     root.requestFocus();
   }
 

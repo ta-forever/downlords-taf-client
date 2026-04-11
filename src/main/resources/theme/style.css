@@ -594,6 +594,9 @@
   -fx-background-color: -bad;
 }
 
+/* Bell icon pulse animation is driven by MainController via a
+   ScaleTransition (JavaFX CSS doesn't support @keyframes). */
+
 /***************** Transient Notification *****************/
 
 .transient-notification {
@@ -1178,6 +1181,281 @@
   -fx-min-height: 6em;
   -fx-padding: 0 10 10 10;
   -fx-background-color: linear-gradient(#00000000, #000000ff);
+}
+
+/* Tournament game list cards. Padding is on the wrapper (not the active class)
+   so active and non-active cards have identical layout — otherwise the thumbnail
+   visibly jumps when the active border appears or disappears between renders. */
+.map-showcase-card-wrapper {
+  -fx-padding: 5;
+}
+/* Highlight the user's next-to-play card. Pure border/background styling:
+   no -fx-effect (gaussian dropshadow is GPU-expensive and tanks performance
+   for users on VMs without hardware acceleration). */
+.map-showcase-card-active {
+  -fx-border-color: -fx-accent;
+  -fx-border-width: 3;
+  -fx-border-radius: 4;
+  -fx-background-color: derive(-fx-accent, -60%);
+  -fx-background-radius: 4;
+}
+
+/***************** Tournament detail (native FX, replaces WebView) *****************/
+
+/* Base font bump for the tournament list and detail panes */
+.tournament-list .list-cell {
+  -fx-font-size: 1.1em;
+}
+.tournament-detail {
+  -fx-font-size: 1.1em;
+}
+
+.tournament-detail .tournament-title {
+  -fx-font-size: 1.6em;
+  -fx-font-weight: bold;
+}
+.tournament-detail .tournament-status {
+  -fx-font-size: 1.05em;
+  -fx-font-weight: bold;
+}
+.tournament-detail .tournament-status.status-underway { -fx-text-fill: -good; }
+.tournament-detail .tournament-status.status-pending  { -fx-text-fill: -fx-accent; }
+.tournament-detail .tournament-status.status-complete { -fx-text-fill: derive(-fx-text-base-color, -25%); }
+
+.tournament-detail .settings-grid .settings-label {
+  -fx-text-fill: derive(-fx-text-base-color, -25%);
+  -fx-padding: 2 14 2 0;
+}
+.tournament-detail .settings-grid .settings-value {
+  -fx-padding: 2 0 2 0;
+}
+
+.tournament-detail .description-label {
+  -fx-wrap-text: true;
+}
+
+.tournament-detail .bracket-section-label {
+  -fx-font-size: 1.05em;
+  -fx-font-weight: bold;
+  -fx-padding: 8 0 4 0;
+}
+
+.bracket-scroll {
+  -fx-background-color: transparent;
+  -fx-padding: 0;
+}
+.bracket-scroll > .viewport {
+  -fx-background-color: transparent;
+}
+.bracket-row {
+  -fx-spacing: 8;
+  -fx-padding: 4 0 4 0;
+}
+.bracket-round {
+  -fx-spacing: 6;
+  -fx-min-width: 160;
+  -fx-pref-width: 180;
+  -fx-alignment: TOP_CENTER;
+}
+.bracket-round-label {
+  -fx-text-fill: derive(-fx-text-base-color, -25%);
+  -fx-font-size: 0.85em;
+  -fx-font-weight: bold;
+  -fx-padding: 0 0 4 0;
+}
+/* The match itself — clickable. State variants change the border color. */
+.bracket-match {
+  -fx-background-color: derive(-fx-base, 8%);
+  -fx-background-radius: 4;
+  -fx-border-color: derive(-fx-base, 25%);
+  -fx-border-radius: 4;
+  -fx-border-width: 1;
+  -fx-padding: 0;
+  -fx-cursor: hand;
+}
+.bracket-match:hover {
+  -fx-background-color: derive(-fx-base, 18%);
+}
+.bracket-match.bracket-match-open      { -fx-border-color: -good; }
+.bracket-match.bracket-match-complete  { -fx-border-color: derive(-fx-base, 30%); }
+.bracket-match.bracket-match-pending   { -fx-border-color: derive(-fx-base, 25%); }
+.bracket-match.bracket-match-preview {
+  -fx-border-color: derive(-fx-base, 25%);
+  -fx-border-style: segments(4, 4);
+  -fx-opacity: 0.85;
+}
+/* The user's next-to-play match — blue frame so it's obvious at a glance. */
+.bracket-match.bracket-match-user-next {
+  -fx-border-color: -fx-accent;
+  -fx-border-width: 2;
+}
+/* The currently-selected match (whatever the user clicked on).
+   Background tint instead of -fx-effect so we don't pay GPU compositor cost
+   for the same reason we dropped the gaussian dropshadow elsewhere. The
+   user-next blue border is on a separate property channel and still stacks. */
+.bracket-match.bracket-match-selected {
+  -fx-background-color: derive(-fx-accent, -50%);
+}
+.bracket-match.bracket-match-selected:hover {
+  -fx-background-color: derive(-fx-accent, -40%);
+}
+
+.bracket-slot {
+  -fx-padding: 4 8 4 8;
+  -fx-spacing: 6;
+  -fx-alignment: CENTER_LEFT;
+}
+.bracket-slot-divider {
+  -fx-min-height: 1;
+  -fx-pref-height: 1;
+  -fx-background-color: derive(-fx-base, 22%);
+}
+.bracket-slot.bracket-slot-winner > .bracket-player {
+  -fx-text-fill: -good;
+  -fx-font-weight: bold;
+}
+.bracket-player {
+  -fx-text-fill: -fx-text-base-color;
+}
+.bracket-player.bracket-player-tbd {
+  -fx-text-fill: derive(-fx-text-base-color, -45%);
+  -fx-font-style: italic;
+}
+.bracket-player-rating {
+  -fx-text-fill: derive(-fx-text-base-color, -35%);
+  -fx-font-size: 0.85em;
+}
+.bracket-score {
+  -fx-text-fill: derive(-fx-text-base-color, -20%);
+  -fx-min-width: 14;
+  -fx-alignment: CENTER_RIGHT;
+}
+.bracket-prize-row {
+  -fx-padding: 2 4 2 4;
+  -fx-spacing: 4;
+  -fx-alignment: CENTER;
+}
+
+/* Swiss standings table */
+.swiss-standings-table {
+  -fx-pref-height: 220;
+}
+
+/* Participants list */
+.tournament-participants {
+  -fx-hgap: 16;
+  -fx-vgap: 4;
+}
+.tournament-participants .participant-entry {
+  -fx-padding: 1 0 1 0;
+}
+
+/***************** Team panel *****************/
+
+.tournament-team-panel {
+  -fx-padding: 4 0 4 0;
+}
+/* Card shared by own-team and other-team blocks */
+.team-card {
+  -fx-background-color: derive(-fx-base, 8%);
+  -fx-background-radius: 4;
+  -fx-border-color: derive(-fx-base, 25%);
+  -fx-border-radius: 4;
+  -fx-border-width: 1;
+  -fx-padding: 10 12 10 12;
+  -fx-spacing: 4;
+}
+/* Own team gets accent border so it stands out */
+.team-card-mine {
+  -fx-border-color: -fx-accent;
+  -fx-border-width: 2;
+}
+.team-card:hover {
+  -fx-background-color: derive(-fx-base, 12%);
+}
+.team-card-header {
+  -fx-spacing: 8;
+  -fx-alignment: CENTER_LEFT;
+}
+.team-name {
+  -fx-font-size: 1.1em;
+  -fx-font-weight: bold;
+}
+.team-badge {
+  -fx-font-size: 0.8em;
+  -fx-padding: 1 6 1 6;
+  -fx-background-color: derive(-fx-base, 20%);
+  -fx-background-radius: 3;
+  -fx-text-fill: derive(-fx-text-base-color, -15%);
+}
+.team-rating {
+  -fx-font-size: 0.95em;
+  -fx-text-fill: derive(-fx-text-base-color, -20%);
+  -fx-font-weight: bold;
+}
+.team-member-row {
+  -fx-spacing: 8;
+  -fx-alignment: CENTER_LEFT;
+  -fx-padding: 2 0 2 8;
+}
+.team-member-name {
+  -fx-font-size: 0.95em;
+}
+.team-member-rating {
+  -fx-font-size: 0.85em;
+  -fx-text-fill: derive(-fx-text-base-color, -35%);
+}
+.team-member-captain {
+  -fx-font-size: 0.75em;
+  -fx-padding: 0 4 0 4;
+  -fx-background-color: derive(-fx-accent, -30%);
+  -fx-background-radius: 3;
+  -fx-text-fill: -fx-accent;
+}
+/* Invite card — attention-grabbing for pending invites */
+.team-invite-card {
+  -fx-background-color: derive(-fx-accent, -60%);
+  -fx-background-radius: 4;
+  -fx-border-color: -fx-accent;
+  -fx-border-radius: 4;
+  -fx-border-width: 1;
+  -fx-padding: 8 12 8 12;
+  -fx-spacing: 6;
+}
+.team-invite-text {
+  -fx-font-size: 0.95em;
+}
+/* Action button variants */
+.team-btn-primary {
+  -fx-base: -fx-accent;
+}
+.team-btn-danger {
+  -fx-base: derive(-bad, -20%);
+}
+.team-actions {
+  -fx-spacing: 8;
+  -fx-padding: 6 0 2 0;
+  -fx-alignment: CENTER_LEFT;
+}
+
+/***************** Hall of Fame *****************/
+
+.hall-of-fame-table {
+  -fx-padding: 0;
+}
+/* Highlight the row containing the local player so they can find themselves
+   at a glance in long lists. The :current-player pseudo-class is set
+   programmatically by HallOfFameController.setRowFactory. */
+.hall-of-fame-table .table-row-cell:current-player {
+  -fx-background-color: derive(-fx-accent, -10%);
+}
+.hall-of-fame-table .table-row-cell:current-player:filled:selected {
+  -fx-background-color: derive(-fx-accent, 5%);
+}
+.hall-of-fame-empty {
+  -fx-text-fill: derive(-fx-text-base-color, -25%);
+  -fx-font-style: italic;
+  -fx-font-size: 1.1em;
 }
 
 .card-title {

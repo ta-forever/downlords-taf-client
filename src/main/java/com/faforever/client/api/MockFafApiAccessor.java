@@ -235,6 +235,21 @@ public class MockFafApiAccessor implements FafApiAccessor {
   }
 
   @Override
+  public java.util.List<Player> findPlayersByLoginPrefix(String prefix, int limit) {
+    return java.util.Collections.emptyList();
+  }
+
+  @Override
+  public java.util.List<com.faforever.client.api.dto.TournamentTeam> getTournamentTeams(int tournamentId) {
+    return java.util.Collections.emptyList();
+  }
+
+  @Override
+  public java.util.List<com.faforever.client.api.dto.TournamentTeamInvite> getPendingInvitesForPlayer(int playerId) {
+    return java.util.Collections.emptyList();
+  }
+
+  @Override
   public GameReview createGameReview(GameReview review) {
     return null;
   }
@@ -337,6 +352,21 @@ public class MockFafApiAccessor implements FafApiAccessor {
 
   @Override
   public List<Tournament> getAllTournaments() {
+    return List.of();
+  }
+
+  @Override
+  public Tournament getTournamentById(String id) {
+    return null;
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.PlayerTournamentSummary> getHallOfFame(Integer featuredModId) {
+    return List.of();
+  }
+
+  @Override
+  public List<Integer> getPlayerTournamentGameIds(int playerId, Integer featuredModId) {
     return List.of();
   }
 

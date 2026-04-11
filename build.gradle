@@ -154,9 +154,14 @@ jacocoTestReport {
 
 compileTestJava {
   // The test suite has many pre-existing broken tests that reference
-  // classes/methods removed in this fork. Only compile the player package
-  // tests which are the ones we care about and are known to compile cleanly.
+  // classes/methods removed in this fork. Only compile the packages
+  // whose tests we have actively maintained and which are known to
+  // compile cleanly.
   include '**/player/**'
+  include '**/tournament/**'
+  // Test base classes / shared utilities — required by tests in the
+  // included packages above. Don't include broken siblings of these.
+  include '**/test/AbstractPlainJavaFxTest.java'
   exclude '**/PlayerBuilder.java'
   exclude '**/PlayerJoinedGameNotifierTest.java'
 }

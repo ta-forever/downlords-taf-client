@@ -573,6 +573,9 @@
                                                 <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
                                                 <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
                                                 <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
+                                                <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
+                                                <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
+                                                <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
                                             </rowConstraints>
                                             <children>
                                                 <Label styleClass="setting-description"
@@ -650,6 +653,29 @@
                                                 <CheckBox fx:id="afterGameReviewCheckBox" mnemonicParsing="false"
                                                           GridPane.columnIndex="1" GridPane.halignment="CENTER"
                                                           GridPane.rowIndex="7" GridPane.valignment="CENTER"/>
+                                                <!-- Tournament server notifications. The "display" column maps to:
+                                                     match-ready → modal dialog (immediate)
+                                                     results → bell-icon list (persistent)
+                                                     announcements → toast (transient)
+                                                     No sound column for any of them — kept simple. -->
+                                                <Label styleClass="setting-title"
+                                                       text="%settings.notifications.tournamentMatchReady"
+                                                       GridPane.rowIndex="8"/>
+                                                <CheckBox fx:id="tournamentMatchReadyCheckBox" mnemonicParsing="false"
+                                                          GridPane.columnIndex="1" GridPane.halignment="CENTER"
+                                                          GridPane.rowIndex="8" GridPane.valignment="CENTER"/>
+                                                <Label styleClass="setting-title"
+                                                       text="%settings.notifications.tournamentResults"
+                                                       GridPane.rowIndex="9"/>
+                                                <CheckBox fx:id="tournamentResultsCheckBox" mnemonicParsing="false"
+                                                          GridPane.columnIndex="1" GridPane.halignment="CENTER"
+                                                          GridPane.rowIndex="9" GridPane.valignment="CENTER"/>
+                                                <Label styleClass="setting-title"
+                                                       text="%settings.notifications.tournamentAnnouncements"
+                                                       GridPane.rowIndex="10"/>
+                                                <CheckBox fx:id="tournamentAnnouncementsCheckBox" mnemonicParsing="false"
+                                                          GridPane.columnIndex="1" GridPane.halignment="CENTER"
+                                                          GridPane.rowIndex="10" GridPane.valignment="CENTER"/>
                                             </children>
                                         </GridPane>
                                     </children>

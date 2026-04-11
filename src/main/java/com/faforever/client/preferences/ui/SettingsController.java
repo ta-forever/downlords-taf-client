@@ -152,6 +152,9 @@ public class SettingsController implements Controller<Node> {
   public CheckBox displayPmReceivedToastCheckBox;
   public CheckBox playPmReceivedSoundCheckBox;
   public CheckBox afterGameReviewCheckBox;
+  public CheckBox tournamentMatchReadyCheckBox;
+  public CheckBox tournamentResultsCheckBox;
+  public CheckBox tournamentAnnouncementsCheckBox;
   public Region settingsRoot;
   public ComboBox<Theme> themeComboBox;
   public ToggleGroup toastPositionToggleGroup;
@@ -354,6 +357,9 @@ public class SettingsController implements Controller<Node> {
     playFriendPlaysGameSoundCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().friendPlaysGameSoundEnabledProperty());
     playPmReceivedSoundCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().privateMessageSoundEnabledProperty());
     afterGameReviewCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().afterGameReviewEnabledProperty());
+    tournamentMatchReadyCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().tournamentMatchReadyEnabledProperty());
+    tournamentResultsCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().tournamentResultsEnabledProperty());
+    tournamentAnnouncementsCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().tournamentAnnouncementsEnabledProperty());
 
     notifyOnAtMentionOnlyToggle.selectedProperty().bindBidirectional(preferences.getNotification().notifyOnAtMentionOnlyEnabledProperty());
     enableSoundsToggle.selectedProperty().bindBidirectional(preferences.getNotification().soundsEnabledProperty());

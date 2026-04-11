@@ -6,6 +6,7 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.LeaderboardService;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.main.event.OpenOnlineReplayVaultEvent;
+import com.faforever.client.main.event.ShowGameIdReplaysEvent;
 import com.faforever.client.main.event.ShowPlanetReplaysEvent;
 import com.faforever.client.main.event.ShowReplayEvent;
 import com.faforever.client.main.event.ShowUserReplaysEvent;
@@ -171,6 +172,8 @@ public class OnlineReplayVaultController extends VaultEntityController<Replay> {
       onShowUserReplaysEvent((ShowUserReplaysEvent) navigateEvent);
     } else if (navigateEvent instanceof ShowPlanetReplaysEvent) {
       onShowPlanetReplaysEvent((ShowPlanetReplaysEvent) navigateEvent);
+    } else if (navigateEvent instanceof ShowGameIdReplaysEvent) {
+      onShowGameIdReplaysEvent((ShowGameIdReplaysEvent) navigateEvent);
     } else {
       log.warn("No such NavigateEvent for this Controller: {}", navigateEvent.getClass());
     }
@@ -213,6 +216,23 @@ public class OnlineReplayVaultController extends VaultEntityController<Replay> {
     playerId = event.getPlayerId();
     SortConfig sortConfig = new SortConfig("startTime", SortOrder.DESC);
     displayFromSupplier(() -> replayService.getReplaysForPlayerWithPageCount(playerId, pageSize, 1, sortConfig), true);
+  }
+
+  private void onShowGameIdReplaysEvent(ShowGameIdReplaysEvent event) {
+    List<Integer> gameIds = event.getGameIds();
+    if (gameIds == null || gameIds.isEmpty()) {
+      notificationService.addNotification(new ImmediateNotification(
+          i18n.get("replay.notFoundTitle"),
+          i18n.get("replay.replayNotFoundText", ""),
+          Severity.INFO));
+      return;
+    }
+    enterSearchingState();
+    searchType = SearchType.SEARCH;
+    String idList = gameIds.stream().map(String::valueOf).collect(Collectors.joining(","));
+    String query = "id=in=(" + idList + ")";
+    SortConfig sortConfig = new SortConfig("startTime", SortOrder.DESC);
+    displayFromSupplier(() -> replayService.findByQueryWithPageCount(query, pageSize, 1, sortConfig), true);
   }
 
   private void onShowPlanetReplaysEvent(ShowPlanetReplaysEvent event) {

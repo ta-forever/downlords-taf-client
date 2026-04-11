@@ -8,6 +8,21 @@ public class NoticeMessage extends FafServerMessage {
   private String text;
   private String style;
   private String i18nKey;
+  /**
+   * How this notice should be displayed. One of "immediate" (modal dialog),
+   * "persistent" (bell-icon list), "transient" (toast), "refresh" (no display,
+   * just signals the player client to reload tournament data). Null/unknown
+   * values fall back to immediate so legacy server messages don't get silently
+   * downgraded.
+   */
+  private String kind;
+  /**
+   * Tournament id this notice is about, if any. When set, the player client
+   * triggers a tournament refresh in addition to whatever display the kind
+   * dictates.
+   */
+  @com.fasterxml.jackson.annotation.JsonProperty("tournament_id")
+  private Integer tournamentId;
 
   public NoticeMessage() {
     super(FafServerMessageType.NOTICE);
@@ -48,4 +63,12 @@ public class NoticeMessage extends FafServerMessage {
   public String getStyle() {
     return style;
   }
+
+  public String getKind() { return kind; }
+
+  public void setKind(String kind) { this.kind = kind; }
+
+  public Integer getTournamentId() { return tournamentId; }
+
+  public void setTournamentId(Integer tournamentId) { this.tournamentId = tournamentId; }
 }

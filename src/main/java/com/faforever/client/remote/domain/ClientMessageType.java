@@ -32,7 +32,17 @@ public enum ClientMessageType {
   MATCHMAKER_INFO("matchmaker_info"),
   GAME_MATCHMAKING("game_matchmaking"),
   UPLOAD_REPLAY_TO_TADA("upload_replay_to_tada"),
-  GALACTIC_WAR_SET_MAP("galactic_war_set_map");
+  GALACTIC_WAR_SET_MAP("galactic_war_set_map"),
+  TOURNAMENT_SIGNUP("tournament_signup"),
+  TOURNAMENT_WITHDRAW("tournament_withdraw"),
+  // Team tournaments — see TournamentTeamService
+  TOURNAMENT_TEAM_CREATE("tournament_team_create"),
+  TOURNAMENT_TEAM_INVITE("tournament_team_invite"),
+  TOURNAMENT_TEAM_ACCEPT_INVITE("tournament_team_accept_invite"),
+  TOURNAMENT_TEAM_DECLINE_INVITE("tournament_team_decline_invite"),
+  TOURNAMENT_TEAM_LEAVE("tournament_team_leave"),
+  TOURNAMENT_TEAM_REMOVE_MEMBER("tournament_team_remove_member"),
+  TOURNAMENT_TEAM_DISBAND("tournament_team_disband");
 
   private static Map<String, ClientMessageType> fromString;
 

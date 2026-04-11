@@ -3,55 +3,136 @@ package com.faforever.client.tournament;
 
 import com.faforever.client.fx.AbstractViewController;
 import com.faforever.client.fx.JavaFxUtil;
-import com.faforever.client.fx.WebViewConfigurer;
+import com.faforever.client.game.GameService;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.main.event.HostGameEvent;
 import com.faforever.client.main.event.NavigateEvent;
+import com.faforever.client.main.event.ShowGameIdReplaysEvent;
+import com.faforever.client.map.MapService;
+import com.faforever.client.map.MapService.PreviewType;
+import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.remote.FafService;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.util.TimeService;
-import com.google.common.io.CharStreams;
+import com.google.common.eventbus.EventBus;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
-import javafx.scene.web.WebView;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @Slf4j
 public class TournamentsController extends AbstractViewController<Node> {
-  private static final ClassPathResource TOURNAMENT_DETAIL_HTML_RESOURCE = new ClassPathResource("/theme/tournaments/tournament_detail.html");
 
   private final TimeService timeService;
   private final I18n i18n;
   private final TournamentService tournamentService;
+  private final TournamentTeamService teamService;
+  private final FafService fafService;
   private final UiService uiService;
-  private final WebViewConfigurer webViewConfigurer;
   private final PreferencesService preferencesService;
+  private final MapService mapService;
+  private final EventBus eventBus;
+  private final PlayerService playerService;
+  private final GameService gameService;
+  /** Container for the team panel rendered in the detail pane (team tournaments only). */
+  private VBox teamPanel;
+  /** Tracked listeners so we can deregister them when the panel is rebuilt,
+   *  preventing listener accumulation across tournament selections. */
+  private javafx.collections.ListChangeListener<Map<String, Object>> teamsListener;
+  private javafx.collections.ListChangeListener<com.faforever.client.remote.domain.TournamentTeamInviteReceivedMessage> invitesListener;
+  private javafx.beans.value.ChangeListener<? super Integer> myTeamIdListener;
+
+  /** Width (in px) of each map thumbnail in the game list. */
+  private static final double THUMBNAIL_SIZE = 180d;
+
+  /** Currently displayed tournament — re-used when a bracket click re-renders the right pane. */
+  private TournamentBean currentTournament;
+  /** Bumped on every displayTournamentItem call; stale async callbacks check this. */
+  private long displayGeneration;
+  /** All loaded tournaments, unfiltered. The mod filter operates on this list. */
+  private List<TournamentBean> allTournaments = new ArrayList<>();
+  /** Current mod filter — null or "All mods" entry means show all. Set by parent controller. */
+  private ModFilterEntry currentModFilter;
+  private TournamentsRootController rootController;
+  /** Currently selected match id (0 = none / placeholder). */
+  private int selectedMatchId = 0;
+  /** Match id that should get the blue "this is your next game" frame in the bracket. */
+  private int userNextMatchId = 0;
+  /** Lookup from match id to its rendered bracket node, for selection-class toggling and scroll-into-view. */
+  private final Map<Integer, Node> matchNodes = new HashMap<>();
+  /** Active forfeit countdown timers — stopped when the bracket re-renders.
+   *  Also keyed by match id so individual timers can be stopped on
+   *  tournament_timer_stopped broadcasts. */
+  private final List<javafx.animation.Timeline> activeCountdowns = new ArrayList<>();
+  private final Map<Integer, javafx.animation.Timeline> countdownByMatchId = new HashMap<>();
+  /** Match node that should be scrolled into view after the next layout pass (user's next-to-play). */
+  private Node pendingScrollTarget;
 
   public Pane tournamentRoot;
-  public WebView tournamentDetailWebView;
+  public ScrollPane tournamentDetailScrollPane;
+  public VBox tournamentDetailContent;
   public Pane loadingIndicator;
   public Node contentPane;
-  public ListView<TournamentBean> tournamentListView;
+  public javafx.scene.control.TitledPane inProgressPane;
+  public javafx.scene.control.TitledPane upcomingPane;
+  public javafx.scene.control.TitledPane completedPane;
+  public ListView<TournamentBean> inProgressListView;
+  public ListView<TournamentBean> upcomingListView;
+  public ListView<TournamentBean> completedListView;
+  public VBox gameListPane;
+  public ScrollPane gameListScrollPane;
+  public VBox gameListContent;
 
-  public TournamentsController(TimeService timeService, I18n i18n, TournamentService tournamentService, UiService uiService, WebViewConfigurer webViewConfigurer, PreferencesService preferencesService) {
+  public TournamentsController(TimeService timeService, I18n i18n, TournamentService tournamentService,
+                               TournamentTeamService teamService,
+                               FafService fafService, UiService uiService,
+                               PreferencesService preferencesService, MapService mapService, EventBus eventBus,
+                               PlayerService playerService, GameService gameService) {
     this.timeService = timeService;
     this.i18n = i18n;
     this.tournamentService = tournamentService;
+    this.teamService = teamService;
+    this.fafService = fafService;
     this.uiService = uiService;
-    this.webViewConfigurer = webViewConfigurer;
     this.preferencesService = preferencesService;
+    this.mapService = mapService;
+    this.eventBus = eventBus;
+    this.playerService = playerService;
+    this.gameService = gameService;
   }
 
   @Override
@@ -64,18 +145,159 @@ public class TournamentsController extends AbstractViewController<Node> {
     contentPane.managedProperty().bind(contentPane.visibleProperty());
     contentPane.setVisible(false);
 
-    tournamentListView.setCellFactory(param -> new TournamentItemListCell(uiService));
-    tournamentListView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> displayTournamentItem(newValue));
+    setupListView(inProgressListView);
+    setupListView(upcomingListView);
+    setupListView(completedListView);
+
+    // Lock the right-hand "Game List" pane to its preferred width — it only
+    // needs to fit a 180px map thumbnail plus its border. The middle detail
+    // pane absorbs all slack when the window resizes.
+    javafx.scene.control.SplitPane.setResizableWithParent(gameListPane, Boolean.FALSE);
+
+    // Subscribe to auto-refresh events from the tournament service via FAF
+    // server NoticeMessages with non-null tournament_id. The handler debounces
+    // bursts so e.g. several signups in quick succession collapse into a single
+    // reload, and only fires when the tournament page is actually visible
+    // (avoids hammering the API with reloads while the user is on another tab).
+    eventBus.register(this);
+
+    // Stop individual forfeit countdowns when the server broadcasts
+    // that a game went live for a match. All clients see this, not
+    // just the players involved.
+    fafService.addOnMessageListener(
+        com.faforever.client.remote.domain.TournamentTimerStoppedMessage.class,
+        msg -> JavaFxUtil.runLater(() -> {
+          if (msg.getMatchId() == null) return;
+          javafx.animation.Timeline tl = countdownByMatchId.get(msg.getMatchId());
+          if (tl != null) {
+            // Pause the countdown rather than removing it. If the game
+            // ends without a valid result, the bracket re-render will
+            // recreate the countdown from opened_at with correct time.
+            // If the match IS resolved, the re-render removes the node.
+            tl.pause();
+          }
+        }));
+
+    // NOTE: we do NOT unregister from eventBus on scene detach. The scene
+    // detaches on every tab switch, not just on controller destruction.
+    // Unregistering would cause RefreshTournamentsEvent to be dropped
+    // while the user is playing a tournament game on a different tab,
+    // which breaks countdown timer cleanup and bracket auto-refresh.
+    // The duplicate-listener risk from prototype scope is acceptable
+    // (worst case: double refresh on re-navigation).
+  }
+
+  /** Pending debounced reload task — cancelled when a new event arrives within the window. */
+  private javafx.animation.Timeline pendingRefresh;
+
+  @com.google.common.eventbus.Subscribe
+  public void onRefreshTournamentsEvent(com.faforever.client.main.event.RefreshTournamentsEvent event) {
+    JavaFxUtil.runLater(() -> {
+      if (!contentPane.isVisible()) {
+        // User isn't on the tournaments tab — no need to reload now; the next
+        // onDisplay() will fetch fresh data anyway.
+        return;
+      }
+      if (pendingRefresh != null) {
+        pendingRefresh.stop();
+      }
+      final int tournamentId = event.getTournamentId();
+      final boolean selectAfter = event.isSelectAfterRefresh();
+      pendingRefresh = new javafx.animation.Timeline(
+          new javafx.animation.KeyFrame(javafx.util.Duration.millis(500),
+              e -> {
+                if (tournamentId > 0) {
+                  // Targeted refresh: pull just this tournament and patch it
+                  // into the lists in place. Avoids the full N-row refetch +
+                  // sort + setAll storm that loadTournaments() does.
+                  log.debug("Auto-refreshing single tournament {} after RefreshTournamentsEvent",
+                      tournamentId);
+                  refreshSingleTournament(tournamentId, selectAfter);
+                } else {
+                  log.debug("Auto-refreshing all tournaments after RefreshTournamentsEvent (no specific id)");
+                  loadTournaments();
+                }
+                pendingRefresh = null;
+              }));
+      pendingRefresh.play();
+    });
+  }
+
+  /**
+   * Cell height for {@link TournamentItemListCell}. The cell is a 2-row GridPane
+   * (status row + title row), and the {@code .tournament-item} CSS rule adds
+   * {@code -fx-padding: 20 10 20 10} → 40px of vertical padding, on top of which
+   * sit two text rows. We use a generous fixed cell size so neither row gets
+   * clipped: too small and the title row vanishes; too large just wastes space.
+   */
+  private static final double TOURNAMENT_LIST_CELL_HEIGHT = 80d;
+
+  /**
+   * Maximum number of rows a single section is allowed to grow to before its
+   * inner ListView starts scrolling. With the previous unbounded prefHeight
+   * binding, JavaFX VirtualFlow saw a viewport equal to the entire content
+   * height and realized a Cell node for every item — so a few hundred completed
+   * tournaments froze the UI as soon as the user expanded the Completed pane.
+   * Capping the section height restores virtualization (only ~MAX_VISIBLE_ROWS
+   * cells get realized regardless of the underlying item count).
+   */
+  private static final int MAX_VISIBLE_ROWS_PER_SECTION = 8;
+
+  private void setupListView(ListView<TournamentBean> listView) {
+    listView.setCellFactory(param -> new TournamentItemListCell(uiService));
+    // Fixed cell size lets VirtualFlow do constant-time scroll math instead of
+    // measuring every cell.
+    listView.setFixedCellSize(TOURNAMENT_LIST_CELL_HEIGHT);
+    // Bind prefHeight to min(items, MAX_VISIBLE_ROWS_PER_SECTION) * cellSize so
+    // small sections (e.g. 1 in-progress tournament) take only the space they
+    // need but large sections (hundreds of completed) cap at the visible-rows
+    // limit and let the ListView's own VirtualFlow scroll internally. Without
+    // the cap, VirtualFlow gets a viewport equal to the entire content size and
+    // realizes a cell for every item — UI freezes proportional to count.
+    listView.prefHeightProperty().bind(
+        Bindings.createDoubleBinding(
+            () -> Math.min(listView.getItems().size(), MAX_VISIBLE_ROWS_PER_SECTION)
+                  * TOURNAMENT_LIST_CELL_HEIGHT + 2,
+            listView.getItems()));
+    listView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+      if (newVal != null) {
+        // Skip if we're re-selecting the same tournament (e.g. after setAll
+        // rebuilds the list). Avoids redundant server fetches.
+        if (currentTournament != null && newVal.getId() != null
+            && newVal.getId().equals(currentTournament.getId())) {
+          return;
+        }
+        // Clear selection on the other lists
+        if (listView != inProgressListView) inProgressListView.getSelectionModel().clearSelection();
+        if (listView != upcomingListView) upcomingListView.getSelectionModel().clearSelection();
+        if (listView != completedListView) completedListView.getSelectionModel().clearSelection();
+        displayTournamentItem(newVal);
+        updateButtons(newVal);
+      }
+    });
+  }
+
+  private TournamentBean getSelectedTournament() {
+    TournamentBean t = inProgressListView.getSelectionModel().getSelectedItem();
+    if (t != null) return t;
+    t = upcomingListView.getSelectionModel().getSelectedItem();
+    if (t != null) return t;
+    return completedListView.getSelectionModel().getSelectedItem();
   }
 
   private void onLoadingStart() {
-    JavaFxUtil.runLater(() -> loadingIndicator.setVisible(true));
+    JavaFxUtil.runLater(() -> {
+      if (loadingIndicator != null) {
+        loadingIndicator.setVisible(true);
+      }
+    });
   }
 
   private void onLoadingStop() {
     JavaFxUtil.runLater(() -> {
-      tournamentRoot.getChildren().remove(loadingIndicator);
-      loadingIndicator = null;
+      if (loadingIndicator != null) {
+        loadingIndicator.setVisible(false);
+      }
       contentPane.setVisible(true);
     });
   }
@@ -85,20 +307,72 @@ public class TournamentsController extends AbstractViewController<Node> {
     if (contentPane.isVisible()) {
       return;
     }
+    loadTournaments();
+  }
+
+  /**
+   * Update selection state, re-render the right pane, and toggle the
+   * {@code bracket-match-selected} style class on the bracket node.
+   */
+  private void selectMatch(int matchId) {
+    int previousId = selectedMatchId;
+    selectedMatchId = matchId;
+    if (currentTournament != null) {
+      populateGameList(currentTournament);
+    }
+    Node prev = matchNodes.get(previousId);
+    if (prev != null) prev.getStyleClass().remove("bracket-match-selected");
+    Node curr = matchNodes.get(matchId);
+    if (curr != null && !curr.getStyleClass().contains("bracket-match-selected")) {
+      curr.getStyleClass().add("bracket-match-selected");
+    }
+  }
+
+  public void onRefreshButtonClicked(ActionEvent actionEvent) {
+    loadTournaments();
+  }
+
+  // In progress: most recently started at top (startingAt desc, nulls last)
+  private static final Comparator<TournamentBean> IN_PROGRESS_COMPARATOR =
+      Comparator.comparing(TournamentBean::getStartingAt,
+          Comparator.nullsLast(Comparator.reverseOrder()));
+  // Upcoming: next-to-start at top (startingAt asc, nulls last)
+  private static final Comparator<TournamentBean> UPCOMING_COMPARATOR =
+      Comparator.comparing(TournamentBean::getStartingAt,
+          Comparator.nullsLast(Comparator.naturalOrder()));
+  // Completed: most recently completed at top (completedAt desc, nulls last)
+  // Most recently finished first. Use completedAt when available, fall back
+  // to createdAt (always populated) so cancelled tournaments (which have no
+  // completedAt) still sort by recency rather than landing in random order.
+  private static final Comparator<TournamentBean> COMPLETED_COMPARATOR =
+      Comparator.comparing(
+          (TournamentBean t) -> t.getCompletedAt() != null ? t.getCompletedAt() : t.getCreatedAt(),
+          Comparator.nullsLast(Comparator.reverseOrder()));
+
+  private void loadTournaments() {
     onLoadingStart();
 
-    tournamentDetailWebView.setContextMenuEnabled(false);
-    webViewConfigurer.configureWebView(tournamentDetailWebView);
+    // Capture currently selected tournament so we can restore selection after refresh
+    TournamentBean previouslySelected = getSelectedTournament();
+    String previousId = previouslySelected != null ? previouslySelected.getId() : null;
 
     tournamentService.getAllTournaments()
         .thenAccept(tournaments -> JavaFxUtil.runLater(() -> {
-          tournaments.sort(
-              Comparator.<TournamentBean, Integer>comparing(o -> o.getStatus().getSortOrderPriority())
-                  .thenComparing(TournamentBean::getCreatedAt)
-                  .reversed()
-          );
-          tournamentListView.getItems().setAll(tournaments);
-          tournamentListView.getSelectionModel().selectFirst();
+          allTournaments = new ArrayList<>(tournaments);
+          applyModFilter();
+
+          // Restore selection if the previously selected tournament still exists
+          boolean restored = false;
+          if (previousId != null) {
+            restored = restoreSelection(inProgressListView, previousId)
+                || restoreSelection(upcomingListView, previousId)
+                || restoreSelection(completedListView, previousId);
+          }
+          if (!restored) {
+            if (!inProgressListView.getItems().isEmpty()) inProgressListView.getSelectionModel().selectFirst();
+            else if (!upcomingListView.getItems().isEmpty()) upcomingListView.getSelectionModel().selectFirst();
+            else if (!completedListView.getItems().isEmpty()) completedListView.getSelectionModel().selectFirst();
+          }
           onLoadingStop();
         })).exceptionally(throwable -> {
       log.warn("Tournaments could not be loaded", throwable);
@@ -106,32 +380,1960 @@ public class TournamentsController extends AbstractViewController<Node> {
     });
   }
 
+  /**
+   * Targeted refresh: fetch a single tournament by id and patch it into the
+   * lists in place. Used by {@link #onRefreshTournamentsEvent} so a notice
+   * tagged with a specific tournament_id doesn't trigger a full {@code
+   * loadTournaments()} (which re-pulls every tournament on the wire and re-
+   * sorts/setAll's the entire UI). If the tournament is not found server-side
+   * it's removed from the lists.
+   */
+  private void refreshSingleTournament(int tournamentId) {
+    refreshSingleTournament(tournamentId, false);
+  }
+
+  private void refreshSingleTournament(int tournamentId, boolean selectAfter) {
+    String idStr = String.valueOf(tournamentId);
+    tournamentService.getTournamentById(idStr)
+        .thenAccept(updated -> JavaFxUtil.runLater(() -> {
+          if (updated == null) {
+            // Tournament was deleted server-side
+            removeFromAllLists(idStr);
+            updateSectionHeaders();
+            return;
+          }
+          upsertTournamentBean(updated, selectAfter);
+          if (selectAfter) {
+            selectTournamentById(idStr);
+          }
+        }))
+        .exceptionally(throwable -> {
+          log.warn("Failed to refresh tournament {}", tournamentId, throwable);
+          return null;
+        });
+  }
+
+  /** Remove any item with the given id from all three section lists. */
+  private void removeFromAllLists(String tournamentId) {
+    inProgressListView.getItems().removeIf(t -> tournamentId.equals(t.getId()));
+    upcomingListView.getItems().removeIf(t -> tournamentId.equals(t.getId()));
+    completedListView.getItems().removeIf(t -> tournamentId.equals(t.getId()));
+  }
+
+  /**
+   * Drop any existing copy of the bean's id from all section lists, then re-
+   * insert it into the section that matches its (possibly new) status. The
+   * insert is sorted via the section's comparator. Also re-renders the detail
+   * pane if the upserted bean is the currently selected tournament — this is
+   * how mid-series score updates and bracket advances flow into the visible
+   * detail without a full reload.
+   */
+  private void upsertTournamentBean(TournamentBean updated, boolean skipDisplay) {
+    String id = updated.getId();
+    if (id == null) {
+      return;
+    }
+    // Update the unfiltered backing list
+    allTournaments.removeIf(t -> id.equals(t.getId()));
+    allTournaments.add(updated);
+    removeFromAllLists(id);
+
+    // Only add to visible lists if it passes the current mod filter
+    boolean showAll = currentModFilter == null || currentModFilter.isAll();
+    if (showAll || (currentModFilter.modName != null && currentModFilter.modName.equals(updated.getFeaturedModName()))) {
+      ObservableList<TournamentBean> targetItems;
+      Comparator<TournamentBean> comparator;
+      switch (updated.getStatus()) {
+        case RUNNING -> {
+          targetItems = inProgressListView.getItems();
+          comparator = IN_PROGRESS_COMPARATOR;
+        }
+        case FINISHED, CANCELLED -> {
+          targetItems = completedListView.getItems();
+          comparator = COMPLETED_COMPARATOR;
+        }
+        default -> {
+          targetItems = upcomingListView.getItems();
+          comparator = UPCOMING_COMPARATOR;
+        }
+      }
+      List<TournamentBean> snapshot = new ArrayList<>(targetItems);
+      snapshot.add(updated);
+      snapshot.sort(comparator);
+      targetItems.setAll(snapshot);
+    }
+    updateSectionHeaders();
+
+    // If this is the currently displayed tournament, refresh the detail pane.
+    // Skip when the caller is about to selectTournamentById (which triggers
+    // the selection listener → displayTournamentItem) to avoid redundant
+    // server fetches.
+    if (!skipDisplay && currentTournament != null && id.equals(currentTournament.getId())) {
+      displayTournamentItem(updated);
+    }
+  }
+
+  /**
+   * Refresh section header text (counts) and visibility (empty sections
+   * collapse out of the layout entirely so the remaining ones don't have dead
+   * space above them).
+   */
+  private void updateSectionHeaders() {
+    int inProgressCount = inProgressListView.getItems().size();
+    int upcomingCount = upcomingListView.getItems().size();
+    int completedCount = completedListView.getItems().size();
+    inProgressPane.setText(i18n.get("tournament.section.inProgress", inProgressCount));
+    upcomingPane.setText(i18n.get("tournament.section.upcoming", upcomingCount));
+    completedPane.setText(i18n.get("tournament.section.completed", completedCount));
+    setSectionVisible(inProgressPane, inProgressCount > 0);
+    setSectionVisible(upcomingPane, upcomingCount > 0);
+    setSectionVisible(completedPane, completedCount > 0);
+  }
+
+  /** Called by the parent TournamentsRootController when the shared mod filter changes. */
+  public void onModFilterChanged(ModFilterEntry entry) {
+    this.currentModFilter = entry;
+    applyModFilter();
+  }
+
+  /** Set by the parent so this controller can request filter changes (e.g. "select all mods"). */
+  public void setRootController(TournamentsRootController root) {
+    this.rootController = root;
+  }
+
+  private void applyModFilter() {
+    boolean showAll = currentModFilter == null || currentModFilter.isAll();
+    String filterName = showAll ? null : currentModFilter.modName;
+
+    List<TournamentBean> inProgress = new ArrayList<>();
+    List<TournamentBean> upcoming = new ArrayList<>();
+    List<TournamentBean> completed = new ArrayList<>();
+    for (TournamentBean t : allTournaments) {
+      if (!showAll && !filterName.equals(t.getFeaturedModName())) continue;
+      switch (t.getStatus()) {
+        case RUNNING -> inProgress.add(t);
+        case FINISHED, CANCELLED -> completed.add(t);
+        default -> upcoming.add(t);
+      }
+    }
+    inProgress.sort(IN_PROGRESS_COMPARATOR);
+    upcoming.sort(UPCOMING_COMPARATOR);
+    completed.sort(COMPLETED_COMPARATOR);
+
+    inProgressListView.getItems().setAll(inProgress);
+    upcomingListView.getItems().setAll(upcoming);
+    completedListView.getItems().setAll(completed);
+    updateSectionHeaders();
+  }
+
+  private void setSectionVisible(javafx.scene.control.TitledPane pane, boolean visible) {
+    pane.setVisible(visible);
+    pane.setManaged(visible);
+    if (visible) pane.setExpanded(true);
+  }
+
+  private void selectTournamentById(String tournamentId) {
+    if (restoreSelection(inProgressListView, tournamentId)
+        || restoreSelection(upcomingListView, tournamentId)
+        || restoreSelection(completedListView, tournamentId)) {
+      return;
+    }
+    // Tournament not in filtered lists — switch to "All mods" and retry.
+    if (currentModFilter != null && !currentModFilter.isAll() && rootController != null) {
+      rootController.selectAllMods();
+      if (!restoreSelection(inProgressListView, tournamentId)
+          && !restoreSelection(upcomingListView, tournamentId)) {
+        restoreSelection(completedListView, tournamentId);
+      }
+    }
+  }
+
+  private boolean restoreSelection(ListView<TournamentBean> listView, String tournamentId) {
+    for (TournamentBean t : listView.getItems()) {
+      if (tournamentId.equals(t.getId())) {
+        TournamentBean current = listView.getSelectionModel().getSelectedItem();
+        if (current != null && tournamentId.equals(current.getId())) {
+          // Already selected — don't re-fire the listener
+          return true;
+        }
+        listView.getSelectionModel().select(t);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private void updateButtons(TournamentBean tournament) {
+    // Buttons are now rendered inline in renderHeader — nothing to do here.
+  }
+
+  public void onSignupButtonClicked(ActionEvent actionEvent) {
+    TournamentBean selected = getSelectedTournament();
+    if (selected != null) {
+      fafService.tournamentSignup(Integer.parseInt(selected.getId()));
+    }
+  }
+
+  public void onWithdrawButtonClicked(ActionEvent actionEvent) {
+    TournamentBean selected = getSelectedTournament();
+    if (selected != null) {
+      fafService.tournamentWithdraw(Integer.parseInt(selected.getId()));
+    }
+  }
+
   @SneakyThrows
   private void displayTournamentItem(TournamentBean tournamentBean) {
-    String startingDate = i18n.get("tournament.noStartingDate");
-    if (tournamentBean.getStartingAt() != null) {
-      startingDate = MessageFormat.format(i18n.get("dateWithTime"), timeService.asDate(tournamentBean.getStartingAt()), timeService.asShortTime(tournamentBean.getStartingAt()));
+    if (tournamentBean == null) {
+      return;
     }
 
-    String completedDate = i18n.get("tournament.noCompletionDate");
-    if (tournamentBean.getCompletedAt() != null) {
-      completedDate = MessageFormat.format(i18n.get("dateWithTime"), timeService.asDate(tournamentBean.getCompletedAt()), timeService.asShortTime(tournamentBean.getCompletedAt()));
+    // Render the immediately-available "header" content (title, status, settings,
+    // description) from the light list-query bean, then kick off the heavy
+    // getTournamentById fetch in the background. The bracket / participants
+    // sections are appended once the full graph arrives. This keeps the list
+    // query light (no participants / matches / planned maps / placements /
+    // standings) and only pulls the bracket data when the user actually drills
+    // into a row.
+    currentTournament = tournamentBean;
+    final long thisGeneration = ++displayGeneration;
+    // No bracket data yet — clear selection state so populateGameList shows the
+    // empty placeholder until the heavy fetch resolves and renderHeavySections
+    // recomputes user-next.
+    userNextMatchId = 0;
+    selectedMatchId = 0;
+    matchNodes.clear();
+    pendingScrollTarget = null;
+    activeCountdowns.forEach(javafx.animation.Timeline::stop);
+    activeCountdowns.clear();
+    countdownByMatchId.clear();
+    tournamentDetailContent.getChildren().clear();
+    teamPanel = null;
+
+    // Tell the team service which tournament is active so it can fetch
+    // team data and start filtering server broadcasts on this id. For
+    // solo tournaments we still call setActiveTournament(0) to clear any
+    // stale team state from a previously-selected team tournament.
+    int tid = parseIdSafe(tournamentBean.getId());
+    if (tournamentBean.getPlayersPerSide() >= 2) {
+      teamService.setActiveTournament(tid);
+    } else {
+      teamService.setActiveTournament(0);
     }
 
-    Reader reader = new InputStreamReader(TOURNAMENT_DETAIL_HTML_RESOURCE.getInputStream());
-    String html = CharStreams.toString(reader).replace("{name}", tournamentBean.getName())
-        .replace("{challonge-url}", tournamentBean.getChallongeUrl())
-        .replace("{tournament-type}", tournamentBean.getTournamentType())
-        .replace("{starting-date}", startingDate)
-        .replace("{completed-date}", completedDate)
-        .replace("{description}", tournamentBean.getDescription())
-        .replace("{tournament-image}", tournamentBean.getLiveImageUrl())
-        .replace("{open-on-challonge-label}", i18n.get("tournament.openOnChallonge"))
-        .replace("{game-type-label}", i18n.get("tournament.gameType"))
-        .replace("{starting-at-label}", i18n.get("tournament.startingAt"))
-        .replace("{completed-at-label}", i18n.get("tournament.completedAt"))
-        .replace("{loading-label}", i18n.get("loading"));
+    renderHeader(tournamentBean);
+    populateGameList(tournamentBean);
 
-    tournamentDetailWebView.getEngine().loadContent(html);
+    final String tournamentId = tournamentBean.getId();
+    if (tournamentId == null) {
+      return;
+    }
+    tournamentService.getTournamentById(tournamentId)
+        .thenAccept(full -> JavaFxUtil.runLater(() -> {
+          // Guard against stale responses: user may have clicked a different
+          // tournament, or displayTournamentItem was called again (e.g. from
+          // a notification-triggered refresh + select), before this fetch completed.
+          if (thisGeneration != displayGeneration) {
+            return;
+          }
+          if (currentTournament == null || !tournamentId.equals(currentTournament.getId())) {
+            return;
+          }
+          if (full == null) {
+            return;
+          }
+          renderHeavySections(full);
+        }))
+        .exceptionally(throwable -> {
+          log.warn("Failed to load tournament detail for {}", tournamentId, throwable);
+          return null;
+        });
   }
+
+  /** Render the always-available header bits (title, status, settings, description). */
+  private void renderHeader(TournamentBean tournamentBean) {
+    // Title row with inline signup/withdraw buttons
+    HBox titleRow = new HBox(12);
+    titleRow.setAlignment(Pos.CENTER_LEFT);
+    Label title = new Label(tournamentBean.getName());
+    title.getStyleClass().add("tournament-title");
+    title.setWrapText(true);
+    HBox.setHgrow(title, Priority.ALWAYS);
+    titleRow.getChildren().add(title);
+
+    boolean canSignup = tournamentBean.isOpenForSignup()
+        && tournamentBean.getStatus() == TournamentBean.Status.OPEN_FOR_REGISTRATION;
+    if (canSignup) {
+      Button signup = new Button(i18n.get("tournament.signup"));
+      signup.getStyleClass().add("team-btn-primary");
+      signup.setOnAction(e -> {
+        String id = tournamentBean.getId();
+        if (id != null) fafService.tournamentSignup(Integer.parseInt(id));
+      });
+      Button withdraw = new Button(i18n.get("tournament.withdraw"));
+      withdraw.setOnAction(e -> {
+        String id = tournamentBean.getId();
+        if (id != null) fafService.tournamentWithdraw(Integer.parseInt(id));
+      });
+      titleRow.getChildren().addAll(signup, withdraw);
+    }
+    tournamentDetailContent.getChildren().add(titleRow);
+
+    Label status = new Label(statusText(tournamentBean));
+    status.getStyleClass().addAll("tournament-status", statusStyleClass(tournamentBean));
+    tournamentDetailContent.getChildren().add(status);
+
+    GridPane settings = buildSettingsGrid(tournamentBean);
+    if (settings != null) {
+      tournamentDetailContent.getChildren().add(settings);
+    }
+
+    String description = tournamentBean.getDescription();
+    if (description != null && !description.isBlank()) {
+      Label desc = new Label(description);
+      desc.getStyleClass().add("description-label");
+      desc.setWrapText(true);
+      desc.setMaxWidth(Double.MAX_VALUE);
+      tournamentDetailContent.getChildren().add(desc);
+    }
+    tournamentDetailContent.getChildren().add(new javafx.scene.control.Separator());
+  }
+
+  /**
+   * Append bracket / participants sections to the detail pane after the
+   * heavy getTournamentById fetch resolves. Replaces the {@link #currentTournament}
+   * reference with the full bean so populateGameList sees the matches.
+   */
+  private void renderHeavySections(TournamentBean fullBean) {
+    currentTournament = fullBean;
+    userNextMatchId = computeUserNextMatchId(fullBean);
+    selectedMatchId = userNextMatchId;
+    matchNodes.clear();
+    pendingScrollTarget = null;
+    activeCountdowns.forEach(javafx.animation.Timeline::stop);
+    activeCountdowns.clear();
+    countdownByMatchId.clear();
+
+    // Section ordering depends on tournament state:
+    //   Pending:  teams → signups → bracket preview
+    //   Underway/Complete: bracket → teams → signups
+    // Once started, the bracket is the primary content the user cares
+    // about; teams and signups become reference info.
+    boolean started = "underway".equals(fullBean.getApiState())
+        || "complete".equals(fullBean.getApiState());
+
+    // We (re-)call setActiveTournament here as a defensive measure:
+    // the early call in displayTournamentItem uses the light-query bean,
+    // and if playersPerSide was 0 there (jsonapi-converter field-mapping
+    // miss), activeTournamentId would have been set to 0 and the list
+    // request would never fire. The heavy bean always has the correct
+    // value because it comes from a full getOne query.
+    if (fullBean.getPlayersPerSide() >= 2) {
+      teamService.setActiveTournament(parseIdSafe(fullBean.getId()));
+      teamPanel = buildTeamPanel(fullBean);
+    }
+
+    if (started) {
+      // Bracket first
+      if (fullBean.getMatches() != null && !fullBean.getMatches().isEmpty()) {
+        buildBracketSections(fullBean).forEach(tournamentDetailContent.getChildren()::add);
+        tournamentDetailContent.getChildren().add(new javafx.scene.control.Separator());
+      }
+      // Then teams
+      if (teamPanel != null) {
+        tournamentDetailContent.getChildren().add(teamPanel);
+        tournamentDetailContent.getChildren().add(new javafx.scene.control.Separator());
+      }
+    } else {
+      // Teams first (forming rosters is the primary action when pending)
+      if (teamPanel != null) {
+        tournamentDetailContent.getChildren().add(teamPanel);
+        tournamentDetailContent.getChildren().add(new javafx.scene.control.Separator());
+      }
+      // Then bracket preview
+      if (fullBean.getMatches() != null && !fullBean.getMatches().isEmpty()) {
+        buildBracketSections(fullBean).forEach(tournamentDetailContent.getChildren()::add);
+      }
+    }
+
+    if (fullBean.getParticipantNames() != null && !fullBean.getParticipantNames().isEmpty()) {
+      tournamentDetailContent.getChildren().add(buildParticipantsView(fullBean));
+    }
+
+    if (pendingScrollTarget != null) {
+      Node target = pendingScrollTarget;
+      JavaFxUtil.runLater(() -> scrollNodeIntoView(target));
+    }
+
+    populateGameList(fullBean);
+  }
+
+  private String statusText(TournamentBean t) {
+    TournamentBean.Status status = t.getStatus();
+    if (status == TournamentBean.Status.RUNNING) return i18n.get("tournament.status.running");
+    if (status == TournamentBean.Status.OPEN_FOR_REGISTRATION) return i18n.get("tournament.status.openForSignup");
+    if (status == TournamentBean.Status.FINISHED) return i18n.get("tournament.status.complete");
+    if (status == TournamentBean.Status.CANCELLED) return i18n.get("tournament.status.cancelled");
+    return i18n.get("tournament.status.closed");
+  }
+
+  private String statusStyleClass(TournamentBean t) {
+    TournamentBean.Status status = t.getStatus();
+    if (status == TournamentBean.Status.RUNNING) return "status-underway";
+    if (status == TournamentBean.Status.OPEN_FOR_REGISTRATION) return "status-pending";
+    return "status-complete";
+  }
+
+  /**
+   * Compute the match id of the user's first "next-to-play" match — the
+   * earliest open match in display order where the current player is one of
+   * the two competitors. Returns 0 if there is no such match (user not a
+   * participant, all matches done, or none yet open).
+   */
+  private int computeUserNextMatchId(TournamentBean tournament) {
+    String currentPlayer = playerService.getCurrentPlayer()
+        .map(p -> p.getUsername()).orElse(null);
+    if (currentPlayer == null || tournament.getMatches() == null) return 0;
+
+    List<TournamentBean.MatchInfo> sorted = new ArrayList<>(tournament.getMatches());
+    sorted.sort((a, b) -> {
+      int ar = a.getRound(), br = b.getRound();
+      int aKey = ar > 0 ? ar : (ar == 0 ? 1000 : 1001 + Math.abs(ar));
+      int bKey = br > 0 ? br : (br == 0 ? 1000 : 1001 + Math.abs(br));
+      if (aKey != bKey) return aKey - bKey;
+      return a.getPosition() - b.getPosition();
+    });
+
+    Integer myTeamId = teamService.getMyTeamId().get();
+    for (TournamentBean.MatchInfo m : sorted) {
+      if (!"open".equals(m.getState())) continue;
+      // Solo: match by player name. Team: match by team id.
+      if (m.getTeam1Id() > 0 || m.getTeam2Id() > 0) {
+        if (myTeamId != null && (myTeamId == m.getTeam1Id() || myTeamId == m.getTeam2Id())) {
+          return m.getMatchId();
+        }
+      } else {
+        if (currentPlayer.equals(m.getPlayer1()) || currentPlayer.equals(m.getPlayer2())) {
+          return m.getMatchId();
+        }
+      }
+    }
+    return 0;
+  }
+
+  /**
+   * Render the right-hand "game list" pane for the currently-selected match.
+   * Single-match mode: shows just the match the user clicked on (or the auto-
+   * selected next-to-play). Empty placeholder if nothing is selected.
+   */
+  private void populateGameList(TournamentBean tournament) {
+    gameListContent.getChildren().clear();
+
+    List<TournamentBean.MatchInfo> matches = tournament.getMatches();
+    // Pane is always visible — even an empty selection shows the placeholder.
+    gameListPane.setVisible(true);
+    gameListPane.setManaged(true);
+
+    if (selectedMatchId <= 0 || matches == null) {
+      gameListContent.getChildren().add(buildEmptyPlaceholder());
+      gameListScrollPane.setVvalue(0);
+      return;
+    }
+
+    TournamentBean.MatchInfo selected = null;
+    for (TournamentBean.MatchInfo m : matches) {
+      if (m.getMatchId() == selectedMatchId) {
+        selected = m;
+        break;
+      }
+    }
+    if (selected == null) {
+      gameListContent.getChildren().add(buildEmptyPlaceholder());
+      gameListScrollPane.setVvalue(0);
+      return;
+    }
+
+    String currentPlayer = playerService.getCurrentPlayer()
+        .map(p -> p.getUsername()).orElse(null);
+    // Map preview lookups need the *technical* mod name, not the display name.
+    String featuredMod = tournament.getFeaturedModTechnicalName();
+    boolean isUserNextMatch = (selected.getMatchId() == userNextMatchId);
+
+    gameListContent.getChildren().add(
+        buildMatchDetail(selected, currentPlayer, featuredMod, tournament, isUserNextMatch));
+    gameListScrollPane.setVvalue(0);
+  }
+
+  private javafx.scene.Node buildEmptyPlaceholder() {
+    javafx.scene.control.Label placeholder = new javafx.scene.control.Label(
+        i18n.get("tournament.gameList.empty"));
+    placeholder.setWrapText(true);
+    placeholder.setMaxWidth(Double.MAX_VALUE);
+    placeholder.getStyleClass().add("map-showcase-placeholder");
+    placeholder.setStyle("-fx-text-fill: #888; -fx-font-style: italic; -fx-padding: 12;");
+    return placeholder;
+  }
+
+  /**
+   * Build the right-pane content for one match: header label, planned-map cards,
+   * and conditional Create Game / View Replays buttons.
+   */
+  private javafx.scene.Node buildMatchDetail(TournamentBean.MatchInfo match, String currentPlayer,
+                                               String featuredMod, TournamentBean tournament,
+                                               boolean isUserNextMatch) {
+    javafx.scene.layout.VBox section = new javafx.scene.layout.VBox(6);
+    section.getStyleClass().add("map-showcase-section");
+    // Centered alignment so the width-constrained map cards (which are only as
+    // wide as the thumbnail + border) sit centered within the right pane.
+    // Children with maxWidth = Double.MAX_VALUE (e.g. the header label and the
+    // per-match View Replays button) still expand to fill width — VBox alignment
+    // only repositions children narrower than the parent.
+    section.setAlignment(javafx.geometry.Pos.TOP_CENTER);
+
+    String label = labelForRole(match.getRole(), match.getRound());
+    String tbd = i18n.get("tournament.matchTbd");
+    String p1 = match.getPlayer1() != null ? match.getPlayer1() : tbd;
+    String p2 = match.getPlayer2() != null ? match.getPlayer2() : tbd;
+    javafx.scene.control.Label header = new javafx.scene.control.Label(
+        label + " — " + p1 + " vs " + p2);
+    header.setWrapText(true);
+    header.setMaxWidth(Double.MAX_VALUE);
+    header.getStyleClass().add("map-showcase-section-header");
+    header.setStyle("-fx-font-weight: bold; -fx-padding: 0 0 4 0;");
+    section.getChildren().add(header);
+
+    boolean matchOpen = "open".equals(match.getState());
+    boolean matchComplete = "complete".equals(match.getState());
+    // Solo: check player name. Team: check if user's team is in this match.
+    boolean userIsParticipant;
+    if (match.getTeam1Id() > 0 || match.getTeam2Id() > 0) {
+      Integer myTeamId = teamService.getMyTeamId().get();
+      userIsParticipant = myTeamId != null
+          && (myTeamId == match.getTeam1Id() || myTeamId == match.getTeam2Id());
+    } else {
+      userIsParticipant = currentPlayer != null
+          && (currentPlayer.equals(match.getPlayer1()) || currentPlayer.equals(match.getPlayer2()));
+    }
+    int playedGameCount = match.getPlayedGameIds() != null ? match.getPlayedGameIds().size() : 0;
+    int nextGameNumber = playedGameCount + 1;
+
+    if (match.getPlannedMaps() != null && !match.getPlannedMaps().isEmpty()) {
+      for (TournamentBean.PlannedMapInfo pm : match.getPlannedMaps()) {
+        // The "active" highlight + Create Game button only appear when the
+        // user is viewing their OWN next-to-play match AND this is the next
+        // game in the series.
+        boolean isNextToPlay = isUserNextMatch && matchOpen && userIsParticipant
+            && pm.getGameNumber() == nextGameNumber;
+        section.getChildren().add(
+            buildPlannedMapCard(match, pm, featuredMod, tournament, isNextToPlay));
+      }
+    } else if (isUserNextMatch && matchOpen && userIsParticipant) {
+      // No planned maps (no map pool / no single map configured).
+      // Show the Create Game button directly without a map card.
+      section.getChildren().add(createTournamentGameButton(null, tournament, match));
+    }
+
+    // Per-match View Replays button — only when complete and we have game IDs.
+    if (matchComplete && match.getPlayedGameIds() != null && !match.getPlayedGameIds().isEmpty()) {
+      Button replaysButton = new Button(i18n.get("tournament.viewReplays"));
+      replaysButton.setMaxWidth(Double.MAX_VALUE);
+      java.util.List<Integer> playedIds = match.getPlayedGameIds();
+      replaysButton.setOnAction(e -> eventBus.post(new ShowGameIdReplaysEvent(playedIds)));
+      section.getChildren().add(replaysButton);
+    }
+
+    return section;
+  }
+
+  /**
+   * Creates the "Create Game" button used in both map-card and no-map tournament views.
+   * Disabled while the user is already in a game (mirrors CustomGamesController).
+   */
+  private Button createTournamentGameButton(String mapName, TournamentBean tournament,
+                                            TournamentBean.MatchInfo match) {
+    Button createButton = new Button(i18n.get("tournament.createGame"));
+    createButton.getStyleClass().add("start-game-button");
+    createButton.setMaxWidth(Double.MAX_VALUE);
+    createButton.disableProperty().bind(Bindings.createBooleanBinding(
+        () -> {
+          Number uid = gameService.runningGameUidProperty().get();
+          return uid != null && uid.longValue() > 0;
+        },
+        gameService.runningGameUidProperty()));
+    createButton.setOnAction(e -> {
+      HostGameEvent ev = new HostGameEvent(mapName);
+      applyTournamentPresets(ev, tournament, match);
+      eventBus.post(ev);
+    });
+    return createButton;
+  }
+
+  private javafx.scene.Node buildPlannedMapCard(TournamentBean.MatchInfo match,
+                                                  TournamentBean.PlannedMapInfo plannedMap,
+                                                  String featuredMod,
+                                                  TournamentBean tournament,
+                                                  boolean isNextToPlay) {
+    javafx.scene.layout.VBox cardWrapper = new javafx.scene.layout.VBox(4);
+    cardWrapper.getStyleClass().add("map-showcase-card-wrapper");
+    cardWrapper.setAlignment(javafx.geometry.Pos.TOP_CENTER);
+    // The gameListPane is locked to ~thumbnail width via SplitPane.setResizableWithParent
+    // and prefWidth, so the wrapper just fills its parent here — the frame ends up
+    // hugging the thumbnail naturally.
+    if (isNextToPlay) {
+      cardWrapper.getStyleClass().add("map-showcase-card-active");
+    }
+
+    javafx.scene.image.ImageView imageView = new javafx.scene.image.ImageView();
+    imageView.getStyleClass().add("map-showcase-card");
+    imageView.setFitWidth(THUMBNAIL_SIZE);
+    imageView.setFitHeight(THUMBNAIL_SIZE);
+    imageView.setPreserveRatio(true);
+    String mapName = plannedMap.getMapFolderName() != null
+        ? plannedMap.getMapFolderName() : plannedMap.getMapName();
+    try {
+      javafx.scene.image.Image preview = mapService.loadPreview(
+          featuredMod, mapName, PreviewType.MINI, 10);
+      if (preview != null) imageView.setImage(preview);
+    } catch (Exception e) {
+      log.debug("Failed to load preview for map {}", plannedMap.getMapName(), e);
+    }
+
+    // Map name now sits BELOW the thumbnail as a regular label — no overlay,
+    // no gradient dimmer, since the right pane has plenty of vertical space.
+    String displayName = "G" + plannedMap.getGameNumber() + " — "
+        + (plannedMap.getMapName() != null ? plannedMap.getMapName() : "?");
+    javafx.scene.control.Label nameLabel = new javafx.scene.control.Label(displayName);
+    nameLabel.setMaxWidth(Double.MAX_VALUE);
+    nameLabel.setWrapText(true);
+    nameLabel.setAlignment(javafx.geometry.Pos.CENTER);
+    nameLabel.getStyleClass().add("map-showcase-name");
+
+    // Context menu: Inspect/Browse Map always; View Replay if this game number
+    // has already been played in the series (BO-N: per-game replay lookup).
+    javafx.scene.control.ContextMenu menu = new javafx.scene.control.ContextMenu();
+    javafx.scene.control.MenuItem inspectItem = new javafx.scene.control.MenuItem(
+        i18n.get("tournament.inspectMap"));
+    inspectItem.setOnAction(e -> eventBus.post(new HostGameEvent(mapName)));
+    menu.getItems().add(inspectItem);
+
+    java.util.List<Integer> playedIds = match.getPlayedGameIds();
+    int gameIdx = plannedMap.getGameNumber() - 1;
+    if (playedIds != null && gameIdx >= 0 && gameIdx < playedIds.size()) {
+      Integer playedGameId = playedIds.get(gameIdx);
+      if (playedGameId != null && playedGameId > 0) {
+        javafx.scene.control.MenuItem viewReplayItem = new javafx.scene.control.MenuItem(
+            i18n.get("tournament.viewReplays"));
+        viewReplayItem.setOnAction(e ->
+            eventBus.post(new ShowGameIdReplaysEvent(java.util.Collections.singletonList(playedGameId))));
+        menu.getItems().add(viewReplayItem);
+      }
+    }
+    // Either click-target opens the menu — image and label both feel "part of the card".
+    javafx.event.EventHandler<javafx.scene.input.MouseEvent> showMenu =
+        e -> menu.show(imageView, e.getScreenX(), e.getScreenY());
+    imageView.setOnMouseClicked(showMenu);
+    nameLabel.setOnMouseClicked(showMenu);
+
+    cardWrapper.getChildren().addAll(imageView, nameLabel);
+
+    if (isNextToPlay) {
+      cardWrapper.getChildren().add(createTournamentGameButton(mapName, tournament, match));
+    }
+
+    return cardWrapper;
+  }
+
+  private void applyTournamentPresets(HostGameEvent ev, TournamentBean tournament,
+                                       TournamentBean.MatchInfo match) {
+    // setSelectedMod (eventually called via CreateGameController.applyHostGamePresets)
+    // matches by *technical* name, not display name. Sending the display name here
+    // silently fails the IllegalArgumentException-throwing lookup in ModService.
+    if (tournament.getFeaturedModTechnicalName() != null) {
+      ev.setPresetFeaturedMod(tournament.getFeaturedModTechnicalName());
+    }
+    int playersPerSide = tournament.getPlayersPerSide();
+    if (playersPerSide > 0) {
+      ev.setPresetMaxPlayers(playersPerSide * 2);
+    }
+    ev.setPresetRanked(true);
+    ev.setPresetFriendsOnly(false);
+    ev.setPresetEnforceRating(false);
+    ev.setPresetMinRating("");
+    ev.setPresetMaxRating("");
+    ev.setPresetPassword("");
+
+    String p1 = match.getPlayer1() != null ? match.getPlayer1() : "TBD";
+    String p2 = match.getPlayer2() != null ? match.getPlayer2() : "TBD";
+    int bestOf = Math.max(1, tournament.getBestOf());
+    int playedCount = match.getPlayedGameIds() != null ? match.getPlayedGameIds().size() : 0;
+    int nextGame = playedCount + 1;
+    String title;
+    if (bestOf > 1) {
+      // Compact, score-prominent: "[koth] G2/3 1-0 — alice vs bob"
+      title = "[" + tournament.getName() + "] G" + nextGame + "/" + bestOf + " "
+          + match.getPlayer1Wins() + "-" + match.getPlayer2Wins() + " — " + p1 + " vs " + p2;
+    } else {
+      title = "[" + tournament.getName() + "] " + p1 + " vs " + p2;
+    }
+    ev.setPresetTransientTitle(title);
+  }
+
+  // ===== Native FX rendering of the tournament detail pane =====
+
+  /**
+   * Build the settings GridPane (label/value rows). Returns null if there are no settings to show.
+   */
+  private GridPane buildSettingsGrid(TournamentBean t) {
+    GridPane grid = new GridPane();
+    grid.getStyleClass().add("settings-grid");
+    grid.setHgap(0);
+    grid.setVgap(2);
+
+    int row = 0;
+    // Date/time rows — show whichever timestamps are relevant.
+    java.time.OffsetDateTime scheduledAt = t.getStartingAt();
+    java.time.OffsetDateTime completedAt = t.getCompletedAt();
+    String apiState = t.getApiState();
+    if ("pending".equals(apiState) && scheduledAt != null) {
+      addSettingRow(grid, row++, i18n.get("tournament.detail.startsAt"), timeService.asDateTime(scheduledAt));
+    }
+    if ("underway".equals(apiState) && scheduledAt != null) {
+      addSettingRow(grid, row++, i18n.get("tournament.detail.startedAt"), timeService.asDateTime(scheduledAt));
+    }
+    if ("complete".equals(apiState)) {
+      if (scheduledAt != null) addSettingRow(grid, row++, i18n.get("tournament.detail.startedAt"), timeService.asDateTime(scheduledAt));
+      if (completedAt != null) addSettingRow(grid, row++, i18n.get("tournament.detail.completedAt"), timeService.asDateTime(completedAt));
+    }
+    if ("cancelled".equals(apiState) && completedAt != null) {
+      addSettingRow(grid, row++, i18n.get("tournament.detail.closedAt"), timeService.asDateTime(completedAt));
+    }
+    // Always show core settings — use sensible display defaults when
+    // the moderator left a field unconfigured, so the player knows
+    // what they're signing up for.
+    int pps = t.getPlayersPerSide();
+    String formatLabel = (pps > 1 ? pps + "v" + pps + " " : "")
+        + (t.getTournamentType() != null
+            ? t.getTournamentType().replace("_", " ")
+            : "single elimination");
+    addSettingRow(grid, row++, i18n.get("tournament.detail.format"), formatLabel);
+    if (t.getBestOf() > 1) {
+      addSettingRow(grid, row++, i18n.get("tournament.detail.bestOf"), String.valueOf(t.getBestOf()));
+    }
+    addSettingRow(grid, row++, i18n.get("tournament.detail.noshowTimeout"),
+        i18n.get("tournament.detail.noshowMinutes",
+            t.getNoshowTimeoutMinutes() > 0 ? t.getNoshowTimeoutMinutes() : 20));
+    if (t.getMinRating() != null || t.getMaxRating() != null) {
+      String ratingRange = (t.getMinRating() != null ? t.getMinRating().toString() : i18n.get("tournament.detail.ratingAny"))
+          + " – "
+          + (t.getMaxRating() != null ? t.getMaxRating().toString() : i18n.get("tournament.detail.ratingAny"));
+      addSettingRow(grid, row++, i18n.get("tournament.detail.ratingRange"), ratingRange);
+    }
+    addSettingRow(grid, row++, i18n.get("tournament.detail.mod"),
+        t.getFeaturedModName() != null ? t.getFeaturedModName() : i18n.get("tournament.detail.modAny"));
+    if (t.getLeaderboardName() != null) {
+      addSettingRow(grid, row++, i18n.get("tournament.detail.seedingRating"), i18n.get(t.getLeaderboardName()));
+    }
+    if (t.getMapPoolName() != null) {
+      addSettingRow(grid, row++, i18n.get("tournament.detail.mapPool"), t.getMapPoolName());
+    }
+    if ("swiss".equals(t.getTournamentType())) {
+      addSettingRow(grid, row++, i18n.get("tournament.detail.swissRounds"),
+          String.valueOf(t.getSwissRounds() > 0 ? t.getSwissRounds() : 3));
+      if (t.getTopCut() > 0) {
+        String value = "Top " + t.getTopCut();
+        if (t.getTopCutFormat() != null) {
+          value += " \u2192 " + t.getTopCutFormat().replace("_", " ");
+        }
+        addSettingRow(grid, row++, i18n.get("tournament.detail.topCut"), value);
+      }
+    }
+    return row == 0 ? null : grid;
+  }
+
+  private void addSettingRow(GridPane grid, int row, String label, String value) {
+    Label l = new Label(label);
+    l.getStyleClass().add("settings-label");
+    Label v = new Label(value);
+    v.getStyleClass().add("settings-value");
+    v.setWrapText(true);
+    grid.add(l, 0, row);
+    grid.add(v, 1, row);
+  }
+
+  /**
+   * Build the bracket section nodes (label + bracket). For Swiss tournaments
+   * also prepends the standings table.
+   */
+  private List<Node> buildBracketSections(TournamentBean tournament) {
+    List<Node> result = new ArrayList<>();
+    List<TournamentBean.MatchInfo> matches = tournament.getMatches();
+    Map<String, Integer> ratings = tournament.getParticipantRatings();
+    Map<String, String> placementAvatars = buildPlacementAvatarMap(tournament);
+
+    // Prize avatar URLs for badge display. Once the tournament is finished
+    // (or cancelled), the placement avatars on the player slots themselves
+    // already show who won 1st/2nd/3rd, so the per-match prize badges become
+    // redundant clutter. Suppress them in terminal states.
+    boolean tournamentTerminal = tournament.getStatus() == TournamentBean.Status.FINISHED
+        || tournament.getStatus() == TournamentBean.Status.CANCELLED;
+    String[] prizeAvatars = tournamentTerminal
+        ? new String[]{null, null, null}
+        : new String[]{tournament.getWinnerAvatarUrl(),
+            tournament.getSecondPlaceAvatarUrl(), tournament.getThirdPlaceAvatarUrl()};
+
+    boolean hasLosers = matches.stream().anyMatch(m -> m.getRound() < 0);
+    boolean hasGrandFinal = matches.stream().anyMatch(m -> m.getRound() == 0);
+    boolean isKoth = "king_of_the_hill".equals(tournament.getTournamentType());
+    boolean isSwiss = "swiss".equals(tournament.getTournamentType());
+
+    // For double elim, suppress the semifinal 3rd-place badge (semis losers go to L bracket, not 3rd)
+    String[] wPrizes = (hasLosers || hasGrandFinal) ? new String[]{null, null, null} : prizeAvatars;
+
+    if (isSwiss) {
+      result.addAll(buildSwissContent(tournament, matches, ratings, placementAvatars, prizeAvatars));
+    } else if (isKoth) {
+      result.add(buildKothContent(matches, ratings, placementAvatars));
+    } else if (hasLosers || hasGrandFinal) {
+      result.add(sectionLabel("Winners Bracket"));
+      result.add(buildBracketRow(matches, ratings, placementAvatars, wPrizes, r -> r > 0));
+      result.add(sectionLabel("Losers Bracket"));
+      result.add(buildBracketRow(matches, ratings, placementAvatars, prizeAvatars, r -> r < 0));
+      if (hasGrandFinal) {
+        result.add(sectionLabel("Grand Final"));
+        result.add(buildBracketRow(matches, ratings, placementAvatars, prizeAvatars, r -> r == 0));
+      }
+    } else {
+      result.add(buildBracketRow(matches, ratings, placementAvatars, prizeAvatars, r -> r > 0));
+    }
+    return result;
+  }
+
+  private Label sectionLabel(String text) {
+    Label l = new Label(text);
+    l.getStyleClass().add("bracket-section-label");
+    return l;
+  }
+
+  /**
+   * Wrap the bracket HBox in a horizontal-scrolling ScrollPane and return the
+   * ScrollPane. Caller adds it to the detail container.
+   */
+  private Node buildBracketRow(List<TournamentBean.MatchInfo> allMatches,
+                                 Map<String, Integer> ratings,
+                                 Map<String, String> placementAvatars,
+                                 String[] prizeAvatars,
+                                 java.util.function.IntPredicate roundFilter) {
+    // Collect distinct rounds matching filter, sorted
+    List<Integer> roundNumbers = allMatches.stream()
+        .map(TournamentBean.MatchInfo::getRound)
+        .filter(roundFilter::test)
+        .distinct()
+        .sorted((a, b) -> {
+          if (a < 0 && b < 0) return Integer.compare(Math.abs(a), Math.abs(b));
+          return Integer.compare(a, b);
+        })
+        .collect(java.util.stream.Collectors.toList());
+
+    HBox row = new HBox();
+    row.getStyleClass().add("bracket-row");
+
+    ScrollPane scroll = new ScrollPane(row);
+    scroll.getStyleClass().add("bracket-scroll");
+    scroll.setFitToHeight(true);
+    scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+    scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+
+    for (int roundNum : roundNumbers) {
+      List<TournamentBean.MatchInfo> roundMatches = new ArrayList<>();
+      for (TournamentBean.MatchInfo m : allMatches) {
+        if (m.getRound() == roundNum) roundMatches.add(m);
+      }
+      if (roundMatches.isEmpty()) continue;
+      String role = roundMatches.get(0).getRole();
+      row.getChildren().add(
+          buildRoundColumn(labelForRole(role, roundNum), roundMatches, ratings, placementAvatars, prizeAvatars, scroll));
+    }
+    return scroll;
+  }
+
+  private VBox buildRoundColumn(String roundLabel,
+                                 List<TournamentBean.MatchInfo> roundMatches,
+                                 Map<String, Integer> ratings,
+                                 Map<String, String> placementAvatars,
+                                 String[] prizeAvatars,
+                                 ScrollPane bracketScroll) {
+    VBox column = new VBox();
+    column.getStyleClass().add("bracket-round");
+
+    Label header = new Label(roundLabel);
+    header.getStyleClass().add("bracket-round-label");
+    column.getChildren().add(header);
+
+    for (TournamentBean.MatchInfo m : roundMatches) {
+      String[] badges = badgesForRole(m.getRole(), prizeAvatars);
+      column.getChildren().add(buildMatchNode(m, ratings, placementAvatars, badges, bracketScroll));
+    }
+    return column;
+  }
+
+  /**
+   * Build a single bracket match node. Click handler calls {@link #selectMatch}.
+   * Tracks in {@code matchNodes} for selection-class toggling and remembers the
+   * enclosing horizontal bracket ScrollPane (used by scrollNodeIntoView for
+   * horizontal centering).
+   */
+  private Node buildMatchNode(TournamentBean.MatchInfo m,
+                                Map<String, Integer> ratings,
+                                Map<String, String> placementAvatars,
+                                String[] prizeBadgeUrls,
+                                ScrollPane bracketScroll) {
+    VBox match = new VBox();
+    match.getStyleClass().add("bracket-match");
+    match.setMaxWidth(Double.MAX_VALUE);
+
+    String state = m.getState();
+    if ("complete".equals(state)) match.getStyleClass().add("bracket-match-complete");
+    else if ("open".equals(state)) match.getStyleClass().add("bracket-match-open");
+    else if ("preview".equals(state)) match.getStyleClass().add("bracket-match-preview");
+    else match.getStyleClass().add("bracket-match-pending");
+
+    int matchId = m.getMatchId();
+    if (matchId > 0 && matchId == userNextMatchId) match.getStyleClass().add("bracket-match-user-next");
+    if (matchId > 0 && matchId == selectedMatchId) match.getStyleClass().add("bracket-match-selected");
+
+    // Show the score whenever there's any progress (mid-series BO-N) or the
+    // match is complete. Pure-pending matches with 0-0 don't get a score column.
+    boolean showScore = "complete".equals(state) || m.getPlayer1Wins() > 0 || m.getPlayer2Wins() > 0;
+    match.getChildren().add(buildPlayerSlot(m, m.getPlayer1(), ratings, placementAvatars,
+        isWinner(m, m.getPlayer1()), showScore, m.getPlayer1Wins()));
+    Region divider = new Region();
+    divider.getStyleClass().add("bracket-slot-divider");
+    match.getChildren().add(divider);
+    match.getChildren().add(buildPlayerSlot(m, m.getPlayer2(), ratings, placementAvatars,
+        isWinner(m, m.getPlayer2()), showScore, m.getPlayer2Wins()));
+
+    // Noshow countdown for open matches
+    if ("open".equals(state) && m.getOpenedAt() != null && currentTournament != null) {
+      try {
+        java.time.Instant opened = java.time.OffsetDateTime.parse(m.getOpenedAt()).toInstant();
+        int timeoutMin = Math.max(currentTournament.getNoshowTimeoutMinutes(), 5);
+        java.time.Instant deadline = opened.plusSeconds(timeoutMin * 60L);
+        Label countdownLabel = new Label();
+        countdownLabel.getStyleClass().add("bracket-player-rating");
+        countdownLabel.setMaxWidth(Double.MAX_VALUE);
+        countdownLabel.setAlignment(javafx.geometry.Pos.CENTER);
+        final int countdownMatchId = m.getMatchId();
+        javafx.animation.Timeline countdown = new javafx.animation.Timeline(
+            new javafx.animation.KeyFrame(javafx.util.Duration.seconds(1), ev -> {
+              // Self-stop if the match is no longer open (result reported,
+              // tournament complete, etc.).
+              if (currentTournament != null && currentTournament.getMatches() != null) {
+                boolean stillOpen = currentTournament.getMatches().stream()
+                    .anyMatch(mm -> mm.getMatchId() == countdownMatchId && "open".equals(mm.getState()));
+                if (!stillOpen) {
+                  countdownLabel.setVisible(false);
+                  countdownLabel.setText("");
+                  return;
+                }
+              }
+              // If the countdown was paused by a timer-stopped broadcast
+              // (game went live), show the frozen time with a status note.
+              // The bracket re-render on game end will either remove this
+              // node (match resolved) or recreate it with correct time
+              // (match still open — game ended without valid result).
+              // We can't easily detect "paused" state on the Timeline
+              // from inside the handler, so this check is a no-op —
+              // the pause() call in the listener prevents this handler
+              // from firing at all while paused.
+              long secsLeft = java.time.Duration.between(java.time.Instant.now(), deadline).getSeconds();
+              if (secsLeft <= 0) {
+                countdownLabel.setText(i18n.get("tournament.forfeit.imminent"));
+                countdownLabel.setStyle("-fx-text-fill: -bad;");
+              } else {
+                countdownLabel.setText(i18n.get("tournament.forfeit.countdown",
+                    String.format("%d:%02d:%02d", secsLeft / 3600, (secsLeft % 3600) / 60, secsLeft % 60)));
+              }
+            }));
+        countdown.setCycleCount(javafx.animation.Animation.INDEFINITE);
+        countdown.play();
+        activeCountdowns.add(countdown);
+        countdownByMatchId.put(countdownMatchId, countdown);
+        // Fire once immediately
+        long secsLeft = java.time.Duration.between(java.time.Instant.now(), deadline).getSeconds();
+        if (secsLeft <= 0) {
+          countdownLabel.setText("Forfeit imminent");
+          countdownLabel.setStyle("-fx-text-fill: -bad;");
+        } else {
+          countdownLabel.setText(String.format("Forfeit in %d:%02d:%02d",
+              secsLeft / 3600, (secsLeft % 3600) / 60, secsLeft % 60));
+        }
+        match.getChildren().add(countdownLabel);
+      } catch (Exception ignored) {}
+    }
+
+    if (prizeBadgeUrls != null) {
+      HBox prizeRow = new HBox();
+      prizeRow.getStyleClass().add("bracket-prize-row");
+      boolean any = false;
+      for (String url : prizeBadgeUrls) {
+        if (url == null) continue;
+        any = true;
+        ImageView iv = new ImageView();
+        try { iv.setImage(new Image(url, 16, 16, true, true, true)); } catch (Exception ignored) {}
+        iv.setFitHeight(16);
+        iv.setPreserveRatio(true);
+        prizeRow.getChildren().add(iv);
+      }
+      if (any) match.getChildren().add(prizeRow);
+    }
+
+    if (matchId > 0) {
+      match.setOnMouseClicked(e -> selectMatch(matchId));
+      matchNodes.put(matchId, match);
+      // Stash the enclosing horizontal bracket ScrollPane on the node so the
+      // scroll-into-view helper can scroll BOTH the outer (vertical) and the
+      // bracket-row (horizontal) ScrollPanes.
+      match.getProperties().put("bracketScroll", bracketScroll);
+      // If this is the user's next-to-play, remember it for post-layout scroll.
+      if (matchId == userNextMatchId && pendingScrollTarget == null) {
+        pendingScrollTarget = match;
+      }
+    }
+    return match;
+  }
+
+  private HBox buildPlayerSlot(TournamentBean.MatchInfo m, String playerName,
+                                 Map<String, Integer> ratings, Map<String, String> placementAvatars,
+                                 boolean isWinner, boolean showScore, int score) {
+    HBox slot = new HBox();
+    slot.getStyleClass().add("bracket-slot");
+    if (isWinner) slot.getStyleClass().add("bracket-slot-winner");
+
+    Label nameLabel;
+    String tooltipText = null;
+    if (playerName == null) {
+      nameLabel = new Label(i18n.get("tournament.matchTbd"));
+      nameLabel.getStyleClass().addAll("bracket-player", "bracket-player-tbd");
+    } else {
+      nameLabel = new Label(playerName);
+      nameLabel.getStyleClass().add("bracket-player");
+      tooltipText = playerName;
+    }
+    HBox.setHgrow(nameLabel, Priority.ALWAYS);
+    nameLabel.setMaxWidth(Double.MAX_VALUE);
+    slot.getChildren().add(nameLabel);
+
+    if (playerName != null && ratings != null) {
+      Integer rating = ratings.get(playerName);
+      if (rating != null) {
+        Label r = new Label("(" + rating + ")");
+        r.getStyleClass().add("bracket-player-rating");
+        slot.getChildren().add(r);
+        tooltipText = playerName + " (" + rating + ")";
+      }
+    }
+
+    // Tooltip with full untruncated name + rating so nothing is lost
+    // when the bracket column is too narrow for long usernames.
+    if (tooltipText != null) {
+      javafx.scene.control.Tooltip tip = new javafx.scene.control.Tooltip(tooltipText);
+      tip.setShowDelay(javafx.util.Duration.millis(300));
+      javafx.scene.control.Tooltip.install(slot, tip);
+    }
+
+    if (playerName != null && placementAvatars != null) {
+      String url = placementAvatars.get(playerName);
+      if (url != null) {
+        try {
+          ImageView iv = new ImageView(new Image(url, 20, 20, true, true, true));
+          iv.setFitHeight(20);
+          iv.setPreserveRatio(true);
+          slot.getChildren().add(iv);
+        } catch (Exception ignored) {}
+      }
+    }
+
+    if (showScore) {
+      Label scoreLabel = new Label(String.valueOf(score));
+      scoreLabel.getStyleClass().add("bracket-score");
+      slot.getChildren().add(scoreLabel);
+    }
+    return slot;
+  }
+
+  private List<Node> buildSwissContent(TournamentBean tournament,
+                                         List<TournamentBean.MatchInfo> matches,
+                                         Map<String, Integer> ratings,
+                                         Map<String, String> placementAvatars,
+                                         String[] prizeAvatars) {
+    List<Node> nodes = new ArrayList<>();
+    final int swissRounds = tournament.getSwissRounds() > 0 ? tournament.getSwissRounds() : 3;
+
+    List<TournamentBean.MatchInfo> swissMatches = new ArrayList<>();
+    List<TournamentBean.MatchInfo> topCutMatches = new ArrayList<>();
+    for (TournamentBean.MatchInfo m : matches) {
+      if (m.getRound() > 0 && m.getRound() <= swissRounds) {
+        swissMatches.add(m);
+      } else {
+        topCutMatches.add(m);
+      }
+    }
+
+    // Standings table
+    nodes.add(sectionLabel("Swiss Standings"));
+    nodes.add(buildSwissStandingsTable(tournament, ratings));
+
+    // Swiss round pairings (one HBox row of round columns, in a horizontal scroll)
+    nodes.add(sectionLabel("Swiss Pairings"));
+    nodes.add(buildBracketRow(swissMatches, ratings, placementAvatars, prizeAvatars,
+        r -> r > 0 && r <= swissRounds));
+
+    // Top cut bracket
+    if (!topCutMatches.isEmpty()) {
+      boolean hasLosers = topCutMatches.stream().anyMatch(m -> m.getRound() < 0);
+      boolean hasGrandFinal = topCutMatches.stream().anyMatch(m -> m.getRound() == 0);
+      String[] tcWPrizes = (hasLosers || hasGrandFinal) ? new String[]{null, null, null} : prizeAvatars;
+
+      if (hasLosers || hasGrandFinal) {
+        nodes.add(sectionLabel("Top Cut — Winners Bracket"));
+        nodes.add(buildBracketRow(topCutMatches, ratings, placementAvatars, tcWPrizes, r -> r > swissRounds));
+        nodes.add(sectionLabel("Top Cut — Losers Bracket"));
+        nodes.add(buildBracketRow(topCutMatches, ratings, placementAvatars, prizeAvatars, r -> r < 0));
+        if (hasGrandFinal) {
+          nodes.add(sectionLabel("Grand Final"));
+          nodes.add(buildBracketRow(topCutMatches, ratings, placementAvatars, prizeAvatars, r -> r == 0));
+        }
+      } else {
+        nodes.add(sectionLabel("Top Cut"));
+        nodes.add(buildBracketRow(topCutMatches, ratings, placementAvatars, prizeAvatars, r -> r > swissRounds));
+      }
+    }
+    return nodes;
+  }
+
+  private TableView<TournamentBean.StandingInfo> buildSwissStandingsTable(TournamentBean tournament,
+                                                                            Map<String, Integer> ratings) {
+    TableView<TournamentBean.StandingInfo> table = new TableView<>();
+    table.getStyleClass().add("swiss-standings-table");
+
+    TableColumn<TournamentBean.StandingInfo, Integer> rankCol = new TableColumn<>("#");
+    rankCol.setCellValueFactory(c -> new ReadOnlyObjectWrapper<>(c.getValue().getRank()));
+    rankCol.setPrefWidth(36);
+
+    TableColumn<TournamentBean.StandingInfo, String> playerCol = new TableColumn<>("Player");
+    playerCol.setCellValueFactory(c -> {
+      String name = c.getValue().getPlayerName();
+      Integer rating = ratings != null ? ratings.get(name) : null;
+      return new ReadOnlyObjectWrapper<>(rating != null ? name + " (" + rating + ")" : name);
+    });
+    playerCol.setPrefWidth(180);
+
+    TableColumn<TournamentBean.StandingInfo, Integer> winsCol = new TableColumn<>("W");
+    winsCol.setCellValueFactory(c -> new ReadOnlyObjectWrapper<>(c.getValue().getWins()));
+    winsCol.setPrefWidth(40);
+
+    TableColumn<TournamentBean.StandingInfo, Integer> lossesCol = new TableColumn<>("L");
+    lossesCol.setCellValueFactory(c -> new ReadOnlyObjectWrapper<>(c.getValue().getLosses()));
+    lossesCol.setPrefWidth(40);
+
+    TableColumn<TournamentBean.StandingInfo, Integer> oppCol = new TableColumn<>("Opp. Str.");
+    oppCol.setCellValueFactory(c -> new ReadOnlyObjectWrapper<>(c.getValue().getOpponentStrength()));
+    oppCol.setPrefWidth(72);
+
+    TableColumn<TournamentBean.StandingInfo, Integer> winStrCol = new TableColumn<>("Win Str.");
+    winStrCol.setCellValueFactory(c -> new ReadOnlyObjectWrapper<>(c.getValue().getWinStrength()));
+    winStrCol.setPrefWidth(72);
+
+    table.getColumns().addAll(rankCol, playerCol, winsCol, lossesCol, oppCol, winStrCol);
+
+    List<TournamentBean.StandingInfo> serverStandings = tournament.getStandings();
+    if (serverStandings != null && !serverStandings.isEmpty()) {
+      table.setItems(FXCollections.observableArrayList(serverStandings));
+    } else {
+      // Pre-start: show participants alphabetically with no scores
+      List<TournamentBean.StandingInfo> placeholder = new ArrayList<>();
+      for (String name : tournament.getParticipantNames()) {
+        placeholder.add(new TournamentBean.StandingInfo(0, name, 0, 0, 0, 0));
+      }
+      table.setItems(FXCollections.observableArrayList(placeholder));
+    }
+    table.setPrefHeight(Math.min(220, 28 + table.getItems().size() * 26));
+    return table;
+  }
+
+  private Node buildKothContent(List<TournamentBean.MatchInfo> matches,
+                                  Map<String, Integer> ratings,
+                                  Map<String, String> placementAvatars) {
+    List<TournamentBean.MatchInfo> sorted = new ArrayList<>(matches);
+    sorted.sort(Comparator.comparingInt(TournamentBean.MatchInfo::getRound));
+
+    VBox column = new VBox(6);
+    column.setMaxWidth(300);
+    for (TournamentBean.MatchInfo m : sorted) {
+      Label header = new Label(i18n.get("tournament.match.header", m.getRound()));
+      header.getStyleClass().add("bracket-round-label");
+      column.getChildren().add(header);
+      column.getChildren().add(buildMatchNode(m, ratings, placementAvatars, null, null));
+    }
+    return column;
+  }
+
+  private Node buildParticipantsView(TournamentBean tournament) {
+    VBox container = new VBox(4);
+    container.getStyleClass().add("tournament-participants-section");
+
+    Label header = sectionLabel(i18n.get("tournament.participants"));
+    container.getChildren().add(header);
+
+    FlowPane flow = new FlowPane();
+    flow.getStyleClass().add("tournament-participants");
+    flow.setHgap(16);
+    flow.setVgap(2);
+
+    Map<String, Integer> ratings = tournament.getParticipantRatings();
+    for (String name : tournament.getParticipantNames()) {
+      Integer rating = ratings != null ? ratings.get(name) : null;
+      Label l = new Label(rating != null ? name + " (" + rating + ")" : name);
+      l.getStyleClass().add("participant-entry");
+      flow.getChildren().add(l);
+    }
+    container.getChildren().add(flow);
+    return container;
+  }
+
+  /**
+   * Build a map of player name → avatar URL from the server-computed placements.
+   * No client-side guessing about which match decides which placement.
+   */
+  private Map<String, String> buildPlacementAvatarMap(TournamentBean tournament) {
+    Map<String, String> map = new HashMap<>();
+    Map<Integer, List<String>> placements = tournament.getPlacements();
+    if (placements == null || placements.isEmpty()) return map;
+
+    String[] avatarsByPlace = {
+        null, // index 0 unused
+        tournament.getWinnerAvatarUrl(),
+        tournament.getSecondPlaceAvatarUrl(),
+        tournament.getThirdPlaceAvatarUrl()
+    };
+    for (int place = 1; place <= 3; place++) {
+      String url = avatarsByPlace[place];
+      if (url == null) continue;
+      List<String> players = placements.get(place);
+      if (players != null) {
+        for (String player : players) map.put(player, url);
+      }
+    }
+    return map;
+  }
+
+  private boolean isWinner(TournamentBean.MatchInfo match, String player) {
+    return player != null && match.getWinner() != null && player.equals(match.getWinner());
+  }
+
+  /**
+   * Scroll a target node into view in the outer (vertical) detail ScrollPane
+   * AND in the enclosing bracket-row (horizontal) ScrollPane, if any.
+   * Both axes are centered. Stored "bracketScroll" property is set by buildMatchNode.
+   */
+  private void scrollNodeIntoView(Node target) {
+    if (target == null) return;
+
+    // Outer vertical scroll (the whole tournament detail)
+    centerInScrollPane(tournamentDetailScrollPane, target, false, true);
+
+    // Inner horizontal scroll (the bracket row)
+    Object stored = target.getProperties().get("bracketScroll");
+    if (stored instanceof ScrollPane) {
+      centerInScrollPane((ScrollPane) stored, target, true, false);
+    }
+  }
+
+  private void centerInScrollPane(ScrollPane sp, Node target, boolean horizontal, boolean vertical) {
+    if (sp == null || sp.getContent() == null) return;
+    Node content = sp.getContent();
+    javafx.geometry.Bounds boundsInContent = content.sceneToLocal(target.localToScene(target.getBoundsInLocal()));
+    javafx.geometry.Bounds viewport = sp.getViewportBounds();
+
+    if (horizontal) {
+      double contentWidth = content.getBoundsInLocal().getWidth();
+      double viewportWidth = viewport.getWidth();
+      if (contentWidth > viewportWidth) {
+        double centeredX = boundsInContent.getMinX() + boundsInContent.getWidth() / 2 - viewportWidth / 2;
+        double hvalue = Math.max(0, Math.min(1, centeredX / (contentWidth - viewportWidth)));
+        sp.setHvalue(hvalue);
+      } else {
+        sp.setHvalue(0);
+      }
+    }
+    if (vertical) {
+      double contentHeight = content.getBoundsInLocal().getHeight();
+      double viewportHeight = viewport.getHeight();
+      if (contentHeight > viewportHeight) {
+        double centeredY = boundsInContent.getMinY() + boundsInContent.getHeight() / 2 - viewportHeight / 2;
+        double vvalue = Math.max(0, Math.min(1, centeredY / (contentHeight - viewportHeight)));
+        sp.setVvalue(vvalue);
+      } else {
+        sp.setVvalue(0);
+      }
+    }
+  }
+
+  private String labelForRole(String role, int round) {
+    if (role == null) return i18n.get("tournament.bracket.round", Math.abs(round));
+    switch (role) {
+      case "winners_round": return i18n.get("tournament.bracket.winnersRound", round);
+      case "winners_semifinal": return i18n.get("tournament.bracket.winnersSemifinal");
+      case "winners_final": return i18n.get("tournament.bracket.winnersFinal");
+      case "losers_round": return i18n.get("tournament.bracket.losersRound", Math.abs(round));
+      case "losers_final": return i18n.get("tournament.bracket.losersFinal");
+      case "grand_final":
+      case "top_cut_grand_final": return i18n.get("tournament.bracket.grandFinal");
+      case "swiss_round": return i18n.get("tournament.bracket.round", round);
+      case "top_cut_winners_round": return i18n.get("tournament.bracket.round", round);
+      case "top_cut_winners_semifinal": return i18n.get("tournament.bracket.semifinal");
+      case "top_cut_winners_final": return i18n.get("tournament.bracket.final");
+      case "top_cut_losers_round": return i18n.get("tournament.bracket.losersRound", Math.abs(round));
+      case "top_cut_losers_final": return i18n.get("tournament.bracket.losersFinal");
+      case "koth_match": return i18n.get("tournament.match.header", round);
+      default: return i18n.get("tournament.bracket.round", Math.abs(round));
+    }
+  }
+
+  /**
+   * Determines which prize badges (1st/2nd/3rd place avatars) belong on a match
+   * based on the match's semantic role.
+   */
+  private static String[] badgesForRole(String role, String[] prizeAvatars) {
+    if (role == null || prizeAvatars == null) return null;
+    switch (role) {
+      // Final match — produces 1st and 2nd place
+      case "winners_final":  // single elim final
+      case "top_cut_winners_final":
+      case "grand_final":
+      case "top_cut_grand_final":
+        if (prizeAvatars[0] != null || prizeAvatars[1] != null) {
+          return new String[]{prizeAvatars[0], prizeAvatars[1]};
+        }
+        return null;
+      // Semifinal — losers get 3rd
+      case "winners_semifinal":  // single elim semifinal
+      case "top_cut_winners_semifinal":
+        // Only show 3rd badge if this is single-elim (no losers bracket).
+        // For double elim top cut, semifinal losers go to losers bracket.
+        // We can detect this by whether the prize is shown elsewhere; safest:
+        // for "winners_semifinal" in a single elim bracket only.
+        // Use a heuristic: if it's a top_cut role, check below
+        if (prizeAvatars[2] != null) {
+          return new String[]{prizeAvatars[2]};
+        }
+        return null;
+      // L Final — loser gets 3rd in double elimination
+      case "losers_final":
+      case "top_cut_losers_final":
+        if (prizeAvatars[2] != null) {
+          return new String[]{prizeAvatars[2]};
+        }
+        return null;
+      default:
+        return null;
+    }
+  }
+
+  // ====================================================================
+  // Team panel (team tournaments only)
+  // ====================================================================
+
+  private static int parseIdSafe(String id) {
+    if (id == null) return 0;
+    try {
+      return Integer.parseInt(id);
+    } catch (NumberFormatException ignored) {
+      return 0;
+    }
+  }
+
+  /**
+   * Build the team panel that lives above the bracket for team
+   * tournaments. The panel shows pending invites for the local player
+   * (with accept / decline buttons), the player's current team (with
+   * leave + invite-by-name buttons), and a read-only list of every
+   * other team. The whole panel rebuilds itself whenever
+   * {@link TournamentTeamService#getTeams()} or {@code getPendingInvites()}
+   * change, so server-driven updates flow through automatically.
+   */
+  private VBox buildTeamPanel(TournamentBean tournamentBean) {
+    VBox root = new VBox(8);
+    root.getStyleClass().add("tournament-team-panel");
+    root.setPadding(new Insets(10, 0, 10, 0));
+
+    int pps = tournamentBean.getPlayersPerSide();
+    Label heading = new Label(i18n.get("tournament.team.header", pps, pps));
+    heading.getStyleClass().add("bracket-section-label");
+    root.getChildren().add(heading);
+
+    // Container that gets cleared and re-populated on every refresh.
+    VBox dynamicContent = new VBox(6);
+    root.getChildren().add(dynamicContent);
+
+    Runnable rerender = () -> rebuildTeamPanelContent(dynamicContent, tournamentBean);
+    rerender.run();
+
+    // Deregister previous listeners to prevent accumulation across
+    // tournament selections. Each buildTeamPanel call replaces the old
+    // listeners with fresh ones tied to the current panel's container.
+    if (teamsListener != null) {
+      teamService.getTeams().removeListener(teamsListener);
+    }
+    if (invitesListener != null) {
+      teamService.getPendingInvites().removeListener(invitesListener);
+    }
+    if (myTeamIdListener != null) {
+      teamService.getMyTeamId().removeListener(myTeamIdListener);
+    }
+    teamsListener = c -> JavaFxUtil.runLater(rerender);
+    invitesListener = c -> JavaFxUtil.runLater(rerender);
+    myTeamIdListener = (obs, oldVal, newVal) -> JavaFxUtil.runLater(rerender);
+    teamService.getTeams().addListener(teamsListener);
+    teamService.getPendingInvites().addListener(invitesListener);
+    teamService.getMyTeamId().addListener(myTeamIdListener);
+
+    return root;
+  }
+
+  private void rebuildTeamPanelContent(VBox container, TournamentBean tournamentBean) {
+    container.getChildren().clear();
+
+    int tournamentId = parseIdSafe(tournamentBean.getId());
+    int myPlayerId = playerService.getCurrentPlayer().map(p -> p.getId()).orElse(0);
+    boolean isComplete = "complete".equals(tournamentBean.getApiState())
+        || "cancelled".equals(tournamentBean.getApiState());
+
+    // ---- Pending invites for me (top of panel, hidden for complete) ----
+    if (!isComplete) for (com.faforever.client.remote.domain.TournamentTeamInviteReceivedMessage invite
+        : teamService.getPendingInvites()) {
+      VBox card = new VBox(4);
+      card.getStyleClass().add("team-invite-card");
+      String inviterName = invite.getInviterName() != null ? invite.getInviterName() : "?";
+      String teamName = invite.getTeamName() != null ? invite.getTeamName() : "?";
+      Label text = new Label(i18n.get("tournament.team.inviteMessage", inviterName, teamName));
+      text.getStyleClass().add("team-invite-text");
+      text.setWrapText(true);
+      HBox buttons = new HBox(8);
+      buttons.setAlignment(Pos.CENTER_LEFT);
+      Button accept = new Button(i18n.get("tournament.team.accept"));
+      accept.getStyleClass().add("team-btn-primary");
+      Button decline = new Button(i18n.get("tournament.team.decline"));
+      accept.setOnAction(e -> teamService.acceptInvite(invite.getInviteId()));
+      decline.setOnAction(e -> teamService.declineInvite(invite.getInviteId()));
+      buttons.getChildren().addAll(accept, decline);
+      card.getChildren().addAll(text, buttons);
+      container.getChildren().add(card);
+    }
+
+    // ---- My team (or "create team" prompt, hidden for complete) ----
+    Map<String, Object> myTeam = findTeamForPlayer(myPlayerId);
+    if (myTeam == null && !isComplete) {
+      VBox createCard = new VBox(6);
+      createCard.getStyleClass().add("team-card");
+      Label prompt = new Label(i18n.get("tournament.team.noTeamYet"));
+      prompt.getStyleClass().add("team-name");
+      HBox createRow = new HBox(8);
+      createRow.setAlignment(Pos.CENTER_LEFT);
+      javafx.scene.control.TextField nameField = new javafx.scene.control.TextField();
+      nameField.setPromptText(i18n.get("tournament.team.namePlaceholder"));
+      nameField.setPrefWidth(200);
+      Button create = new Button(i18n.get("tournament.team.create"));
+      create.getStyleClass().add("team-btn-primary");
+      create.setOnAction(e -> {
+        String name = nameField.getText();
+        if (name != null && !name.isBlank()) {
+          teamService.createTeam(tournamentId, name.trim());
+        }
+      });
+      createRow.getChildren().addAll(nameField, create);
+      createCard.getChildren().addAll(prompt, createRow);
+      container.getChildren().add(createCard);
+    } else if (myTeam != null) {
+      container.getChildren().add(buildOwnTeamBlock(myTeam, myPlayerId, tournamentBean));
+    }
+
+    // ---- Other teams (skip our own — already shown above with controls) ----
+    Integer myTeamId = teamService.getMyTeamId().get();
+    boolean hasOthers = teamService.getTeams().stream()
+        .anyMatch(t -> myTeamId == null || asInt(t.get("id")) != myTeamId.intValue());
+    if (hasOthers) {
+      container.getChildren().add(new javafx.scene.control.Separator());
+      FlowPane teamsFlow = new FlowPane();
+      teamsFlow.setHgap(8);
+      teamsFlow.setVgap(8);
+      for (Map<String, Object> team : teamService.getTeams()) {
+        if (myTeamId != null && asInt(team.get("id")) == myTeamId.intValue()) {
+          continue;
+        }
+        VBox card = buildTeamCard(team, tournamentBean);
+        card.setPrefWidth(280);
+        card.setMaxWidth(280);
+        teamsFlow.getChildren().add(card);
+      }
+      container.getChildren().add(teamsFlow);
+    }
+  }
+
+  private VBox buildOwnTeamBlock(Map<String, Object> myTeam, int myPlayerId, TournamentBean tournament) {
+    VBox box = new VBox(6);
+    box.getStyleClass().addAll("team-card", "team-card-mine");
+    box.setMaxWidth(Double.MAX_VALUE);
+    int teamId = asInt(myTeam.get("id"));
+    int captainId = asInt(myTeam.get("captain_id"));
+    String name = String.valueOf(myTeam.getOrDefault("name", "?"));
+    String ratingType = tournament.getLeaderboardTechnicalName();
+
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> members = (List<Map<String, Object>>) myTeam.get("members");
+    int pps = tournament.getPlayersPerSide();
+    int teamAgg = computeTeamAggregateRating(members, ratingType, pps);
+
+    // Header row: team name + badges
+    HBox header = new HBox(8);
+    header.getStyleClass().add("team-card-header");
+    Label nameLabel = new Label(name);
+    nameLabel.getStyleClass().add("team-name");
+    header.getChildren().add(nameLabel);
+    Object seedObj = myTeam.get("seed");
+    if (seedObj instanceof Number) {
+      Label seed = new Label(i18n.get("tournament.team.seed", ((Number) seedObj).intValue()));
+      seed.getStyleClass().add("team-badge");
+      header.getChildren().add(seed);
+    }
+    if (teamAgg != 0) {
+      Label rating = new Label(String.valueOf(teamAgg));
+      rating.getStyleClass().add("team-rating");
+      header.getChildren().add(rating);
+    }
+    box.getChildren().add(header);
+
+    // Members
+    if (members != null) {
+      for (Map<String, Object> m : members) {
+        HBox memberRow = new HBox(6);
+        memberRow.getStyleClass().add("team-member-row");
+        String memberName = String.valueOf(m.getOrDefault("player_name", "?"));
+        Label memberLabel = new Label(memberName);
+        memberLabel.getStyleClass().add("team-member-name");
+        memberRow.getChildren().add(memberLabel);
+        int memberPid = asInt(m.get("player_id"));
+        if (memberPid == captainId) {
+          Label cap = new Label(i18n.get("tournament.team.captain"));
+          cap.getStyleClass().add("team-member-captain");
+          memberRow.getChildren().add(cap);
+        }
+        int memberRating = getMemberRating(memberName, ratingType);
+        if (memberRating != 0) {
+          Label rLbl = new Label(String.valueOf(memberRating));
+          rLbl.getStyleClass().add("team-member-rating");
+          memberRow.getChildren().add(rLbl);
+        }
+        // Remove button visibility rules (player client only):
+        //  - Can't kick the captain (transfer captaincy first)
+        //  - Can't kick anyone once the tournament is underway
+        //    (server enforces has-played; we hide proactively)
+        //  - Can't kick yourself (use Leave instead)
+        boolean isStarted = "underway".equals(tournament.getApiState())
+            || "complete".equals(tournament.getApiState());
+        boolean canKick = memberPid != myPlayerId
+            && memberPid != 0
+            && memberPid != captainId
+            && !isStarted;
+        if (canKick) {
+          Region spacer = new Region();
+          HBox.setHgrow(spacer, Priority.ALWAYS);
+          Button kick = new Button(i18n.get("tournament.team.remove"));
+          kick.getStyleClass().add("team-btn-danger");
+          kick.setOnAction(e -> teamService.removeMember(teamId, memberPid));
+          memberRow.getChildren().addAll(spacer, kick);
+        }
+        box.getChildren().add(memberRow);
+      }
+    }
+
+    // Actions — visibility gated by tournament state:
+    //   Complete:  no controls at all (read-only historical view)
+    //   Underway:  invite only (substitution), no leave/disband/remove
+    //   Pending:   all controls
+    boolean isComplete = "complete".equals(tournament.getApiState())
+        || "cancelled".equals(tournament.getApiState());
+    boolean isUnderway = "underway".equals(tournament.getApiState());
+
+    if (!isComplete) {
+      HBox actions = new HBox(8);
+      actions.getStyleClass().add("team-actions");
+
+      // Invite (pending + underway — substitution is allowed mid-tournament)
+      javafx.scene.control.TextField inviteField = new javafx.scene.control.TextField();
+      inviteField.setPromptText(i18n.get("tournament.team.invitePlaceholder"));
+      inviteField.setPrefWidth(220);
+      bindInviteAutoCompletion(inviteField, teamId);
+      Button invite = new Button(i18n.get("tournament.team.invite"));
+      invite.getStyleClass().add("team-btn-primary");
+      Runnable trySendInvite = () -> {
+        String raw = inviteField.getText() == null ? "" : inviteField.getText().trim();
+        if (raw.isEmpty()) return;
+        String inviteeName = stripClanDecoration(raw);
+        Integer pid = invitePlayerNameToId.get(inviteeName.toLowerCase(java.util.Locale.US));
+        if (pid != null) {
+          teamService.invitePlayer(teamId, pid);
+          inviteField.clear();
+          return;
+        }
+        fafService.queryPlayerByName(inviteeName).thenAccept(opt -> JavaFxUtil.runLater(() -> {
+          if (opt.isPresent()) {
+            teamService.invitePlayer(teamId, opt.get().getId());
+            inviteField.clear();
+          }
+        }));
+      };
+      invite.setOnAction(e -> trySendInvite.run());
+      inviteField.setOnAction(e -> trySendInvite.run());
+      actions.getChildren().addAll(invite, inviteField);
+
+      // Leave + Disband (pending only)
+      if (!isUnderway) {
+        Button leave = new Button(i18n.get("tournament.team.leave"));
+        leave.setOnAction(e -> teamService.leaveTeam(teamId));
+        actions.getChildren().add(leave);
+
+        Button disband = new Button(i18n.get("tournament.team.disband"));
+        disband.getStyleClass().add("team-btn-danger");
+        disband.setOnAction(e -> teamService.disbandTeam(teamId));
+        actions.getChildren().add(disband);
+      }
+
+      box.getChildren().add(actions);
+    }
+    return box;
+  }
+
+  /**
+   * Persistent lower-cased name → id map for the invite field's autocomplete.
+   * Updated as suggestion lookups complete; read at invite-send time so the
+   * chosen display name resolves to the right id without a second round-trip.
+   * Cleared and repopulated each time the team panel is rebuilt — the panel
+   * is short-lived so unbounded growth isn't a concern in practice.
+   */
+  private final java.util.Map<String, Integer> invitePlayerNameToId =
+      new java.util.concurrent.ConcurrentHashMap<>();
+  /** Lower-cased name → display-case name. Lets us show "Foo_Bar" in the
+   *  popup even for offline players where PlayerService doesn't know them. */
+  private final java.util.Map<String, String> invitePlayerDisplayName =
+      new java.util.concurrent.ConcurrentHashMap<>();
+  /** Lower-cased name → clan tag (already lower-cased), or absent if the
+   *  player has no clan. Used by the suggestion filter for clan-tag
+   *  matching, mirroring how chat users perceive (but doesn't actually
+   *  do — see ChannelTabController) clan-aware autocomplete. */
+  private final java.util.Map<String, String> invitePlayerClanLower =
+      new java.util.concurrent.ConcurrentHashMap<>();
+
+  /** In-flight debounce timer for the api search; cancelled on each keystroke. */
+  private javafx.animation.PauseTransition inviteSearchDebounce;
+
+  private void bindInviteAutoCompletion(javafx.scene.control.TextField field, int teamId) {
+    invitePlayerNameToId.clear();
+    invitePlayerDisplayName.clear();
+    invitePlayerClanLower.clear();
+
+    // Pre-seed with currently-online players. Names, ids, AND clan tags
+    // all come from PlayerService's in-memory cache so the popup is
+    // useful immediately, before any api round-trip. Offline players
+    // get added later as the debounced api search returns results.
+    for (String name : playerService.getPlayerNames()) {
+      playerService.getPlayerForUsername(name).ifPresent(p -> {
+        String lc = name.toLowerCase(java.util.Locale.US);
+        invitePlayerNameToId.put(lc, p.getId());
+        invitePlayerDisplayName.put(lc, name);
+        String clan = p.getClan();
+        if (clan != null && !clan.isBlank()) {
+          invitePlayerClanLower.put(lc, clan.toLowerCase(java.util.Locale.US));
+        }
+      });
+    }
+
+    org.controlsfx.control.textfield.AutoCompletionBinding<String> binding =
+        org.controlsfx.control.textfield.TextFields.bindAutoCompletion(field, request -> {
+          String text = request.getUserText();
+          if (text == null || text.isBlank()) {
+            return java.util.Collections.emptyList();
+          }
+          String lc = text.toLowerCase(java.util.Locale.US);
+          // Synchronous: filter the local name pool. We accept a player
+          // when ANY of these match:
+          //   1. Login startsWith the prefix
+          //   2. Any underscore-split part of the login startsWith the prefix
+          //      (mirrors the chat client's behaviour, so e.g. typing
+          //      "Axle" matches "TAFR_Axle")
+          //   3. The player's clan tag startsWith the prefix
+          //      (genuine clan-tag awareness — chat conflates this with
+          //      the underscore split, but we look at the actual
+          //      Player.clan field, so it works for clans whose tag
+          //      doesn't appear in the login string)
+          return invitePlayerNameToId.keySet().stream()
+              .filter(name -> matchesInvitePrefix(name, lc))
+              .sorted()
+              .limit(20)
+              .map(this::displayWithClan)
+              .collect(java.util.stream.Collectors.toList());
+        });
+    binding.setDelay(0);
+    binding.setVisibleRowCount(10);
+
+    // Async: when the user has typed at least 2 chars, debounce 500ms
+    // and fire a faf-api search for offline players. 500ms is the
+    // common autocomplete sweet spot — fast enough that the popup
+    // feels reactive, slow enough that someone typing at 2-3 chars/sec
+    // doesn't fire 4 wasted api calls before they finish a name.
+    // Results merge into invitePlayerNameToId; we then re-trigger the
+    // popup so new entries appear without the user having to type again.
+    field.textProperty().addListener((obs, oldVal, newVal) -> {
+      if (newVal == null || newVal.length() < 2) return;
+      if (inviteSearchDebounce != null) inviteSearchDebounce.stop();
+      inviteSearchDebounce = new javafx.animation.PauseTransition(
+          javafx.util.Duration.millis(500));
+      inviteSearchDebounce.setOnFinished(ev -> {
+        String prefix = newVal.trim();
+        fafService.findPlayersByLoginPrefix(prefix, 15).thenAccept(players ->
+            JavaFxUtil.runLater(() -> {
+              boolean changed = false;
+              for (com.faforever.client.api.dto.Player p : players) {
+                String key = p.getLogin().toLowerCase(java.util.Locale.US);
+                Integer existing = invitePlayerNameToId.get(key);
+                int newId = Integer.parseInt(p.getId());
+                if (existing == null || existing != newId) {
+                  invitePlayerNameToId.put(key, newId);
+                  invitePlayerDisplayName.put(key, p.getLogin());
+                  changed = true;
+                }
+              }
+              // Re-trigger the popup if new names came in AND the field
+              // still contains the same prefix that prompted the search.
+              if (changed && prefix.equals(field.getText() == null ? "" : field.getText().trim())) {
+                binding.setUserInput(field.getText());
+              }
+            })).exceptionally(t -> {
+              log.debug("findPlayersByLoginPrefix failed for {}", prefix, t);
+              return null;
+            });
+      });
+      inviteSearchDebounce.play();
+    });
+  }
+
+  /** Returns the display-case version of a lowercased name from the
+   *  per-panel cache, falling back to the lowercased form. */
+  private String displayCaseFor(String lcName) {
+    String cached = invitePlayerDisplayName.get(lcName);
+    return cached != null ? cached : lcName;
+  }
+
+  /** Decorates the display name with clan tag like "[TAFR] Axle" when
+   *  available. The name→id resolution at invite-send time strips this
+   *  decoration via stripClanDecoration. */
+  private String displayWithClan(String lcName) {
+    String name = displayCaseFor(lcName);
+    String clanLower = invitePlayerClanLower.get(lcName);
+    if (clanLower == null) {
+      return name;
+    }
+    // We don't store the original-case clan tag (only lowercased), so
+    // upper-case it for display since clan tags are conventionally caps.
+    return "[" + clanLower.toUpperCase(java.util.Locale.US) + "] " + name;
+  }
+
+  /** Inverse of displayWithClan — extracts just the player name from
+   *  the decorated form. */
+  private static String stripClanDecoration(String decorated) {
+    if (decorated == null) return "";
+    int rb = decorated.indexOf("] ");
+    if (decorated.startsWith("[") && rb > 0) {
+      return decorated.substring(rb + 2).trim();
+    }
+    return decorated.trim();
+  }
+
+  /** Get the displayed rating for a player by name from the local PlayerService cache.
+   *  Returns 0 if the player is offline or has no rating on the given leaderboard. */
+  private int getMemberRating(String playerName, String ratingType) {
+    if (ratingType == null || playerName == null) return 0;
+    return playerService.getPlayerForUsername(playerName)
+        .map(p -> com.faforever.client.util.RatingUtil.getLeaderboardRating(p, ratingType))
+        .orElse(0);
+  }
+
+  /** Compute the inverse-variance weighted aggregate displayed rating for a
+   *  team from its member list, using only the top N rated members where
+   *  N = players_per_side (the number who actually play each game). A
+   *  10-member team with 8 bench players shouldn't inflate the aggregate.
+   *  Uses RatingUtil.getAggregateRating (same formula the server uses for
+   *  seeding). Returns 0 if no rated members. */
+  private int computeTeamAggregateRating(List<Map<String, Object>> members,
+                                          String ratingType, int playersPerSide) {
+    if (members == null || members.isEmpty() || ratingType == null) return 0;
+    List<com.faforever.client.leaderboard.LeaderboardRating> ratings = new ArrayList<>();
+    for (Map<String, Object> m : members) {
+      String memberName = String.valueOf(m.getOrDefault("player_name", ""));
+      playerService.getPlayerForUsername(memberName).ifPresent(p -> {
+        com.faforever.client.leaderboard.LeaderboardRating lr = p.getLeaderboardRatings().get(ratingType);
+        if (lr != null) ratings.add(lr);
+      });
+    }
+    if (ratings.isEmpty()) return 0;
+    // Sort descending by displayed rating so we pick the top N.
+    ratings.sort((a, b) -> Integer.compare(
+        com.faforever.client.util.RatingUtil.getRating(b),
+        com.faforever.client.util.RatingUtil.getRating(a)));
+    int n = Math.max(1, playersPerSide);
+    List<com.faforever.client.leaderboard.LeaderboardRating> top =
+        ratings.size() > n ? ratings.subList(0, n) : ratings;
+    com.faforever.client.leaderboard.LeaderboardRating agg =
+        com.faforever.client.util.RatingUtil.getAggregateRating(top);
+    return agg != null ? com.faforever.client.util.RatingUtil.getRating(agg) : 0;
+  }
+
+  private Label dateLabel(String label, java.time.temporal.TemporalAccessor dateTime) {
+    Label l = new Label(label + ": " + timeService.asDateTime(dateTime));
+    l.getStyleClass().add("description-label");
+    return l;
+  }
+
+  private boolean matchesInvitePrefix(String lcName, String lcPrefix) {
+    // Direct prefix match
+    if (lcName.startsWith(lcPrefix)) {
+      return true;
+    }
+    // Clan-tag match (real clan field, not part of the login)
+    String lcClan = invitePlayerClanLower.get(lcName);
+    if (lcClan != null && lcClan.startsWith(lcPrefix)) {
+      return true;
+    }
+    // Underscore-split parts: matches chat behaviour where typing
+    // "Axle" finds "TAFR_Axle". Skip if the prefix itself contains an
+    // underscore — then the user clearly wants the whole-name match.
+    if (!lcPrefix.contains("_")) {
+      for (String part : lcName.split("_")) {
+        if (part.startsWith(lcPrefix)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private VBox buildTeamCard(Map<String, Object> team, TournamentBean tournament) {
+    VBox card = new VBox(4);
+    card.getStyleClass().add("team-card");
+    int captainId = asInt(team.get("captain_id"));
+    String name = String.valueOf(team.getOrDefault("name", "?"));
+    String ratingType = tournament.getLeaderboardTechnicalName();
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> members = (List<Map<String, Object>>) team.get("members");
+
+    int pps = tournament.getPlayersPerSide();
+    int teamAgg = computeTeamAggregateRating(members, ratingType, pps);
+
+    // Header
+    HBox header = new HBox(8);
+    header.getStyleClass().add("team-card-header");
+    Label nameLabel = new Label(name);
+    nameLabel.getStyleClass().add("team-name");
+    header.getChildren().add(nameLabel);
+    Object seedObj = team.get("seed");
+    if (seedObj instanceof Number) {
+      Label seed = new Label(i18n.get("tournament.team.seed", ((Number) seedObj).intValue()));
+      seed.getStyleClass().add("team-badge");
+      header.getChildren().add(seed);
+    }
+    if (teamAgg != 0) {
+      Label rating = new Label(String.valueOf(teamAgg));
+      rating.getStyleClass().add("team-rating");
+      header.getChildren().add(rating);
+    }
+    card.getChildren().add(header);
+
+    // Members
+    if (members != null) {
+      for (Map<String, Object> m : members) {
+        HBox memberRow = new HBox(6);
+        memberRow.getStyleClass().add("team-member-row");
+        String memberName = String.valueOf(m.getOrDefault("player_name", "?"));
+        Label memberLabel = new Label(memberName);
+        memberLabel.getStyleClass().add("team-member-name");
+        memberRow.getChildren().add(memberLabel);
+        int memberPid = asInt(m.get("player_id"));
+        if (memberPid == captainId) {
+          Label cap = new Label(i18n.get("tournament.team.captain"));
+          cap.getStyleClass().add("team-member-captain");
+          memberRow.getChildren().add(cap);
+        }
+        int memberRating = getMemberRating(memberName, ratingType);
+        if (memberRating != 0) {
+          Label rLbl = new Label(String.valueOf(memberRating));
+          rLbl.getStyleClass().add("team-member-rating");
+          memberRow.getChildren().add(rLbl);
+        }
+        card.getChildren().add(memberRow);
+      }
+    } else {
+      Label empty = new Label(i18n.get("tournament.team.noMembers"));
+      empty.getStyleClass().add("team-member-rating");
+      card.getChildren().add(empty);
+    }
+    return card;
+  }
+
+  private Map<String, Object> findTeamForPlayer(int playerId) {
+    // Primary path: trust the server-supplied my_team_id (computed from
+    // tournament_team_member, which is the source of truth). This avoids
+    // any membership-scan / number-coercion fragility on the client.
+    Integer myTeamId = teamService.getMyTeamId().get();
+    if (myTeamId != null) {
+      for (Map<String, Object> team : teamService.getTeams()) {
+        if (asInt(team.get("id")) == myTeamId.intValue()) {
+          return team;
+        }
+      }
+    }
+    // Fallback: scan member dicts. Kept so the panel still works if a
+    // future server response forgets to set my_team_id.
+    if (playerId == 0) return null;
+    for (Map<String, Object> team : teamService.getTeams()) {
+      @SuppressWarnings("unchecked")
+      List<Map<String, Object>> members = (List<Map<String, Object>>) team.get("members");
+      if (members == null) continue;
+      for (Map<String, Object> m : members) {
+        if (asInt(m.get("player_id")) == playerId) {
+          return team;
+        }
+      }
+    }
+    return null;
+  }
+
+  /** Robust int coercion for values inside Gson-parsed Map<String, Object>:
+   *  Number (Integer, Long, Double from raw JSON), String, or null. */
+  private static int asInt(Object o) {
+    if (o instanceof Number) return ((Number) o).intValue();
+    if (o instanceof String) {
+      try { return Integer.parseInt((String) o); }
+      catch (NumberFormatException ignored) { return 0; }
+    }
+    return 0;
+  }
+
+  private static boolean objectsEqual(Object a, Object b) {
+    if (a == null && b == null) return true;
+    if (a == null || b == null) return false;
+    if (a instanceof Number && b instanceof Number) {
+      return ((Number) a).intValue() == ((Number) b).intValue();
+    }
+    return a.equals(b);
+  }
+
 }

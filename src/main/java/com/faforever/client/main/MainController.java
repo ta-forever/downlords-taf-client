@@ -228,6 +228,17 @@ public class MainController implements Controller<Node> {
     // getView(NavigationItem.PLAY);
 
     notificationButton.managedProperty().bind(notificationButton.visibleProperty());
+    // Stop the blink animation on mouse-enter so the button is stable
+    // when the user clicks. The animation restarts on the next notification
+    // update if there are still pending notifications.
+    notificationButton.setOnMouseEntered(e -> {
+      if (bellPulse != null) {
+        bellPulse.stop();
+        notificationButton.setScaleX(1.0);
+        notificationButton.setScaleY(1.0);
+        bellPulse = null;
+      }
+    });
 
     navigationDropdown.getItems().setAll(createMenuItemsFromNavigation());
     navigationDropdown.managedProperty().bind(navigationDropdown.visibleProperty());
@@ -334,11 +345,48 @@ public class MainController implements Controller<Node> {
    * Updates the number displayed in the notifications button and sets its CSS pseudo class based on the highest
    * notification {@code Severity} of all current notifications.
    */
+  /** Pulse animation for the notification bell icon so players notice
+   *  new persistent notifications. Scales between 1.0× and 1.35× with a
+   *  gentle bounce, runs indefinitely while notifications are pending. */
+  /** Double-blink animation for the notification bell icon. Pattern:
+   *  pop up → shrink → pop up → shrink → pause → repeat. */
+  private javafx.animation.Timeline bellPulse;
+
   private void updateNotificationsButton(Collection<? extends PersistentNotification> notifications) {
     JavaFxUtil.assertApplicationThread();
 
     int size = notifications.size();
     notificationButton.setVisible(size != 0);
+
+    if (size > 0 && bellPulse == null) {
+      // Double-blink: scale 1→1.35→1→1.35→1 then hold at 1 for a pause
+      bellPulse = new javafx.animation.Timeline(
+          new javafx.animation.KeyFrame(javafx.util.Duration.ZERO,
+              new javafx.animation.KeyValue(notificationButton.scaleXProperty(), 1.0),
+              new javafx.animation.KeyValue(notificationButton.scaleYProperty(), 1.0)),
+          new javafx.animation.KeyFrame(javafx.util.Duration.millis(120),
+              new javafx.animation.KeyValue(notificationButton.scaleXProperty(), 1.35),
+              new javafx.animation.KeyValue(notificationButton.scaleYProperty(), 1.35)),
+          new javafx.animation.KeyFrame(javafx.util.Duration.millis(240),
+              new javafx.animation.KeyValue(notificationButton.scaleXProperty(), 1.0),
+              new javafx.animation.KeyValue(notificationButton.scaleYProperty(), 1.0)),
+          new javafx.animation.KeyFrame(javafx.util.Duration.millis(360),
+              new javafx.animation.KeyValue(notificationButton.scaleXProperty(), 1.35),
+              new javafx.animation.KeyValue(notificationButton.scaleYProperty(), 1.35)),
+          new javafx.animation.KeyFrame(javafx.util.Duration.millis(480),
+              new javafx.animation.KeyValue(notificationButton.scaleXProperty(), 1.0),
+              new javafx.animation.KeyValue(notificationButton.scaleYProperty(), 1.0)),
+          // Hold at normal scale for 2 seconds before repeating
+          new javafx.animation.KeyFrame(javafx.util.Duration.millis(2480))
+      );
+      bellPulse.setCycleCount(javafx.animation.Animation.INDEFINITE);
+      bellPulse.play();
+    } else if (size == 0 && bellPulse != null) {
+      bellPulse.stop();
+      notificationButton.setScaleX(1.0);
+      notificationButton.setScaleY(1.0);
+      bellPulse = null;
+    }
 
     Severity highestSeverity = notifications.stream()
         .map(PersistentNotification::getSeverity)
@@ -589,6 +637,8 @@ public class MainController implements Controller<Node> {
 
     dialog.setContent(controller.getDialogLayout());
     dialog.setAnimation(AlertAnimation.TOP_ANIMATION);
+    boolean hasActions = notification.getActions() != null && !notification.getActions().isEmpty();
+    dialog.setOverlayClose(!hasActions);
     dialog.show();
   }
 

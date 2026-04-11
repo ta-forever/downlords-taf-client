@@ -7,6 +7,7 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.fx.StringListCell;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.main.event.HostGameEvent;
 import com.faforever.client.main.event.SelectGalacticWarMapEvent;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapBean.Type;
@@ -155,6 +156,7 @@ public class CreateGameController implements Controller<Pane> {
   @VisibleForTesting
   FilteredList<MapBean> filteredMapBeans;
   private Runnable onCloseButtonClickedListener;
+  private boolean suppressTitlePersistence = false;
 
   private BooleanProperty validatedButtonsDisableProperty;
   private BooleanProperty modVersionUpdateCompletedProperty;
@@ -419,7 +421,7 @@ public class CreateGameController implements Controller<Pane> {
 
     titleTextField.textProperty().addListener((observable, oldValue, newValue) -> {
       validateTitle(newValue);
-      if (!getInteractionLevel().equals("UPDATE_GW")) {
+      if (!getInteractionLevel().equals("UPDATE_GW") && !suppressTitlePersistence) {
         preferencesService.getPreferences().getLastGame().setLastGameTitle(newValue);
         preferencesService.storeInBackground();
       }
@@ -976,6 +978,66 @@ public class CreateGameController implements Controller<Pane> {
     return true;
   }
 
+  /** Cleanup runnable for the most recent {@link #selectMapWhenAvailable} call. */
+  private Runnable pendingMapSelectionCleanup;
+
+  /**
+   * Like {@link #selectMap(String)}, but if the map list isn't yet populated (because
+   * a featured-mod switch is still loading installed maps asynchronously), installs a
+   * one-shot listener that selects the map as soon as it appears. Watches both the
+   * items property (replaced when the available-maps list is rebuilt) and the contents
+   * of the current items list (mutated as installed maps are scanned).
+   *
+   * Any prior pending request is cancelled.
+   */
+  void selectMapWhenAvailable(String mapName) {
+    if (pendingMapSelectionCleanup != null) {
+      pendingMapSelectionCleanup.run();
+      pendingMapSelectionCleanup = null;
+    }
+
+    if (selectMap(mapName)) {
+      return;
+    }
+
+    final javafx.collections.ListChangeListener<MapBean>[] contentListenerRef = new javafx.collections.ListChangeListener[1];
+    final ChangeListener<javafx.collections.ObservableList<MapBean>>[] propListenerRef = new ChangeListener[1];
+
+    Runnable cleanup = () -> {
+      if (mapListView.getItems() != null && contentListenerRef[0] != null) {
+        mapListView.getItems().removeListener(contentListenerRef[0]);
+      }
+      if (propListenerRef[0] != null) {
+        mapListView.itemsProperty().removeListener(propListenerRef[0]);
+      }
+      pendingMapSelectionCleanup = null;
+    };
+
+    contentListenerRef[0] = c -> {
+      if (selectMap(mapName)) {
+        cleanup.run();
+      }
+    };
+    propListenerRef[0] = (obs, oldList, newList) -> {
+      if (oldList != null) oldList.removeListener(contentListenerRef[0]);
+      if (newList != null) newList.addListener(contentListenerRef[0]);
+      if (selectMap(mapName)) {
+        cleanup.run();
+      }
+    };
+
+    mapListView.itemsProperty().addListener(propListenerRef[0]);
+    if (mapListView.getItems() != null) {
+      mapListView.getItems().addListener(contentListenerRef[0]);
+    }
+    pendingMapSelectionCleanup = cleanup;
+
+    // Race guard: items may have been populated between our first try and listener install.
+    if (selectMap(mapName)) {
+      cleanup.run();
+    }
+  }
+
   void setOnCloseButtonClickedListener(Runnable onCloseButtonClickedListener) {
     this.onCloseButtonClickedListener = onCloseButtonClickedListener;
   }
@@ -1083,5 +1145,48 @@ public class CreateGameController implements Controller<Pane> {
 
   public void setPassword(String password) {
     this.passwordTextField.setText(password);
+  }
+
+  /**
+   * Apply optional preset values from a HostGameEvent. Used when launching a tournament
+   * game so the dialog comes up with the correct mod, team size, ranked mode, etc.
+   * The transient title is set without persisting to the user's last-game preference.
+   */
+  public void applyHostGamePresets(HostGameEvent event) {
+    if (event == null) return;
+
+    if (event.getPresetFeaturedMod() != null) {
+      setSelectedMod(event.getPresetFeaturedMod());
+    }
+    if (event.getPresetMaxPlayers() != null) {
+      maxPlayersComboBox.getSelectionModel().select(event.getPresetMaxPlayers());
+    }
+    if (event.getPresetRanked() != null) {
+      rankedEnabledCheckBox.setSelected(event.getPresetRanked());
+    }
+    if (event.getPresetFriendsOnly() != null) {
+      onlyForFriendsCheckBox.setSelected(event.getPresetFriendsOnly());
+    }
+    if (event.getPresetEnforceRating() != null) {
+      enforceRankingCheckBox.setSelected(event.getPresetEnforceRating());
+    }
+    if (event.getPresetMinRating() != null) {
+      minRankingTextField.setText(event.getPresetMinRating());
+    }
+    if (event.getPresetMaxRating() != null) {
+      maxRankingTextField.setText(event.getPresetMaxRating());
+    }
+    if (event.getPresetPassword() != null) {
+      passwordTextField.setText(event.getPresetPassword());
+    }
+    if (event.getPresetTransientTitle() != null) {
+      // Bypass the title-persistence listener so the user's saved title isn't overwritten
+      suppressTitlePersistence = true;
+      try {
+        titleTextField.setText(event.getPresetTransientTitle());
+      } finally {
+        suppressTitlePersistence = false;
+      }
+    }
   }
 }

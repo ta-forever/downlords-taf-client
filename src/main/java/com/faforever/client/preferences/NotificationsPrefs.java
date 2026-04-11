@@ -29,6 +29,12 @@ public class NotificationsPrefs {
   private final BooleanProperty playerJoinsGameToastEnabled;
   private final BooleanProperty notifyOnAtMentionOnlyEnabled;
   private final BooleanProperty afterGameReviewEnabled;
+  // Tournament server notifications — three categories matching the kind=
+  // dispatch in FafServerAccessorImpl.onNotice. Default to true so existing
+  // users keep getting them; opt-out only.
+  private final BooleanProperty tournamentMatchReadyEnabled;
+  private final BooleanProperty tournamentResultsEnabled;
+  private final BooleanProperty tournamentAnnouncementsEnabled;
   private final ObjectProperty<ToastPosition> toastPosition;
   private final IntegerProperty toastScreen;
   private final IntegerProperty toastDisplayTime;
@@ -57,7 +63,22 @@ public class NotificationsPrefs {
     toastScreen = new SimpleIntegerProperty(0);
     toastDisplayTime = new SimpleIntegerProperty(5000);
     afterGameReviewEnabled = new SimpleBooleanProperty(true);
+    tournamentMatchReadyEnabled = new SimpleBooleanProperty(true);
+    tournamentResultsEnabled = new SimpleBooleanProperty(true);
+    tournamentAnnouncementsEnabled = new SimpleBooleanProperty(true);
   }
+
+  public boolean isTournamentMatchReadyEnabled() { return tournamentMatchReadyEnabled.get(); }
+  public void setTournamentMatchReadyEnabled(boolean v) { this.tournamentMatchReadyEnabled.set(v); }
+  public BooleanProperty tournamentMatchReadyEnabledProperty() { return tournamentMatchReadyEnabled; }
+
+  public boolean isTournamentResultsEnabled() { return tournamentResultsEnabled.get(); }
+  public void setTournamentResultsEnabled(boolean v) { this.tournamentResultsEnabled.set(v); }
+  public BooleanProperty tournamentResultsEnabledProperty() { return tournamentResultsEnabled; }
+
+  public boolean isTournamentAnnouncementsEnabled() { return tournamentAnnouncementsEnabled.get(); }
+  public void setTournamentAnnouncementsEnabled(boolean v) { this.tournamentAnnouncementsEnabled.set(v); }
+  public BooleanProperty tournamentAnnouncementsEnabledProperty() { return tournamentAnnouncementsEnabled; }
 
   public boolean isSoundsEnabled() {
     return soundsEnabled.get();

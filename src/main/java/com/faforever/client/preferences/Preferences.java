@@ -46,6 +46,7 @@ public class Preferences {
   private final NewsPrefs news = new NewsPrefs();
   private final DeveloperPrefs developer = new DeveloperPrefs();
   private final VaultPrefs vault = new VaultPrefs();
+  private final TournamentPrefs tournament = new TournamentPrefs();
 
   private final StringProperty themeName = new SimpleStringProperty(DEFAULT_THEME_NAME);
   private final BooleanProperty preReleaseCheckEnabled = new SimpleBooleanProperty(false);
@@ -112,6 +113,10 @@ public class Preferences {
 
   public VaultPrefs getVault() {
     return vault;
+  }
+
+  public TournamentPrefs getTournament() {
+    return tournament;
   }
 
   public TilesSortingOrder getGameTileSortingOrder() {

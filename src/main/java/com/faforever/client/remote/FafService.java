@@ -533,6 +533,27 @@ public class FafService {
     return CompletableFuture.completedFuture(fafApiAccessor.queryPlayerByName(playerName).map(Player::fromDto));
   }
 
+  /** Wildcard player search by login prefix. Returns up to {@code limit} matches
+   *  including offline players. Used by the team-tournament invite UI. */
+  @Async
+  public CompletableFuture<java.util.List<com.faforever.client.api.dto.TournamentTeam>>
+      getTournamentTeams(int tournamentId) {
+    return CompletableFuture.completedFuture(fafApiAccessor.getTournamentTeams(tournamentId));
+  }
+
+  @Async
+  public CompletableFuture<java.util.List<com.faforever.client.api.dto.TournamentTeamInvite>>
+      getPendingInvitesForPlayer(int playerId) {
+    return CompletableFuture.completedFuture(fafApiAccessor.getPendingInvitesForPlayer(playerId));
+  }
+
+  @Async
+  public CompletableFuture<java.util.List<com.faforever.client.api.dto.Player>>
+      findPlayersByLoginPrefix(String prefix, int limit) {
+    return CompletableFuture.completedFuture(
+        fafApiAccessor.findPlayersByLoginPrefix(prefix, limit));
+  }
+
   @Async
   public CompletableFuture<Void> saveGameReview(Review review, int gameId) {
     GameReview gameReview = (GameReview) new GameReview()
@@ -726,6 +747,22 @@ public class FafService {
   }
 
   @Async
+  public CompletableFuture<TournamentBean> getTournamentById(String id) {
+    com.faforever.client.api.dto.Tournament dto = fafApiAccessor.getTournamentById(id);
+    return CompletableFuture.completedFuture(dto != null ? TournamentBean.fromTournamentDto(dto) : null);
+  }
+
+  @Async
+  public CompletableFuture<List<com.faforever.client.api.dto.PlayerTournamentSummary>> getHallOfFame(Integer featuredModId) {
+    return CompletableFuture.completedFuture(fafApiAccessor.getHallOfFame(featuredModId));
+  }
+
+  @Async
+  public CompletableFuture<List<Integer>> getPlayerTournamentGameIds(int playerId, Integer featuredModId) {
+    return CompletableFuture.completedFuture(fafApiAccessor.getPlayerTournamentGameIds(playerId, featuredModId));
+  }
+
+  @Async
   public CompletableFuture<List<ModerationReport>> getAllModerationReports(int playerId) {
     return CompletableFuture.completedFuture(fafApiAccessor.getPlayerModerationReports(playerId)
         .stream()
@@ -807,6 +844,44 @@ public class FafService {
   public void setGalacticWarMap(String galaxyTechnicalName, String planetName, String mapName) {
     fafServerAccessor.setGalacticWarMap(galaxyTechnicalName, planetName, mapName);
   }
+
+  public void tournamentSignup(int tournamentId) {
+    fafServerAccessor.tournamentSignup(tournamentId);
+  }
+
+  public void tournamentWithdraw(int tournamentId) {
+    fafServerAccessor.tournamentWithdraw(tournamentId);
+  }
+
+  public void tournamentTeamCreate(int tournamentId, String name) {
+    fafServerAccessor.tournamentTeamCreate(tournamentId, name);
+  }
+
+  public void tournamentTeamInvite(int teamId, int inviteeId) {
+    fafServerAccessor.tournamentTeamInvite(teamId, inviteeId);
+  }
+
+  public void tournamentTeamAcceptInvite(int inviteId) {
+    fafServerAccessor.tournamentTeamAcceptInvite(inviteId);
+  }
+
+  public void tournamentTeamDeclineInvite(int inviteId) {
+    fafServerAccessor.tournamentTeamDeclineInvite(inviteId);
+  }
+
+  public void tournamentTeamLeave(int teamId) {
+    fafServerAccessor.tournamentTeamLeave(teamId);
+  }
+
+  public void tournamentTeamRemoveMember(int teamId, int targetPlayerId) {
+    fafServerAccessor.tournamentTeamRemoveMember(teamId, targetPlayerId);
+  }
+
+  public void tournamentTeamDisband(int teamId) {
+    fafServerAccessor.tournamentTeamDisband(teamId);
+  }
+
+  // tournamentTeamList removed — reads go through the API now.
 
   @Async
   public CompletableFuture<List<TutorialCategory>> getTutorialCategories() {

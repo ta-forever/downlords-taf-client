@@ -74,6 +74,25 @@ public interface FafServerAccessor {
 
   void setGalacticWarMap(String galaxyTechnicalName, String planetName, String mapName);
 
+  void tournamentSignup(int tournamentId);
+
+  void tournamentWithdraw(int tournamentId);
+
+  // Team tournaments — see TournamentTeamService
+  void tournamentTeamCreate(int tournamentId, String name);
+
+  void tournamentTeamInvite(int teamId, int inviteeId);
+
+  void tournamentTeamAcceptInvite(int inviteId);
+
+  void tournamentTeamDeclineInvite(int inviteId);
+
+  void tournamentTeamLeave(int teamId);
+
+  void tournamentTeamRemoveMember(int teamId, int targetPlayerId);
+
+  void tournamentTeamDisband(int teamId);
+
   CompletableFuture<List<IceServer>> getIceServers();
 
   void restoreGameSession(int id);

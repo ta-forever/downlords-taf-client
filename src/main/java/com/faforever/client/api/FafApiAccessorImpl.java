@@ -26,6 +26,7 @@ import com.faforever.client.api.dto.ModerationReport;
 import com.faforever.client.api.dto.Player;
 import com.faforever.client.api.dto.PlayerAchievement;
 import com.faforever.client.api.dto.PlayerEvent;
+import com.faforever.client.api.dto.PlayerTournamentSummary;
 import com.faforever.client.api.dto.Tournament;
 import com.faforever.client.api.dto.TutorialCategory;
 import com.faforever.client.config.CacheNames;
@@ -102,7 +103,7 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   private static final String LEADERBOARD_ENDPOINT = "/data/leaderboard";
   private static final String LEADERBOARD_ENTRY_ENDPOINT = "/data/leaderboardRating";
   private static final String REPORT_ENDPOINT = "/data/moderationReport";
-  private static final String TOURNAMENT_LIST_ENDPOINT = "/challonge/v1/tournaments.json";
+  private static final String TOURNAMENT_ENDPOINT = "/data/tournament";
   private static final String REPLAY_INCLUDES = "featuredMod,playerStats,host,playerStats.player,playerStats.ratingChanges,reviews," +
       "reviews.player,mapVersion,mapVersion.map,reviewsSummary,playerStats.ratingChanges.leaderboard," +
       "playerStats.gwGamePlayerStats,gwGameStats";
@@ -453,6 +454,34 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   }
 
   @Override
+  public List<Player> findPlayersByLoginPrefix(String prefix, int limit) {
+    if (prefix == null || prefix.isBlank()) {
+      return java.util.Collections.emptyList();
+    }
+    // Elide RSQL: trailing `*` is the SQL LIKE wildcard. We sort by login
+    // so the popup is alphabetical, and we use a single page to bound the
+    // request — limit defaults to ~10 from the caller.
+    return getMany("/data/player", limit, java.util.Map.of(
+        FILTER, rsql(qBuilder().string("login").eq(prefix + "*")),
+        SORT, "login"));
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.TournamentTeam> getTournamentTeams(int tournamentId) {
+    return getAll("/data/tournamentTeam", java.util.Map.of(
+        FILTER, rsql(qBuilder().string("tournament.id").eq(String.valueOf(tournamentId))),
+        INCLUDE, "captain,members,members.player"));
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.TournamentTeamInvite> getPendingInvitesForPlayer(int playerId) {
+    return getAll("/data/tournamentTeamInvite", java.util.Map.of(
+        FILTER, rsql(qBuilder().string("invitee.id").eq(String.valueOf(playerId))
+            .and().string("state").eq("pending")),
+        INCLUDE, "team,inviter"));
+  }
+
+  @Override
   public MeResult getOwnPlayer() {
     return getOne("/me", MeResult.class);
   }
@@ -662,10 +691,91 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
     ));
   }
 
+  // Light list query — only the toOne relationships needed by the list cell, the
+  // header / settings grid, and the placement-avatar prize badges. The bracket,
+  // participants, planned maps, placements and standings are loaded on demand
+  // by getTournamentById() when a row is selected. The previous heavy include
+  // pulled the entire bracket graph for every tournament on every list refresh
+  // (~15k–30k entity rows for a few dozen tournaments) — most of which was
+  // immediately discarded because the user only ever drills into one row.
+  private static final String TOURNAMENT_LIST_INCLUDES =
+      "featuredMod,leaderboard,mapPool,winnerAvatar,secondPlaceAvatar,thirdPlaceAvatar";
+  // Full graph — for the detail pane (bracket, planned maps, standings, placements).
+  private static final String TOURNAMENT_DETAIL_INCLUDES =
+      "participants,participants.player," +
+      "matches,matches.player1,matches.player2,matches.winner," +
+      "matches.team1,matches.team2,matches.winnerTeam," +
+      "matches.plannedMaps,matches.plannedMaps.mapVersion,matches.plannedMaps.mapVersion.map," +
+      "matches.games," +
+      "featuredMod,leaderboard,mapPool," +
+      "winnerAvatar,secondPlaceAvatar,thirdPlaceAvatar," +
+      "placements,placements.player," +
+      "standings,standings.player";
+
   @Override
-  @SneakyThrows
   public List<Tournament> getAllTournaments() {
-    return Arrays.asList(restOperations.getForObject(TOURNAMENT_LIST_ENDPOINT, Tournament[].class));
+    return getAll(TOURNAMENT_ENDPOINT, java.util.Map.of(
+        INCLUDE, TOURNAMENT_LIST_INCLUDES,
+        SORT, "-createdAt"));
+  }
+
+  @Override
+  public Tournament getTournamentById(String id) {
+    return getOne(TOURNAMENT_ENDPOINT + "/" + id, Tournament.class,
+        java.util.Map.of(INCLUDE, TOURNAMENT_DETAIL_INCLUDES));
+  }
+
+  // Hall of Fame summary endpoint — sourced from the player_tournament_summary
+  // SQL view via Elide. The "all mods" rollup rows have featured_mod_id IS NULL
+  // (filter `featuredMod=isnull=true`); per-mod rows are filtered by mod id.
+  // We always include `player` so the table can render the login without a
+  // second round trip per row.
+  private static final String HALL_OF_FAME_ENDPOINT = "/data/playerTournamentSummary";
+  private static final String HALL_OF_FAME_INCLUDES = "player";
+
+  @Override
+  public List<PlayerTournamentSummary> getHallOfFame(Integer featuredModId) {
+    String filter = featuredModId == null
+        ? "featuredMod=isnull=true"
+        : "featuredMod.id==" + featuredModId;
+    return getAll(HALL_OF_FAME_ENDPOINT, java.util.Map.of(
+        INCLUDE, HALL_OF_FAME_INCLUDES,
+        FILTER, filter));
+  }
+
+  @Override
+  public List<Integer> getPlayerTournamentGameIds(int playerId, Integer featuredModId) {
+    // The /tournaments/playerGameIds endpoint returns a JSON:API document
+    // where each Resource has just an id (the game id). We don't need a DTO
+    // for it — we just parse the ids out as ints.
+    String url = "/tournaments/playerGameIds?playerId=" + playerId
+        + (featuredModId != null ? "&featuredModId=" + featuredModId : "");
+    try {
+      authorizedLatch.await();
+      String response = restOperations.getForObject(url, String.class);
+      if (response == null || response.isBlank()) {
+        return List.of();
+      }
+      com.fasterxml.jackson.databind.JsonNode root =
+          new com.fasterxml.jackson.databind.ObjectMapper().readTree(response);
+      com.fasterxml.jackson.databind.JsonNode data = root.get("data");
+      if (data == null || !data.isArray()) {
+        return List.of();
+      }
+      List<Integer> ids = new ArrayList<>(data.size());
+      for (com.fasterxml.jackson.databind.JsonNode node : data) {
+        com.fasterxml.jackson.databind.JsonNode idNode = node.get("id");
+        if (idNode != null) {
+          try {
+            ids.add(Integer.parseInt(idNode.asText()));
+          } catch (NumberFormatException ignored) {}
+        }
+      }
+      return ids;
+    } catch (Exception e) {
+      log.warn("Failed to fetch tournament game ids for player {} mod {}", playerId, featuredModId, e);
+      return List.of();
+    }
   }
 
   @Override

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ProgressIndicator?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<AnchorPane xmlns:fx="http://javafx.com/fxml/1" fx:id="tournamentRoot" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" xmlns="http://javafx.com/javafx/8.0.141" fx:controller="com.faforever.client.tournament.TournamentsController">
+   <children>
+        <VBox fx:id="loadingIndicator" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+            <children>
+                <ProgressIndicator prefHeight="80.0" prefWidth="80.0"/>
+                <Label text="%loading">
+                    <VBox.margin>
+                        <Insets bottom="28.0" top="14.0" />
+                    </VBox.margin>
+                </Label>
+            </children>
+        </VBox>
+      <SplitPane fx:id="contentPane" dividerPositions="0.2,0.85" layoutX="143.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+         <items>
+             <VBox maxHeight="1.7976931348623157E308" minWidth="100.0" prefWidth="240.0">
+                 <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" hbarPolicy="NEVER">
+                     <VBox spacing="2.0">
+                         <TitledPane fx:id="inProgressPane" text="In Progress" expanded="true" animated="false">
+                             <ListView fx:id="inProgressListView" styleClass="tournament-list"/>
+                         </TitledPane>
+                         <TitledPane fx:id="upcomingPane" text="Upcoming" expanded="true" animated="false">
+                             <ListView fx:id="upcomingListView" styleClass="tournament-list"/>
+                         </TitledPane>
+                         <TitledPane fx:id="completedPane" text="Completed" expanded="false" animated="false">
+                             <ListView fx:id="completedListView" styleClass="tournament-list"/>
+                         </TitledPane>
+                     </VBox>
+                 </ScrollPane>
+                 <HBox alignment="CENTER" spacing="5.0">
+                     <padding><Insets top="5.0" bottom="5.0" left="5.0" right="5.0"/></padding>
+                     <Button text="%tournament.refresh" onAction="#onRefreshButtonClicked"/>
+                 </HBox>
+             </VBox>
+              <ScrollPane fx:id="tournamentDetailScrollPane" fitToWidth="true" maxWidth="1.7976931348623157E308" styleClass="tournament-detail-scroll">
+                  <VBox fx:id="tournamentDetailContent" spacing="10.0" styleClass="tournament-detail">
+                      <padding><Insets top="12.0" bottom="12.0" left="14.0" right="14.0"/></padding>
+                  </VBox>
+              </ScrollPane>
+              <VBox fx:id="gameListPane" minWidth="100.0" prefWidth="224.0" maxWidth="224.0" managed="false" visible="false">
+                  <Label text="%tournament.gameList" styleClass="bracket-section-label">
+                      <padding><Insets top="8.0" bottom="4.0" left="8.0"/></padding>
+                  </Label>
+                  <ScrollPane fx:id="gameListScrollPane" fitToWidth="true" hbarPolicy="NEVER" VBox.vgrow="ALWAYS">
+                      <VBox fx:id="gameListContent" spacing="6.0">
+                          <padding><Insets top="4.0" bottom="8.0" left="4.0" right="4.0"/></padding>
+                      </VBox>
+                  </ScrollPane>
+              </VBox>
+         </items>
+      </SplitPane>
+   </children>
+</AnchorPane>

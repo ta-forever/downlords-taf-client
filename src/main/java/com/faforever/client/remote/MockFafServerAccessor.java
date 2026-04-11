@@ -288,9 +288,45 @@ public class MockFafServerAccessor implements FafServerAccessor {
 
   @Override
   public void setGalacticWarMap(String galaxyName, String planetName, String mapName) {
-
   }
 
+  @Override
+  public void tournamentSignup(int tournamentId) {
+  }
+
+  @Override
+  public void tournamentWithdraw(int tournamentId) {
+  }
+
+  @Override
+  public void tournamentTeamCreate(int tournamentId, String name) {
+  }
+
+  @Override
+  public void tournamentTeamInvite(int teamId, int inviteeId) {
+  }
+
+  @Override
+  public void tournamentTeamAcceptInvite(int inviteId) {
+  }
+
+  @Override
+  public void tournamentTeamDeclineInvite(int inviteId) {
+  }
+
+  @Override
+  public void tournamentTeamLeave(int teamId) {
+  }
+
+  @Override
+  public void tournamentTeamRemoveMember(int teamId, int targetPlayerId) {
+  }
+
+  @Override
+  public void tournamentTeamDisband(int teamId) {
+  }
+
+  // tournamentTeamList removed — reads go through the API now.
 
   @Override
   public List<Avatar> getAvailableAvatars() {

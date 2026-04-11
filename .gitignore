@@ -38,3 +38,6 @@ gradle-app.setting
 
 #intelij build
 /out
+.claude
+CLAUDE.md
+.vscode

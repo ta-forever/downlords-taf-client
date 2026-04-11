@@ -6,6 +6,10 @@ import java.util.Map;
 public enum MessageTarget {
   GAME("game"),
   CONNECTIVITY("connectivity"),
+  // Generic forward target for tournament commands. The server forwards
+  // these without parsing the body, so new commands can be added without
+  // a server rebuild.
+  TOURNAMENT("tournament"),
   CLIENT(null);
 
   private static final Map<String, MessageTarget> fromString;

@@ -24,6 +24,7 @@ import com.faforever.client.api.dto.ModerationReport;
 import com.faforever.client.api.dto.Player;
 import com.faforever.client.api.dto.PlayerAchievement;
 import com.faforever.client.api.dto.PlayerEvent;
+import com.faforever.client.api.dto.PlayerTournamentSummary;
 import com.faforever.client.api.dto.Tournament;
 import com.faforever.client.api.dto.TutorialCategory;
 import com.faforever.client.mod.FeaturedMod;
@@ -110,6 +111,15 @@ public interface FafApiAccessor {
 
   Optional<Player> queryPlayerByName(String playerName);
 
+  /** Wildcard player search by login prefix. Used by the team-tournament
+   *  invite UI to autocomplete offline player names. Limit caps the result
+   *  set so we don't pull thousands of "player1234" hits. */
+  List<Player> findPlayersByLoginPrefix(String prefix, int limit);
+
+  List<com.faforever.client.api.dto.TournamentTeam> getTournamentTeams(int tournamentId);
+
+  List<com.faforever.client.api.dto.TournamentTeamInvite> getPendingInvitesForPlayer(int playerId);
+
   GameReview createGameReview(GameReview review);
 
   void updateGameReview(GameReview review);
@@ -153,6 +163,22 @@ public interface FafApiAccessor {
   List<MatchmakerQueue> getMatchmakerQueuesByMod(String modTechnicalName);
 
   List<Tournament> getAllTournaments();
+
+  Tournament getTournamentById(String id);
+
+  /**
+   * Hall of Fame: aggregated tournament achievements per player. If
+   * {@code featuredModId} is null, returns the across-all-mods rollup rows
+   * (one per player). If non-null, returns per-player rows for that one mod.
+   */
+  List<PlayerTournamentSummary> getHallOfFame(Integer featuredModId);
+
+  /**
+   * Returns the list of game IDs the player has played in completed
+   * tournaments, optionally restricted to a featured mod. Used by the Hall
+   * of Fame "View Replays" context menu.
+   */
+  List<Integer> getPlayerTournamentGameIds(int playerId, Integer featuredModId);
 
   List<ModerationReport> getPlayerModerationReports(int playerId);
 
