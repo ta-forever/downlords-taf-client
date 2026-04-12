@@ -6,6 +6,8 @@ import javafx.beans.property.MapProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleMapProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
 import org.jetbrains.annotations.Nullable;
@@ -17,6 +19,7 @@ public class VaultPrefs {
   private final MapProperty<String, String> savedReplayQueries;
   private final MapProperty<String, String> savedMapQueries;
   private final MapProperty<String, String> savedModQueries;
+  private final BooleanProperty showWinnersInReplays;
 
 
   public VaultPrefs() {
@@ -26,6 +29,7 @@ public class VaultPrefs {
     savedReplayQueries = new SimpleMapProperty<>(FXCollections.observableHashMap());
     savedMapQueries = new SimpleMapProperty<>(FXCollections.observableHashMap());
     savedModQueries = new SimpleMapProperty<>(FXCollections.observableHashMap());
+    showWinnersInReplays = new SimpleBooleanProperty(true);
   }
 
   public SortConfig getOnlineReplaySortConfig() {
@@ -46,6 +50,18 @@ public class VaultPrefs {
 
   public void setMapSortConfig(SortConfig mapSortConfig) {
     this.mapSortConfig.set(mapSortConfig);
+  }
+
+  public boolean isShowWinnersInReplays() {
+    return showWinnersInReplays.get();
+  }
+
+  public void setShowWinnersInReplays(boolean showWinnersInReplays) {
+    this.showWinnersInReplays.set(showWinnersInReplays);
+  }
+
+  public BooleanProperty showWinnersInReplaysProperty() {
+    return showWinnersInReplays;
   }
 
   public ObjectProperty<SortConfig> mapSortConfigProperty() {

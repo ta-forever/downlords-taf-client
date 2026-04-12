@@ -21,6 +21,7 @@ import com.github.rutledgepaulv.qbuilders.conditions.Condition;
 import com.github.rutledgepaulv.qbuilders.visitors.RSQLVisitor;
 import javafx.beans.InvalidationListener;
 import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.collections.ObservableMap;
 import javafx.scene.control.Button;
@@ -64,6 +65,7 @@ public class SearchController implements Controller<Pane> {
   public Pane criteriaPane;
   public TextField queryTextField;
   public CheckBox displayQueryCheckBox;
+  public CheckBox showWinnersCheckBox;
   public Button searchButton;
   public Button saveQueryButton;
   public Button savedQueriesButton;
@@ -100,12 +102,13 @@ public class SearchController implements Controller<Pane> {
 
   @Override
   public void initialize() {
-    JavaFxUtil.bindManagedToVisible(queryTextField, criteriaPane, filterPane, onlyShowLastYearCheckBox,
+    JavaFxUtil.bindManagedToVisible(queryTextField, criteriaPane, filterPane, onlyShowLastYearCheckBox, showWinnersCheckBox,
         initialLogicalNodeController.logicalOperatorField, initialLogicalNodeController.removeCriteriaButton,
         addCriteriaButton);
 
     saveQueryButton.disableProperty().bind(queryTextField.textProperty().isEmpty());
     queryTextField.visibleProperty().bind(displayQueryCheckBox.selectedProperty());
+    showWinnersCheckBox.setVisible(false);
 
     initialLogicalNodeController.logicalOperatorField.setValue(null);
     initialLogicalNodeController.logicalOperatorField.setDisable(true);
@@ -418,6 +421,14 @@ public class SearchController implements Controller<Pane> {
   public void setOnlyShowLastYearCheckBoxVisible(boolean visible) {
     showLastYearCheckBox = visible;
     onlyShowLastYearCheckBox.setSelected(visible);
+  }
+
+  public void setShowWinnersCheckBoxVisible(boolean visible) {
+    showWinnersCheckBox.setVisible(visible);
+  }
+
+  public BooleanProperty showWinnersSelectedProperty() {
+    return showWinnersCheckBox.selectedProperty();
   }
 
   public void setVaultRoot(StackPane root) {
