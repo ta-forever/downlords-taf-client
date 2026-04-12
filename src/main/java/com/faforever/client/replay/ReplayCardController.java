@@ -21,7 +21,9 @@ import com.faforever.client.vault.review.StarsController;
 import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
 import javafx.collections.ObservableList;
+import javafx.scene.control.ContentDisplay;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
@@ -29,6 +31,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -74,8 +77,9 @@ public class ReplayCardController implements Controller<Node> {
   public Button unhideButton;
   public Label visibilityLabel;
   private Replay replay;
-  private boolean showWinners;
+  private BooleanProperty showWinnersProperty;
   private final InvalidationListener reviewsChangedListener = observable -> populateReviews();
+  private final InvalidationListener showWinnersChangedListener = observable -> populateTeams();
   private Consumer<Replay> onOpenDetailListener;
 
   public void setReplay(Replay replay) {
@@ -170,33 +174,48 @@ public class ReplayCardController implements Controller<Node> {
           .orElse(i18n.get("notAvailable")));
     }
 
-    Optional<String> winningTeamId = showWinners ? replay.getWinningTeamId() : Optional.empty();
-
-    replay.getTeams()
-        .forEach((id, team) -> {
-          VBox teamBox = new VBox();
-
-          String teamLabelText = id.equals("1") ? i18n.get("replay.noTeam") : i18n.get("replay.team", Integer.parseInt(id) - 1);
-          if (winningTeamId.map(id::equals).orElse(false)) {
-            teamLabelText += " 👑";
-          }
-
-          Label teamLabel = new Label(teamLabelText);
-          teamLabel.getStyleClass().add("replay-card-team-label");
-          teamLabel.setPadding(new Insets(0, 0, 5, 0));
-          teamBox.getChildren().add(teamLabel);
-          team.forEach(player -> teamBox.getChildren().add(new Label(player)));
-
-          teamsContainer.getChildren().add(teamBox);
-        });
+    populateTeams();
 
     ObservableList<Review> reviews = replay.getReviews();
     JavaFxUtil.addListener(reviews, new WeakInvalidationListener(reviewsChangedListener));
     reviewsChangedListener.invalidated(reviews);
   }
 
-  public void setShowWinners(boolean showWinners) {
-    this.showWinners = showWinners;
+  public void setShowWinnersProperty(BooleanProperty showWinnersProperty) {
+    this.showWinnersProperty = showWinnersProperty;
+    JavaFxUtil.addListener(showWinnersProperty, new WeakInvalidationListener(showWinnersChangedListener));
+  }
+
+  private void populateTeams() {
+    if (replay == null) {
+      return;
+    }
+    boolean showWinners = showWinnersProperty != null && showWinnersProperty.get();
+    Optional<String> winningTeamId = showWinners ? replay.getWinningTeamId() : Optional.empty();
+
+    JavaFxUtil.runLater(() -> {
+      teamsContainer.getChildren().clear();
+      replay.getTeams()
+          .forEach((id, team) -> {
+            VBox teamBox = new VBox();
+
+            String teamLabelText = id.equals("1") ? i18n.get("replay.noTeam") : i18n.get("replay.team", Integer.parseInt(id) - 1);
+
+            Label teamLabel = new Label(teamLabelText);
+            teamLabel.getStyleClass().add("replay-card-team-label");
+            if (winningTeamId.map(id::equals).orElse(false)) {
+              Region crownIcon = new Region();
+              crownIcon.getStyleClass().addAll("icon", "crown-icon-small");
+              teamLabel.setGraphic(crownIcon);
+              teamLabel.setContentDisplay(ContentDisplay.RIGHT);
+            }
+            teamLabel.setPadding(new Insets(0, 0, 5, 0));
+            teamBox.getChildren().add(teamLabel);
+            team.forEach(player -> teamBox.getChildren().add(new Label(player)));
+
+            teamsContainer.getChildren().add(teamBox);
+          });
+    });
   }
 
   private void populateReviews() {
