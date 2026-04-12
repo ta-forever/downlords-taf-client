@@ -59,6 +59,15 @@ public class Scenario {
   @SerializedName("last_galaxy_winner")
   String lastGalaxyWinner;
 
+  @SerializedName("dominance_decay_period")
+  Integer dominanceDecayPeriod;
+
+  @SerializedName("dominance_decay_thresholds")
+  List<Float> dominanceDecayThresholds;
+
+  @SerializedName("update_crontab")
+  String updateCrontab;
+
   static public Scenario fromFile(Path path) throws IOException {
     return new Gson().fromJson(Files.newBufferedReader(path), Scenario.class);
   }

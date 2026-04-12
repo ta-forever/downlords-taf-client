@@ -65,6 +65,7 @@ public class GalaxyViewController extends AbstractViewController<Node> {
   final private NotificationService notificationService;
   private final EventBus eventBus;
   final private I18n i18n;
+  final private com.faforever.client.fx.PlatformService platformService;
 
   public StackPane rootPane;
   public Label loadingIndicator;
@@ -76,6 +77,7 @@ public class GalaxyViewController extends AbstractViewController<Node> {
 
   final private SimpleStringProperty technicalName = new SimpleStringProperty("<galaxy>");
   final private SimpleStringProperty displayName = new SimpleStringProperty("<galaxy>");
+  private Scenario currentScenario;
 
   String endpointUrl;
 
@@ -165,6 +167,7 @@ public class GalaxyViewController extends AbstractViewController<Node> {
         galacticMapView = GalacticMapView.fromScenario(scenario, styleSheetFile, uiService);
 
         JavaFxUtil.runLater(() -> {
+          currentScenario = scenario;
           setTechnicalName(scenario.getTechnicalName());
           setDisplayName(scenario.getDisplayName());
           planetDetailController.setGalaxyTechnicalName(scenario.getTechnicalName());
@@ -210,6 +213,108 @@ public class GalaxyViewController extends AbstractViewController<Node> {
 
   public void resetView(ActionEvent actionEvent) {
     this.galacticMapView.resetView();
+  }
+
+  public void onGuideButtonPressed(ActionEvent actionEvent) {
+    if (endpointUrl == null) return;
+    String guideUrl = endpointUrl.substring(0, endpointUrl.lastIndexOf('/') + 1) + "gw_guide.html";
+    platformService.showDocument(guideUrl);
+  }
+
+  public void onSettingsButtonPressed(ActionEvent actionEvent) {
+    Scenario s = currentScenario;
+    if (s == null) return;
+
+    javafx.scene.layout.GridPane grid = new javafx.scene.layout.GridPane();
+    grid.setHgap(12);
+    grid.setVgap(6);
+    grid.setPadding(new javafx.geometry.Insets(10));
+
+    javafx.scene.control.Label headerLabel = new javafx.scene.control.Label();
+    headerLabel.setStyle("-fx-font-weight: bold;");
+
+    int row = 0;
+    row = addSettingRow(grid, row, i18n.get("galacticWar.settings.galaxy"), s.getDisplayName());
+    row = addSettingRow(grid, row, i18n.get("galacticWar.settings.iteration"),
+        String.valueOf(s.getIteration() != null ? s.getIteration() : 1));
+    row = addSettingRow(grid, row, i18n.get("galacticWar.settings.factions"),
+        s.getFactions() != null ? s.getFactions().stream()
+            .map(f -> f.name()).collect(java.util.stream.Collectors.joining(", ")) : "ARM, CORE");
+    row = addSettingRow(grid, row, i18n.get("galacticWar.settings.planets"),
+        String.valueOf(s.getPlanets() != null ? s.getPlanets().size() : 0));
+
+    if (s.getDominanceDecayPeriod() != null && s.getDominanceDecayThresholds() != null
+        && !s.getDominanceDecayThresholds().isEmpty()) {
+      row = addSettingRow(grid, row, i18n.get("galacticWar.settings.captureSchedule"),
+          i18n.get("galacticWar.settings.captureScheduleValue",
+              s.getDominanceDecayPeriod(),
+              s.getDominanceDecayThresholds().stream()
+                  .map(v -> String.format("%.1fx", v))
+                  .collect(java.util.stream.Collectors.joining(" \u2192 "))));
+    } else {
+      row = addSettingRow(grid, row, i18n.get("galacticWar.settings.captureThreshold"),
+          s.getDominanceThreshold() != null
+              ? String.format("%.1fx", s.getDominanceThreshold()) : "3.0x");
+    }
+
+    if (s.getUpdateCrontab() != null && !s.getUpdateCrontab().isBlank()) {
+      row = addSettingRow(grid, row, i18n.get("galacticWar.settings.updateFrequency"),
+          describeCrontab(s.getUpdateCrontab()));
+    }
+
+    if (s.getLastGalaxyWinner() != null) {
+      row = addSettingRow(grid, row, i18n.get("galacticWar.settings.lastWinner"),
+          s.getLastGalaxyWinner());
+    }
+
+    if (s.getRankThresholds() != null) {
+      String ranks = s.getRankThresholds().stream()
+          .map(String::valueOf)
+          .collect(java.util.stream.Collectors.joining(", "));
+      row = addSettingRow(grid, row, i18n.get("galacticWar.settings.rankThresholds"), ranks);
+    }
+
+    uiService.showInDialog(rootPane, grid,
+        i18n.get("galacticWar.settings.title", s.getDisplayName()));
+  }
+
+  private int addSettingRow(javafx.scene.layout.GridPane grid, int row, String label, String value) {
+    javafx.scene.control.Label l = new javafx.scene.control.Label(label);
+    l.setStyle("-fx-font-weight: bold;");
+    javafx.scene.control.Label v = new javafx.scene.control.Label(value);
+    v.setWrapText(true);
+    v.setMaxWidth(300);
+    grid.add(l, 0, row);
+    grid.add(v, 1, row);
+    return row + 1;
+  }
+
+  /**
+   * Convert a simple cron expression to a human-readable description.
+   * Handles common GW patterns; falls back to showing the raw cron.
+   */
+  private String describeCrontab(String cron) {
+    if (cron == null) return "?";
+    String[] parts = cron.trim().split("\\s+");
+    if (parts.length != 5) return cron;
+    String min = parts[0], hour = parts[1];
+    // "*/N * * * *" → "Every N minutes"
+    if (min.startsWith("*/") && "*".equals(hour) && "*".equals(parts[2])
+        && "*".equals(parts[3]) && "*".equals(parts[4])) {
+      try {
+        int n = Integer.parseInt(min.substring(2));
+        return i18n.get("galacticWar.settings.everyNMinutes", n);
+      } catch (NumberFormatException ignored) {}
+    }
+    // "0 */N * * *" → "Every N hours"
+    if ("0".equals(min) && hour.startsWith("*/") && "*".equals(parts[2])
+        && "*".equals(parts[3]) && "*".equals(parts[4])) {
+      try {
+        int n = Integer.parseInt(hour.substring(2));
+        return i18n.get("galacticWar.settings.everyNHours", n);
+      } catch (NumberFormatException ignored) {}
+    }
+    return cron;
   }
 
   private float totalScore(Map<String, GwPlayerScore> scores) {

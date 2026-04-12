@@ -47,7 +47,18 @@ public class Planet {
   @SerializedName("previous_names")
   List<String> previousNames;
 
+  @SerializedName("journal")
+  List<JournalEntry> journal;
+
   PlanetGraphics graphics;
+
+  @Getter
+  @Setter
+  public static class JournalEntry {
+    String timestamp;
+    String name;
+    String map;
+  }
 
   public String toString() {
     return name;

@@ -50,10 +50,16 @@
                                 fitToWidth="true"
                                 fitToHeight="true"/>
 
-                    <Button text="%galactic_war.view.reset"
-                            onAction="#resetView"
-                            StackPane.alignment="TOP_RIGHT"
-                            styleClass="reset-view-button"/>
+                    <javafx.scene.layout.HBox spacing="6" StackPane.alignment="TOP_RIGHT"
+                                              pickOnBounds="false" maxWidth="-Infinity">
+                        <Button text="%galacticWar.guide"
+                                onAction="#onGuideButtonPressed"/>
+                        <Button text="%galacticWar.settings"
+                                onAction="#onSettingsButtonPressed"/>
+                        <Button text="%galactic_war.view.reset"
+                                onAction="#resetView"
+                                styleClass="reset-view-button"/>
+                    </javafx.scene.layout.HBox>
                 </StackPane>
             </StackPane>
         </SplitPane>

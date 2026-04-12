@@ -108,6 +108,7 @@ public class PlanetDetailController implements Controller<Node> {
   public TableView<Player> belligerentsTableView;
   public Button setMapButton;
   public Button searchReplaysButton;
+  public Button historyButton;
 
   Planet planet;
   SimpleObjectProperty<MapBean> mapBean;
@@ -136,6 +137,7 @@ public class PlanetDetailController implements Controller<Node> {
     planetSelectedContainer.setVisible(false);
     planetNotSelectedContainer.visibleProperty().bind(planetSelectedContainer.visibleProperty().not());
     searchReplaysButton.managedProperty().bind(searchReplaysButton.visibleProperty());
+    historyButton.managedProperty().bind(historyButton.visibleProperty());
 
     createGameButton.disableProperty().bind(
         mapBean.isNull().or(featuredMod.isNull().or(leaderboard.isNull().or(gameService.getCurrentGameProperty().isNotNull()))));
@@ -169,6 +171,7 @@ public class PlanetDetailController implements Controller<Node> {
 
     createGameButton.setVisible(planet.getControlledBy() == null);
     searchReplaysButton.setVisible(true);
+    historyButton.setVisible(planet.getJournal() != null && planet.getJournal().size() > 1);
 
     Optional<Integer> heroicPlayerId = planet.getHeroicPlayerId();
     setMapButton.setVisible(
@@ -546,5 +549,61 @@ public class PlanetDetailController implements Controller<Node> {
         scenario.getMapSelectStrategy(),
         scenario.getMapSelectRegexes().getOrDefault(this.planet.getModTechnical(), List.of(".*")),
         scenario.getMapSelectMMQId().getOrDefault(this.planet.getModTechnical(), null)));
+  }
+
+  public void onHistoryButtonPressed(ActionEvent actionEvent) {
+    List<Planet.JournalEntry> journal = planet.getJournal();
+    if (journal == null || journal.isEmpty()) return;
+
+    javafx.scene.layout.GridPane grid = new javafx.scene.layout.GridPane();
+    grid.setHgap(12);
+    grid.setVgap(6);
+    grid.setPadding(new javafx.geometry.Insets(10));
+
+    // Header row
+    int row = 0;
+    javafx.scene.control.Label hTime = new javafx.scene.control.Label(i18n.get("planet_detail.history.time"));
+    hTime.setStyle("-fx-font-weight: bold;");
+    javafx.scene.control.Label hName = new javafx.scene.control.Label(i18n.get("planet_detail.history.name"));
+    hName.setStyle("-fx-font-weight: bold;");
+    javafx.scene.control.Label hMap = new javafx.scene.control.Label(i18n.get("planet_detail.history.map"));
+    hMap.setStyle("-fx-font-weight: bold;");
+    grid.add(hTime, 0, row);
+    grid.add(hName, 1, row);
+    grid.add(hMap, 2, row);
+    row++;
+
+    for (Planet.JournalEntry entry : journal) {
+      grid.add(new javafx.scene.control.Label(
+          entry.getTimestamp() != null ? entry.getTimestamp() : "\u2014"), 0, row);
+      grid.add(new javafx.scene.control.Label(
+          entry.getName() != null ? entry.getName() : "\u2014"), 1, row);
+      grid.add(new javafx.scene.control.Label(
+          entry.getMap() != null ? entry.getMap() : "\u2014"), 2, row);
+      row++;
+    }
+
+    javafx.scene.control.ScrollPane scroll = new javafx.scene.control.ScrollPane(grid);
+    scroll.setFitToWidth(true);
+    scroll.setPrefHeight(300);
+    scroll.setPrefWidth(500);
+
+    // Use the galaxy view's rootPane (StackPane) for showInDialog
+    javafx.scene.layout.StackPane dialogParent = findParentStackPane();
+    if (dialogParent != null) {
+      uiService.showInDialog(dialogParent, scroll,
+          i18n.get("planet_detail.history.title", planet.getName()));
+    }
+  }
+
+  private javafx.scene.layout.StackPane findParentStackPane() {
+    // Walk up to find the largest StackPane (the galaxy view root or main root)
+    javafx.scene.layout.StackPane result = null;
+    javafx.scene.Node node = planetSelectedContainer;
+    while (node != null) {
+      if (node instanceof javafx.scene.layout.StackPane sp) result = sp;
+      node = node.getParent();
+    }
+    return result;
   }
 }

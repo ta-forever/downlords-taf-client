@@ -7,6 +7,7 @@
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
 
 <AnchorPane xmlns:fx="http://javafx.com/fxml/1"
             fx:id="tournamentsRootPane"
@@ -14,24 +15,25 @@
             fx:controller="com.faforever.client.tournament.TournamentsRootController"
             maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308">
   <children>
-    <TabPane fx:id="tournamentsTabPane"
-             tabClosingPolicy="UNAVAILABLE"
-             AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
-             AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-      <tabs>
-        <Tab text="%tournament.tab.brackets">
-          <fx:include fx:id="bracketsTab" source="tournament_brackets.fxml"/>
-        </Tab>
-        <Tab text="%tournament.tab.hallOfFame">
-          <fx:include fx:id="hallOfFameTab" source="hall_of_fame.fxml"/>
-        </Tab>
-      </tabs>
-    </TabPane>
-    <!-- Overlaid on the tab header bar, anchored top-right -->
-    <HBox alignment="CENTER_RIGHT" spacing="6.0" pickOnBounds="false" mouseTransparent="false"
-          fx:id="modFilterBar" AnchorPane.topAnchor="2.0" AnchorPane.leftAnchor="250.0">
-      <Label text="%hallOfFame.modFilter.label" style="-fx-text-fill: -fx-text-base-color;"/>
-      <ComboBox fx:id="modFilterCombo" prefWidth="180.0"/>
-    </HBox>
+    <VBox AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
+          AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+      <HBox fx:id="modFilterBar" alignment="CENTER_LEFT" spacing="6.0">
+        <padding><Insets top="4.0" bottom="4.0" left="10.0" right="10.0"/></padding>
+        <Label text="%hallOfFame.modFilter.label"/>
+        <ComboBox fx:id="modFilterCombo" prefWidth="180.0"/>
+      </HBox>
+      <TabPane fx:id="tournamentsTabPane"
+               tabClosingPolicy="UNAVAILABLE"
+               VBox.vgrow="ALWAYS">
+        <tabs>
+          <Tab text="%tournament.tab.brackets">
+            <fx:include fx:id="bracketsTab" source="tournament_brackets.fxml"/>
+          </Tab>
+          <Tab text="%tournament.tab.hallOfFame">
+            <fx:include fx:id="hallOfFameTab" source="hall_of_fame.fxml"/>
+          </Tab>
+        </tabs>
+      </TabPane>
+    </VBox>
   </children>
 </AnchorPane>
