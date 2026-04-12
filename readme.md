@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://faforever.com" rel="noopener" target="_blank"><img width="250" src="https://faforever.com/images/faf-logo.png" alt="FAF logo"></a></p>
+  <a href="https://taforever.com" rel="noopener" target="_blank"><img width="250" src="https://taforever.com/images/faf-logo.png" alt="TAF logo"></a></p>
 </p>
 
 
@@ -38,7 +38,7 @@ Learn how to install the client on Linux [here](https://github.com/ta-forever/do
 
 
 ## Contribute
-Please take a look at (FAF's) [contribution guidelines](https://github.com/FAForever/java-guidelines/wiki/Contribution-Guidelines) before creating a pull request
+Please take a look at (FAF's) [contribution guidelines](https://github.com/ta-forever/downlords-taf-client/blob/develop/CONTRIBUTING.md) before creating a pull request
 
 Have a look at (FAF's) [wiki](https://github.com/FAForever/downlords-faf-client/wiki).
 

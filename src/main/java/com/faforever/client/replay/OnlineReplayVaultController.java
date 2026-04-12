@@ -89,6 +89,7 @@ public class OnlineReplayVaultController extends VaultEntityController<Replay> {
 
   protected Node getEntityCard(Replay replay) {
     ReplayCardController controller = uiService.loadFxml("theme/vault/replay/replay_card.fxml");
+    controller.setShowWinners(preferencesService.getPreferences().getVault().isShowWinnersInReplays());
     controller.setReplay(replay);
     controller.setOnOpenDetailListener(this::onDisplayDetails);
     return controller.getRoot();
@@ -123,6 +124,14 @@ public class OnlineReplayVaultController extends VaultEntityController<Replay> {
     searchController.setSearchableProperties(SearchablePropertyMappings.GAME_PROPERTY_MAPPING);
     searchController.setSortConfig(preferencesService.getPreferences().getVault().onlineReplaySortConfigProperty());
     searchController.setOnlyShowLastYearCheckBoxVisible(true);
+    searchController.setShowWinnersCheckBoxVisible(true);
+    searchController.showWinnersSelectedProperty().bindBidirectional(
+        preferencesService.getPreferences().getVault().showWinnersInReplaysProperty()
+    );
+    searchController.showWinnersSelectedProperty().addListener((observable, oldValue, newValue) -> {
+      preferencesService.storeInBackground();
+      onRefreshButtonClicked();
+    });
     searchController.setVaultRoot(vaultRoot);
     searchController.setSavedQueries(preferencesService.getPreferences().getVault().getSavedReplayQueries());
 

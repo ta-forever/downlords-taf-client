@@ -74,6 +74,7 @@ public class ReplayCardController implements Controller<Node> {
   public Button unhideButton;
   public Label visibilityLabel;
   private Replay replay;
+  private boolean showWinners;
   private final InvalidationListener reviewsChangedListener = observable -> populateReviews();
   private Consumer<Replay> onOpenDetailListener;
 
@@ -169,11 +170,17 @@ public class ReplayCardController implements Controller<Node> {
           .orElse(i18n.get("notAvailable")));
     }
 
+    Optional<String> winningTeamId = showWinners ? replay.getWinningTeamId() : Optional.empty();
+
     replay.getTeams()
         .forEach((id, team) -> {
           VBox teamBox = new VBox();
 
           String teamLabelText = id.equals("1") ? i18n.get("replay.noTeam") : i18n.get("replay.team", Integer.parseInt(id) - 1);
+          if (winningTeamId.map(id::equals).orElse(false)) {
+            teamLabelText += " 👑";
+          }
+
           Label teamLabel = new Label(teamLabelText);
           teamLabel.getStyleClass().add("replay-card-team-label");
           teamLabel.setPadding(new Insets(0, 0, 5, 0));
@@ -186,6 +193,10 @@ public class ReplayCardController implements Controller<Node> {
     ObservableList<Review> reviews = replay.getReviews();
     JavaFxUtil.addListener(reviews, new WeakInvalidationListener(reviewsChangedListener));
     reviewsChangedListener.invalidated(reviews);
+  }
+
+  public void setShowWinners(boolean showWinners) {
+    this.showWinners = showWinners;
   }
 
   private void populateReviews() {
