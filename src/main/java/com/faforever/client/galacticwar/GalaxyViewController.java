@@ -225,45 +225,56 @@ public class GalaxyViewController extends AbstractViewController<Node> {
     Scenario s = currentScenario;
     if (s == null) return;
 
-    javafx.scene.layout.GridPane grid = new javafx.scene.layout.GridPane();
-    grid.setHgap(12);
-    grid.setVgap(6);
-    grid.setPadding(new javafx.geometry.Insets(10));
+    String cardStyle = "-fx-background-color: -fx-control-inner-background; "
+        + "-fx-background-radius: 6; -fx-padding: 10; "
+        + "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.15), 4, 0, 0, 1);";
+    String sectionTitleStyle = "-fx-font-weight: bold; -fx-font-size: 1.1em; -fx-padding: 0 0 4 0;";
 
-    javafx.scene.control.Label headerLabel = new javafx.scene.control.Label();
-    headerLabel.setStyle("-fx-font-weight: bold;");
+    javafx.scene.layout.VBox root = new javafx.scene.layout.VBox(10);
+    root.setPadding(new javafx.geometry.Insets(6));
 
+    // === General Settings card ===
+    javafx.scene.layout.VBox generalCard = new javafx.scene.layout.VBox(4);
+    generalCard.setStyle(cardStyle);
+    javafx.scene.control.Label generalTitle = new javafx.scene.control.Label(
+        i18n.get("galacticWar.settings.generalSection"));
+    generalTitle.setStyle(sectionTitleStyle);
+    generalCard.getChildren().add(generalTitle);
+
+    javafx.scene.layout.GridPane generalGrid = new javafx.scene.layout.GridPane();
+    generalGrid.setHgap(12);
+    generalGrid.setVgap(4);
     int row = 0;
-    row = addSettingRow(grid, row, i18n.get("galacticWar.settings.galaxy"), s.getDisplayName());
-    row = addSettingRow(grid, row, i18n.get("galacticWar.settings.iteration"),
+    row = addSettingRow(generalGrid, row, i18n.get("galacticWar.settings.galaxy"), s.getDisplayName());
+    row = addSettingRow(generalGrid, row, i18n.get("galacticWar.settings.iteration"),
         String.valueOf(s.getIteration() != null ? s.getIteration() : 1));
-    row = addSettingRow(grid, row, i18n.get("galacticWar.settings.factions"),
+    row = addSettingRow(generalGrid, row, i18n.get("galacticWar.settings.factions"),
         s.getFactions() != null ? s.getFactions().stream()
             .map(f -> f.name()).collect(java.util.stream.Collectors.joining(", ")) : "ARM, CORE");
-    row = addSettingRow(grid, row, i18n.get("galacticWar.settings.planets"),
+    row = addSettingRow(generalGrid, row, i18n.get("galacticWar.settings.planets"),
         String.valueOf(s.getPlanets() != null ? s.getPlanets().size() : 0));
 
     if (s.getDominanceDecayPeriod() != null && s.getDominanceDecayThresholds() != null
         && !s.getDominanceDecayThresholds().isEmpty()) {
-      row = addSettingRow(grid, row, i18n.get("galacticWar.settings.captureSchedule"),
+      row = addSettingRow(generalGrid, row, i18n.get("galacticWar.settings.captureSchedule"),
           i18n.get("galacticWar.settings.captureScheduleValue",
               s.getDominanceDecayPeriod(),
               s.getDominanceDecayThresholds().stream()
                   .map(v -> String.format("%.1fx", v))
                   .collect(java.util.stream.Collectors.joining(" \u2192 "))));
     } else {
-      row = addSettingRow(grid, row, i18n.get("galacticWar.settings.captureThreshold"),
+      row = addSettingRow(generalGrid, row, i18n.get("galacticWar.settings.captureThreshold"),
           s.getDominanceThreshold() != null
               ? String.format("%.1fx", s.getDominanceThreshold()) : "3.0x");
     }
 
     if (s.getUpdateCrontab() != null && !s.getUpdateCrontab().isBlank()) {
-      row = addSettingRow(grid, row, i18n.get("galacticWar.settings.updateFrequency"),
+      row = addSettingRow(generalGrid, row, i18n.get("galacticWar.settings.updateFrequency"),
           describeCrontab(s.getUpdateCrontab()));
     }
 
     if (s.getLastGalaxyWinner() != null) {
-      row = addSettingRow(grid, row, i18n.get("galacticWar.settings.lastWinner"),
+      row = addSettingRow(generalGrid, row, i18n.get("galacticWar.settings.lastWinner"),
           s.getLastGalaxyWinner());
     }
 
@@ -271,11 +282,99 @@ public class GalaxyViewController extends AbstractViewController<Node> {
       String ranks = s.getRankThresholds().stream()
           .map(String::valueOf)
           .collect(java.util.stream.Collectors.joining(", "));
-      row = addSettingRow(grid, row, i18n.get("galacticWar.settings.rankThresholds"), ranks);
+      row = addSettingRow(generalGrid, row, i18n.get("galacticWar.settings.rankThresholds"), ranks);
     }
 
-    uiService.showInDialog(rootPane, grid,
+    generalCard.getChildren().add(generalGrid);
+    root.getChildren().add(generalCard);
+
+    // === Scoring tables (only if config values are available) ===
+    if (s.getStakesMaxScore() != null && s.getStakesRankFactor() != null
+        && s.getPlanetAdjMinMax() != null && s.getRankThresholds() != null) {
+      int numTiers = 1 + s.getRankThresholds().size();
+      double maxScore = s.getStakesMaxScore();
+      double rankFactor = s.getStakesRankFactor();
+      double minAdj = s.getPlanetAdjMinMax().get(0);
+      double maxAdj = s.getPlanetAdjMinMax().get(1);
+
+      // XP card
+      javafx.scene.layout.VBox xpCard = new javafx.scene.layout.VBox(4);
+      xpCard.setStyle(cardStyle);
+      javafx.scene.control.Label xpTitle = new javafx.scene.control.Label(
+          i18n.get("galacticWar.settings.xpTable"));
+      xpTitle.setStyle(sectionTitleStyle);
+      xpCard.getChildren().add(xpTitle);
+      xpCard.getChildren().add(buildScoringTable(numTiers, (winnerRank, loserRank) -> {
+        double diff = winnerRank - loserRank;
+        return maxScore / (1.0 + Math.exp(diff / rankFactor));
+      }));
+      root.getChildren().add(xpCard);
+
+      // Planet damage card
+      javafx.scene.layout.VBox planetCard = new javafx.scene.layout.VBox(4);
+      planetCard.setStyle(cardStyle);
+      javafx.scene.control.Label planetTitle = new javafx.scene.control.Label(
+          i18n.get("galacticWar.settings.planetDamageTable"));
+      planetTitle.setStyle(sectionTitleStyle);
+      planetCard.getChildren().add(planetTitle);
+      planetCard.getChildren().add(buildScoringTable(numTiers, (rank1, rank2) -> {
+        int minRank = Math.min(rank1, rank2);
+        double adj = minAdj + (maxAdj - minAdj) * minRank / Math.max(1, numTiers - 1);
+        return Math.min(adj, maxScore);
+      }));
+      root.getChildren().add(planetCard);
+    }
+
+    javafx.scene.control.ScrollPane scroll = new javafx.scene.control.ScrollPane(root);
+    scroll.setFitToWidth(true);
+    scroll.setPrefHeight(500);
+    scroll.setPrefWidth(550);
+    uiService.showInDialog(rootPane, scroll,
         i18n.get("galacticWar.settings.title", s.getDisplayName()));
+  }
+
+  private javafx.scene.layout.GridPane buildScoringTable(
+      int numTiers, java.util.function.BiFunction<Integer, Integer, Double> valueFn) {
+    javafx.scene.layout.GridPane table = new javafx.scene.layout.GridPane();
+    table.setPadding(new javafx.geometry.Insets(4, 0, 4, 0));
+    String headerStyle = "-fx-font-weight: bold; -fx-font-size: 0.85em; "
+        + "-fx-alignment: center; -fx-padding: 2 6 2 6; "
+        + "-fx-background-color: derive(-fx-control-inner-background, -10%);";
+    String cellStyle = "-fx-font-family: monospace; -fx-font-size: 0.85em; "
+        + "-fx-alignment: center; -fx-padding: 2 6 2 6;";
+    String cellAltStyle = cellStyle
+        + " -fx-background-color: derive(-fx-control-inner-background, -5%);";
+
+    // Corner label
+    javafx.scene.control.Label corner = new javafx.scene.control.Label(
+        i18n.get("galacticWar.settings.tableCorner"));
+    corner.setStyle(headerStyle);
+    table.add(corner, 0, 0);
+
+    // Column headers
+    for (int col = 0; col < numTiers; col++) {
+      javafx.scene.control.Label h = new javafx.scene.control.Label(String.valueOf(col));
+      h.setStyle(headerStyle);
+      h.setMinWidth(28);
+      table.add(h, col + 1, 0);
+    }
+
+    // Rows
+    for (int r = 0; r < numTiers; r++) {
+      javafx.scene.control.Label rowLabel = new javafx.scene.control.Label(String.valueOf(r));
+      rowLabel.setStyle(headerStyle);
+      rowLabel.setMinWidth(28);
+      table.add(rowLabel, 0, r + 1);
+      for (int c = 0; c < numTiers; c++) {
+        double val = valueFn.apply(r, c);
+        javafx.scene.control.Label cell = new javafx.scene.control.Label(
+            String.valueOf(Math.round(val)));
+        cell.setStyle(r % 2 == 0 ? cellStyle : cellAltStyle);
+        cell.setMinWidth(28);
+        table.add(cell, c + 1, r + 1);
+      }
+    }
+    return table;
   }
 
   private int addSettingRow(javafx.scene.layout.GridPane grid, int row, String label, String value) {

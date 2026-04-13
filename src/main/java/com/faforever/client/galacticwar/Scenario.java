@@ -68,6 +68,15 @@ public class Scenario {
   @SerializedName("update_crontab")
   String updateCrontab;
 
+  @SerializedName("stakes_max_score")
+  Double stakesMaxScore;
+
+  @SerializedName("stakes_rank_factor")
+  Double stakesRankFactor;
+
+  @SerializedName("planet_adj_min_max")
+  List<Double> planetAdjMinMax;
+
   static public Scenario fromFile(Path path) throws IOException {
     return new Gson().fromJson(Files.newBufferedReader(path), Scenario.class);
   }
