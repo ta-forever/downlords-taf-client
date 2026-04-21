@@ -171,7 +171,7 @@ public class PlanetDetailController implements Controller<Node> {
 
     createGameButton.setVisible(planet.getControlledBy() == null);
     searchReplaysButton.setVisible(true);
-    historyButton.setVisible(planet.getJournal() != null && planet.getJournal().size() > 1);
+    historyButton.setVisible(planet.getJournal() != null && !planet.getJournal().isEmpty());
 
     Optional<Integer> heroicPlayerId = planet.getHeroicPlayerId();
     setMapButton.setVisible(
