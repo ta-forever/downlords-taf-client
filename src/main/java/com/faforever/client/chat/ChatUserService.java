@@ -27,10 +27,8 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
-import java.util.WeakHashMap;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -58,7 +56,7 @@ public class ChatUserService implements InitializingBean {
   private final ObjectProvider<GameService> gameServiceProvider;
   private final ObjectProvider<GalacticWarService> galacticWarServiceProvider;
 
-  private final Set<ChatChannelUser> trackedUsers = Collections.newSetFromMap(new WeakHashMap<>());
+  private final Set<ChatChannelUser> trackedUsers = new java.util.HashSet<>();
 
   /** Icon mode: "avatar" for normal avatars, "none" for no icons, or a galaxy technical name for GW rank icons. */
   public static final String ICON_MODE_AVATAR = "avatar";
@@ -273,6 +271,7 @@ public class ChatUserService implements InitializingBean {
       populateColor(chatChannelUser);
       addListeners(chatChannelUser);
     } else if (player == null) {
+      synchronized (trackedUsers) { trackedUsers.remove(chatChannelUser); }
       chatChannelUser.removeListeners();
       chatChannelUser.setPlayer(null);
       chatChannelUser.setStatusTooltipText(null);

@@ -55,6 +55,7 @@ public class ChatUserItemController implements Controller<Node> {
   private final PlayerService playerService;
   private final PlatformService platformService;
   private final ChatPrefs chatPrefs;
+  private final ChatUserService chatUserService;
 
   private final InvalidationListener formatChangeListener;
   private final WeakInvalidationListener weakFormatInvalidationListener;
@@ -77,9 +78,16 @@ public class ChatUserItemController implements Controller<Node> {
   private ChatChannelUser chatUser;
   private WeakReference<ChatUserContextMenuController> contextMenuController = null;
 
+  /** fitHeight for the avatar ImageView when showing normal avatars (tall, narrow source images). */
+  private static final double AVATAR_FIT_HEIGHT = 20.0;
+  /** fitHeight when showing GW rank icons (square source images). Scaled down so the visual
+   *  weight matches avatars, whose source images are ~60px tall but only use ~40px for artwork.
+   *  40/60 * 20 ≈ 13. */
+  private static final double GW_ICON_FIT_HEIGHT = 14.0;
+
   public ChatUserItemController(PreferencesService preferencesService,
                                 I18n i18n, UiService uiService, EventBus eventBus, PlayerService playerService,
-                                PlatformService platformService) {
+                                PlatformService platformService, ChatUserService chatUserService) {
     this.platformService = platformService;
     this.preferencesService = preferencesService;
     this.playerService = playerService;
@@ -87,6 +95,7 @@ public class ChatUserItemController implements Controller<Node> {
     this.uiService = uiService;
     this.eventBus = eventBus;
     this.chatPrefs = preferencesService.getPreferences().getChat();
+    this.chatUserService = chatUserService;
 
     formatChangeListener = observable -> updateFormat();
     weakFormatInvalidationListener = new WeakInvalidationListener(formatChangeListener);
@@ -112,6 +121,18 @@ public class ChatUserItemController implements Controller<Node> {
     JavaFxUtil.bindManagedToVisible(countryImageView, clanMenu);
 
     JavaFxUtil.bind(avatarImageView.visibleProperty(), Bindings.isNotNull(avatarImageView.imageProperty()));
+    // Shrink the avatar slot when showing GW rank icons so they visually match
+    // the bulk of regular avatars (whose source images are 60px tall but only
+    // use ~40px for artwork, the rest being transparent padding).
+    avatarImageView.fitHeightProperty().bind(Bindings.createDoubleBinding(
+        () -> {
+          String mode = chatUserService.getIconMode();
+          boolean isGw = mode != null
+              && !ChatUserService.ICON_MODE_AVATAR.equals(mode)
+              && !ChatUserService.ICON_MODE_NONE.equals(mode);
+          return isGw ? GW_ICON_FIT_HEIGHT : AVATAR_FIT_HEIGHT;
+        },
+        chatUserService.iconModeProperty()));
     JavaFxUtil.bind(countryImageView.visibleProperty(), Bindings.isNotNull(countryImageView.imageProperty()));
     JavaFxUtil.bind(clanMenu.visibleProperty(), Bindings.isNotEmpty(clanMenu.textProperty()));
     JavaFxUtil.bind(playerStatusIndicator.visibleProperty(), Bindings.isNotNull(playerStatusIndicator.imageProperty()));
