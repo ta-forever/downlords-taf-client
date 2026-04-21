@@ -165,6 +165,8 @@ public class UserInfoWindowController implements Controller<Node> {
   public TableColumn<LeaderboardEntry, String> ratingTableRecentResultsColumn;
   public TableColumn<LeaderboardEntry, Number> ratingTableStreakColumn;
   public TableColumn<LeaderboardEntry, Number> ratingTableBestStreakColumn;
+  public VBox tournamentMedalsCard;
+  public VBox tournamentMedalsContent;
 
   private Player player;
   private Window ownerWindow;  private List<RatingHistoryDataPoint> ratingData;
@@ -301,6 +303,7 @@ public class UserInfoWindowController implements Controller<Node> {
     loadReplayHistory(100)
         .thenAccept((x) -> plotGamesPlayedByModChart());
 
+    loadTournamentMedals();
   }
 
   private void updateRatingGrids(List<LeaderboardEntry> leaderboardEntries) {
@@ -686,6 +689,99 @@ public class UserInfoWindowController implements Controller<Node> {
       }
     });
     stage.show();
+  }
+
+  private void loadTournamentMedals() {
+    fafService.getPlayerTournamentSummary(player.getId())
+        .thenAccept(summaries -> JavaFxUtil.runLater(() -> {
+          // Per-mod rows. The grand-total rollup (id starts with "all-")
+          // also comes back with featuredMod==null but is a sum across
+          // all mods, so it's normally dropped to avoid double-counting
+          // alongside the per-mod rows below.
+          List<com.faforever.client.api.dto.PlayerTournamentSummary> relevant = summaries.stream()
+              .filter(s -> s.getFeaturedMod() != null && s.getParticipations() > 0)
+              .collect(java.util.stream.Collectors.toList());
+
+          // Fallback: if there are no per-mod rows (e.g. the player has
+          // only participated in tournaments with no featured_mod set,
+          // which is common in dev/test setups and in any ad-hoc
+          // tournament where the moderator didn't pick a mod), show the
+          // grand-total rollup instead so the card isn't hidden. It's
+          // safe here precisely because there are no per-mod rows to
+          // double-count against.
+          com.faforever.client.api.dto.PlayerTournamentSummary fallback = null;
+          if (relevant.isEmpty()) {
+            fallback = summaries.stream()
+                .filter(s -> s.getFeaturedMod() == null && s.getParticipations() > 0)
+                .findFirst()
+                .orElse(null);
+            if (fallback == null) return;
+          }
+
+          javafx.scene.image.Image goldIcon = uiService.getThemeImage("theme/images/hall_of_fame/gold_medal.png");
+          javafx.scene.image.Image silverIcon = uiService.getThemeImage("theme/images/hall_of_fame/silver_medal.png");
+          javafx.scene.image.Image bronzeIcon = uiService.getThemeImage("theme/images/hall_of_fame/bronze_medal.png");
+          javafx.scene.image.Image cookieIcon = uiService.getThemeImage("theme/images/hall_of_fame/cookie.png");
+
+          tournamentMedalsContent.getChildren().clear();
+          List<com.faforever.client.api.dto.PlayerTournamentSummary> toRender =
+              fallback != null ? java.util.List.of(fallback) : relevant;
+          for (var s : toRender) {
+            String modName;
+            if (s.getFeaturedMod() != null) {
+              modName = s.getFeaturedMod().getDisplayName() != null
+                  ? s.getFeaturedMod().getDisplayName()
+                  : s.getFeaturedMod().getTechnicalName();
+            } else {
+              modName = i18n.get("tournament.medals.generalHeader");
+            }
+            javafx.scene.control.Label modLabel = new javafx.scene.control.Label(modName);
+            modLabel.setStyle("-fx-font-weight: bold;");
+
+            javafx.scene.layout.HBox medals = new javafx.scene.layout.HBox(6);
+            medals.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+            addMedalIcons(medals, goldIcon, s.getFirsts());
+            addMedalIcons(medals, silverIcon, s.getSeconds());
+            addMedalIcons(medals, bronzeIcon, s.getThirds());
+            int participationOnly = s.getParticipations() - s.getFirsts() - s.getSeconds() - s.getThirds();
+            if (participationOnly > 0) {
+              addMedalIcons(medals, cookieIcon, participationOnly);
+            }
+
+            javafx.scene.layout.VBox row = new javafx.scene.layout.VBox(2, modLabel, medals);
+            tournamentMedalsContent.getChildren().add(row);
+          }
+          tournamentMedalsCard.setVisible(true);
+          tournamentMedalsCard.setManaged(true);
+        }))
+        .exceptionally(throwable -> {
+          log.warn("Could not load tournament medals", throwable);
+          return null;
+        });
+  }
+
+  private void addMedalIcons(javafx.scene.layout.HBox container,
+                              javafx.scene.image.Image icon, int count) {
+    if (count <= 0) return;
+    if (count < 5) {
+      for (int i = 0; i < count; i++) {
+        javafx.scene.image.ImageView iv = new javafx.scene.image.ImageView(icon);
+        iv.setFitHeight(20);
+        iv.setFitWidth(20);
+        iv.setPreserveRatio(true);
+        container.getChildren().add(iv);
+      }
+    } else {
+      javafx.scene.image.ImageView iv = new javafx.scene.image.ImageView(icon);
+      iv.setFitHeight(20);
+      iv.setFitWidth(20);
+      iv.setPreserveRatio(true);
+      javafx.scene.control.Label multiplier = new javafx.scene.control.Label("x" + count);
+      multiplier.setStyle("-fx-font-size: 0.9em;");
+      javafx.scene.layout.HBox group = new javafx.scene.layout.HBox(2, iv, multiplier);
+      group.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+      container.getChildren().add(group);
+    }
   }
 
   public void setOwnerWindow(Window ownerWindow) {

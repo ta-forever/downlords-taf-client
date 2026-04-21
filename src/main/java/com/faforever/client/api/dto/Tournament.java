@@ -35,6 +35,7 @@ public class Tournament {
   private OffsetDateTime scheduledStartAt;
   private String recurrenceCron;
   private Integer recurrenceIndex;
+  private String mapVisibility;
 
   @Relationship("participants")
   private List<TournamentParticipant> participants;
@@ -56,6 +57,12 @@ public class Tournament {
 
   @Relationship("mapPool")
   private MapPool mapPool;
+
+  @Relationship("teams")
+  private List<TournamentTeam> teams;
+
+  @Relationship("createdBy")
+  private com.faforever.client.api.dto.Player createdBy;
 
   @Relationship("winnerAvatar")
   private Avatar winnerAvatar;

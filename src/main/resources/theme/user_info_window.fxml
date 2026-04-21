@@ -53,7 +53,8 @@
                         </columnConstraints>
                         <rowConstraints>
                             <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
-                             <RowConstraints minHeight="10.0" vgrow="ALWAYS"/>
+                            <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
+                            <RowConstraints minHeight="10.0" vgrow="ALWAYS"/>
                         </rowConstraints>
                         <children>
                             <GridPane prefWidth="250.0" styleClass="card">
@@ -84,7 +85,14 @@
                                 <Label fx:id="ratingsValues" textAlignment="CENTER" maxWidth="1.7976931348623157E308"
                                        styleClass="h2" text="&lt;rating values&gt;" GridPane.rowIndex="1"/>
                             </HBox>
-                            <VBox styleClass="card" GridPane.columnSpan="2147483647" GridPane.rowIndex="1">
+                            <VBox fx:id="tournamentMedalsCard" styleClass="card"
+                                  GridPane.columnSpan="2147483647" GridPane.rowIndex="1"
+                                  visible="false" managed="false">
+                                <padding><Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/></padding>
+                                <Label text="%userInfo.tournamentMedals" styleClass="h2"/>
+                                <VBox fx:id="tournamentMedalsContent" spacing="4"/>
+                            </VBox>
+                            <VBox styleClass="card" GridPane.columnSpan="2147483647" GridPane.rowIndex="2">
                                 <padding>
                                     <Insets right="15.0"/>
                                 </padding>

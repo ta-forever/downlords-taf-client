@@ -3,7 +3,9 @@ package com.faforever.client.tournament;
 
 import com.faforever.client.fx.AbstractViewController;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.fx.PlatformService;
 import com.faforever.client.game.GameService;
+import com.faforever.client.update.ClientConfiguration;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.HostGameEvent;
 import com.faforever.client.main.event.NavigateEvent;
@@ -68,6 +70,7 @@ public class TournamentsController extends AbstractViewController<Node> {
   private final EventBus eventBus;
   private final PlayerService playerService;
   private final GameService gameService;
+  private final PlatformService platformService;
   /** Container for the team panel rendered in the detail pane (team tournaments only). */
   private VBox teamPanel;
   /** Tracked listeners so we can deregister them when the panel is rebuilt,
@@ -98,7 +101,21 @@ public class TournamentsController extends AbstractViewController<Node> {
    *  Also keyed by match id so individual timers can be stopped on
    *  tournament_timer_stopped broadcasts. */
   private final List<javafx.animation.Timeline> activeCountdowns = new ArrayList<>();
+  /** When true, all tournament timestamps are formatted in UTC instead of the user's local time. */
+  private boolean displayTimesAsUtc = false;
+  /** Maps player/team name → their last (deciding) match ID for medal display. */
+  private Map<String, Integer> lastMatchByPlayer = java.util.Collections.emptyMap();
   private final Map<Integer, javafx.animation.Timeline> countdownByMatchId = new HashMap<>();
+  /** Parallel to countdownByMatchId so timer_stopped/restarted listeners
+   *  can hide/show the countdown label while a game is live without
+   *  tearing down the scene-graph node. */
+  private final Map<Integer, Label> countdownLabelByMatchId = new HashMap<>();
+  /** Current forfeit deadline per open match. Populated when a countdown
+   *  is created and patched in place on tournament_timer_restarted
+   *  broadcasts so the running Timeline reads the fresh value without
+   *  being rebuilt. */
+  private final Map<Integer, java.util.concurrent.atomic.AtomicReference<java.time.Instant>>
+      deadlineByMatchId = new HashMap<>();
   /** Match node that should be scrolled into view after the next layout pass (user's next-to-play). */
   private Node pendingScrollTarget;
 
@@ -121,7 +138,8 @@ public class TournamentsController extends AbstractViewController<Node> {
                                TournamentTeamService teamService,
                                FafService fafService, UiService uiService,
                                PreferencesService preferencesService, MapService mapService, EventBus eventBus,
-                               PlayerService playerService, GameService gameService) {
+                               PlayerService playerService, GameService gameService,
+                               PlatformService platformService) {
     this.timeService = timeService;
     this.i18n = i18n;
     this.tournamentService = tournamentService;
@@ -133,6 +151,31 @@ public class TournamentsController extends AbstractViewController<Node> {
     this.eventBus = eventBus;
     this.playerService = playerService;
     this.gameService = gameService;
+    this.platformService = platformService;
+  }
+
+  public void onTournamentsGuideButtonPressed(ActionEvent actionEvent) {
+    // Mirrors the Galactic War guide button: derive the content host from the
+    // GW endpoint URL so local dev (where dfc-config points at a localhost
+    // server) opens the locally-served guide, not the prod one. The GW URL
+    // lands in /galactic_war/galactic_war.json; resolve "../tournaments/..."
+    // to walk back up to the content root.
+    try {
+      ClientConfiguration.Endpoints ep = preferencesService.getClientRemoteConfiguration()
+          .getEndpoints().get(0);
+      String gwUrl = null;
+      if (ep.getGalacticWar2() != null && !ep.getGalacticWar2().isEmpty()) {
+        gwUrl = ep.getGalacticWar2().get(0);
+      } else if (ep.getGalacticWar() != null) {
+        gwUrl = ep.getGalacticWar().getUrl();
+      }
+      if (gwUrl == null || gwUrl.isBlank()) return;
+      String guideUrl = new java.net.URI(gwUrl)
+          .resolve("../tournaments/tournaments_guide.html").toString();
+      platformService.showDocument(guideUrl);
+    } catch (java.net.URISyntaxException e) {
+      log.warn("Failed to resolve tournament guide URL", e);
+    }
   }
 
   @Override
@@ -161,21 +204,67 @@ public class TournamentsController extends AbstractViewController<Node> {
     // (avoids hammering the API with reloads while the user is on another tab).
     eventBus.register(this);
 
-    // Stop individual forfeit countdowns when the server broadcasts
-    // that a game went live for a match. All clients see this, not
-    // just the players involved.
+    // Hide individual forfeit countdowns while a game is live. We
+    // pause the Timeline and hide the label (rather than removing the
+    // scene-graph node) so the matching timer_restarted listener can
+    // show it again in place — no structural churn to the bracket row.
     fafService.addOnMessageListener(
         com.faforever.client.remote.domain.TournamentTimerStoppedMessage.class,
         msg -> JavaFxUtil.runLater(() -> {
           if (msg.getMatchId() == null) return;
           javafx.animation.Timeline tl = countdownByMatchId.get(msg.getMatchId());
           if (tl != null) {
-            // Pause the countdown rather than removing it. If the game
-            // ends without a valid result, the bracket re-render will
-            // recreate the countdown from opened_at with correct time.
-            // If the match IS resolved, the re-render removes the node.
             tl.pause();
           }
+          Label label = countdownLabelByMatchId.get(msg.getMatchId());
+          if (label != null) {
+            label.setVisible(false);
+            // setManaged(false) also removes it from layout so the
+            // bracket row doesn't leave an empty gap where the
+            // countdown used to be.
+            label.setManaged(false);
+          }
+        }));
+
+    // Update / restart forfeit countdowns when the server broadcasts
+    // a new deadline. Fired after a draw or any other inconclusive
+    // game ends and the 10-minute toilet-break grace shifts the
+    // deadline beyond opened_at + noshow_timeout.
+    fafService.addOnMessageListener(
+        com.faforever.client.remote.domain.TournamentTimerRestartedMessage.class,
+        msg -> JavaFxUtil.runLater(() -> {
+          if (msg.getMatchId() == null || msg.getTimesOutAt() == null) return;
+          try {
+            java.time.Instant newDeadline = parseServerNaiveUtc(msg.getTimesOutAt());
+            java.util.concurrent.atomic.AtomicReference<java.time.Instant> ref =
+                deadlineByMatchId.get(msg.getMatchId());
+            if (ref != null) {
+              ref.set(newDeadline);
+            }
+            // Also patch the in-memory MatchInfo so a bracket re-render
+            // (e.g. after a subsequent refresh event) picks up the new
+            // deadline even before the full refetch lands.
+            if (currentTournament != null && currentTournament.getMatches() != null) {
+              currentTournament.getMatches().stream()
+                  .filter(mm -> mm.getMatchId() == msg.getMatchId())
+                  .findFirst()
+                  .ifPresent(mm -> mm.setTimesOutAt(msg.getTimesOutAt()));
+            }
+            // Un-hide the label that timer_stopped hid while the game
+            // was live.
+            Label label = countdownLabelByMatchId.get(msg.getMatchId());
+            if (label != null) {
+              label.setVisible(true);
+              label.setManaged(true);
+            }
+            javafx.animation.Timeline tl = countdownByMatchId.get(msg.getMatchId());
+            if (tl != null) {
+              // Resume if paused by a prior timer-stopped, and make the
+              // KeyFrame fire immediately so the label updates without
+              // waiting up to 1 s for the next tick.
+              tl.playFromStart();
+            }
+          } catch (Exception ignored) {}
         }));
 
     // NOTE: we do NOT unregister from eventBus on scene detach. The scene
@@ -329,7 +418,54 @@ public class TournamentsController extends AbstractViewController<Node> {
   }
 
   public void onRefreshButtonClicked(ActionEvent actionEvent) {
+    // Clear currentTournament so the selection listener doesn't skip the
+    // re-fetch when restoreSelection re-selects the same tournament.
+    // Without this, the "same id" guard at line ~297 short-circuits and
+    // the user never sees server-side changes (team edits, new signups, etc.).
+    currentTournament = null;
     loadTournaments();
+  }
+
+  public void onCreateTournamentClicked(ActionEvent actionEvent) {
+    showTournamentForm(TournamentFormController.Mode.CREATE, null,
+        i18n.get("tournament.create.title"));
+  }
+
+  private void showEditDialog(TournamentBean tournamentBean) {
+    showTournamentForm(TournamentFormController.Mode.EDIT, tournamentBean,
+        i18n.get("tournament.edit"));
+  }
+
+  private void showTournamentForm(TournamentFormController.Mode mode,
+                                   TournamentBean editTarget, String title) {
+    TournamentFormController form = uiService.loadFxml("theme/tournaments/tournament_form.fxml");
+    form.setMode(mode, editTarget);
+
+    javafx.scene.layout.StackPane dialogParent = null;
+    javafx.scene.Node n = tournamentRoot;
+    while (n != null) {
+      if (n instanceof javafx.scene.layout.StackPane sp) dialogParent = sp;
+      n = n.getParent();
+    }
+    if (dialogParent == null) return;
+
+    final com.faforever.client.ui.dialog.Dialog themedDialog = uiService.showInDialog(
+        dialogParent, form.getRoot(), title);
+    form.setOnDone(themedDialog::close);
+  }
+
+  /** Maps a map_visibility enum value to its localised display label. */
+  private String mapVisibilityLabel(String value) {
+    if (value == null) return i18n.get("tournament.mapVisibility.alwaysVisible");
+    switch (value) {
+      case "hidden_until_tournament_start":
+        return i18n.get("tournament.mapVisibility.hiddenUntilTournamentStart");
+      case "hidden_until_round_start":
+        return i18n.get("tournament.mapVisibility.hiddenUntilRoundStart");
+      case "always_visible":
+      default:
+        return i18n.get("tournament.mapVisibility.alwaysVisible");
+    }
   }
 
   // In progress: most recently started at top (startingAt desc, nulls last)
@@ -567,6 +703,25 @@ public class TournamentsController extends AbstractViewController<Node> {
     // Buttons are now rendered inline in renderHeader — nothing to do here.
   }
 
+  /** Parse a server-naive-UTC timestamp ("yyyy-MM-dd HH:mm:ss" or ISO
+   *  with offset) into an Instant. The tournament service publishes
+   *  deadlines in the shorter form (no tz) and treats them as UTC;
+   *  the Elide JSON:API serializes OffsetDateTime columns with an
+   *  offset. Support both so a build-skew between the services
+   *  doesn't break the countdown. */
+  private static java.time.Instant parseServerNaiveUtc(String raw) {
+    if (raw == null) return null;
+    try {
+      return java.time.OffsetDateTime.parse(raw).toInstant();
+    } catch (java.time.format.DateTimeParseException ignored) {
+      // Fall through to naive-UTC path.
+    }
+    return java.time.LocalDateTime
+        .parse(raw.replace(' ', 'T'))
+        .atZone(java.time.ZoneOffset.UTC)
+        .toInstant();
+  }
+
   public void onSignupButtonClicked(ActionEvent actionEvent) {
     TournamentBean selected = getSelectedTournament();
     if (selected != null) {
@@ -606,6 +761,8 @@ public class TournamentsController extends AbstractViewController<Node> {
     activeCountdowns.forEach(javafx.animation.Timeline::stop);
     activeCountdowns.clear();
     countdownByMatchId.clear();
+    countdownLabelByMatchId.clear();
+    deadlineByMatchId.clear();
     tournamentDetailContent.getChildren().clear();
     teamPanel = null;
 
@@ -676,6 +833,41 @@ public class TournamentsController extends AbstractViewController<Node> {
       });
       titleRow.getChildren().addAll(signup, withdraw);
     }
+    // Creator actions: Start / Cancel / Edit — only for the player who
+    // created this tournament, and only while it's in a manageable state.
+    int currentPlayerId = playerService.getCurrentPlayer()
+        .map(p -> p.getId()).orElse(-1);
+    boolean isCreator = tournamentBean.isPlayerCreated()
+        && tournamentBean.getCreatedByPlayerId() != null
+        && tournamentBean.getCreatedByPlayerId() == currentPlayerId;
+    if (isCreator) {
+      String tid = tournamentBean.getId();
+      int tidInt = tid != null ? Integer.parseInt(tid) : 0;
+      if ("pending".equals(tournamentBean.getApiState())) {
+        Button startBtn = new Button(i18n.get("tournament.start"));
+        startBtn.getStyleClass().add("team-btn-primary");
+        startBtn.setOnAction(e -> { if (tidInt > 0) fafService.tournamentStart(tidInt); });
+        Button editBtn = new Button(i18n.get("tournament.edit"));
+        editBtn.setOnAction(e -> showEditDialog(tournamentBean));
+        Button cancelBtn = new Button(i18n.get("tournament.cancel"));
+        cancelBtn.setOnAction(e -> { if (tidInt > 0) fafService.tournamentCancel(tidInt); });
+        titleRow.getChildren().addAll(startBtn, editBtn, cancelBtn);
+      } else if ("underway".equals(tournamentBean.getApiState())) {
+        Button cancelBtn = new Button(i18n.get("tournament.cancel"));
+        cancelBtn.setOnAction(e -> { if (tidInt > 0) fafService.tournamentCancel(tidInt); });
+        titleRow.getChildren().add(cancelBtn);
+      }
+    }
+
+    javafx.scene.control.CheckBox utcToggle = new javafx.scene.control.CheckBox(i18n.get("tournament.detail.showInUtc"));
+    utcToggle.setSelected(displayTimesAsUtc);
+    utcToggle.selectedProperty().addListener((obs, o, n) -> {
+      displayTimesAsUtc = n;
+      if (currentTournament != null) {
+        displayTournamentItem(currentTournament);
+      }
+    });
+    titleRow.getChildren().add(utcToggle);
     tournamentDetailContent.getChildren().add(titleRow);
 
     Label status = new Label(statusText(tournamentBean));
@@ -712,6 +904,8 @@ public class TournamentsController extends AbstractViewController<Node> {
     activeCountdowns.forEach(javafx.animation.Timeline::stop);
     activeCountdowns.clear();
     countdownByMatchId.clear();
+    countdownLabelByMatchId.clear();
+    deadlineByMatchId.clear();
 
     // Section ordering depends on tournament state:
     //   Pending:  teams → signups → bracket preview
@@ -903,6 +1097,14 @@ public class TournamentsController extends AbstractViewController<Node> {
 
     boolean matchOpen = "open".equals(match.getState());
     boolean matchComplete = "complete".equals(match.getState());
+    // A cancelled tournament leaves its match rows in "open" state,
+    // so the match-level check alone would still offer "Create Game"
+    // on a cancelled tournament. Gate the live-play UI (countdown +
+    // Create Game) on the parent tournament actually still being live.
+    String parentState = tournament != null ? tournament.getApiState() : null;
+    boolean tournamentLive = !"complete".equals(parentState)
+        && !"cancelled".equals(parentState);
+    matchOpen = matchOpen && tournamentLive;
     // Solo: check player name. Team: check if user's team is in this match.
     boolean userIsParticipant;
     if (match.getTeam1Id() > 0 || match.getTeam2Id() > 0) {
@@ -913,10 +1115,14 @@ public class TournamentsController extends AbstractViewController<Node> {
       userIsParticipant = currentPlayer != null
           && (currentPlayer.equals(match.getPlayer1()) || currentPlayer.equals(match.getPlayer2()));
     }
-    int playedGameCount = match.getPlayedGameIds() != null ? match.getPlayedGameIds().size() : 0;
-    int nextGameNumber = playedGameCount + 1;
+    // Only decisive games advance the map plan — a draw (or any other
+    // inconclusive result) means the players replay the same contested
+    // game, so nextGameNumber counts wins, not total games played.
+    // Mirrors the tournament service's count_decisive_match_games rule.
+    int nextGameNumber = match.getPlayer1Wins() + match.getPlayer2Wins() + 1;
 
-    if (match.getPlannedMaps() != null && !match.getPlannedMaps().isEmpty()) {
+    boolean mapsVisible = tournament.arePlannedMapsVisible(match);
+    if (mapsVisible && match.getPlannedMaps() != null && !match.getPlannedMaps().isEmpty()) {
       for (TournamentBean.PlannedMapInfo pm : match.getPlannedMaps()) {
         // The "active" highlight + Create Game button only appear when the
         // user is viewing their OWN next-to-play match AND this is the next
@@ -926,6 +1132,16 @@ public class TournamentsController extends AbstractViewController<Node> {
         section.getChildren().add(
             buildPlannedMapCard(match, pm, featuredMod, tournament, isNextToPlay));
       }
+    } else if (!mapsVisible && match.getPlannedMaps() != null && !match.getPlannedMaps().isEmpty()) {
+      // Planned maps exist but are hidden by the tournament's visibility rule.
+      // Show a placeholder so the user knows a map is picked — but kept secret.
+      String hint = "hidden_until_round_start".equals(tournament.getMapVisibility())
+          ? i18n.get("tournament.mapsHiddenUntilRoundStart")
+          : i18n.get("tournament.mapsHiddenUntilTournamentStart");
+      Label hidden = new Label(hint);
+      hidden.getStyleClass().add("description-label");
+      hidden.setWrapText(true);
+      section.getChildren().add(hidden);
     } else if (isUserNextMatch && matchOpen && userIsParticipant) {
       // No planned maps (no map pool / no single map configured).
       // Show the Create Game button directly without a map card.
@@ -1094,17 +1310,17 @@ public class TournamentsController extends AbstractViewController<Node> {
     java.time.OffsetDateTime completedAt = t.getCompletedAt();
     String apiState = t.getApiState();
     if ("pending".equals(apiState) && scheduledAt != null) {
-      addSettingRow(grid, row++, i18n.get("tournament.detail.startsAt"), timeService.asDateTime(scheduledAt));
+      addSettingRow(grid, row++, i18n.get("tournament.detail.startsAt"), formatTournamentDateTime(scheduledAt));
     }
     if ("underway".equals(apiState) && scheduledAt != null) {
-      addSettingRow(grid, row++, i18n.get("tournament.detail.startedAt"), timeService.asDateTime(scheduledAt));
+      addSettingRow(grid, row++, i18n.get("tournament.detail.startedAt"), formatTournamentDateTime(scheduledAt));
     }
     if ("complete".equals(apiState)) {
-      if (scheduledAt != null) addSettingRow(grid, row++, i18n.get("tournament.detail.startedAt"), timeService.asDateTime(scheduledAt));
-      if (completedAt != null) addSettingRow(grid, row++, i18n.get("tournament.detail.completedAt"), timeService.asDateTime(completedAt));
+      if (scheduledAt != null) addSettingRow(grid, row++, i18n.get("tournament.detail.startedAt"), formatTournamentDateTime(scheduledAt));
+      if (completedAt != null) addSettingRow(grid, row++, i18n.get("tournament.detail.completedAt"), formatTournamentDateTime(completedAt));
     }
     if ("cancelled".equals(apiState) && completedAt != null) {
-      addSettingRow(grid, row++, i18n.get("tournament.detail.closedAt"), timeService.asDateTime(completedAt));
+      addSettingRow(grid, row++, i18n.get("tournament.detail.closedAt"), formatTournamentDateTime(completedAt));
     }
     // Always show core settings — use sensible display defaults when
     // the moderator left a field unconfigured, so the player knows
@@ -1134,6 +1350,10 @@ public class TournamentsController extends AbstractViewController<Node> {
     }
     if (t.getMapPoolName() != null) {
       addSettingRow(grid, row++, i18n.get("tournament.detail.mapPool"), t.getMapPoolName());
+    }
+    String visibility = t.getMapVisibility();
+    if (visibility != null && !"always_visible".equals(visibility)) {
+      addSettingRow(grid, row++, i18n.get("tournament.detail.mapVisibility"), mapVisibilityLabel(visibility));
     }
     if ("swiss".equals(t.getTournamentType())) {
       addSettingRow(grid, row++, i18n.get("tournament.detail.swissRounds"),
@@ -1166,8 +1386,30 @@ public class TournamentsController extends AbstractViewController<Node> {
   private List<Node> buildBracketSections(TournamentBean tournament) {
     List<Node> result = new ArrayList<>();
     List<TournamentBean.MatchInfo> matches = tournament.getMatches();
-    Map<String, Integer> ratings = tournament.getParticipantRatings();
+    Map<String, Integer> ratings = new java.util.HashMap<>(tournament.getParticipantRatings());
+    // For team tournaments, enrich the ratings map with per-team aggregate
+    // ratings using the same inverse-variance-weighted formula as seeding.
+    // Falls back to the simple average from TournamentBean for players
+    // that aren't in the local PlayerService (offline / unseen).
+    if (tournament.getPlayersPerSide() >= 2) {
+      enrichTeamRatings(tournament, ratings);
+    }
     Map<String, String> placementAvatars = buildPlacementAvatarMap(tournament);
+
+    // For each player with a placement, find their last (deciding) match —
+    // the one where they were eliminated or won the tournament. Medals are
+    // only shown on that match, not every match they appear in.
+    lastMatchByPlayer = new java.util.HashMap<>();
+    if (matches != null) {
+      for (TournamentBean.MatchInfo m : matches) {
+        if (m.isPreview() || "pending".equals(m.getState())) continue;
+        for (String p : new String[]{m.getPlayer1(), m.getPlayer2()}) {
+          if (p != null && placementAvatars.containsKey(p)) {
+            lastMatchByPlayer.put(p, m.getMatchId());
+          }
+        }
+      }
+    }
 
     // Prize avatar URLs for badge display. Once the tournament is finished
     // (or cancelled), the placement avatars on the player slots themselves
@@ -1303,48 +1545,74 @@ public class TournamentsController extends AbstractViewController<Node> {
     // Show the score whenever there's any progress (mid-series BO-N) or the
     // match is complete. Pure-pending matches with 0-0 don't get a score column.
     boolean showScore = "complete".equals(state) || m.getPlayer1Wins() > 0 || m.getPlayer2Wins() > 0;
-    match.getChildren().add(buildPlayerSlot(m, m.getPlayer1(), ratings, placementAvatars,
+    match.getChildren().add(buildPlayerSlot(m, m.getPlayer1(), ratings,
         isWinner(m, m.getPlayer1()), showScore, m.getPlayer1Wins()));
+    addMedalRow(match, m.getPlayer1(), placementAvatars, m.getMatchId());
     Region divider = new Region();
     divider.getStyleClass().add("bracket-slot-divider");
     match.getChildren().add(divider);
-    match.getChildren().add(buildPlayerSlot(m, m.getPlayer2(), ratings, placementAvatars,
+    match.getChildren().add(buildPlayerSlot(m, m.getPlayer2(), ratings,
         isWinner(m, m.getPlayer2()), showScore, m.getPlayer2Wins()));
+    addMedalRow(match, m.getPlayer2(), placementAvatars, m.getMatchId());
 
-    // Noshow countdown for open matches
-    if ("open".equals(state) && m.getOpenedAt() != null && currentTournament != null) {
+    // Placement medal icons are rendered inline per-slot below.
+
+    // Noshow countdown for open matches. Skip if the parent tournament
+    // was cancelled or completed — the match row stays "open" in those
+    // cases, so a bare state check would happily draw a countdown on a
+    // tournament nobody is playing in any more.
+    String parentApiState = currentTournament != null ? currentTournament.getApiState() : null;
+    boolean parentLive = !"complete".equals(parentApiState)
+        && !"cancelled".equals(parentApiState);
+    if ("open".equals(state) && parentLive && m.getOpenedAt() != null && currentTournament != null) {
       try {
-        java.time.Instant opened = java.time.OffsetDateTime.parse(m.getOpenedAt()).toInstant();
-        int timeoutMin = Math.max(currentTournament.getNoshowTimeoutMinutes(), 5);
-        java.time.Instant deadline = opened.plusSeconds(timeoutMin * 60L);
+        // Prefer the server-provided deadline (times_out_at) — it carries
+        // the 10-minute toilet-break grace after a draw, while the
+        // opened_at + noshow_timeout heuristic doesn't. Fall back to the
+        // heuristic if the API build doesn't expose times_out_at yet.
+        java.time.Instant initialDeadline;
+        if (m.getTimesOutAt() != null) {
+          initialDeadline = parseServerNaiveUtc(m.getTimesOutAt());
+        } else {
+          java.time.Instant opened = java.time.OffsetDateTime.parse(m.getOpenedAt()).toInstant();
+          int timeoutMin = Math.max(currentTournament.getNoshowTimeoutMinutes(), 5);
+          initialDeadline = opened.plusSeconds(timeoutMin * 60L);
+        }
+        final int countdownMatchId = m.getMatchId();
+        // Deadline is held in a mutable reference so the
+        // tournament_timer_restarted broadcast can update it in place
+        // without rebuilding the Timeline.
+        java.util.concurrent.atomic.AtomicReference<java.time.Instant> deadlineRef =
+            deadlineByMatchId.computeIfAbsent(countdownMatchId,
+                k -> new java.util.concurrent.atomic.AtomicReference<>());
+        deadlineRef.set(initialDeadline);
         Label countdownLabel = new Label();
         countdownLabel.getStyleClass().add("bracket-player-rating");
         countdownLabel.setMaxWidth(Double.MAX_VALUE);
         countdownLabel.setAlignment(javafx.geometry.Pos.CENTER);
-        final int countdownMatchId = m.getMatchId();
         javafx.animation.Timeline countdown = new javafx.animation.Timeline(
             new javafx.animation.KeyFrame(javafx.util.Duration.seconds(1), ev -> {
               // Self-stop if the match is no longer open (result reported,
-              // tournament complete, etc.).
+              // tournament complete/cancelled, etc.). Cancelled tournaments
+              // leave their match rows as "open" in the DB, so we also need
+              // to check the parent tournament's state explicitly.
               if (currentTournament != null && currentTournament.getMatches() != null) {
-                boolean stillOpen = currentTournament.getMatches().stream()
+                String tournamentState = currentTournament.getApiState();
+                boolean tournamentLive = !"complete".equals(tournamentState)
+                    && !"cancelled".equals(tournamentState);
+                boolean stillOpen = tournamentLive && currentTournament.getMatches().stream()
                     .anyMatch(mm -> mm.getMatchId() == countdownMatchId && "open".equals(mm.getState()));
                 if (!stillOpen) {
                   countdownLabel.setVisible(false);
+                  countdownLabel.setManaged(false);
                   countdownLabel.setText("");
                   return;
                 }
               }
-              // If the countdown was paused by a timer-stopped broadcast
-              // (game went live), show the frozen time with a status note.
-              // The bracket re-render on game end will either remove this
-              // node (match resolved) or recreate it with correct time
-              // (match still open — game ended without valid result).
-              // We can't easily detect "paused" state on the Timeline
-              // from inside the handler, so this check is a no-op —
-              // the pause() call in the listener prevents this handler
-              // from firing at all while paused.
-              long secsLeft = java.time.Duration.between(java.time.Instant.now(), deadline).getSeconds();
+              java.time.Instant currentDeadline = deadlineRef.get();
+              if (currentDeadline == null) return;
+              long secsLeft = java.time.Duration.between(
+                  java.time.Instant.now(), currentDeadline).getSeconds();
               if (secsLeft <= 0) {
                 countdownLabel.setText(i18n.get("tournament.forfeit.imminent"));
                 countdownLabel.setStyle("-fx-text-fill: -bad;");
@@ -1357,8 +1625,9 @@ public class TournamentsController extends AbstractViewController<Node> {
         countdown.play();
         activeCountdowns.add(countdown);
         countdownByMatchId.put(countdownMatchId, countdown);
+        countdownLabelByMatchId.put(countdownMatchId, countdownLabel);
         // Fire once immediately
-        long secsLeft = java.time.Duration.between(java.time.Instant.now(), deadline).getSeconds();
+        long secsLeft = java.time.Duration.between(java.time.Instant.now(), initialDeadline).getSeconds();
         if (secsLeft <= 0) {
           countdownLabel.setText("Forfeit imminent");
           countdownLabel.setStyle("-fx-text-fill: -bad;");
@@ -1401,8 +1670,27 @@ public class TournamentsController extends AbstractViewController<Node> {
     return match;
   }
 
+  private void addMedalRow(VBox match, String playerName, Map<String, String> placementAvatars,
+                            int currentMatchId) {
+    if (playerName == null || placementAvatars == null) return;
+    // Only show the medal on the player's deciding (last) match
+    Integer decidingMatch = lastMatchByPlayer.get(playerName);
+    if (decidingMatch == null || decidingMatch != currentMatchId) return;
+    String url = placementAvatars.get(playerName);
+    if (url == null) return;
+    try {
+      ImageView iv = new ImageView(new Image(url, 16, 16, true, true, true));
+      iv.setFitHeight(16);
+      iv.setPreserveRatio(true);
+      HBox row = new HBox(iv);
+      row.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
+      row.setMaxWidth(Double.MAX_VALUE);
+      match.getChildren().add(row);
+    } catch (Exception ignored) {}
+  }
+
   private HBox buildPlayerSlot(TournamentBean.MatchInfo m, String playerName,
-                                 Map<String, Integer> ratings, Map<String, String> placementAvatars,
+                                 Map<String, Integer> ratings,
                                  boolean isWinner, boolean showScore, int score) {
     HBox slot = new HBox();
     slot.getStyleClass().add("bracket-slot");
@@ -1438,18 +1726,6 @@ public class TournamentsController extends AbstractViewController<Node> {
       javafx.scene.control.Tooltip tip = new javafx.scene.control.Tooltip(tooltipText);
       tip.setShowDelay(javafx.util.Duration.millis(300));
       javafx.scene.control.Tooltip.install(slot, tip);
-    }
-
-    if (playerName != null && placementAvatars != null) {
-      String url = placementAvatars.get(playerName);
-      if (url != null) {
-        try {
-          ImageView iv = new ImageView(new Image(url, 20, 20, true, true, true));
-          iv.setFitHeight(20);
-          iv.setPreserveRatio(true);
-          slot.getChildren().add(iv);
-        } catch (Exception ignored) {}
-      }
     }
 
     if (showScore) {
@@ -1519,7 +1795,8 @@ public class TournamentsController extends AbstractViewController<Node> {
     rankCol.setCellValueFactory(c -> new ReadOnlyObjectWrapper<>(c.getValue().getRank()));
     rankCol.setPrefWidth(36);
 
-    TableColumn<TournamentBean.StandingInfo, String> playerCol = new TableColumn<>("Player");
+    boolean isTeamTournament = tournament.getPlayersPerSide() >= 2;
+    TableColumn<TournamentBean.StandingInfo, String> playerCol = new TableColumn<>(isTeamTournament ? "Team" : "Player");
     playerCol.setCellValueFactory(c -> {
       String name = c.getValue().getPlayerName();
       Integer rating = ratings != null ? ratings.get(name) : null;
@@ -1547,9 +1824,17 @@ public class TournamentsController extends AbstractViewController<Node> {
 
     List<TournamentBean.StandingInfo> serverStandings = tournament.getStandings();
     if (serverStandings != null && !serverStandings.isEmpty()) {
+      // Solo: server persists standings to tournament_standings table
       table.setItems(FXCollections.observableArrayList(serverStandings));
+    } else if (isTeamTournament && tournament.getMatches() != null) {
+      // Team: server can't persist team standings (FK constraint), so
+      // compute client-side from match data — same algorithm as the
+      // server's compute_swiss_standings.
+      int swissRounds = tournament.getSwissRounds() > 0 ? tournament.getSwissRounds() : 3;
+      table.setItems(FXCollections.observableArrayList(
+          computeTeamSwissStandings(tournament.getMatches(), tournament.getTeamNames(), swissRounds)));
     } else {
-      // Pre-start: show participants alphabetically with no scores
+      // Solo pre-start: show participants alphabetically with no scores
       List<TournamentBean.StandingInfo> placeholder = new ArrayList<>();
       for (String name : tournament.getParticipantNames()) {
         placeholder.add(new TournamentBean.StandingInfo(0, name, 0, 0, 0, 0));
@@ -1558,6 +1843,81 @@ public class TournamentsController extends AbstractViewController<Node> {
     }
     table.setPrefHeight(Math.min(220, 28 + table.getItems().size() * 26));
     return table;
+  }
+
+  /**
+   * Compute Swiss standings for team tournaments client-side. Mirrors the
+   * server's compute_swiss_standings (bracket.py) using team names from
+   * MatchInfo.player1/player2 (which hold team names for team matches).
+   */
+  private List<TournamentBean.StandingInfo> computeTeamSwissStandings(
+      List<TournamentBean.MatchInfo> allMatches, List<String> teamNames, int swissRounds) {
+
+    // Collect all team names from either the explicit list or from match data
+    java.util.Set<String> competitors = new java.util.LinkedHashSet<>();
+    if (teamNames != null) competitors.addAll(teamNames);
+    for (TournamentBean.MatchInfo m : allMatches) {
+      if (m.getRound() > 0 && m.getRound() <= swissRounds) {
+        if (m.getPlayer1() != null) competitors.add(m.getPlayer1());
+        if (m.getPlayer2() != null) competitors.add(m.getPlayer2());
+      }
+    }
+
+    java.util.Map<String, Integer> wins = new java.util.HashMap<>();
+    java.util.Map<String, Integer> losses = new java.util.HashMap<>();
+    java.util.Map<String, List<String>> opponents = new java.util.HashMap<>();
+    java.util.Map<String, List<String>> beaten = new java.util.HashMap<>();
+    for (String c : competitors) {
+      wins.put(c, 0);
+      losses.put(c, 0);
+      opponents.put(c, new ArrayList<>());
+      beaten.put(c, new ArrayList<>());
+    }
+
+    for (TournamentBean.MatchInfo m : allMatches) {
+      if (m.getRound() <= 0 || m.getRound() > swissRounds) continue;
+      if (!"complete".equals(m.getState())) continue;
+      String p1 = m.getPlayer1(), p2 = m.getPlayer2(), w = m.getWinner();
+      if (p1 == null || p2 == null) continue;
+      opponents.computeIfAbsent(p1, k -> new ArrayList<>()).add(p2);
+      opponents.computeIfAbsent(p2, k -> new ArrayList<>()).add(p1);
+      if (p1.equals(w)) {
+        wins.merge(p1, 1, Integer::sum);
+        losses.merge(p2, 1, Integer::sum);
+        beaten.computeIfAbsent(p1, k -> new ArrayList<>()).add(p2);
+      } else if (p2.equals(w)) {
+        wins.merge(p2, 1, Integer::sum);
+        losses.merge(p1, 1, Integer::sum);
+        beaten.computeIfAbsent(p2, k -> new ArrayList<>()).add(p1);
+      }
+    }
+
+    // Buchholz: sum of opponents' wins. Sonneborn-Berger: sum of beaten opponents' wins.
+    List<TournamentBean.StandingInfo> standings = new ArrayList<>();
+    for (String c : competitors) {
+      int buchholz = opponents.getOrDefault(c, List.of()).stream()
+          .mapToInt(opp -> wins.getOrDefault(opp, 0)).sum();
+      int sb = beaten.getOrDefault(c, List.of()).stream()
+          .mapToInt(opp -> wins.getOrDefault(opp, 0)).sum();
+      standings.add(new TournamentBean.StandingInfo(
+          0, c, wins.getOrDefault(c, 0), losses.getOrDefault(c, 0), buchholz, sb));
+    }
+
+    // Sort: wins desc, buchholz desc, SB desc
+    standings.sort(Comparator
+        .comparingInt(TournamentBean.StandingInfo::getWins).reversed()
+        .thenComparingInt(TournamentBean.StandingInfo::getOpponentStrength).reversed()
+        .thenComparingInt(TournamentBean.StandingInfo::getWinStrength).reversed());
+
+    // Assign ranks
+    List<TournamentBean.StandingInfo> ranked = new ArrayList<>();
+    for (int i = 0; i < standings.size(); i++) {
+      TournamentBean.StandingInfo s = standings.get(i);
+      ranked.add(new TournamentBean.StandingInfo(
+          i + 1, s.getPlayerName(), s.getWins(), s.getLosses(),
+          s.getOpponentStrength(), s.getWinStrength()));
+    }
+    return ranked;
   }
 
   private Node buildKothContent(List<TournamentBean.MatchInfo> matches,
@@ -1891,7 +2251,7 @@ public class TournamentsController extends AbstractViewController<Node> {
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> members = (List<Map<String, Object>>) myTeam.get("members");
     int pps = tournament.getPlayersPerSide();
-    int teamAgg = computeTeamAggregateRating(members, ratingType, pps);
+    int teamAgg = computeTeamAggregateRating(members, ratingType, pps, tournament);
 
     // Header row: team name + badges
     HBox header = new HBox(8);
@@ -1927,7 +2287,7 @@ public class TournamentsController extends AbstractViewController<Node> {
           cap.getStyleClass().add("team-member-captain");
           memberRow.getChildren().add(cap);
         }
-        int memberRating = getMemberRating(memberName, ratingType);
+        int memberRating = getMemberRating(memberName, ratingType, tournament);
         if (memberRating != 0) {
           Label rLbl = new Label(String.valueOf(memberRating));
           rLbl.getStyleClass().add("team-member-rating");
@@ -2158,49 +2518,109 @@ public class TournamentsController extends AbstractViewController<Node> {
     return decorated.trim();
   }
 
-  /** Get the displayed rating for a player by name from the local PlayerService cache.
-   *  Returns 0 if the player is offline or has no rating on the given leaderboard. */
-  private int getMemberRating(String playerName, String ratingType) {
-    if (ratingType == null || playerName == null) return 0;
-    return playerService.getPlayerForUsername(playerName)
-        .map(p -> com.faforever.client.util.RatingUtil.getLeaderboardRating(p, ratingType))
-        .orElse(0);
+  /** Get the displayed rating for a player by name. Tries the local
+   *  PlayerService first (live mean/deviation from the lobby), then
+   *  falls back to the tournament's participant signup rating. Returns
+   *  0 if neither source has a value. */
+  private int getMemberRating(String playerName, String ratingType,
+                               TournamentBean tournament) {
+    if (playerName == null) return 0;
+    if (ratingType != null) {
+      int live = playerService.getPlayerForUsername(playerName)
+          .map(p -> com.faforever.client.util.RatingUtil.getLeaderboardRating(p, ratingType))
+          .orElse(0);
+      if (live != 0) return live;
+    }
+    // Fallback: signup-time rating stored on the participant
+    if (tournament != null && tournament.getParticipantRatings() != null) {
+      Integer stored = tournament.getParticipantRatings().get(playerName);
+      if (stored != null) return stored;
+    }
+    return 0;
   }
 
-  /** Compute the inverse-variance weighted aggregate displayed rating for a
-   *  team from its member list, using only the top N rated members where
-   *  N = players_per_side (the number who actually play each game). A
-   *  10-member team with 8 bench players shouldn't inflate the aggregate.
-   *  Uses RatingUtil.getAggregateRating (same formula the server uses for
-   *  seeding). Returns 0 if no rated members. */
-  private int computeTeamAggregateRating(List<Map<String, Object>> members,
-                                          String ratingType, int playersPerSide) {
-    if (members == null || members.isEmpty() || ratingType == null) return 0;
-    List<com.faforever.client.leaderboard.LeaderboardRating> ratings = new ArrayList<>();
-    for (Map<String, Object> m : members) {
-      String memberName = String.valueOf(m.getOrDefault("player_name", ""));
-      playerService.getPlayerForUsername(memberName).ifPresent(p -> {
-        com.faforever.client.leaderboard.LeaderboardRating lr = p.getLeaderboardRatings().get(ratingType);
-        if (lr != null) ratings.add(lr);
-      });
+  /**
+   * Enrich the ratings map with per-team aggregate ratings for team tournaments.
+   * Uses the team service's cached team data (populated when the tournament is
+   * selected) and the principled inverse-variance-weighted aggregate via
+   * PlayerService. For teams whose members aren't locally known (offline),
+   * the simple average from TournamentBean (signup ratings) is already in the
+   * map as a fallback.
+   */
+  private void enrichTeamRatings(TournamentBean tournament, Map<String, Integer> ratings) {
+    String ratingType = tournament.getLeaderboardTechnicalName();
+    int pps = tournament.getPlayersPerSide();
+    for (Map<String, Object> team : teamService.getTeams()) {
+      String teamName = (String) team.get("name");
+      if (teamName == null) continue;
+      @SuppressWarnings("unchecked")
+      List<Map<String, Object>> members = (List<Map<String, Object>>) team.get("members");
+      if (members == null || members.isEmpty()) continue;
+      int agg = computeTeamAggregateRating(members, ratingType, pps, tournament);
+      if (agg > 0) {
+        ratings.put(teamName, agg);
+      }
     }
-    if (ratings.isEmpty()) return 0;
-    // Sort descending by displayed rating so we pick the top N.
-    ratings.sort((a, b) -> Integer.compare(
-        com.faforever.client.util.RatingUtil.getRating(b),
-        com.faforever.client.util.RatingUtil.getRating(a)));
-    int n = Math.max(1, playersPerSide);
-    List<com.faforever.client.leaderboard.LeaderboardRating> top =
-        ratings.size() > n ? ratings.subList(0, n) : ratings;
-    com.faforever.client.leaderboard.LeaderboardRating agg =
-        com.faforever.client.util.RatingUtil.getAggregateRating(top);
-    return agg != null ? com.faforever.client.util.RatingUtil.getRating(agg) : 0;
+  }
+
+  /** Compute the aggregate displayed rating for a team from its member list,
+   *  using only the top N rated members where N = players_per_side.
+   *  Tries the principled inverse-variance-weighted formula (via PlayerService)
+   *  for members the client has seen. Falls back to averaging signup-time
+   *  participant ratings from the tournament bean for members that aren't
+   *  locally known. Returns 0 if no rated members at all. */
+  private int computeTeamAggregateRating(List<Map<String, Object>> members,
+                                          String ratingType, int playersPerSide,
+                                          TournamentBean tournament) {
+    if (members == null || members.isEmpty()) return 0;
+
+    // Try principled aggregation from live PlayerService data
+    List<com.faforever.client.leaderboard.LeaderboardRating> liveRatings = new ArrayList<>();
+    if (ratingType != null) {
+      for (Map<String, Object> m : members) {
+        String memberName = String.valueOf(m.getOrDefault("player_name", ""));
+        playerService.getPlayerForUsername(memberName).ifPresent(p -> {
+          com.faforever.client.leaderboard.LeaderboardRating lr = p.getLeaderboardRatings().get(ratingType);
+          if (lr != null) liveRatings.add(lr);
+        });
+      }
+    }
+    if (!liveRatings.isEmpty()) {
+      liveRatings.sort((a, b) -> Integer.compare(
+          com.faforever.client.util.RatingUtil.getRating(b),
+          com.faforever.client.util.RatingUtil.getRating(a)));
+      int n = Math.max(1, playersPerSide);
+      List<com.faforever.client.leaderboard.LeaderboardRating> top =
+          liveRatings.size() > n ? liveRatings.subList(0, n) : liveRatings;
+      com.faforever.client.leaderboard.LeaderboardRating agg =
+          com.faforever.client.util.RatingUtil.getAggregateRating(top);
+      if (agg != null) return com.faforever.client.util.RatingUtil.getRating(agg);
+    }
+
+    // Fallback: average the signup-time participant ratings
+    if (tournament != null && tournament.getParticipantRatings() != null) {
+      int sum = 0, count = 0;
+      for (Map<String, Object> m : members) {
+        String memberName = String.valueOf(m.getOrDefault("player_name", ""));
+        Integer r = tournament.getParticipantRatings().get(memberName);
+        if (r != null) { sum += r; count++; }
+      }
+      if (count > 0) return sum / count;
+    }
+    return 0;
   }
 
   private Label dateLabel(String label, java.time.temporal.TemporalAccessor dateTime) {
-    Label l = new Label(label + ": " + timeService.asDateTime(dateTime));
+    Label l = new Label(label + ": " + formatTournamentDateTime(dateTime));
     l.getStyleClass().add("description-label");
     return l;
+  }
+
+  /** Format a tournament timestamp respecting the user's UTC/local toggle on the detail pane. */
+  private String formatTournamentDateTime(java.time.temporal.TemporalAccessor dateTime) {
+    return displayTimesAsUtc
+        ? timeService.asDateTime(dateTime, java.time.ZoneOffset.UTC)
+        : timeService.asDateTime(dateTime);
   }
 
   private boolean matchesInvitePrefix(String lcName, String lcPrefix) {
@@ -2236,7 +2656,7 @@ public class TournamentsController extends AbstractViewController<Node> {
     List<Map<String, Object>> members = (List<Map<String, Object>>) team.get("members");
 
     int pps = tournament.getPlayersPerSide();
-    int teamAgg = computeTeamAggregateRating(members, ratingType, pps);
+    int teamAgg = computeTeamAggregateRating(members, ratingType, pps, tournament);
 
     // Header
     HBox header = new HBox(8);
@@ -2272,7 +2692,7 @@ public class TournamentsController extends AbstractViewController<Node> {
           cap.getStyleClass().add("team-member-captain");
           memberRow.getChildren().add(cap);
         }
-        int memberRating = getMemberRating(memberName, ratingType);
+        int memberRating = getMemberRating(memberName, ratingType, tournament);
         if (memberRating != 0) {
           Label rLbl = new Label(String.valueOf(memberRating));
           rLbl.getStyleClass().add("team-member-rating");

@@ -144,6 +144,11 @@ public class MockFafApiAccessor implements FafApiAccessor {
   }
 
   @Override
+  public List<com.faforever.client.api.dto.MapPool> getMapPools() {
+    return Collections.emptyList();
+  }
+
+  @Override
   public List<LeaderboardRatingJournal> getRatingJournal(int playerId, int leaderboardId) {
     return List.of();
   }
@@ -362,6 +367,11 @@ public class MockFafApiAccessor implements FafApiAccessor {
 
   @Override
   public List<com.faforever.client.api.dto.PlayerTournamentSummary> getHallOfFame(Integer featuredModId) {
+    return List.of();
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.PlayerTournamentSummary> getPlayerTournamentSummary(int playerId) {
     return List.of();
   }
 

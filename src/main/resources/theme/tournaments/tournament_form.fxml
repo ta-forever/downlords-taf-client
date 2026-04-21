@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:id="formRoot"
+      prefWidth="480" spacing="0"
+      xmlns="http://javafx.com/javafx/19"
+      fx:controller="com.faforever.client.tournament.TournamentFormController">
+    <ScrollPane fx:id="formScroll" fitToWidth="true" VBox.vgrow="ALWAYS"
+                prefHeight="460">
+        <VBox spacing="10">
+            <padding><Insets top="6" bottom="6" left="6" right="6"/></padding>
+
+            <!-- Basics -->
+            <VBox spacing="6" styleClass="tournament-form-card">
+                <Label text="%tournament.create.basics" styleClass="tournament-form-section"/>
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="%tournament.create.name" minWidth="120"/>
+                    <TextField fx:id="nameField" promptText="%tournament.create.namePlaceholder" HBox.hgrow="ALWAYS"/>
+                </HBox>
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="%tournament.create.description" minWidth="120"/>
+                    <TextArea fx:id="descField" promptText="%tournament.create.descriptionPlaceholder"
+                              prefRowCount="3" wrapText="true" HBox.hgrow="ALWAYS"/>
+                </HBox>
+            </VBox>
+
+            <!-- Format -->
+            <VBox fx:id="formatSection" spacing="6" styleClass="tournament-form-card">
+                <Label text="%tournament.create.formatSection" styleClass="tournament-form-section"/>
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="%tournament.detail.format" minWidth="120"/>
+                    <ComboBox fx:id="formatCombo" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+                </HBox>
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="%tournament.detail.bestOf" minWidth="120"/>
+                    <ComboBox fx:id="bestOfCombo"/>
+                </HBox>
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="%tournament.create.playersPerSide" minWidth="120"/>
+                    <ComboBox fx:id="ppsCombo"/>
+                </HBox>
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="%tournament.detail.noshowTimeout" minWidth="120"/>
+                    <Spinner fx:id="noshowSpinner" editable="true"/>
+                </HBox>
+                <!-- Swiss-only rows. managed+visible are toggled together
+                     from the controller based on formatCombo's value. -->
+                <HBox fx:id="swissRoundsRow" spacing="8" alignment="CENTER_LEFT" managed="false" visible="false">
+                    <Label text="%tournament.create.swissRounds" minWidth="120"/>
+                    <Spinner fx:id="swissRoundsSpinner" editable="true"/>
+                </HBox>
+                <HBox fx:id="topCutRow" spacing="8" alignment="CENTER_LEFT" managed="false" visible="false">
+                    <Label text="%tournament.create.topCut" minWidth="120"/>
+                    <ComboBox fx:id="topCutCombo"/>
+                </HBox>
+                <HBox fx:id="topCutFormatRow" spacing="8" alignment="CENTER_LEFT" managed="false" visible="false">
+                    <Label text="%tournament.create.topCutFormat" minWidth="120"/>
+                    <ComboBox fx:id="topCutFormatCombo" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+                </HBox>
+            </VBox>
+
+            <!-- Maps & Mod -->
+            <VBox fx:id="mapsSection" spacing="6" styleClass="tournament-form-card">
+                <Label text="%tournament.create.mapsModSection" styleClass="tournament-form-section"/>
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="%tournament.detail.mod" minWidth="120"/>
+                    <ComboBox fx:id="modCombo" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+                </HBox>
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="%tournament.detail.mapPool" minWidth="120"/>
+                    <ComboBox fx:id="poolCombo" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+                </HBox>
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="%tournament.detail.seedingRating" minWidth="120"/>
+                    <ComboBox fx:id="leaderboardCombo" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+                </HBox>
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="%tournament.detail.ratingRange" minWidth="120"/>
+                    <HBox spacing="6" alignment="CENTER_LEFT">
+                        <TextField fx:id="minRatingField" promptText="%tournament.detail.ratingAny" prefWidth="80"/>
+                        <Label text="&#x2013;"/>
+                        <TextField fx:id="maxRatingField" promptText="%tournament.detail.ratingAny" prefWidth="80"/>
+                    </HBox>
+                </HBox>
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="%tournament.create.mapVisibility" minWidth="120"/>
+                    <ComboBox fx:id="visibilityCombo" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+                </HBox>
+            </VBox>
+
+            <!-- Schedule -->
+            <VBox spacing="6" styleClass="tournament-form-card">
+                <Label text="%tournament.create.scheduleSection" styleClass="tournament-form-section"/>
+                <HBox fx:id="minPlayersRow" spacing="8" alignment="CENTER_LEFT">
+                    <Label text="%tournament.create.minPlayers" minWidth="120"/>
+                    <Spinner fx:id="minPlayersSpinner" editable="true"/>
+                </HBox>
+                <HBox spacing="6" alignment="CENTER_LEFT">
+                    <Label text="%tournament.create.scheduledStart" minWidth="120"/>
+                    <DatePicker fx:id="datePicker" prefWidth="130" maxWidth="130"/>
+                    <TextField fx:id="timeField" promptText="HH:mm" prefWidth="50" maxWidth="50"/>
+                    <Label text="UTC"/>
+                    <Button text="Clear" onAction="#onClearSchedule" styleClass="button-small"/>
+                </HBox>
+                <Label fx:id="utcClockLabel" styleClass="hint-label" style="-fx-text-fill: #888; -fx-padding: 0 0 0 120;"/>
+            </VBox>
+        </VBox>
+    </ScrollPane>
+
+    <!-- Buttons pinned below the scroll pane -->
+    <HBox spacing="8" alignment="CENTER_RIGHT">
+        <padding><Insets top="8" bottom="4" left="6" right="6"/></padding>
+        <Button fx:id="okButton" text="OK" styleClass="dialog-accept" onAction="#onOk"/>
+        <Button text="%cancel" onAction="#onCancel"/>
+    </HBox>
+</VBox>

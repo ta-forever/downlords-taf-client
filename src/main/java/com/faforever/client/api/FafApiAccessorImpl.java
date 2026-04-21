@@ -211,6 +211,10 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
         INCLUDE, "versions"));
   }
 
+  public List<com.faforever.client.api.dto.MapPool> getMapPools() {
+    return getMany("/data/mapPool", 1000, java.util.Map.of());
+  }
+
   @Override
   @Cacheable(value = CacheNames.LEADERBOARD, sync = true)
   public List<Leaderboard> getLeaderboards() {
@@ -707,6 +711,7 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
       "matches.team1,matches.team2,matches.winnerTeam," +
       "matches.plannedMaps,matches.plannedMaps.mapVersion,matches.plannedMaps.mapVersion.map," +
       "matches.games," +
+      "teams,teams.members,teams.members.player," +
       "featuredMod,leaderboard,mapPool," +
       "winnerAvatar,secondPlaceAvatar,thirdPlaceAvatar," +
       "placements,placements.player," +
@@ -741,6 +746,13 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
     return getAll(HALL_OF_FAME_ENDPOINT, java.util.Map.of(
         INCLUDE, HALL_OF_FAME_INCLUDES,
         FILTER, filter));
+  }
+
+  @Override
+  public List<PlayerTournamentSummary> getPlayerTournamentSummary(int playerId) {
+    return getAll(HALL_OF_FAME_ENDPOINT, java.util.Map.of(
+        INCLUDE, HALL_OF_FAME_INCLUDES + ",featuredMod",
+        FILTER, "player.id==" + playerId));
   }
 
   @Override

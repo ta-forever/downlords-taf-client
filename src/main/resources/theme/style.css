@@ -1240,6 +1240,19 @@
   -fx-padding: 8 0 4 0;
 }
 
+.tournament-form-card {
+  -fx-background-color: -fx-control-inner-background;
+  -fx-background-radius: 6;
+  -fx-padding: 10;
+  -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.15), 4, 0, 0, 1);
+}
+
+.tournament-form-section {
+  -fx-font-weight: bold;
+  -fx-font-size: 1.05em;
+  -fx-padding: 0 0 4 0;
+}
+
 .bracket-scroll {
   -fx-background-color: transparent;
   -fx-padding: 0;

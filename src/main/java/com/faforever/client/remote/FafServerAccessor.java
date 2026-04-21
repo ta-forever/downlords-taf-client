@@ -6,6 +6,7 @@ import com.faforever.client.game.NewGameInfo;
 import com.faforever.client.net.ConnectionState;
 import com.faforever.client.player.Player;
 import com.faforever.client.remote.domain.Avatar;
+import com.faforever.client.remote.domain.TournamentCreateMessage;
 import com.faforever.client.remote.domain.GameLaunchMessage;
 import com.faforever.client.remote.domain.IceServersServerMessage.IceServer;
 import com.faforever.client.remote.domain.LoginMessage;
@@ -77,6 +78,14 @@ public interface FafServerAccessor {
   void tournamentSignup(int tournamentId);
 
   void tournamentWithdraw(int tournamentId);
+
+  void tournamentCreate(TournamentCreateMessage message);
+
+  void tournamentStart(int tournamentId);
+
+  void tournamentCancel(int tournamentId);
+
+  void tournamentEdit(com.faforever.client.remote.domain.TournamentEditMessage message);
 
   // Team tournaments — see TournamentTeamService
   void tournamentTeamCreate(int tournamentId, String name);

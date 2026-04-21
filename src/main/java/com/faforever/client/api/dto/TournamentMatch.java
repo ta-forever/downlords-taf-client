@@ -22,6 +22,7 @@ public class TournamentMatch {
   private int player2Wins;
   private String state;
   private String openedAt;
+  private String timesOutAt;
 
   @Relationship("player1")
   private Player player1;

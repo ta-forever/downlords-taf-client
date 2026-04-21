@@ -299,6 +299,22 @@ public class MockFafServerAccessor implements FafServerAccessor {
   }
 
   @Override
+  public void tournamentCreate(com.faforever.client.remote.domain.TournamentCreateMessage message) {
+  }
+
+  @Override
+  public void tournamentStart(int tournamentId) {
+  }
+
+  @Override
+  public void tournamentCancel(int tournamentId) {
+  }
+
+  @Override
+  public void tournamentEdit(com.faforever.client.remote.domain.TournamentEditMessage message) {
+  }
+
+  @Override
   public void tournamentTeamCreate(int tournamentId, String name) {
   }
 

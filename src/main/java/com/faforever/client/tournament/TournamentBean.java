@@ -51,6 +51,13 @@ public class TournamentBean {
   private String leaderboardName;
   private String leaderboardTechnicalName;
   private String mapPoolName;
+  private Integer createdByPlayerId;
+  /** Team names for team tournaments, sorted alphabetically. Empty for solo. */
+  private List<String> teamNames;
+  /** Tournament-wide rule controlling when planned maps are visible to players/spectators.
+   *  Possible values: "always_visible", "hidden_until_tournament_start", "hidden_until_round_start".
+   *  Null is treated as "always_visible". */
+  private String mapVisibility;
   private String winnerAvatarUrl;
   private String secondPlaceAvatarUrl;
   private String thirdPlaceAvatarUrl;
@@ -147,6 +154,20 @@ public class TournamentBean {
     if (tournament.getMapPool() != null) {
       tournamentBean.setMapPoolName(tournament.getMapPool().getName());
     }
+    if (tournament.getCreatedBy() != null) {
+      tournamentBean.setCreatedByPlayerId(Integer.parseInt(tournament.getCreatedBy().getId()));
+    }
+    tournamentBean.setMapVisibility(tournament.getMapVisibility());
+    if (tournament.getTeams() != null) {
+      List<String> tNames = new ArrayList<>();
+      for (com.faforever.client.api.dto.TournamentTeam t : tournament.getTeams()) {
+        if (t.getName() != null) tNames.add(t.getName());
+      }
+      Collections.sort(tNames, String.CASE_INSENSITIVE_ORDER);
+      tournamentBean.setTeamNames(tNames);
+    } else {
+      tournamentBean.setTeamNames(Collections.emptyList());
+    }
     if (tournament.getWinnerAvatar() != null) {
       tournamentBean.setWinnerAvatarUrl(tournament.getWinnerAvatar().getUrl());
     }
@@ -188,6 +209,26 @@ public class TournamentBean {
       }
       Collections.sort(names, String.CASE_INSENSITIVE_ORDER);
       tournamentBean.setParticipantNames(names);
+
+      // For team tournaments, compute aggregate team ratings so the bracket
+      // can display a rating next to each team name. The average of the
+      // team members' individual participant ratings is used.
+      if (tournament.getTeams() != null && tournament.getPlayersPerSide() >= 2) {
+        for (com.faforever.client.api.dto.TournamentTeam team : tournament.getTeams()) {
+          if (team.getName() == null || team.getMembers() == null) continue;
+          int sum = 0, count = 0;
+          for (com.faforever.client.api.dto.TournamentTeamMember member : team.getMembers()) {
+            if (member.getPlayer() != null && member.getPlayer().getLogin() != null) {
+              Integer r = ratings.get(member.getPlayer().getLogin());
+              if (r != null) { sum += r; count++; }
+            }
+          }
+          if (count > 0) {
+            ratings.put(team.getName(), sum / count);
+          }
+        }
+      }
+
       tournamentBean.setParticipantRatings(ratings);
     }
 
@@ -255,7 +296,8 @@ public class TournamentBean {
         matchInfos.add(new MatchInfo(m.getRound(), m.getPosition(),
             m.getRole() != null ? m.getRole() : "unknown", m.isPreview(),
             p1, p2, winner, m.getPlayer1Wins(), m.getPlayer2Wins(), m.getState(),
-            matchIdInt, planned, playedGameIds, team1Id, team2Id, m.getOpenedAt()));
+            matchIdInt, planned, playedGameIds, team1Id, team2Id,
+            m.getOpenedAt(), m.getTimesOutAt()));
       }
     }
     matchInfos.sort((a, b) -> a.round != b.round ? a.round - b.round : a.position - b.position);
@@ -452,6 +494,42 @@ public class TournamentBean {
   public void setLeaderboardTechnicalName(String v) { this.leaderboardTechnicalName = v; }
   public String getMapPoolName() { return mapPoolName; }
   public void setMapPoolName(String v) { this.mapPoolName = v; }
+  public Integer getCreatedByPlayerId() { return createdByPlayerId; }
+  public void setCreatedByPlayerId(Integer v) { this.createdByPlayerId = v; }
+  public boolean isPlayerCreated() { return createdByPlayerId != null; }
+  public List<String> getTeamNames() { return teamNames; }
+  public void setTeamNames(List<String> v) { this.teamNames = v; }
+  public String getMapVisibility() { return mapVisibility; }
+  public void setMapVisibility(String v) { this.mapVisibility = v; }
+
+  /**
+   * True when the planned maps for the given match should be revealed to
+   * players and spectators given the tournament's map-visibility rule and
+   * current state. Moderators/admins apply no filtering — this is a
+   * player-client cosmetic filter only.
+   */
+  public boolean arePlannedMapsVisible(MatchInfo match) {
+    String rule = mapVisibility != null ? mapVisibility : "always_visible";
+    switch (rule) {
+      case "hidden_until_tournament_start":
+        // Revealed as soon as the tournament leaves "pending".
+        return !"pending".equals(getApiState());
+      case "hidden_until_round_start":
+        if ("pending".equals(getApiState())) return false;
+        // Revealed as soon as any match in the same round has opened (state != pending).
+        int round = match.getRound();
+        if (matches == null) return false;
+        for (MatchInfo m : matches) {
+          if (m.getRound() == round && m.getState() != null && !"pending".equals(m.getState())) {
+            return true;
+          }
+        }
+        return false;
+      case "always_visible":
+      default:
+        return true;
+    }
+  }
   public String getWinnerAvatarUrl() { return winnerAvatarUrl; }
   public void setWinnerAvatarUrl(String url) { this.winnerAvatarUrl = url; }
   public String getSecondPlaceAvatarUrl() { return secondPlaceAvatarUrl; }
@@ -522,13 +600,20 @@ public class TournamentBean {
     /** ISO timestamp when the match became open (both slots filled).
      *  Used to compute the noshow countdown. Null for pending/complete/preview. */
     private final String openedAt;
+    /** Authoritative forfeit deadline set by the tournament service.
+     *  Overrides the openedAt + noshow_timeout heuristic — picks up the
+     *  10-minute toilet-break grace after a draw. Null = no active
+     *  timer (game is live, match is complete, etc.). Mutable so the
+     *  tournament_timer_restarted / tournament_timer_stopped broadcasts
+     *  can patch the value without a full tournament refetch. */
+    private volatile String timesOutAt;
 
     public MatchInfo(int round, int position, String role, boolean preview,
                       String player1, String player2, String winner,
                       int player1Wins, int player2Wins, String state) {
       this(round, position, role, preview, player1, player2, winner,
            player1Wins, player2Wins, state, 0, java.util.Collections.emptyList(),
-           java.util.Collections.emptyList(), 0, 0, null);
+           java.util.Collections.emptyList(), 0, 0, null, null);
     }
 
     public MatchInfo(int round, int position, String role, boolean preview,
@@ -537,7 +622,8 @@ public class TournamentBean {
                       int matchId,
                       java.util.List<PlannedMapInfo> plannedMaps,
                       java.util.List<Integer> playedGameIds,
-                      int team1Id, int team2Id, String openedAt) {
+                      int team1Id, int team2Id, String openedAt,
+                      String timesOutAt) {
       this.round = round;
       this.position = position;
       this.role = role;
@@ -554,11 +640,14 @@ public class TournamentBean {
       this.team1Id = team1Id;
       this.team2Id = team2Id;
       this.openedAt = openedAt;
+      this.timesOutAt = timesOutAt;
     }
 
     public int getTeam1Id() { return team1Id; }
     public int getTeam2Id() { return team2Id; }
     public String getOpenedAt() { return openedAt; }
+    public String getTimesOutAt() { return timesOutAt; }
+    public void setTimesOutAt(String timesOutAt) { this.timesOutAt = timesOutAt; }
   }
 
   @AllArgsConstructor

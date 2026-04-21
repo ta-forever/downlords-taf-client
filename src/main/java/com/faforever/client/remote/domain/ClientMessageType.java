@@ -35,6 +35,7 @@ public enum ClientMessageType {
   GALACTIC_WAR_SET_MAP("galactic_war_set_map"),
   TOURNAMENT_SIGNUP("tournament_signup"),
   TOURNAMENT_WITHDRAW("tournament_withdraw"),
+  TOURNAMENT_CREATE("tournament_create"),
   // Team tournaments — see TournamentTeamService
   TOURNAMENT_TEAM_CREATE("tournament_team_create"),
   TOURNAMENT_TEAM_INVITE("tournament_team_invite"),
@@ -42,7 +43,10 @@ public enum ClientMessageType {
   TOURNAMENT_TEAM_DECLINE_INVITE("tournament_team_decline_invite"),
   TOURNAMENT_TEAM_LEAVE("tournament_team_leave"),
   TOURNAMENT_TEAM_REMOVE_MEMBER("tournament_team_remove_member"),
-  TOURNAMENT_TEAM_DISBAND("tournament_team_disband");
+  TOURNAMENT_TEAM_DISBAND("tournament_team_disband"),
+  TOURNAMENT_START("tournament_start"),
+  TOURNAMENT_CANCEL("tournament_cancel"),
+  TOURNAMENT_EDIT("tournament_edit");
 
   private static Map<String, ClientMessageType> fromString;
 

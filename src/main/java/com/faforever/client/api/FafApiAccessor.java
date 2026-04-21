@@ -61,6 +61,8 @@ public interface FafApiAccessor {
 
   List<com.faforever.client.api.dto.FeaturedMod> getFeaturedMods();
 
+  List<com.faforever.client.api.dto.MapPool> getMapPools();
+
   List<Leaderboard> getLeaderboards();
 
   List<LeaderboardEntry> getAllLeaderboardEntries(String leaderboardTechnicalName);
@@ -172,6 +174,9 @@ public interface FafApiAccessor {
    * (one per player). If non-null, returns per-player rows for that one mod.
    */
   List<PlayerTournamentSummary> getHallOfFame(Integer featuredModId);
+
+  /** Per-player tournament summary: all (player, mod) rows for one player. */
+  List<PlayerTournamentSummary> getPlayerTournamentSummary(int playerId);
 
   /**
    * Returns the list of game IDs the player has played in completed

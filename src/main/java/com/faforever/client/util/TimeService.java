@@ -76,13 +76,21 @@ public class TimeService {
   }
 
   public String asDateTime(TemporalAccessor temporalAccessor) {
+    return asDateTime(temporalAccessor, TimeZone.getDefault().toZoneId());
+  }
+
+  public String asDateTime(TemporalAccessor temporalAccessor, java.time.ZoneId zoneId) {
     if (temporalAccessor == null) {
       return i18n.get("noDateAvailable");
     }
-    return DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
+    String formatted = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
         .withLocale(getCurrentDateLocale())
-        .withZone(TimeZone.getDefault().toZoneId())
+        .withZone(zoneId)
         .format(temporalAccessor);
+    if (java.time.ZoneOffset.UTC.equals(zoneId)) {
+      return formatted + " UTC";
+    }
+    return formatted;
   }
 
   public String asDate(TemporalAccessor temporalAccessor) {

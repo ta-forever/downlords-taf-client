@@ -757,6 +757,10 @@ public class FafService {
     return CompletableFuture.completedFuture(fafApiAccessor.getHallOfFame(featuredModId));
   }
 
+  public CompletableFuture<List<com.faforever.client.api.dto.PlayerTournamentSummary>> getPlayerTournamentSummary(int playerId) {
+    return CompletableFuture.completedFuture(fafApiAccessor.getPlayerTournamentSummary(playerId));
+  }
+
   @Async
   public CompletableFuture<List<Integer>> getPlayerTournamentGameIds(int playerId, Integer featuredModId) {
     return CompletableFuture.completedFuture(fafApiAccessor.getPlayerTournamentGameIds(playerId, featuredModId));
@@ -851,6 +855,26 @@ public class FafService {
 
   public void tournamentWithdraw(int tournamentId) {
     fafServerAccessor.tournamentWithdraw(tournamentId);
+  }
+
+  public java.util.List<com.faforever.client.api.dto.MapPool> getMapPools() {
+    return fafApiAccessor.getMapPools();
+  }
+
+  public void tournamentCreate(com.faforever.client.remote.domain.TournamentCreateMessage message) {
+    fafServerAccessor.tournamentCreate(message);
+  }
+
+  public void tournamentStart(int tournamentId) {
+    fafServerAccessor.tournamentStart(tournamentId);
+  }
+
+  public void tournamentCancel(int tournamentId) {
+    fafServerAccessor.tournamentCancel(tournamentId);
+  }
+
+  public void tournamentEdit(com.faforever.client.remote.domain.TournamentEditMessage message) {
+    fafServerAccessor.tournamentEdit(message);
   }
 
   public void tournamentTeamCreate(int tournamentId, String name) {
