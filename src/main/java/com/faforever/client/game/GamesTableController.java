@@ -146,7 +146,28 @@ public class GamesTableController implements Controller<Node> {
         return param.getValue().titleProperty();
       }
     });
-    gameTitleColumn.setCellFactory(param -> new StringCell<>(title -> title));
+    // Highlight the title cell when it contains the current player's
+    // username (matches GameTileController's card-view behaviour so
+    // your own games stand out at a glance).
+    String currentUser = playerService.getCurrentPlayer()
+        .map(Player::getUsername).orElse(null);
+    gameTitleColumn.setCellFactory(param -> new javafx.scene.control.TableCell<Game, String>() {
+      @Override
+      protected void updateItem(String item, boolean empty) {
+        super.updateItem(item, empty);
+        getStyleClass().remove("contains-me");
+        if (empty || item == null) {
+          setText(null);
+        } else {
+          setText(item);
+          if (currentUser != null
+              && item.toLowerCase(java.util.Locale.ROOT)
+                  .contains(currentUser.toLowerCase(java.util.Locale.ROOT))) {
+            getStyleClass().add("contains-me");
+          }
+        }
+      }
+    });
     playersColumn.setCellValueFactory(param -> Bindings.createObjectBinding(
         () -> new PlayerFill(param.getValue().getNumPlayers(), param.getValue().getMaxPlayers()),
         param.getValue().numPlayersProperty(), param.getValue().maxPlayersProperty())
@@ -159,6 +180,30 @@ public class GamesTableController implements Controller<Node> {
         },
         param.getValue().statusProperty()
     ));
+    // Mirror GameTileController.gameStatusLabel: text plus the same
+    // theme-image indicator next to it. Pull the Game from the row
+    // rather than a separate value-factory so status changes on an
+    // existing row naturally trigger updateItem via the string binding.
+    statusColumn.setCellFactory(param -> new javafx.scene.control.TableCell<Game, String>() {
+      @Override
+      protected void updateItem(String item, boolean empty) {
+        super.updateItem(item, empty);
+        if (empty || item == null) {
+          setText(null);
+          setGraphic(null);
+          return;
+        }
+        setText(item);
+        Game game = (getTableRow() != null) ? (Game) getTableRow().getItem() : null;
+        GameStatus status = game != null ? game.getStatus() : null;
+        String fn = status != null ? status.getThemeImageFileName() : null;
+        if (fn != null) {
+          setGraphic(new javafx.scene.image.ImageView(uiService.getThemeImage(fn)));
+        } else {
+          setGraphic(null);
+        }
+      }
+    });
     ratingRangeColumn.setCellValueFactory(param -> {
       Game game = param.getValue();
       return Bindings.createObjectBinding(() -> new RatingRange(game.getMinRating(), game.getMaxRating()),

@@ -505,6 +505,15 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
         .listeners()
         .input(this::onMessage)
         .output(this::onMessage)
+        // Kitteh's default exception listener dumps the full Netty
+        // stack trace to stderr. That makes otherwise-informative
+        // server rejections (Z-line / session-limit / plain-text reply
+        // before TLS handshake) flood the IDE console with unreadable
+        // NotSslRecordException payloads. Downgrade to a single-line
+        // DEBUG entry; the user-visible effect is the same (the chat
+        // client reconnects anyway) and genuine errors are still in
+        // client.log at DEBUG level if investigation is needed.
+        .exception(t -> log.debug("IRC client I/O exception: {}", t.toString()))
         .then()
         .build();
 

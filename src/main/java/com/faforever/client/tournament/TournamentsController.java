@@ -544,9 +544,35 @@ public class TournamentsController extends AbstractViewController<Node> {
           }
         }))
         .exceptionally(throwable -> {
-          log.warn("Failed to refresh tournament {}", tournamentId, throwable);
+          // 404 is the normal signal that a tournament we had a stale
+          // refresh for has been deleted on the server (e.g. a chain
+          // instance got cleaned up between its refresh broadcast and
+          // our fetch). Drop it from the lists quietly, same as the
+          // updated==null path above. Log the stack trace only for
+          // genuinely unexpected errors.
+          if (isHttpNotFound(throwable)) {
+            JavaFxUtil.runLater(() -> {
+              removeFromAllLists(idStr);
+              updateSectionHeaders();
+            });
+          } else {
+            log.warn("Failed to refresh tournament {}", tournamentId, throwable);
+          }
           return null;
         });
+  }
+
+  /** True if the throwable chain includes a 404 response from the Elide API. */
+  private static boolean isHttpNotFound(Throwable throwable) {
+    Throwable t = throwable;
+    while (t != null) {
+      if (t instanceof org.springframework.web.client.HttpClientErrorException hce
+          && hce.getStatusCode() == org.springframework.http.HttpStatus.NOT_FOUND) {
+        return true;
+      }
+      t = t.getCause();
+    }
+    return false;
   }
 
   /** Remove any item with the given id from all three section lists. */
@@ -605,8 +631,45 @@ public class TournamentsController extends AbstractViewController<Node> {
     // the selection listener → displayTournamentItem) to avoid redundant
     // server fetches.
     if (!skipDisplay && currentTournament != null && id.equals(currentTournament.getId())) {
-      displayTournamentItem(updated);
+      // Focus-preserving guard: displayTournamentItem clears
+      // tournamentDetailContent and rebuilds the whole detail pane
+      // (including the team panel's TextFields). If the user is
+      // mid-keystroke in a text input inside the detail pane — e.g.
+      // typing a team name or an invite target — destroying the node
+      // loses their text and caret. Defer until focus leaves the
+      // input; the next user action (tab, click, submit) will trigger
+      // the pending rebuild. Only applies to server-driven refreshes
+      // of the currently-displayed tournament. Explicit clicks on a
+      // different tournament land in selectTournamentById → the
+      // regular displayTournamentItem path, unguarded.
+      runWhenNoDetailInputFocused(() -> displayTournamentItem(updated));
     }
+  }
+
+  /** Run {@code action} immediately if nothing inside the tournament
+   *  detail pane currently holds keyboard focus, otherwise install a
+   *  one-shot focus listener on the active text input that fires it
+   *  as soon as focus moves away. See {@link #buildTeamPanel} for the
+   *  rationale. */
+  private void runWhenNoDetailInputFocused(Runnable action) {
+    javafx.scene.Scene scene = tournamentDetailContent != null
+        ? tournamentDetailContent.getScene() : null;
+    javafx.scene.Node focusOwner = scene != null ? scene.getFocusOwner() : null;
+    if (focusOwner instanceof javafx.scene.control.TextInputControl
+        && isDescendant(tournamentDetailContent, focusOwner)) {
+      focusOwner.focusedProperty().addListener(new javafx.beans.value.ChangeListener<Boolean>() {
+        @Override
+        public void changed(javafx.beans.value.ObservableValue<? extends Boolean> obs,
+                            Boolean was, Boolean isNow) {
+          if (Boolean.FALSE.equals(isNow)) {
+            obs.removeListener(this);
+            JavaFxUtil.runLater(action);
+          }
+        }
+      });
+      return;
+    }
+    action.run();
   }
 
   /**
@@ -701,6 +764,17 @@ public class TournamentsController extends AbstractViewController<Node> {
 
   private void updateButtons(TournamentBean tournament) {
     // Buttons are now rendered inline in renderHeader — nothing to do here.
+  }
+
+  /** True if {@code node} sits anywhere inside the {@code ancestor}'s
+   *  scene-graph subtree. Used by the team-panel focus-preserving
+   *  rerender to tell "user is typing into one of my inputs" from
+   *  "user is typing into something unrelated". */
+  private static boolean isDescendant(javafx.scene.Node ancestor, javafx.scene.Node node) {
+    for (javafx.scene.Node n = node; n != null; n = n.getParent()) {
+      if (n == ancestor) return true;
+    }
+    return false;
   }
 
   /** Parse a server-naive-UTC timestamp ("yyyy-MM-dd HH:mm:ss" or ISO
@@ -1279,6 +1353,19 @@ public class TournamentsController extends AbstractViewController<Node> {
 
     String p1 = match.getPlayer1() != null ? match.getPlayer1() : "TBD";
     String p2 = match.getPlayer2() != null ? match.getPlayer2() : "TBD";
+    // The host (current player) should always appear last in the title —
+    // convention for TAF is that "X vs Y" puts the host on the right.
+    // Swap only when the current player is player1 on the match, since
+    // best-of score stays attached to player1/player2 ordering we keep
+    // the score direction consistent with the displayed names.
+    String currentPlayer = playerService.getCurrentPlayer()
+        .map(p -> p.getUsername()).orElse(null);
+    int p1Wins = match.getPlayer1Wins();
+    int p2Wins = match.getPlayer2Wins();
+    if (currentPlayer != null && currentPlayer.equals(p1)) {
+      String tmp = p1; p1 = p2; p2 = tmp;
+      int tmpW = p1Wins; p1Wins = p2Wins; p2Wins = tmpW;
+    }
     int bestOf = Math.max(1, tournament.getBestOf());
     int playedCount = match.getPlayedGameIds() != null ? match.getPlayedGameIds().size() : 0;
     int nextGame = playedCount + 1;
@@ -1286,7 +1373,7 @@ public class TournamentsController extends AbstractViewController<Node> {
     if (bestOf > 1) {
       // Compact, score-prominent: "[koth] G2/3 1-0 — alice vs bob"
       title = "[" + tournament.getName() + "] G" + nextGame + "/" + bestOf + " "
-          + match.getPlayer1Wins() + "-" + match.getPlayer2Wins() + " — " + p1 + " vs " + p2;
+          + p1Wins + "-" + p2Wins + " — " + p1 + " vs " + p2;
     } else {
       title = "[" + tournament.getName() + "] " + p1 + " vs " + p2;
     }
@@ -1564,20 +1651,15 @@ public class TournamentsController extends AbstractViewController<Node> {
     String parentApiState = currentTournament != null ? currentTournament.getApiState() : null;
     boolean parentLive = !"complete".equals(parentApiState)
         && !"cancelled".equals(parentApiState);
-    if ("open".equals(state) && parentLive && m.getOpenedAt() != null && currentTournament != null) {
+    // The server clears times_out_at when a game goes live for this match
+    // (or hasn't scheduled a timer yet). In either case there is NO
+    // active forfeit deadline, so don't draw a countdown — previously
+    // we fell back to opened_at + noshow_timeout here, which caused
+    // "forfeit imminent" to appear while players were mid-game.
+    if ("open".equals(state) && parentLive && m.getTimesOutAt() != null
+        && currentTournament != null) {
       try {
-        // Prefer the server-provided deadline (times_out_at) — it carries
-        // the 10-minute toilet-break grace after a draw, while the
-        // opened_at + noshow_timeout heuristic doesn't. Fall back to the
-        // heuristic if the API build doesn't expose times_out_at yet.
-        java.time.Instant initialDeadline;
-        if (m.getTimesOutAt() != null) {
-          initialDeadline = parseServerNaiveUtc(m.getTimesOutAt());
-        } else {
-          java.time.Instant opened = java.time.OffsetDateTime.parse(m.getOpenedAt()).toInstant();
-          int timeoutMin = Math.max(currentTournament.getNoshowTimeoutMinutes(), 5);
-          initialDeadline = opened.plusSeconds(timeoutMin * 60L);
-        }
+        java.time.Instant initialDeadline = parseServerNaiveUtc(m.getTimesOutAt());
         final int countdownMatchId = m.getMatchId();
         // Deadline is held in a mutable reference so the
         // tournament_timer_restarted broadcast can update it in place
@@ -2135,7 +2217,40 @@ public class TournamentsController extends AbstractViewController<Node> {
     VBox dynamicContent = new VBox(6);
     root.getChildren().add(dynamicContent);
 
-    Runnable rerender = () -> rebuildTeamPanelContent(dynamicContent, tournamentBean);
+    // Focus-preserving rerender: if the user is typing into any
+    // TextField under this subtree when a refresh arrives, skip the
+    // rebuild and defer it until they lose focus. Rebuilding destroys
+    // and replaces every child node, which in JavaFX means the
+    // currently-focused TextField vanishes mid-keystroke — text is
+    // preserved in the backing store but the caret and IME state are
+    // lost, and any partially-typed team name / invite input gets
+    // snatched away from under the user. The defer-until-blur trick
+    // is the lightest-weight way to keep typing uninterrupted without
+    // a full save/restore dance. The next user action (tab out, click
+    // another field, click a button, submit) naturally transfers focus
+    // and triggers the pending rebuild.
+    Runnable rerender = new Runnable() {
+      @Override
+      public void run() {
+        javafx.scene.Scene scene = dynamicContent.getScene();
+        javafx.scene.Node focusOwner = scene != null ? scene.getFocusOwner() : null;
+        if (focusOwner instanceof javafx.scene.control.TextInputControl
+            && isDescendant(dynamicContent, focusOwner)) {
+          focusOwner.focusedProperty().addListener(new javafx.beans.value.ChangeListener<Boolean>() {
+            @Override
+            public void changed(javafx.beans.value.ObservableValue<? extends Boolean> obs,
+                                Boolean was, Boolean isNow) {
+              if (Boolean.FALSE.equals(isNow)) {
+                obs.removeListener(this);
+                JavaFxUtil.runLater(() -> run());
+              }
+            }
+          });
+          return;
+        }
+        rebuildTeamPanelContent(dynamicContent, tournamentBean);
+      }
+    };
     rerender.run();
 
     // Deregister previous listeners to prevent accumulation across

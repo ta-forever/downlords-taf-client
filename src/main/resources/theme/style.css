@@ -1503,6 +1503,21 @@
   -fx-font-size: 1.2em;
 }
 
+/* Highlight a game-card title that mentions the current player.
+   Applied by GameTileController whenever the title substring-matches
+   the user's login (typical case: tournament titles like
+   "[test] Alice vs Me"). */
+.game-card .card-title.contains-me {
+  -fx-text-fill: #ffb74d;
+  -fx-font-weight: bold;
+}
+
+/* Same treatment inside the games TableView's title column. */
+.table-cell.contains-me {
+  -fx-text-fill: #ffb74d;
+  -fx-font-weight: bold;
+}
+
 .table-row-cell {
   -fx-border-color: null;
   -fx-border-width: 0;

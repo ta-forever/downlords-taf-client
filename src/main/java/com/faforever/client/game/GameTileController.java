@@ -264,6 +264,28 @@ public class GameTileController implements Controller<Node> {
       gameTitleLabel.textProperty().bind(game.titleProperty());
     }
 
+    // Highlight the whole title when the current player's name appears
+    // in it — helps the user spot their own game at a glance in the
+    // custom-games list (especially tournament titles which carry
+    // "[T] X vs Y" patterns). CSS class is styled in style.css via
+    // `.card-title.contains-me`.
+    String currentUser = playerService.getCurrentPlayer()
+        .map(Player::getUsername).orElse(null);
+    if (currentUser != null) {
+      Runnable applyHighlight = () -> {
+        String t = gameTitleLabel.getText();
+        boolean hit = t != null
+            && t.toLowerCase(java.util.Locale.ROOT)
+                .contains(currentUser.toLowerCase(java.util.Locale.ROOT));
+        gameTitleLabel.getStyleClass().remove("contains-me");
+        if (hit) {
+          gameTitleLabel.getStyleClass().add("contains-me");
+        }
+      };
+      applyHighlight.run();
+      gameTitleLabel.textProperty().addListener((obs, oldV, newV) -> applyHighlight.run());
+    }
+
     hostLabel.setText(game.getHost());
     JavaFxUtil.bind(gameMapLabel.textProperty(), game.mapNameProperty());
     gameMapLabel.visibleProperty().bind(

@@ -695,15 +695,20 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
     ));
   }
 
-  // Light list query — only the toOne relationships needed by the list cell, the
-  // header / settings grid, and the placement-avatar prize badges. The bracket,
-  // participants, planned maps, placements and standings are loaded on demand
-  // by getTournamentById() when a row is selected. The previous heavy include
-  // pulled the entire bracket graph for every tournament on every list refresh
-  // (~15k–30k entity rows for a few dozen tournaments) — most of which was
-  // immediately discarded because the user only ever drills into one row.
+  // Light list query — only the toOne relationships needed by the list cell
+  // and the mod/format filter dropdown. The bracket, participants, planned
+  // maps, placements, standings, and prize avatars are loaded on demand by
+  // getTournamentById() when a row is selected.
+  //
+  // Previously included winnerAvatar/secondPlaceAvatar/thirdPlaceAvatar here,
+  // which was a major perf trap: the Avatar entity has a @OneToMany back-ref
+  // to AvatarAssignment, and the standard winner/second-place medals have
+  // thousands of assignments (every player who ever placed). Elide serialises
+  // that whole relationship array into every tournament-list response (18
+  // tournaments × 2-3 shared avatars × 3k assignment ids ≈ 300 KB / 5 s).
+  // Detail view keeps them because it only fetches one tournament at a time.
   private static final String TOURNAMENT_LIST_INCLUDES =
-      "featuredMod,leaderboard,mapPool,winnerAvatar,secondPlaceAvatar,thirdPlaceAvatar";
+      "featuredMod,leaderboard,mapPool";
   // Full graph — for the detail pane (bracket, planned maps, standings, placements).
   private static final String TOURNAMENT_DETAIL_INCLUDES =
       "participants,participants.player," +

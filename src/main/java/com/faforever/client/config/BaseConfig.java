@@ -36,8 +36,14 @@ public class BaseConfig {
   private static class DeadEventHandler {
     @Subscribe
     public void onDeadEvent(DeadEvent deadEvent) {
+      // Debug, not warn: Spring lazily instantiates controllers on
+      // first page navigation, so any eventBus.post() before that page
+      // has been opened produces a DeadEvent. E.g. a server-driven
+      // RefreshTournamentsEvent arrives at login but the Tournaments
+      // tab hasn't been opened yet, so no subscriber is registered.
+      // That's expected behaviour, not an error.
       Object unhandledEvent = deadEvent.getEvent();
-      log.warn("No event handler registered for event of type '{}'", unhandledEvent.getClass().getSimpleName());
+      log.debug("No event handler registered for event of type '{}'", unhandledEvent.getClass().getSimpleName());
     }
   }
 }

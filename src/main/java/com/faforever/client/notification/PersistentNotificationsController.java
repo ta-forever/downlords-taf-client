@@ -57,7 +57,9 @@ public class PersistentNotificationsController implements Controller<Node> {
     JavaFxUtil.runLater(() -> {
       ObservableList<Node> children = persistentNotificationsRoot.getChildren();
       children.remove(noNotificationsLabel);
-      children.add(controller.getRoot());
+      // Prepend so newest notifications appear at the top of the
+      // bell panel — reading order, latest first.
+      children.add(0, controller.getRoot());
 
       playNotificationSound(notification);
     });
