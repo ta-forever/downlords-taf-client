@@ -260,12 +260,12 @@ public class GalaxyViewController extends AbstractViewController<Node> {
           i18n.get("galacticWar.settings.captureScheduleValue",
               s.getDominanceDecayPeriod(),
               s.getDominanceDecayThresholds().stream()
-                  .map(v -> String.format("%.1fx", v))
+                  .map(v -> String.format("%.2fx", v))
                   .collect(java.util.stream.Collectors.joining(" \u2192 "))));
     } else {
       row = addSettingRow(generalGrid, row, i18n.get("galacticWar.settings.captureThreshold"),
           s.getDominanceThreshold() != null
-              ? String.format("%.1fx", s.getDominanceThreshold()) : "3.0x");
+              ? String.format("%.2fx", s.getDominanceThreshold()) : "3.00x");
     }
 
     if (s.getUpdateCrontab() != null && !s.getUpdateCrontab().isBlank()) {
