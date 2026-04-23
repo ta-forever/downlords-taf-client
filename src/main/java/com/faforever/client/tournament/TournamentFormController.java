@@ -180,18 +180,27 @@ public class TournamentFormController implements Controller<Node> {
     }
 
     // Leaderboard combo (for seeding rating)
+    // Display the (i18n'd) nameKey — production hijacks that field to
+    // hold a human-readable string, and i18n.get() falls back to the
+    // key verbatim when no translation exists (same behaviour as the
+    // Leaderboards tab). technicalName is kept only as a last-resort
+    // fallback for leaderboards with a missing nameKey.
+    java.util.function.Function<com.faforever.client.leaderboard.Leaderboard, String> displayName =
+        lb -> lb.getNameKey() != null && !lb.getNameKey().isBlank()
+            ? i18n.get(lb.getNameKey())
+            : lb.getTechnicalName();
     leaderboardCombo.setCellFactory(lv -> new ListCell<com.faforever.client.leaderboard.Leaderboard>() {
       @Override protected void updateItem(com.faforever.client.leaderboard.Leaderboard item, boolean empty) {
         super.updateItem(item, empty);
         if (empty || item == null) { setText("(Default)"); return; }
-        setText(item.getTechnicalName());
+        setText(displayName.apply(item));
       }
     });
     leaderboardCombo.setButtonCell(leaderboardCombo.getCellFactory().call(null));
     fafService.getLeaderboards().thenAccept(lbs -> JavaFxUtil.runLater(() -> {
       leaderboardCombo.getItems().add(null);
       lbs.stream()
-          .sorted(Comparator.comparing(com.faforever.client.leaderboard.Leaderboard::getTechnicalName,
+          .sorted(Comparator.comparing(displayName,
               Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
           .forEach(leaderboardCombo.getItems()::add);
       if (mode == Mode.CREATE) {
