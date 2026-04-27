@@ -54,6 +54,7 @@ public class PlayController extends AbstractViewController<Node> implements Disp
   public HBox gameChatContainer;
   public VBox userListContainer;
   public ScrollPane gameDetailContainer;
+  public VBox gameDetailWrapper;
   public Node mainChatUserListContainer;
 
   private CustomGamesController customGamesController;
@@ -83,6 +84,12 @@ public class PlayController extends AbstractViewController<Node> implements Disp
     gameDetailContainer.setContent(gameDetailController.getRoot());
     JavaFxUtil.bindManagedToVisible(gameDetailContainer);
     gameDetailContainer.setVisible(false);
+    // Wrapper follows the ScrollPane: when no game is selected, the
+    // ScrollPane goes invisible+unmanaged via setFocusedGame, and we
+    // want the whole 250px-pinned column to collapse with it instead
+    // of leaving an empty void on the right at first load.
+    gameDetailWrapper.visibleProperty().bind(gameDetailContainer.visibleProperty());
+    JavaFxUtil.bindManagedToVisible(gameDetailWrapper);
     JavaFxUtil.bindManagedToVisible(gameChatContainer);
 
     gameService.getCurrentGameProperty().addListener((obs, oldValue, newValue) -> {

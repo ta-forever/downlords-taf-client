@@ -20,8 +20,18 @@
                 </HBox>
             </SplitPane>
         </SplitPane>
-        <VBox HBox.hgrow="NEVER">
-            <ScrollPane fx:id="gameDetailContainer" fitToWidth="TRUE" prefWidth="250" VBox.Vgrow="ALWAYS" styleClass="game-detail-framed" />
+        <!-- Pin the detail panel's width with both min and pref so it
+             can't be squeezed below the 250px reading width when the
+             games-table column minimums sum higher than the available
+             window width. Without minWidth, HBox shrinks hgrow=NEVER
+             children to USE_COMPUTED_SIZE (~tiny) when the layout is
+             tight, which made the panel look broken at lower resolutions.
+             gameDetailWrapper.visible/managed is bound in PlayController
+             to the inner ScrollPane's visible state, so the whole 250px
+             column collapses when no game is selected (no empty void
+             on first load). -->
+        <VBox fx:id="gameDetailWrapper" minWidth="250" prefWidth="250" HBox.hgrow="NEVER">
+            <ScrollPane fx:id="gameDetailContainer" fitToWidth="TRUE" minWidth="250" prefWidth="250" VBox.vgrow="ALWAYS" styleClass="game-detail-framed" />
         </VBox>
     </HBox>
 </StackPane>
