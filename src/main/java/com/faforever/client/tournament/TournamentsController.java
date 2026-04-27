@@ -34,6 +34,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -71,6 +72,15 @@ public class TournamentsController extends AbstractViewController<Node> {
   private final PlayerService playerService;
   private final GameService gameService;
   private final PlatformService platformService;
+  // Check-in notification handling moved to TournamentCheckInNotifier
+  // so it fires before the Tournaments tab is opened (this controller
+  // is lazy-loaded). No NotificationService dependency needed here.
+  /** Mutable container in the title row that holds the Sign Up / Withdraw
+   *  / Check In buttons. Kept as a field because the buttons depend on
+   *  the FULL tournament bean (participants list), and the title row is
+   *  rendered before the full bean loads — we need to patch the buttons
+   *  in place once the heavy fetch completes. */
+  private HBox signupActionBox;
   /** Container for the team panel rendered in the detail pane (team tournaments only). */
   private VBox teamPanel;
   /** Tracked listeners so we can deregister them when the panel is rebuilt,
@@ -208,6 +218,13 @@ public class TournamentsController extends AbstractViewController<Node> {
     // pause the Timeline and hide the label (rather than removing the
     // scene-graph node) so the matching timer_restarted listener can
     // show it again in place — no structural churn to the bracket row.
+    // Tournament check-in required: handled by TournamentCheckInNotifier
+    // (a singleton bean, eagerly constructed at app start). Putting it
+    // there instead of here is necessary because this controller is
+    // lazy-instantiated when the user first opens the Tournaments tab —
+    // a check-in nag pushed on login replay would otherwise hit a
+    // client with no listener registered and be silently dropped.
+
     fafService.addOnMessageListener(
         com.faforever.client.remote.domain.TournamentTimerStoppedMessage.class,
         msg -> JavaFxUtil.runLater(() -> {
@@ -891,47 +908,18 @@ public class TournamentsController extends AbstractViewController<Node> {
     HBox.setHgrow(title, Priority.ALWAYS);
     titleRow.getChildren().add(title);
 
-    boolean canSignup = tournamentBean.isOpenForSignup()
-        && tournamentBean.getStatus() == TournamentBean.Status.OPEN_FOR_REGISTRATION;
-    if (canSignup) {
-      Button signup = new Button(i18n.get("tournament.signup"));
-      signup.getStyleClass().add("team-btn-primary");
-      signup.setOnAction(e -> {
-        String id = tournamentBean.getId();
-        if (id != null) fafService.tournamentSignup(Integer.parseInt(id));
-      });
-      Button withdraw = new Button(i18n.get("tournament.withdraw"));
-      withdraw.setOnAction(e -> {
-        String id = tournamentBean.getId();
-        if (id != null) fafService.tournamentWithdraw(Integer.parseInt(id));
-      });
-      titleRow.getChildren().addAll(signup, withdraw);
-    }
-    // Creator actions: Start / Cancel / Edit — only for the player who
-    // created this tournament, and only while it's in a manageable state.
-    int currentPlayerId = playerService.getCurrentPlayer()
-        .map(p -> p.getId()).orElse(-1);
-    boolean isCreator = tournamentBean.isPlayerCreated()
-        && tournamentBean.getCreatedByPlayerId() != null
-        && tournamentBean.getCreatedByPlayerId() == currentPlayerId;
-    if (isCreator) {
-      String tid = tournamentBean.getId();
-      int tidInt = tid != null ? Integer.parseInt(tid) : 0;
-      if ("pending".equals(tournamentBean.getApiState())) {
-        Button startBtn = new Button(i18n.get("tournament.start"));
-        startBtn.getStyleClass().add("team-btn-primary");
-        startBtn.setOnAction(e -> { if (tidInt > 0) fafService.tournamentStart(tidInt); });
-        Button editBtn = new Button(i18n.get("tournament.edit"));
-        editBtn.setOnAction(e -> showEditDialog(tournamentBean));
-        Button cancelBtn = new Button(i18n.get("tournament.cancel"));
-        cancelBtn.setOnAction(e -> { if (tidInt > 0) fafService.tournamentCancel(tidInt); });
-        titleRow.getChildren().addAll(startBtn, editBtn, cancelBtn);
-      } else if ("underway".equals(tournamentBean.getApiState())) {
-        Button cancelBtn = new Button(i18n.get("tournament.cancel"));
-        cancelBtn.setOnAction(e -> { if (tidInt > 0) fafService.tournamentCancel(tidInt); });
-        titleRow.getChildren().add(cancelBtn);
-      }
-    }
+    // Empty container for the title-row action buttons (Sign Up / Withdraw /
+    // Check In / Start / Edit / Cancel). updateSignupAction populates it
+    // based on the bean. We add it to the title row now so layout is stable,
+    // and re-populate once the full bean arrives — the list-query bean
+    // used by renderHeader doesn't include the participants relationship
+    // OR the createdBy relationship, so both the membership check (Sign
+    // Up vs Withdraw) and the creator check (Start/Edit/Cancel) would
+    // always come up empty on first render.
+    signupActionBox = new HBox(8);
+    signupActionBox.setAlignment(Pos.CENTER_LEFT);
+    titleRow.getChildren().add(signupActionBox);
+    updateSignupAction(tournamentBean);
 
     javafx.scene.control.CheckBox utcToggle = new javafx.scene.control.CheckBox(i18n.get("tournament.detail.showInUtc"));
     utcToggle.setSelected(displayTimesAsUtc);
@@ -965,12 +953,95 @@ public class TournamentsController extends AbstractViewController<Node> {
   }
 
   /**
+   * (Re-)populate the title-row action HBox. Holds Sign Up / Withdraw /
+   * Check In (membership-driven) plus the creator buttons (Start / Edit
+   * / Cancel). Called from renderHeader (with the shallow list-query
+   * bean) and again from renderHeavySections (with the full bean). The
+   * first call covers what the light bean already knows; the second
+   * corrects everything once participants and createdBy are available
+   * — both relationships are excluded from the list query and would
+   * otherwise read as null.
+   */
+  private void updateSignupAction(TournamentBean tournamentBean) {
+    if (signupActionBox == null) return;
+    signupActionBox.getChildren().clear();
+
+    boolean inCheckIn = tournamentBean.getStatus() == TournamentBean.Status.CHECK_IN;
+    boolean signupsAccepted = (tournamentBean.isOpenForSignup()
+        && tournamentBean.getStatus() == TournamentBean.Status.OPEN_FOR_REGISTRATION)
+        || inCheckIn;
+    String currentLogin = playerService.getCurrentPlayer()
+        .map(p -> p.getUsername()).orElse(null);
+
+    if (signupsAccepted) {
+      boolean alreadySignedUp = currentLogin != null
+          && tournamentBean.getParticipantNames() != null
+          && tournamentBean.getParticipantNames().contains(currentLogin);
+      if (alreadySignedUp) {
+        Button withdraw = new Button(i18n.get("tournament.withdraw"));
+        withdraw.setOnAction(e -> {
+          String id = tournamentBean.getId();
+          if (id != null) fafService.tournamentWithdraw(Integer.parseInt(id));
+        });
+        signupActionBox.getChildren().add(withdraw);
+        if (inCheckIn && !tournamentBean.getCheckedInParticipantNames().contains(currentLogin)) {
+          Button checkIn = new Button(i18n.get("tournament.checkIn"));
+          checkIn.getStyleClass().add("team-btn-primary");
+          checkIn.setOnAction(e -> {
+            String id = tournamentBean.getId();
+            if (id != null) fafService.tournamentCheckIn(Integer.parseInt(id));
+          });
+          signupActionBox.getChildren().add(checkIn);
+        }
+      } else {
+        Button signup = new Button(i18n.get("tournament.signup"));
+        signup.getStyleClass().add("team-btn-primary");
+        signup.setOnAction(e -> {
+          String id = tournamentBean.getId();
+          if (id != null) fafService.tournamentSignup(Integer.parseInt(id));
+        });
+        signupActionBox.getChildren().add(signup);
+      }
+    }
+
+    // Creator actions. Lives in the same box so the second call reliably
+    // re-renders these too once createdByPlayerId is populated by the
+    // full fetch (the list-query bean has it as null).
+    int currentPlayerId = playerService.getCurrentPlayer()
+        .map(p -> p.getId()).orElse(-1);
+    boolean isCreator = tournamentBean.isPlayerCreated()
+        && tournamentBean.getCreatedByPlayerId() != null
+        && tournamentBean.getCreatedByPlayerId() == currentPlayerId;
+    if (isCreator) {
+      String tid = tournamentBean.getId();
+      int tidInt = tid != null ? Integer.parseInt(tid) : 0;
+      String state = tournamentBean.getApiState();
+      if ("pending".equals(state) || "check_in".equals(state)) {
+        Button startBtn = new Button(i18n.get("tournament.start"));
+        startBtn.getStyleClass().add("team-btn-primary");
+        startBtn.setOnAction(e -> { if (tidInt > 0) fafService.tournamentStart(tidInt); });
+        Button editBtn = new Button(i18n.get("tournament.edit"));
+        editBtn.setOnAction(e -> showEditDialog(tournamentBean));
+        Button cancelBtn = new Button(i18n.get("tournament.cancel"));
+        cancelBtn.setOnAction(e -> { if (tidInt > 0) fafService.tournamentCancel(tidInt); });
+        signupActionBox.getChildren().addAll(startBtn, editBtn, cancelBtn);
+      } else if ("underway".equals(state)) {
+        Button cancelBtn = new Button(i18n.get("tournament.cancel"));
+        cancelBtn.setOnAction(e -> { if (tidInt > 0) fafService.tournamentCancel(tidInt); });
+        signupActionBox.getChildren().add(cancelBtn);
+      }
+    }
+  }
+
+  /**
    * Append bracket / participants sections to the detail pane after the
    * heavy getTournamentById fetch resolves. Replaces the {@link #currentTournament}
    * reference with the full bean so populateGameList sees the matches.
    */
   private void renderHeavySections(TournamentBean fullBean) {
     currentTournament = fullBean;
+    // Patch the title-row buttons now that we know participant membership.
+    updateSignupAction(fullBean);
     userNextMatchId = computeUserNextMatchId(fullBean);
     selectedMatchId = userNextMatchId;
     matchNodes.clear();
@@ -1038,6 +1109,7 @@ public class TournamentsController extends AbstractViewController<Node> {
   private String statusText(TournamentBean t) {
     TournamentBean.Status status = t.getStatus();
     if (status == TournamentBean.Status.RUNNING) return i18n.get("tournament.status.running");
+    if (status == TournamentBean.Status.CHECK_IN) return i18n.get("tournament.status.checkIn");
     if (status == TournamentBean.Status.OPEN_FOR_REGISTRATION) return i18n.get("tournament.status.openForSignup");
     if (status == TournamentBean.Status.FINISHED) return i18n.get("tournament.status.complete");
     if (status == TournamentBean.Status.CANCELLED) return i18n.get("tournament.status.cancelled");
@@ -1047,6 +1119,7 @@ public class TournamentsController extends AbstractViewController<Node> {
   private String statusStyleClass(TournamentBean t) {
     TournamentBean.Status status = t.getStatus();
     if (status == TournamentBean.Status.RUNNING) return "status-underway";
+    if (status == TournamentBean.Status.CHECK_IN) return "status-underway";
     if (status == TournamentBean.Status.OPEN_FOR_REGISTRATION) return "status-pending";
     return "status-complete";
   }
@@ -1399,6 +1472,23 @@ public class TournamentsController extends AbstractViewController<Node> {
     if ("pending".equals(apiState) && scheduledAt != null) {
       addSettingRow(grid, row++, i18n.get("tournament.detail.startsAt"), formatTournamentDateTime(scheduledAt));
     }
+    if ("check_in".equals(apiState) && scheduledAt != null) {
+      addSettingRow(grid, row++, i18n.get("tournament.detail.startsAt"), formatTournamentDateTime(scheduledAt));
+    }
+    // Pre-start check-in window opens at scheduled - check_in_minutes. Show
+    // it on PENDING (so signups know when they need to check in) and on
+    // CHECK_IN (so they can see the window already opened — useful if they
+    // joined late). Once the tournament is UNDERWAY the window is moot.
+    if (t.getCheckInMinutes() > 0
+        && scheduledAt != null
+        && ("pending".equals(apiState) || "check_in".equals(apiState))) {
+      java.time.OffsetDateTime checkInOpensAt = scheduledAt.minusMinutes(t.getCheckInMinutes());
+      addSettingRow(grid, row++,
+          i18n.get("tournament.detail.checkInOpensAt"),
+          formatTournamentDateTime(checkInOpensAt),
+          "settings-highlight",
+          i18n.get("tournament.detail.checkInOpensAt.tooltip"));
+    }
     if ("underway".equals(apiState) && scheduledAt != null) {
       addSettingRow(grid, row++, i18n.get("tournament.detail.startedAt"), formatTournamentDateTime(scheduledAt));
     }
@@ -1457,11 +1547,33 @@ public class TournamentsController extends AbstractViewController<Node> {
   }
 
   private void addSettingRow(GridPane grid, int row, String label, String value) {
+    addSettingRow(grid, row, label, value, null, null);
+  }
+
+  /**
+   * Variant that adds an extra CSS class to both the label and value
+   * (useful for highlighting urgent rows like the check-in window) and
+   * installs a tooltip on the value cell that explains what's at stake.
+   */
+  private void addSettingRow(GridPane grid, int row, String label, String value,
+                             String extraStyleClass, String tooltipText) {
     Label l = new Label(label);
     l.getStyleClass().add("settings-label");
     Label v = new Label(value);
     v.getStyleClass().add("settings-value");
     v.setWrapText(true);
+    if (extraStyleClass != null) {
+      l.getStyleClass().add(extraStyleClass);
+      v.getStyleClass().add(extraStyleClass);
+    }
+    if (tooltipText != null) {
+      javafx.scene.control.Tooltip tip = new javafx.scene.control.Tooltip(tooltipText);
+      tip.setShowDelay(javafx.util.Duration.millis(300));
+      tip.setWrapText(true);
+      tip.setMaxWidth(360);
+      javafx.scene.control.Tooltip.install(l, tip);
+      javafx.scene.control.Tooltip.install(v, tip);
+    }
     grid.add(l, 0, row);
     grid.add(v, 1, row);
   }
@@ -1571,6 +1683,7 @@ public class TournamentsController extends AbstractViewController<Node> {
     scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
     scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
 
+    List<AnchorPane> roundPanes = new ArrayList<>();
     for (int roundNum : roundNumbers) {
       List<TournamentBean.MatchInfo> roundMatches = new ArrayList<>();
       for (TournamentBean.MatchInfo m : allMatches) {
@@ -1578,10 +1691,48 @@ public class TournamentsController extends AbstractViewController<Node> {
       }
       if (roundMatches.isEmpty()) continue;
       String role = roundMatches.get(0).getRole();
-      row.getChildren().add(
-          buildRoundColumn(labelForRole(role, roundNum), roundMatches, ratings, placementAvatars, prizeAvatars, scroll));
+      VBox col = buildRoundColumn(labelForRole(role, roundNum), roundMatches, ratings, placementAvatars, prizeAvatars, scroll);
+      row.getChildren().add(col);
+      roundPanes.add((AnchorPane) col.getChildren().get(1));
+    }
+    if (!roundPanes.isEmpty()) {
+      scheduleBracketLayout(roundPanes);
     }
     return scroll;
+  }
+
+  /**
+   * Runs {@link #layoutBracketCenters} once each match has its rendered
+   * height. Heights aren't reliably available until after JavaFX has applied
+   * CSS and run a layout pass on the freshly-built panes, and that can take
+   * one or two pulses depending on when buildBracketRow was invoked. So we
+   * attach a one-shot listener to each match's heightProperty: as soon as
+   * every match has a non-zero height we run the centring pass. We also
+   * re-run on later height changes (countdown labels hiding, prize rows
+   * appearing) so positions stay aligned.
+   */
+  private void scheduleBracketLayout(List<AnchorPane> roundPanes) {
+    final boolean[] scheduled = {false};
+    Runnable trigger = () -> {
+      if (scheduled[0]) return;
+      scheduled[0] = true;
+      JavaFxUtil.runLater(() -> {
+        scheduled[0] = false;
+        layoutBracketCenters(roundPanes);
+      });
+    };
+    for (AnchorPane p : roundPanes) {
+      for (Node n : p.getChildren()) {
+        if (n instanceof Region region) {
+          region.heightProperty().addListener((obs, ov, nv) -> {
+            if (nv != null && nv.doubleValue() > 0) trigger.run();
+          });
+        }
+      }
+    }
+    // Also fire once after the initial layout pass, in case all heights are
+    // already populated (subsequent navigations to the same tournament).
+    JavaFxUtil.runLater(trigger);
   }
 
   private VBox buildRoundColumn(String roundLabel,
@@ -1597,11 +1748,113 @@ public class TournamentsController extends AbstractViewController<Node> {
     header.getStyleClass().add("bracket-round-label");
     column.getChildren().add(header);
 
+    AnchorPane matchesPane = new AnchorPane();
+    matchesPane.getStyleClass().add("bracket-round-matches");
+    matchesPane.setMaxWidth(Double.MAX_VALUE);
+    matchesPane.setMinHeight(0);
     for (TournamentBean.MatchInfo m : roundMatches) {
       String[] badges = badgesForRole(m.getRole(), prizeAvatars);
-      column.getChildren().add(buildMatchNode(m, ratings, placementAvatars, badges, bracketScroll));
+      Node matchNode = buildMatchNode(m, ratings, placementAvatars, badges, bracketScroll);
+      AnchorPane.setLeftAnchor(matchNode, 0.0);
+      AnchorPane.setRightAnchor(matchNode, 0.0);
+      matchesPane.getChildren().add(matchNode);
     }
+    column.getChildren().add(matchesPane);
     return column;
+  }
+
+  /**
+   * Position matches inside each round column so that round-N matches vertically
+   * straddle the two round-(N-1) matches whose winners feed into them. Pairing
+   * is by display order: match at index i in round N has parents at indices 2i
+   * and 2i+1 in round N-1. With byes (missing parents), we align with the
+   * remaining parent or stack below the previous match. For losers brackets the
+   * topology is more complex than display-order pairing — the result there is
+   * approximate, but never worse than the old straight stacking.
+   */
+  private void layoutBracketCenters(List<AnchorPane> roundPanes) {
+    final double SPACING = 6.0;
+
+    // Force CSS + layout so child match heights are populated.
+    for (AnchorPane p : roundPanes) {
+      p.applyCss();
+      p.layout();
+    }
+
+    double[] heights0 = measureHeights(roundPanes.get(0));
+
+    // First displayed round: stack matches with uniform spacing.
+    AnchorPane firstPane = roundPanes.get(0);
+    double y = 0;
+    for (int i = 0; i < firstPane.getChildren().size(); i++) {
+      Node match = firstPane.getChildren().get(i);
+      match.setLayoutY(y);
+      y += heights0[i] + SPACING;
+    }
+    double firstBottom = Math.max(0, y - SPACING);
+    firstPane.setMinHeight(firstBottom);
+    firstPane.setPrefHeight(firstBottom);
+
+    double[] prevHeights = heights0;
+
+    // Subsequent rounds: each match centred between its two display-order parents.
+    for (int r = 1; r < roundPanes.size(); r++) {
+      AnchorPane prev = roundPanes.get(r - 1);
+      AnchorPane curr = roundPanes.get(r);
+      List<Node> prevMatches = prev.getChildren();
+      List<Node> currMatches = curr.getChildren();
+      double[] currHeights = measureHeights(curr);
+
+      double cumulativeBottom = 0;
+      for (int i = 0; i < currMatches.size(); i++) {
+        Node match = currMatches.get(i);
+        double h = currHeights[i];
+        int p1Idx = 2 * i;
+        int p2Idx = 2 * i + 1;
+        double targetY;
+        if (p1Idx < prevMatches.size() && p2Idx < prevMatches.size()) {
+          double c1 = prevMatches.get(p1Idx).getLayoutY() + prevHeights[p1Idx] / 2;
+          double c2 = prevMatches.get(p2Idx).getLayoutY() + prevHeights[p2Idx] / 2;
+          targetY = (c1 + c2) / 2 - h / 2;
+        } else if (p1Idx < prevMatches.size()) {
+          targetY = prevMatches.get(p1Idx).getLayoutY() + prevHeights[p1Idx] / 2 - h / 2;
+        } else {
+          targetY = (i == 0) ? 0 : cumulativeBottom + SPACING;
+        }
+        double minY = (i == 0) ? 0 : cumulativeBottom + SPACING;
+        if (targetY < minY) targetY = minY;
+        match.setLayoutY(targetY);
+        cumulativeBottom = targetY + h;
+      }
+      curr.setMinHeight(cumulativeBottom);
+      curr.setPrefHeight(cumulativeBottom);
+      prevHeights = currHeights;
+    }
+  }
+
+  /**
+   * Snapshot the rendered height of each match. By the time scheduleBracketLayout
+   * fires us, each match has been through a full layout pass so getHeight()
+   * is the actual on-screen height. Prefer that over prefHeight() — prefHeight
+   * underestimates when CSS-driven padding/font on deeply-nested player slots
+   * hasn't fully cascaded, which is exactly the bug that caused round-1
+   * matches to overlap on the first attempt.
+   */
+  private double[] measureHeights(AnchorPane pane) {
+    List<Node> kids = pane.getChildren();
+    double[] heights = new double[kids.size()];
+    for (int i = 0; i < kids.size(); i++) {
+      Node n = kids.get(i);
+      double h = 0;
+      if (n instanceof Region region) {
+        h = region.getHeight();
+        if (h <= 0) h = region.prefHeight(-1);
+      }
+      if (h <= 0) h = n.getLayoutBounds().getHeight();
+      if (h <= 0) h = 40;
+      heights[i] = h;
+    }
+    return heights;
   }
 
   /**
@@ -1802,9 +2055,31 @@ public class TournamentsController extends AbstractViewController<Node> {
       }
     }
 
+    // No-show reputation badge — only when the player has actually missed
+    // tournaments. A clean record stays unlabelled to avoid noise. Pulls
+    // from the current tournament since this slot only ever renders for
+    // the displayed tournament's bracket.
+    TournamentBean.ReputationInfo rep = (playerName != null && currentTournament != null
+        && currentTournament.getParticipantReputations() != null)
+        ? currentTournament.getParticipantReputations().get(playerName) : null;
+    String repBadge = formatReputationBadge(rep);
+    if (repBadge != null) {
+      Label repLabel = new Label(repBadge);
+      repLabel.getStyleClass().addAll("bracket-player-rating", "bracket-player-reputation");
+      slot.getChildren().add(repLabel);
+    }
+
     // Tooltip with full untruncated name + rating so nothing is lost
-    // when the bracket column is too narrow for long usernames.
+    // when the bracket column is too narrow for long usernames. Append
+    // the reputation breakdown so the bare "(N/M)" badge is decodable.
     if (tooltipText != null) {
+      if (rep != null && rep.getSignupCount() > 0) {
+        int shows = Math.max(0, rep.getSignupCount()
+            - rep.getNoCheckInCount() - rep.getMatchForfeitCount());
+        tooltipText = tooltipText + "\n" + i18n.get("tournament.participant.reputation",
+            shows, rep.getSignupCount(),
+            rep.getNoCheckInCount(), rep.getMatchForfeitCount());
+      }
       javafx.scene.control.Tooltip tip = new javafx.scene.control.Tooltip(tooltipText);
       tip.setShowDelay(javafx.util.Duration.millis(300));
       javafx.scene.control.Tooltip.install(slot, tip);
@@ -2032,14 +2307,80 @@ public class TournamentsController extends AbstractViewController<Node> {
     flow.setVgap(2);
 
     Map<String, Integer> ratings = tournament.getParticipantRatings();
+    boolean inCheckIn = tournament.getStatus() == TournamentBean.Status.CHECK_IN;
+    java.util.Set<String> checkedIn = tournament.getCheckedInParticipantNames();
+    java.util.Map<String, TournamentBean.ReputationInfo> reps = tournament.getParticipantReputations();
     for (String name : tournament.getParticipantNames()) {
       Integer rating = ratings != null ? ratings.get(name) : null;
-      Label l = new Label(rating != null ? name + " (" + rating + ")" : name);
+      // Compose the visible string. Check-in tick comes first so the eye
+      // catches it; rating in the middle as before; reputation badge on
+      // the right so a clean (low-no-show) record stays visually quiet.
+      StringBuilder text = new StringBuilder();
+      if (inCheckIn) {
+        text.append(checkedIn.contains(name) ? "✓ " : "· ");
+      }
+      text.append(name);
+      if (rating != null) text.append(" (").append(rating).append(")");
+      String repBadge = formatReputationBadge(reps != null ? reps.get(name) : null);
+      if (repBadge != null) text.append(" ").append(repBadge);
+
+      Label l = new Label(text.toString());
       l.getStyleClass().add("participant-entry");
+      if (inCheckIn) {
+        l.getStyleClass().add(checkedIn.contains(name)
+            ? "participant-checked-in" : "participant-unchecked-in");
+      }
+      String tooltip = buildReputationTooltip(name, reps != null ? reps.get(name) : null,
+          inCheckIn ? checkedIn.contains(name) : null);
+      if (tooltip != null) {
+        javafx.scene.control.Tooltip tip = new javafx.scene.control.Tooltip(tooltip);
+        tip.setShowDelay(javafx.util.Duration.millis(300));
+        javafx.scene.control.Tooltip.install(l, tip);
+      }
       flow.getChildren().add(l);
     }
     container.getChildren().add(flow);
     return container;
+  }
+
+  /**
+   * Compact "(showed/total)" badge — positive framing of the no-show
+   * counter. "shows" = signups - no_check_ins - match_forfeits. Always
+   * shown when the player has any signup history; a clean 5/5 is a
+   * useful trust signal, not visual noise. Returns null only when
+   * signup_count is zero (the player is new — nothing to say yet).
+   */
+  private String formatReputationBadge(TournamentBean.ReputationInfo rep) {
+    if (rep == null) return null;
+    int signups = rep.getSignupCount();
+    if (signups <= 0) return null;
+    // Clamp at 0 in case the no-show counters somehow over-count
+    // (shouldn't happen but a negative ratio would be very confusing).
+    int shows = Math.max(0, signups - rep.getNoCheckInCount() - rep.getMatchForfeitCount());
+    return "(" + shows + "/" + signups + ")";
+  }
+
+  /**
+   * Tooltip text combining check-in status (during CHECK_IN) and the
+   * full no-show breakdown. Returns null when there's nothing useful to
+   * show — keeps the tooltip from popping up for clean players outside
+   * the check-in window.
+   */
+  private String buildReputationTooltip(String name, TournamentBean.ReputationInfo rep, Boolean checkedIn) {
+    StringBuilder sb = new StringBuilder();
+    if (checkedIn != null) {
+      sb.append(checkedIn ? i18n.get("tournament.participant.checkedIn")
+                          : i18n.get("tournament.participant.notCheckedIn"));
+    }
+    if (rep != null && rep.getSignupCount() > 0) {
+      if (sb.length() > 0) sb.append('\n');
+      int shows = Math.max(0, rep.getSignupCount()
+          - rep.getNoCheckInCount() - rep.getMatchForfeitCount());
+      sb.append(i18n.get("tournament.participant.reputation",
+          shows, rep.getSignupCount(),
+          rep.getNoCheckInCount(), rep.getMatchForfeitCount()));
+    }
+    return sb.length() > 0 ? sb.toString() : null;
   }
 
   /**
@@ -2389,12 +2730,24 @@ public class TournamentsController extends AbstractViewController<Node> {
 
     // Members
     if (members != null) {
+      boolean inCheckIn = tournament.getStatus() == TournamentBean.Status.CHECK_IN;
+      java.util.Set<String> checkedIn = tournament.getCheckedInParticipantNames();
       for (Map<String, Object> m : members) {
         HBox memberRow = new HBox(6);
         memberRow.getStyleClass().add("team-member-row");
         String memberName = String.valueOf(m.getOrDefault("player_name", "?"));
-        Label memberLabel = new Label(memberName);
+        // Mirror the participants-list convention: ✓ for checked-in, · for not.
+        // Only while we're in CHECK_IN — outside that window the indicator
+        // is meaningless and would just add clutter.
+        String displayName = inCheckIn
+            ? (checkedIn.contains(memberName) ? "✓ " : "· ") + memberName
+            : memberName;
+        Label memberLabel = new Label(displayName);
         memberLabel.getStyleClass().add("team-member-name");
+        if (inCheckIn) {
+          memberLabel.getStyleClass().add(checkedIn.contains(memberName)
+              ? "participant-checked-in" : "participant-unchecked-in");
+        }
         memberRow.getChildren().add(memberLabel);
         int memberPid = asInt(m.get("player_id"));
         if (memberPid == captainId) {
@@ -2794,12 +3147,24 @@ public class TournamentsController extends AbstractViewController<Node> {
 
     // Members
     if (members != null) {
+      boolean inCheckIn = tournament.getStatus() == TournamentBean.Status.CHECK_IN;
+      java.util.Set<String> checkedIn = tournament.getCheckedInParticipantNames();
       for (Map<String, Object> m : members) {
         HBox memberRow = new HBox(6);
         memberRow.getStyleClass().add("team-member-row");
         String memberName = String.valueOf(m.getOrDefault("player_name", "?"));
-        Label memberLabel = new Label(memberName);
+        // Mirror the participants-list convention: ✓ for checked-in, · for not.
+        // Only while we're in CHECK_IN — outside that window the indicator
+        // is meaningless and would just add clutter.
+        String displayName = inCheckIn
+            ? (checkedIn.contains(memberName) ? "✓ " : "· ") + memberName
+            : memberName;
+        Label memberLabel = new Label(displayName);
         memberLabel.getStyleClass().add("team-member-name");
+        if (inCheckIn) {
+          memberLabel.getStyleClass().add(checkedIn.contains(memberName)
+              ? "participant-checked-in" : "participant-unchecked-in");
+        }
         memberRow.getChildren().add(memberLabel);
         int memberPid = asInt(m.get("player_id"));
         if (memberPid == captainId) {

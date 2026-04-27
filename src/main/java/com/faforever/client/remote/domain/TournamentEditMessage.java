@@ -19,6 +19,8 @@ public class TournamentEditMessage extends ClientMessage {
   private Integer bestOf;
   @SerializedName("noshow_timeout_minutes")
   private Integer noshowTimeoutMinutes;
+  @SerializedName("check_in_minutes")
+  private Integer checkInMinutes;
   @SerializedName("min_players")
   private Integer minPlayers;
   @SerializedName("featured_mod_id")
@@ -61,6 +63,8 @@ public class TournamentEditMessage extends ClientMessage {
   public void setBestOf(Integer v) { this.bestOf = v; }
   public Integer getNoshowTimeoutMinutes() { return noshowTimeoutMinutes; }
   public void setNoshowTimeoutMinutes(Integer v) { this.noshowTimeoutMinutes = v; }
+  public Integer getCheckInMinutes() { return checkInMinutes; }
+  public void setCheckInMinutes(Integer v) { this.checkInMinutes = v; }
   public Integer getMinPlayers() { return minPlayers; }
   public void setMinPlayers(Integer v) { this.minPlayers = v; }
   public Integer getFeaturedModId() { return featuredModId; }

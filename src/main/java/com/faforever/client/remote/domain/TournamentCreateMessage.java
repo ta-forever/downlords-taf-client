@@ -10,6 +10,8 @@ public class TournamentCreateMessage extends ClientMessage {
   private int bestOf;
   @SerializedName("noshow_timeout_minutes")
   private int noshowTimeoutMinutes;
+  @SerializedName("check_in_minutes")
+  private int checkInMinutes;
   @SerializedName("players_per_side")
   private int playersPerSide;
   @SerializedName("min_players")
@@ -53,6 +55,8 @@ public class TournamentCreateMessage extends ClientMessage {
   public void setBestOf(int bestOf) { this.bestOf = bestOf; }
   public int getNoshowTimeoutMinutes() { return noshowTimeoutMinutes; }
   public void setNoshowTimeoutMinutes(int v) { this.noshowTimeoutMinutes = v; }
+  public int getCheckInMinutes() { return checkInMinutes; }
+  public void setCheckInMinutes(int v) { this.checkInMinutes = v; }
   public int getPlayersPerSide() { return playersPerSide; }
   public void setPlayersPerSide(int v) { this.playersPerSide = v; }
   public int getMinPlayers() { return minPlayers; }

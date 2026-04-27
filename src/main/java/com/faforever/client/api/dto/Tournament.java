@@ -26,6 +26,7 @@ public class Tournament {
   private Integer minRating;
   private Integer maxRating;
   private int noshowTimeoutMinutes;
+  private int checkInMinutes;
   private String formatOptions;
   private OffsetDateTime createdAt;
   private OffsetDateTime startedAt;

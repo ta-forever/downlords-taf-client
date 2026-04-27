@@ -35,6 +35,7 @@ public enum ClientMessageType {
   GALACTIC_WAR_SET_MAP("galactic_war_set_map"),
   TOURNAMENT_SIGNUP("tournament_signup"),
   TOURNAMENT_WITHDRAW("tournament_withdraw"),
+  TOURNAMENT_CHECK_IN("tournament_check_in"),
   TOURNAMENT_CREATE("tournament_create"),
   // Team tournaments — see TournamentTeamService
   TOURNAMENT_TEAM_CREATE("tournament_team_create"),

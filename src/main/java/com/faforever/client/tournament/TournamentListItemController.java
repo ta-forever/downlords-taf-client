@@ -46,5 +46,12 @@ public class TournamentListItemController implements Controller<Node> {
       startingLabel.setText(MessageFormat.format("{0} {1}", timeService.asDate(tournamentBean.getStartingAt()), timeService.asShortTime(tournamentBean.getStartingAt())));
     }
     statusLabel.setText(i18n.get(tournamentBean.getStatus().getMessageKey()));
+    // Strip prior status-specific classes (cell is recycled across items in
+    // the ListView) before applying the current one, so a recycled CHECK_IN
+    // cell doesn't keep its badge after the underlying tournament starts.
+    statusLabel.getStyleClass().removeIf(c -> c.startsWith("tournament-status-badge-"));
+    if (tournamentBean.getStatus() == TournamentBean.Status.CHECK_IN) {
+      statusLabel.getStyleClass().add("tournament-status-badge-check-in");
+    }
   }
 }

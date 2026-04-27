@@ -498,6 +498,28 @@
   -fx-text-fill: -fx-mid-text-color;
 }
 
+/* Badge applied to the tournament-list status label when the tournament
+ * is in CHECK_IN. Filled background + bold so it visibly stands out from
+ * regular grey "Open for registration" / "Running" labels — players need
+ * to act on it now. */
+.tournament-status-badge-check-in {
+  -fx-background-color: -fx-accent;
+  -fx-text-fill: white;
+  -fx-font-weight: bold;
+  -fx-padding: 1 6 1 6;
+  -fx-background-radius: 3;
+}
+
+/* Per-player check-in indicator on the participants list. Subtle —
+ * we don't want the entire list to look loud just because the
+ * tournament happens to be in CHECK_IN. */
+.participant-checked-in   { -fx-text-fill: -good; }
+.participant-unchecked-in { -fx-text-fill: derive(-fx-text-base-color, -35%); }
+/* Reputation badge — neutral colour, the "(shows/signups)" reading is
+ * positive so a perfect record shouldn't visually scream like a forfeit
+ * count would. Detail comes from the tooltip. */
+.bracket-player-reputation { -fx-text-fill: derive(-fx-text-base-color, -25%); }
+
 .news-list .list-cell, .tournament-list .list-cell {
   -fx-padding: 0 0 0 0;
   -fx-background-color: transparent;
@@ -1228,6 +1250,15 @@
 }
 .tournament-detail .settings-grid .settings-value {
   -fx-padding: 2 0 2 0;
+}
+
+/* Highlighted settings row — used for "Check-in opens at" so it visually
+ * pops out of the otherwise muted settings grid. Bold + accent colour
+ * defeats the -25% derive on the default label. */
+.tournament-detail .settings-grid .settings-label.settings-highlight,
+.tournament-detail .settings-grid .settings-value.settings-highlight {
+  -fx-text-fill: -fx-accent;
+  -fx-font-weight: bold;
 }
 
 .tournament-detail .description-label {

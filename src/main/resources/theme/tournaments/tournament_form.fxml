@@ -45,6 +45,11 @@
                     <Label text="%tournament.detail.noshowTimeout" minWidth="120"/>
                     <Spinner fx:id="noshowSpinner" editable="true"/>
                 </HBox>
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="%tournament.create.checkInMinutes" minWidth="120"/>
+                    <Spinner fx:id="checkInMinutesSpinner" editable="true"/>
+                    <Label text="%tournament.create.checkInMinutes.hint"/>
+                </HBox>
                 <!-- Swiss-only rows. managed+visible are toggled together
                      from the controller based on formatCombo's value. -->
                 <HBox fx:id="swissRoundsRow" spacing="8" alignment="CENTER_LEFT" managed="false" visible="false">

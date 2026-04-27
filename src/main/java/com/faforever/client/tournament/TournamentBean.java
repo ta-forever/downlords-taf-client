@@ -35,6 +35,12 @@ public class TournamentBean {
   private final StringProperty apiState;
   private final ObjectProperty<Status> status;
   private List<String> participantNames;
+  /** Logins of participants who have checked in (only meaningful while
+   *  state == CHECK_IN). Empty otherwise. */
+  private java.util.Set<String> checkedInParticipantNames = java.util.Collections.emptySet();
+  /** Per-player no-show reputation. Sourced from the player resource;
+   *  null entries are absent (player record didn't include the counters). */
+  private java.util.Map<String, ReputationInfo> participantReputations = java.util.Collections.emptyMap();
   private java.util.Map<String, Integer> participantRatings;
   private List<MatchInfo> matches;
   private int swissRounds;
@@ -44,6 +50,8 @@ public class TournamentBean {
   private int playersPerSide;
   private int bestOf;
   private int noshowTimeoutMinutes;
+  /** Length of the pre-start check-in window in minutes; 0 = no check-in. */
+  private int checkInMinutes;
   private Integer minRating;
   private Integer maxRating;
   private String featuredModName;            // display name — for UI labels
@@ -83,27 +91,31 @@ public class TournamentBean {
     status = new SimpleObjectProperty<>();
     status.bind(Bindings.createObjectBinding(() -> {
       String state = getApiState();
+      Status result;
       if ("complete".equals(state)) {
-        return Status.FINISHED;
+        result = Status.FINISHED;
       } else if ("cancelled".equals(state)) {
         // Cancelled was previously falling through to the heuristic block
         // below, where a past startingAt would mis-map it to RUNNING and
         // shove it into the In Progress list. Cancelled is a terminal state
         // and should be grouped with completed tournaments.
-        return Status.CANCELLED;
+        result = Status.CANCELLED;
       } else if ("underway".equals(state)) {
-        return Status.RUNNING;
+        result = Status.RUNNING;
+      } else if ("check_in".equals(state)) {
+        result = Status.CHECK_IN;
       } else if ("pending".equals(state)) {
-        return Status.OPEN_FOR_REGISTRATION;
+        result = Status.OPEN_FOR_REGISTRATION;
       } else if (getCompletedAt() != null) {
-        return Status.FINISHED;
+        result = Status.FINISHED;
       } else if (getStartingAt() != null && getStartingAt().isBefore(OffsetDateTime.now())) {
-        return Status.RUNNING;
+        result = Status.RUNNING;
       } else if (isOpenForSignup()) {
-        return Status.OPEN_FOR_REGISTRATION;
+        result = Status.OPEN_FOR_REGISTRATION;
       } else {
-        return Status.CLOSED_FOR_REGISTRATION;
+        result = Status.CLOSED_FOR_REGISTRATION;
       }
+      return result;
     }, apiState, startingAt, completedAt, openForSignup));
   }
 
@@ -136,6 +148,7 @@ public class TournamentBean {
     tournamentBean.setPlayersPerSide(tournament.getPlayersPerSide());
     tournamentBean.setBestOf(tournament.getBestOf());
     tournamentBean.setNoshowTimeoutMinutes(tournament.getNoshowTimeoutMinutes());
+    tournamentBean.setCheckInMinutes(tournament.getCheckInMinutes());
     tournamentBean.setMinRating(tournament.getMinRating());
     tournamentBean.setMaxRating(tournament.getMaxRating());
     if (tournament.getFeaturedMod() != null) {
@@ -198,6 +211,8 @@ public class TournamentBean {
     if (tournament.getParticipants() != null) {
       List<String> names = new ArrayList<>();
       java.util.Map<String, Integer> ratings = new java.util.HashMap<>();
+      java.util.Set<String> checkedIn = new java.util.HashSet<>();
+      java.util.Map<String, ReputationInfo> reps = new java.util.HashMap<>();
       for (TournamentParticipant p : tournament.getParticipants()) {
         if (p.getPlayer() != null && p.getPlayer().getLogin() != null) {
           String name = p.getPlayer().getLogin();
@@ -205,8 +220,18 @@ public class TournamentBean {
           if (p.getRating() != null) {
             ratings.put(name, p.getRating());
           }
+          if (p.getCheckedInAt() != null) {
+            checkedIn.add(name);
+          }
+          com.faforever.client.api.dto.Player pl = p.getPlayer();
+          reps.put(name, new ReputationInfo(
+              pl.getTournamentSignupCount(),
+              pl.getTournamentNoCheckInCount(),
+              pl.getTournamentMatchForfeitCount()));
         }
       }
+      tournamentBean.setCheckedInParticipantNames(checkedIn);
+      tournamentBean.setParticipantReputations(reps);
       Collections.sort(names, String.CASE_INSENSITIVE_ORDER);
       tournamentBean.setParticipantNames(names);
 
@@ -458,6 +483,22 @@ public class TournamentBean {
     this.participantNames = participantNames;
   }
 
+  public java.util.Set<String> getCheckedInParticipantNames() {
+    return checkedInParticipantNames;
+  }
+
+  public void setCheckedInParticipantNames(java.util.Set<String> v) {
+    this.checkedInParticipantNames = v;
+  }
+
+  public java.util.Map<String, ReputationInfo> getParticipantReputations() {
+    return participantReputations;
+  }
+
+  public void setParticipantReputations(java.util.Map<String, ReputationInfo> v) {
+    this.participantReputations = v;
+  }
+
   public java.util.Map<String, Integer> getParticipantRatings() {
     return participantRatings;
   }
@@ -480,6 +521,8 @@ public class TournamentBean {
   public void setBestOf(int bestOf) { this.bestOf = bestOf; }
   public int getNoshowTimeoutMinutes() { return noshowTimeoutMinutes; }
   public void setNoshowTimeoutMinutes(int v) { this.noshowTimeoutMinutes = v; }
+  public int getCheckInMinutes() { return checkInMinutes; }
+  public void setCheckInMinutes(int v) { this.checkInMinutes = v; }
   public Integer getMinRating() { return minRating; }
   public void setMinRating(Integer v) { this.minRating = v; }
   public Integer getMaxRating() { return maxRating; }
@@ -566,12 +609,27 @@ public class TournamentBean {
     return status;
   }
 
+  /** No-show reputation snapshot for one player. ratio() = noCheckIn / signups
+   *  is the headline figure used for the badge next to player names. */
+  @AllArgsConstructor
+  @Getter
+  public static class ReputationInfo {
+    private final int signupCount;
+    private final int noCheckInCount;
+    private final int matchForfeitCount;
+  }
+
   @AllArgsConstructor
   @Getter
   public enum Status {
     FINISHED("tournament.status.finished", 1),
     CANCELLED("tournament.status.cancelled", 1),
     RUNNING("tournament.status.running", 2),
+    // CHECK_IN sits between OPEN_FOR_REGISTRATION and RUNNING in the
+    // priority order so the In-Progress / Upcoming split (sortOrderPriority
+    // >= 2 → In Progress) treats check-in tournaments as "happening now"
+    // rather than "upcoming". Players need to act on them right away.
+    CHECK_IN("tournament.status.checkIn", 2),
     OPEN_FOR_REGISTRATION("tournament.status.openForRegistration", 4),
     CLOSED_FOR_REGISTRATION("tournament.status.closedForRegistration", 3);
 

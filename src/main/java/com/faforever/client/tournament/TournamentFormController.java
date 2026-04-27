@@ -61,6 +61,7 @@ public class TournamentFormController implements Controller<Node> {
   public ComboBox<Integer> bestOfCombo;
   public ComboBox<Integer> ppsCombo;
   public Spinner<Integer> noshowSpinner;
+  public Spinner<Integer> checkInMinutesSpinner;
 
   // Swiss-only rows (toggled by formatCombo's value)
   public HBox swissRoundsRow;
@@ -111,6 +112,9 @@ public class TournamentFormController implements Controller<Node> {
     ppsCombo.getItems().addAll(1, 2);
     ppsCombo.getSelectionModel().selectFirst();
     noshowSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(5, 60, 20, 5));
+    // Check-in window: 0 disables (legacy behaviour), step 5 to discourage
+    // odd values, max 60 to match the server-side cap.
+    checkInMinutesSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(0, 60, 0, 5));
     minPlayersSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(2, 64, 4));
 
     // Swiss-only controls. Defaults mirror the server's defaults in
@@ -290,6 +294,9 @@ public class TournamentFormController implements Controller<Node> {
       if (editTarget.getNoshowTimeoutMinutes() > 0) {
         noshowSpinner.getValueFactory().setValue(editTarget.getNoshowTimeoutMinutes());
       }
+      // 0 is the legacy "no check-in" value, which is also the spinner's
+      // default — set even when zero so the field accurately reflects state.
+      checkInMinutesSpinner.getValueFactory().setValue(editTarget.getCheckInMinutes());
 
       // Swiss-specific fields on the edit target. TournamentBean parses
       // format_options JSON into these; zeros mean "not set" so we leave
@@ -406,6 +413,7 @@ public class TournamentFormController implements Controller<Node> {
     msg.setBestOf(bestOfCombo.getValue());
     msg.setPlayersPerSide(ppsCombo.getValue());
     msg.setNoshowTimeoutMinutes(noshowSpinner.getValue());
+    msg.setCheckInMinutes(checkInMinutesSpinner.getValue());
     msg.setMinPlayers(minPlayersSpinner.getValue());
 
     FeaturedMod selectedMod = modCombo.getValue();
@@ -463,6 +471,7 @@ public class TournamentFormController implements Controller<Node> {
     msg.setFormat(formatCombo.getValue());
     msg.setBestOf(bestOfCombo.getValue());
     msg.setNoshowTimeoutMinutes(noshowSpinner.getValue());
+    msg.setCheckInMinutes(checkInMinutesSpinner.getValue());
     msg.setMinPlayers(minPlayersSpinner.getValue());
     msg.setMapVisibility(visibilityCombo.getValue());
 

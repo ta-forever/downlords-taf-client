@@ -79,6 +79,8 @@ public interface FafServerAccessor {
 
   void tournamentWithdraw(int tournamentId);
 
+  void tournamentCheckIn(int tournamentId);
+
   void tournamentCreate(TournamentCreateMessage message);
 
   void tournamentStart(int tournamentId);

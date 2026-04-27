@@ -42,6 +42,7 @@ import com.faforever.client.remote.domain.ClosePlayersLobbyMessage;
 import com.faforever.client.remote.domain.FafServerMessageType;
 import com.faforever.client.remote.domain.SetGalacticWarMapMessage;
 import com.faforever.client.remote.domain.TournamentCreateMessage;
+import com.faforever.client.remote.domain.TournamentCheckInMessage;
 import com.faforever.client.remote.domain.TournamentSignupMessage;
 import com.faforever.client.remote.domain.TournamentTeamAcceptInviteMessage;
 import com.faforever.client.remote.domain.TournamentTeamCreateMessage;
@@ -598,6 +599,11 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
   @Override
   public void tournamentWithdraw(int tournamentId) {
     writeToServer(new TournamentWithdrawMessage(tournamentId));
+  }
+
+  @Override
+  public void tournamentCheckIn(int tournamentId) {
+    writeToServer(new TournamentCheckInMessage(tournamentId));
   }
 
   @Override

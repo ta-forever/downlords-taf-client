@@ -7,6 +7,8 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.OffsetDateTime;
+
 @Getter
 @Setter
 @EqualsAndHashCode(of = "id")
@@ -15,6 +17,9 @@ public class TournamentParticipant {
   @Id
   private String id;
   private Integer rating;
+  /** Stamped when the player checks in for a check-in-window tournament.
+   *  NULL means not (yet) checked in. */
+  private OffsetDateTime checkedInAt;
 
   @Relationship("player")
   private Player player;

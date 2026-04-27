@@ -18,6 +18,11 @@ public class Player {
   private String id;
   private String login;
   private String userAgent;
+  // Cumulative no-show reputation. Server is the only writer; clients
+  // read these to display "X / Y" next to player names on signup lists.
+  private int tournamentSignupCount;
+  private int tournamentNoCheckInCount;
+  private int tournamentMatchForfeitCount;
 
   @Deprecated
   @Relationship("globalRating")

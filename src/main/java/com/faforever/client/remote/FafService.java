@@ -857,6 +857,10 @@ public class FafService {
     fafServerAccessor.tournamentWithdraw(tournamentId);
   }
 
+  public void tournamentCheckIn(int tournamentId) {
+    fafServerAccessor.tournamentCheckIn(tournamentId);
+  }
+
   public java.util.List<com.faforever.client.api.dto.MapPool> getMapPools() {
     return fafApiAccessor.getMapPools();
   }
