@@ -190,7 +190,7 @@ public class ChatUserItemController implements Controller<Node> {
   }
 
   private Tooltip prepareGameInfoTooltip(GameTooltipController controller) {
-    Tooltip tooltip = JavaFxUtil.createCustomTooltip(controller.getRoot());
+    Tooltip tooltip = uiService.createCustomTooltip(controller.getRoot());
     tooltip.setShowDelay(Duration.ZERO);
     tooltip.setShowDuration(Duration.seconds(30));
     return tooltip;

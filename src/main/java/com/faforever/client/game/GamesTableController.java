@@ -103,7 +103,7 @@ public class GamesTableController implements Controller<Node> {
   public void initializeGameTable(ObservableList<Game> games, Function<String, String> coopMissionNameProvider, boolean listenToFilterPreferences) {
 
     gameTooltipController = uiService.loadFxml("theme/play/game_tooltip.fxml");
-    tooltip = JavaFxUtil.createCustomTooltip(gameTooltipController.getRoot());
+    tooltip = uiService.createCustomTooltip(gameTooltipController.getRoot());
     tooltip.showingProperty().addListener((observable, oldValue, newValue) -> {
       if (newValue) {
         gameTooltipController.displayGame();

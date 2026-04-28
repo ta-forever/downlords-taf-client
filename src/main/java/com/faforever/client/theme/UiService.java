@@ -22,6 +22,7 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.StackPane;
@@ -382,6 +383,26 @@ public class UiService implements InitializingBean, DisposableBean {
         getSceneStyleSheet(),
         getThemeFile("theme/style_extension.css")
     };
+  }
+
+  /**
+   * Creates a custom tooltip whose popup scene has the application stylesheets attached. Without
+   * this, lookup variables defined under {@code .root} in {@code colors.css} (e.g. {@code -card-color},
+   * {@code -fx-text-color}) fail to resolve for nodes inside the tooltip popup, producing CSS
+   * warnings and incorrect colours on first render.
+   */
+  public Tooltip createCustomTooltip(Node content) {
+    Tooltip tooltip = JavaFxUtil.createCustomTooltip(content);
+    Scene existingScene = tooltip.getScene();
+    if (existingScene != null) {
+      existingScene.getStylesheets().setAll(getStylesheets());
+    }
+    JavaFxUtil.addListener(tooltip.sceneProperty(), (obs, oldScene, newScene) -> {
+      if (newScene != null) {
+        newScene.getStylesheets().setAll(getStylesheets());
+      }
+    });
+    return tooltip;
   }
 
   /**
