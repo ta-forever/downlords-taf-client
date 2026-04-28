@@ -45,6 +45,15 @@ public class UserService implements InitializingBean {
 
 
   public CompletableFuture<Void> login(String username, String password, boolean autoLogin) {
+    // Guard against duplicate concurrent logins. The startup pre-flight
+    // (FafClientApplication.maybePreflightAutoLogin) kicks this off
+    // before the LoginController is even loaded; when the LoginController
+    // later calls login() with the same credentials, we want it to join
+    // the existing in-flight future rather than open a second TCP
+    // connection and queue a second login round-trip on the lobby.
+    if (loginFuture != null && !loginFuture.isDone()) {
+      return loginFuture;
+    }
     this.password = password;
 
     preferencesService.getPreferences().getLogin()

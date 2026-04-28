@@ -1236,6 +1236,7 @@ public class GameService implements InitializingBean {
 
   private void onGameInfo(GameInfoMessage gameInfoMessage) {
     JavaFxUtil.assertApplicationThread();
+    com.faforever.client.StartupProfiler.markOnce("first game_info received");
     if (gameInfoMessage.getGames() != null) {
       gameInfoMessage.getGames().forEach(this::onGameInfo);
       return;

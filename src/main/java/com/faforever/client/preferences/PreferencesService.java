@@ -132,8 +132,25 @@ public class PreferencesService implements InitializingBean {
   private final Timer timer;
   private final Collection<WeakReference<PreferenceUpdateListener>> updateListeners;
   private final ClientProperties clientProperties;
-  @Getter
-  private ClientConfiguration clientRemoteConfiguration;
+  /** Async holder for the remote client config. The fetch is kicked off
+   *  in the constructor; readers go through {@link #getClientRemoteConfiguration()}
+   *  which blocks on completion. afterPropertiesSet uses a non-blocking
+   *  fallback so Spring boot doesn't wait. */
+  private final java.util.concurrent.CompletableFuture<ClientConfiguration> clientRemoteConfigurationFuture;
+
+  /** Public getter for the remote config. Blocks the calling thread until
+   *  the async fetch completes (typically already done by the time any
+   *  user-facing code paths run, since the fetch starts at Spring boot).
+   *  Returns null on fetch failure — callers should null-check (matches
+   *  the old behaviour when the synchronous fetch threw on network error). */
+  public ClientConfiguration getClientRemoteConfiguration() {
+    try {
+      return clientRemoteConfigurationFuture.join();
+    } catch (Exception e) {
+      logger.warn("Failed to fetch remote client configuration", e);
+      return null;
+    }
+  }
 
   private Preferences preferences;
   private TimerTask storeInBackgroundTask;
@@ -155,7 +172,16 @@ public class PreferencesService implements InitializingBean {
         .registerTypeAdapter(java.net.HttpCookie.class, HttpCookieTypeAdapter.INSTANCE)
         .create();
 
-   this.clientRemoteConfiguration = doGetClientRemoteConfiguration();
+    // Fetch the remote client config off-thread so the constructor returns
+    // immediately. Previously this was a synchronous HTTP call that
+    // blocked Spring boot for ~1s waiting on the network. For existing
+    // users (who already have preferences.json with all chat fields
+    // populated), the remote config isn't actually needed during boot,
+    // so we don't block on the future in afterPropertiesSet. Only
+    // first-time users (no prefs file) wait on it for the default-
+    // chat-channels list — see blockingDefaultChatChannels().
+    this.clientRemoteConfigurationFuture = java.util.concurrent.CompletableFuture
+        .supplyAsync(this::doGetClientRemoteConfiguration);
   }
 
   public Path getPreferencesDirectory() {
@@ -170,8 +196,24 @@ public class PreferencesService implements InitializingBean {
       return List.of("#coreprime");
     }
     else {
-      return clientRemoteConfiguration.getDefaultChatChannels();
+      return clientConfiguration.getDefaultChatChannels();
     }
+  }
+
+  /**
+   * Non-blocking variant for use inside afterPropertiesSet — reads the
+   * remote config only if the async fetch is already done, otherwise
+   * falls back to the same minimal default ("#coreprime") that
+   * defaultChatChannels(null) returns. For existing users (with a
+   * populated chat field in their preferences.json), this fallback
+   * is unused — ChatPrefs.init only seeds defaults when its own list
+   * is null. Keeps boot from blocking on the network.
+   */
+  private List<String> defaultChatChannelsNonBlocking() {
+    if (clientRemoteConfigurationFuture.isDone() && !clientRemoteConfigurationFuture.isCompletedExceptionally()) {
+      return defaultChatChannels(clientRemoteConfigurationFuture.join());
+    }
+    return List.of("#coreprime");
   }
 
   @Override
@@ -179,16 +221,20 @@ public class PreferencesService implements InitializingBean {
     if (Files.exists(preferencesFilePath)) {
       try {
         if (deleteFileIfEmpty()) {
-          preferences = new Preferences(defaultChatChannels(clientRemoteConfiguration));
+          // Empty/corrupt prefs file: treat like first-time install,
+          // block on the remote config to seed the full default channel list.
+          preferences = new Preferences(defaultChatChannels(getClientRemoteConfiguration()));
         }
         else {
-          readExistingFile(clientRemoteConfiguration, preferencesFilePath);
+          readExistingFile(preferencesFilePath);
         }
       } catch (IOException e) {
         logger.error("[afterPropertiesSet(on clientConfigurationFuture): {}", e.getMessage());
       }
     } else {
-      preferences = new Preferences(defaultChatChannels(clientRemoteConfiguration));
+      // First-time user: only here do we genuinely need the full
+      // remote-config default-channel list. Block on the future.
+      preferences = new Preferences(defaultChatChannels(getClientRemoteConfiguration()));
     }
 
     setLoggingLevel();
@@ -199,7 +245,7 @@ public class PreferencesService implements InitializingBean {
    * Sometimes, old preferences values are renamed or moved. The purpose of this method is to temporarily perform such
    * migrations.
    */
-  private void migratePreferences(ClientConfiguration remotePreferences, Preferences preferences) {
+  private void migratePreferences(Preferences preferences) {
 
     List<TotalAnnihilationPrefs> taPrefs = preferences.getTotalAnnihilationAllMods();
     Map<String,TotalAnnihilationPrefs> toKeep = new HashMap<>();
@@ -255,14 +301,17 @@ public class PreferencesService implements InitializingBean {
     return getFafDataDirectory().resolve("repos");
   }
 
-  private void readExistingFile(ClientConfiguration remotePreferences, Path path) {
+  private void readExistingFile(Path path) {
     Assert.checkNotNullIllegalState(preferences, "Preferences have already been initialized");
 
     try (Reader reader = Files.newBufferedReader(path, CHARSET)) {
       logger.debug("Reading preferences file {}", preferencesFilePath.toAbsolutePath());
       preferences = gson.fromJson(reader, Preferences.class);
-      preferences.init(defaultChatChannels(clientRemoteConfiguration));
-      migratePreferences(remotePreferences, preferences);
+      // Non-blocking: existing users have chat populated already, so
+      // ChatPrefs.init no-ops and the fallback list is never consulted.
+      // Avoids waiting on the remote-config fetch during boot.
+      preferences.init(defaultChatChannelsNonBlocking());
+      migratePreferences(preferences);
     } catch (Exception e) {
       logger.warn("Preferences file " + path.toAbsolutePath() + " could not be read", e);
       CountDownLatch waitForUser = new CountDownLatch(1);
@@ -273,12 +322,16 @@ public class PreferencesService implements InitializingBean {
         if (errorReading.getResult() == ButtonType.YES) {
           try {
             Files.delete(path);
-            preferences = new Preferences(defaultChatChannels(clientRemoteConfiguration));
+            // Reset path: prefs file was corrupt, treat as fresh install.
+            // Block on the remote config to seed the proper default channels.
+            preferences = new Preferences(defaultChatChannels(getClientRemoteConfiguration()));
           } catch (Exception ex) {
             logger.error("Error deleting settings file", ex);
             Alert errorDeleting = new Alert(AlertType.ERROR, MessageFormat.format("Error deleting setting. Please delete them yourself. You find them under {} .", preferencesFilePath.toAbsolutePath()), ButtonType.OK);
             errorDeleting.showAndWait();
-            preferences = new Preferences(defaultChatChannels(clientRemoteConfiguration));
+            // Reset path: prefs file was corrupt, treat as fresh install.
+            // Block on the remote config to seed the proper default channels.
+            preferences = new Preferences(defaultChatChannels(getClientRemoteConfiguration()));
           }
         }
         else {

@@ -70,6 +70,7 @@ public class FafClientApplication extends Application {
 
   public static void applicationMain(String[] args) {
     PreferencesService.configureLogging();
+    StartupProfiler.mark("applicationMain");
     launch(args);
   }
 
@@ -104,14 +105,31 @@ public class FafClientApplication extends Application {
     Font.loadFont(FafClientApplication.class.getResourceAsStream("/font/dfc-icons.ttf"), 10);
     JavaFxUtil.fixTooltipDuration();
 
+    StartupProfiler.mark("init: before Spring boot");
+    org.springframework.boot.context.metrics.buffering.BufferingApplicationStartup startupRecorder =
+        new org.springframework.boot.context.metrics.buffering.BufferingApplicationStartup(8192);
     applicationContext = new SpringApplicationBuilder(FafClientApplication.class)
         .profiles(getAdditionalProfiles())
         .bannerMode(Mode.OFF)
+        .applicationStartup(startupRecorder)
         .run(getParameters().getRaw().toArray(new String[0]));
+    StartupProfiler.mark("init: Spring context ready");
+    StartupProfiler.dumpSpring(startupRecorder, 30);
   }
 
   @Override
   public void start(Stage stage) {
+    StartupProfiler.mark("start: begin");
+
+    // Pre-flight auto-login: if credentials are stored, kick off the
+    // network handshake (TCP connect → session → login) NOW, in parallel
+    // with FXML/UI loading. The 3.5s connect+login latency otherwise sits
+    // idle while the user stares at the splash. UserService.login is
+    // guarded against duplicate concurrent calls — the LoginController's
+    // later auto-login attempt joins the in-flight future instead of
+    // starting a second connection.
+    maybePreflightAutoLogin();
+
     StageHolder.setStage(stage);
     FxStage fxStage = FxStage.configure(stage)
         .withSceneFactory(parent -> applicationContext.getBean(UiService.class).createScene(parent))
@@ -120,10 +138,31 @@ public class FafClientApplication extends Application {
     fxStage.getStage().setOnCloseRequest(this::closeMainWindow);
 
     showMainWindow(fxStage);
+    StartupProfiler.mark("start: main window shown");
 
     // TODO publish event instead
     if (!applicationContext.getBeansOfType(WindowsTaskbarProgressUpdater.class).isEmpty()) {
       applicationContext.getBean(WindowsTaskbarProgressUpdater.class).initTaskBar();
+    }
+    StartupProfiler.mark("start: end");
+  }
+
+  private void maybePreflightAutoLogin() {
+    try {
+      PreferencesService prefs = applicationContext.getBean(PreferencesService.class);
+      com.faforever.client.preferences.LoginPrefs login = prefs.getPreferences().getLogin();
+      if (!login.getAutoLogin()) return;
+      String user = login.getUsername();
+      String pass = login.getPassword();
+      if (user == null || user.isEmpty() || pass == null || pass.isEmpty()) return;
+      com.faforever.client.user.UserService userService =
+          applicationContext.getBean(com.faforever.client.user.UserService.class);
+      StartupProfiler.mark("auto-login pre-flight kicked off");
+      // Fire-and-forget. The exceptionally branch on the LoginController
+      // path will surface any failure to the user via the login screen.
+      userService.login(user, pass, true);
+    } catch (Exception e) {
+      log.warn("Auto-login pre-flight failed (will retry from login screen)", e);
     }
   }
 

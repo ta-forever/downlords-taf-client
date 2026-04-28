@@ -516,6 +516,7 @@ dependencies {
   testImplementation("org.testfx:openjfx-monocle:jdk-12.0.1+2")
 
   annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
+  annotationProcessor("org.springframework:spring-context-indexer")
 
   def lombokVersion = "1.18.32" // version to support Java 19
   annotationProcessor("org.projectlombok:lombok:${lombokVersion}")

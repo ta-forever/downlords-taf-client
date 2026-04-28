@@ -114,7 +114,6 @@ import com.github.nocatch.NoCatch;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
 import com.google.common.hash.Hashing;
-import com.google.common.net.InetAddresses;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -138,9 +137,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import javax.security.auth.login.LoginException;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.net.URL;
@@ -385,28 +382,15 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
 
             fafServerSocket.setKeepAlive(true);
 
-            localIps = new ArrayList<String>();
-            for (String service: new String[]{
-                "http://checkip.amazonaws.com",
-                "https://api.ipify.org/?format=txt",
-                "http://ipv4bot.whatismyipaddress.com/"}) {
-              try {
-                URL whatismyip = new URL(service);
-                BufferedReader in = new BufferedReader(new InputStreamReader(
-                    whatismyip.openStream()));
-                String publicIp = in.readLine();
-                log.info(String.format("%s reports my ip address %s", service, publicIp));
-                if (InetAddresses.isInetAddress(publicIp)) {
-                  localIps.add(publicIp);
-                  break;
-                }
-                else {
-                  log.info("(ignoring because it does not appear to be an isInetAddress)");
-                }
-              } catch (IOException e) {
-                log.info(String.format("unable to obtain ip address from %s", service));
-              };
-            }
+            // Only the local socket address is used here. We previously
+            // also probed three external "what's my IP" services
+            // (checkip.amazonaws.com, api.ipify.org, ipv4bot.whatismyipaddress.com)
+            // to capture the public IP into the login message — sequential
+            // HTTP fetches that added 1-2s of cold-start latency. Nothing
+            // on the server depends on that string being a public IP, and
+            // the lobby has its own view of the client's address from the
+            // TCP source. Dropped.
+            localIps = new ArrayList<>();
             localIps.add(fafServerSocket.getLocalAddress().getHostAddress());
 
             serverWriter = createServerWriter(outputStream);
@@ -760,6 +744,7 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
 
   private void onFafLoginSucceeded(LoginMessage loginServerMessage) {
     log.info("FAF login succeeded");
+    com.faforever.client.StartupProfiler.markOnce("FAF login succeeded");
 
     if (loginFuture != null) {
       loginFuture.complete(loginServerMessage);
