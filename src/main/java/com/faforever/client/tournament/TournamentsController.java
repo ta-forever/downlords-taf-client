@@ -612,6 +612,18 @@ public class TournamentsController extends AbstractViewController<Node> {
     if (id == null) {
       return;
     }
+    // Capture selection + currentTournament BEFORE the remove / setAll dance
+    // below. removeFromAllLists() drops the bean from its ListView, which
+    // makes JavaFX's SelectionModel shift selection to whatever item now
+    // occupies the freed index — most visibly, the next-starting tournament
+    // when the user just signed up for the current top of the upcoming list.
+    // The shift fires the selection listener for the wrong tournament, which
+    // sets currentTournament to that wrong bean and would defeat the
+    // id-equality guard near the end of this method.
+    TournamentBean previouslySelected = getSelectedTournament();
+    String previousSelectedId = previouslySelected != null ? previouslySelected.getId() : null;
+    String savedCurrentId = currentTournament != null ? currentTournament.getId() : null;
+
     // Update the unfiltered backing list
     allTournaments.removeIf(t -> id.equals(t.getId()));
     allTournaments.add(updated);
@@ -643,11 +655,24 @@ public class TournamentsController extends AbstractViewController<Node> {
     }
     updateSectionHeaders();
 
-    // If this is the currently displayed tournament, refresh the detail pane.
-    // Skip when the caller is about to selectTournamentById (which triggers
-    // the selection listener → displayTournamentItem) to avoid redundant
-    // server fetches.
-    if (!skipDisplay && currentTournament != null && id.equals(currentTournament.getId())) {
+    // Restore selection if the remove / setAll above knocked it onto a
+    // different (or no) tournament. Without this, signing up for a tournament
+    // would scroll/select onto the next-starting tournament instead of
+    // staying on the one just signed up for.
+    if (previousSelectedId != null) {
+      TournamentBean nowSelected = getSelectedTournament();
+      if (nowSelected == null || !previousSelectedId.equals(nowSelected.getId())) {
+        selectTournamentById(previousSelectedId);
+      }
+    }
+
+    // If this was the currently displayed tournament, refresh the detail pane.
+    // Use savedCurrentId (captured before the upsert) because currentTournament
+    // may have been transiently mutated by the selection listener during the
+    // remove above. Skip when the caller is about to selectTournamentById
+    // (which triggers the selection listener → displayTournamentItem) to
+    // avoid redundant server fetches.
+    if (!skipDisplay && savedCurrentId != null && id.equals(savedCurrentId)) {
       // Focus-preserving guard: displayTournamentItem clears
       // tournamentDetailContent and rebuilds the whole detail pane
       // (including the team panel's TextFields). If the user is
