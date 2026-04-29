@@ -6,18 +6,10 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-      release_type:
-        description: 'Release Type'
-        required: true
-        type: choice
-        default: "Alpha"
-        options:
-          - "Production"
-          - "Alpha"
       version_override:
         description: 'Version Override'
         required: false
-        type: text
+        type: string
         default: ""
 
 jobs:
@@ -25,7 +17,7 @@ jobs:
     environment: deploy
     runs-on: ubuntu-latest
     env:
-      INSTALL4J_DIR: "install4j/install4j10.0.3"
+      INSTALL4J_DIR: "install4j/install4j10.0.6"
 
     steps:
       - uses: actions/checkout@v3
@@ -40,60 +32,21 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Run Checks
-        run: xvfb-run --auto-servernum ./gradlew --stacktrace -PjavafxPlatform=linux check
-        env:
-          JAVA_TOOL_OPTIONS: "-Dprism.verbose=true -Dprism.order=sw"
-
       - name: Set Version
         id: set_version
         run: |
-          tagPrefix=$(date +%Y.%-m)
-          count=0
-          baseTag=$tagPrefix.$count
-          
-          git fetch --tags
-          
-          while [[ $(git tag -l "v$baseTag") ]]
-          do 
-            count=$(($count+1));
-            baseTag=$tagPrefix.$count; 
-          done
-          
-          if [[ "${{ github.event.inputs.release_type }}" == "Alpha" ]]; then
-            baseTag=$baseTag-alpha
-          elif [[ "${{ github.event.inputs.release_type }}" == "Experimental" ]]; then
-            baseTag=$baseTag-experimental
-          fi
-          
-          if [[ "${{ github.event.inputs.release_type }}" != "Production" ]]; then
-            count=1
-            tag=$baseTag-$count
-            while [[ $(git tag -l "v$tag") ]]
-            do 
-              count=$(($count+1));
-              tag=$baseTag-$count;
-            done
-          else 
-            tag=$baseTag
-          fi
-          
           if [[ "${{ github.event.inputs.version_override }}" != "" ]]; then
             tag=${{ github.event.inputs.version_override }}
+          else
+            tag=$(date +%Y.%-m.%-d)
           fi
-          
-          echo ::set-output name=tag::$tag
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Download Install4j
         run: |
           mkdir -p "$HOME/install4j"
-          curl https://content.faforever.com/build/install4j_unix_10_0_3.tar.gz -o "$HOME/install4j/install4j.tar.gz"
+          curl -fL https://download.ej-technologies.com/install4j/install4j_unix_10_0_6.tar.gz -o "$HOME/install4j/install4j.tar.gz"
           tar xzf "$HOME/install4j/install4j.tar.gz" -C "$HOME/install4j"
-
-      - name: Download Bundled JRE
-        run: |
-          mkdir -p "$HOME/.local/share/install4j/v9/jres"
-          curl https://content.faforever.com/build/jre/windows-amd64-17.0.1.tar.gz -o "$HOME/.local/share/install4j/v9/jres/windows-amd64-17.0.1.tar.gz"
 
       - name: Build Windows Files
         run: |
@@ -115,14 +68,6 @@ jobs:
           --stacktrace \
           buildInstall4jMediaFiles
 
-      - name: Get Artifact Paths
-        id: artifact_paths
-        run: |
-          WINDOWS_EXE=$(ls build/install4j/faf_windows-x64_*.exe | head -n 1)
-          WINDOWS_EXE_NAME=$(basename $WINDOWS_EXE)
-          echo ::set-output name=WINDOWS_EXE::${WINDOWS_EXE}
-          echo ::set-output name=WINDOWS_EXE_NAME::${WINDOWS_EXE_NAME}
-
       - name: Create Draft Release
         id: create_release
         uses: ncipollo/release-action@v1
@@ -132,19 +77,8 @@ jobs:
           commit: ${{ github.sha }}
           tag: v${{ steps.set_version.outputs.tag }}
           draft: true
-          prerelease: ${{ github.event.inputs.release_type != 'Production'}}
+          prerelease: false
           generateReleaseNotes: true
           token: ${{ secrets.GITHUB_TOKEN }}
-          artifacts: build/install4j/faf_*
-
-      - name: Upload to Mirror
-        if: github.event.inputs.release_type == 'Production'
-        uses: bayssmekanique/action-simple-file-upload@v1
-        with:
-          user: ${{ secrets.FTP_MIRROR_USERNAME }}
-          password: ${{ secrets.FTP_MIRROR_PASSWORD }}
-          host: ${{ secrets.FTP_MIRROR_HOST }}
-          src: ${{ steps.artifact_paths.outputs.WINDOWS_EXE }}
-          dest: ${{ steps.artifact_paths.outputs.WINDOWS_EXE_NAME }}
-
+          artifacts: "build/install4j/tafclient_*,build/install4j/downlords-faf-client-*.txt,readme.linux.txt"
 

@@ -431,6 +431,18 @@ repositories {
   mavenCentral()
   maven { url "https://jitpack.io" }
   maven { url 'https://maven.ej-technologies.com/repository' }
+  // JitPack lost the build for FAForever/faf-java-commons commit c1db3577 (HTTP 404).
+  // We host the rescued JARs ourselves; layout: <baseUrl>/<group>/<module>-<rev>.jar
+  ivy {
+    url 'https://sjc1.vultrobjects.com/deps/'
+    patternLayout {
+      artifact '[organization]/[module]-[revision].[ext]'
+    }
+    metadataSources { artifact() }
+    content {
+      includeGroup 'faf-java-commons'
+    }
+  }
 }
 
 dependencies {
@@ -446,9 +458,8 @@ dependencies {
   implementation("org.springframework:spring-web:5.3.29")
   implementation("org.springframework:spring-websocket:5.3.29")
 
-  implementation("com.github.FAForever:faf-java-commons:c1db35776a062a4f345cd6e17366dddd8b09492f") {
-    exclude module: 'guava'
-  }
+  implementation 'faf-java-commons:faf-commons-api:c1db3577'
+  implementation 'faf-java-commons:faf-commons-data:c1db3577'
   implementation("com.google.code.gson:gson:2.8.5")
   implementation("com.google.guava:guava:31.0.1-jre")
   implementation("org.apache.commons:commons-compress:1.21")
