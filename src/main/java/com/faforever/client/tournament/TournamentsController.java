@@ -502,6 +502,30 @@ public class TournamentsController extends AbstractViewController<Node> {
           (TournamentBean t) -> t.getCompletedAt() != null ? t.getCompletedAt() : t.getCreatedAt(),
           Comparator.nullsLast(Comparator.reverseOrder()));
 
+  /**
+   * Cancelled tournaments older than this are hidden from the Completed
+   * section so a moderator's accumulated test/dead tournaments don't bury the
+   * useful FINISHED rows. Active (non-cancelled) tournaments are never hidden
+   * by age — finished tournaments stay visible indefinitely so players can
+   * scroll back through bracket history.
+   */
+  private static final java.time.Duration CANCELLED_HIDE_AFTER = java.time.Duration.ofDays(14);
+
+  /** True if {@code t} is CANCELLED and its effective recency timestamp
+   *  (completedAt when present — set when the moderator cancels — falling
+   *  back to createdAt) is older than {@link #CANCELLED_HIDE_AFTER}. Rows
+   *  with no usable timestamp are kept visible (we can't tell their age). */
+  private static boolean isStaleCancelled(TournamentBean t) {
+    if (t.getStatus() != TournamentBean.Status.CANCELLED) {
+      return false;
+    }
+    java.time.OffsetDateTime ref = t.getCompletedAt() != null ? t.getCompletedAt() : t.getCreatedAt();
+    if (ref == null) {
+      return false;
+    }
+    return ref.toInstant().isBefore(java.time.Instant.now().minus(CANCELLED_HIDE_AFTER));
+  }
+
   private void loadTournaments() {
     onLoadingStart();
 
@@ -629,9 +653,15 @@ public class TournamentsController extends AbstractViewController<Node> {
     allTournaments.add(updated);
     removeFromAllLists(id);
 
-    // Only add to visible lists if it passes the current mod filter
+    // Only add to visible lists if it passes the current mod filter and
+    // isn't a stale-cancelled tournament (older than CANCELLED_HIDE_AFTER).
+    // Stale-cancelled rows stay in allTournaments — they're just hidden from
+    // the section lists. If a refresh re-arrives with a recent completedAt
+    // (e.g. clock skew correction), applyModFilter will surface them again.
     boolean showAll = currentModFilter == null || currentModFilter.isAll();
-    if (showAll || (currentModFilter.modName != null && currentModFilter.modName.equals(updated.getFeaturedModName()))) {
+    boolean passesModFilter = showAll || (currentModFilter.modName != null
+        && currentModFilter.modName.equals(updated.getFeaturedModName()));
+    if (passesModFilter && !isStaleCancelled(updated)) {
       ObservableList<TournamentBean> targetItems;
       Comparator<TournamentBean> comparator;
       switch (updated.getStatus()) {
@@ -751,6 +781,7 @@ public class TournamentsController extends AbstractViewController<Node> {
     List<TournamentBean> completed = new ArrayList<>();
     for (TournamentBean t : allTournaments) {
       if (!showAll && !filterName.equals(t.getFeaturedModName())) continue;
+      if (isStaleCancelled(t)) continue;
       switch (t.getStatus()) {
         case RUNNING -> inProgress.add(t);
         case FINISHED, CANCELLED -> completed.add(t);
@@ -1536,9 +1567,23 @@ public class TournamentsController extends AbstractViewController<Node> {
     if (t.getBestOf() > 1) {
       addSettingRow(grid, row++, i18n.get("tournament.detail.bestOf"), String.valueOf(t.getBestOf()));
     }
-    addSettingRow(grid, row++, i18n.get("tournament.detail.noshowTimeout"),
-        i18n.get("tournament.detail.noshowMinutes",
-            t.getNoshowTimeoutMinutes() > 0 ? t.getNoshowTimeoutMinutes() : 20));
+    int totalNoshowMinutes = t.getNoshowTimeoutMinutes() > 0 ? t.getNoshowTimeoutMinutes() : 20;
+    int noshowDays = totalNoshowMinutes / (60 * 24);
+    int noshowHours = (totalNoshowMinutes / 60) % 24;
+    int noshowMinutes = totalNoshowMinutes % 60;
+    StringBuilder noshowDisplay = new StringBuilder();
+    if (noshowDays > 0) {
+      noshowDisplay.append(i18n.get("tournament.detail.noshowDays", noshowDays));
+    }
+    if (noshowHours > 0) {
+      if (noshowDisplay.length() > 0) noshowDisplay.append(' ');
+      noshowDisplay.append(i18n.get("tournament.detail.noshowHours", noshowHours));
+    }
+    if (noshowMinutes > 0 || noshowDisplay.length() == 0) {
+      if (noshowDisplay.length() > 0) noshowDisplay.append(' ');
+      noshowDisplay.append(i18n.get("tournament.detail.noshowMinutes", noshowMinutes));
+    }
+    addSettingRow(grid, row++, i18n.get("tournament.detail.noshowTimeout"), noshowDisplay.toString());
     if (t.getMinRating() != null || t.getMaxRating() != null) {
       String ratingRange = (t.getMinRating() != null ? t.getMinRating().toString() : i18n.get("tournament.detail.ratingAny"))
           + " – "
