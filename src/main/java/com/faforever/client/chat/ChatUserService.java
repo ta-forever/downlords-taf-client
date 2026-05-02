@@ -56,7 +56,12 @@ public class ChatUserService implements InitializingBean {
   private final ObjectProvider<GameService> gameServiceProvider;
   private final ObjectProvider<GalacticWarService> galacticWarServiceProvider;
 
-  private final Set<ChatChannelUser> trackedUsers = new java.util.HashSet<>();
+  // Identity-based: ChatChannelUser.equals is username-only, but one instance exists
+  // per (username, channel). Username equality would collapse a user in N channels into
+  // a single tracked instance, leaving cells in the other channels' user lists with
+  // stale icons after an icon-mode change.
+  private final Set<ChatChannelUser> trackedUsers =
+      java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
 
   /** Icon mode: "avatar" for normal avatars, "none" for no icons, or a galaxy technical name for GW rank icons. */
   public static final String ICON_MODE_AVATAR = "avatar";
