@@ -475,17 +475,28 @@ public class TournamentFormController implements Controller<Node> {
     msg.setMinPlayers(minPlayersSpinner.getValue());
     msg.setMapVisibility(visibilityCombo.getValue());
 
+    // Mod / pool / leaderboard: send 0 when the combo is null so the server
+    // can clear a previously-set FK. JsonMessageSerializer drops null fields
+    // (setSerializeNulls(false)), so without an explicit sentinel "(Any/None/
+    // Default)" would be indistinguishable from "leave unchanged" on the wire.
+    // The server treats 0/falsy as clear (tournament_manager:1670-1674).
     FeaturedMod selectedMod = modCombo.getValue();
     if (selectedMod != null) {
       try { msg.setFeaturedModId(Integer.parseInt(selectedMod.getId())); } catch (NumberFormatException ignored) {}
+    } else {
+      msg.setFeaturedModId(0);
     }
     MapPool selectedPool = poolCombo.getValue();
     if (selectedPool != null) {
       try { msg.setMapPoolId(Integer.parseInt(selectedPool.getId())); } catch (NumberFormatException ignored) {}
+    } else {
+      msg.setMapPoolId(0);
     }
     com.faforever.client.leaderboard.Leaderboard selectedLb = leaderboardCombo.getValue();
     if (selectedLb != null) {
       msg.setLeaderboardId(selectedLb.getId());
+    } else {
+      msg.setLeaderboardId(0);
     }
     // Send 0 when blank to explicitly clear the rating restriction.
     // (Gson skips null fields, so we use 0 as a "clear" sentinel;
