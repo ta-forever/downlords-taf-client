@@ -57,8 +57,40 @@ public class TotalAnnihilationService {
     return Paths.get(nativeDir).resolve("bin");
   }
 
+  /**
+   * User-writable root directory into which {@link com.faforever.client.update.HotfixService}
+   * extracts CLIENT_BINARY hotfix zips. The published gpgnet4ta release archives contain
+   * entries under {@code bin/} (gpgnet4ta.exe, talauncher.exe, Qt5Core.dll, …), so unzipping
+   * into this root yields {@code <root>/bin/<binary>}. Used as the parallel of the bundled
+   * {@code <install>/lib/} root, with {@code bin/} as the binaries subdir.
+   */
+  public Path getHotfixRoot() {
+    return preferencesService.getFafDataDirectory().resolve("hotfix");
+  }
+
+  /**
+   * User-writable subdirectory whose contents shadow the bundled {@link #getNativeGpgnet4taDir()}.
+   * No admin elevation is required to write here even when the client itself lives under
+   * Program Files.
+   */
+  public Path getHotfixBinDir() {
+    return getHotfixRoot().resolve("bin");
+  }
+
+  /**
+   * Resolves a native binary name to either the user-writable hotfix override copy
+   * (if present) or the bundled copy. Always returns an absolute path.
+   */
+  public Path resolveNativeBinary(String name) {
+    Path override = getHotfixBinDir().resolve(name);
+    if (java.nio.file.Files.isRegularFile(override)) {
+      return override.toAbsolutePath();
+    }
+    return getNativeGpgnet4taDir().resolve(name).toAbsolutePath();
+  }
+
   private List<String> getRegisterDplayCommand(String gameMod, Path gamePath, Path gameExe, String gameArgs, int gameId) {
-    Path exePath = getNativeGpgnet4taDir().resolve("talauncher.exe");
+    Path exePath = resolveNativeBinary("talauncher.exe");
     Path logFile = preferencesService.getNewLogFile("registerdplay", gameId);
 
     List<String> command = new ArrayList<>();
@@ -84,7 +116,7 @@ public class TotalAnnihilationService {
   }
 
   private List<String> getLaunchServerCommand(int port, boolean uac, int gameGUID) {
-    Path exePath = getNativeGpgnet4taDir().resolve("talauncher.exe");
+    Path exePath = resolveNativeBinary("talauncher.exe");
     Path logFile = preferencesService.getNewLogFile("talauncher", gameGUID);
 
     List<String> command = new ArrayList<>();
@@ -110,7 +142,7 @@ public class TotalAnnihilationService {
       boolean proactiveResend, int maxPacketSize, String gpgNetUrl, String demoCompilerUrl, @Nullable String ircUrl,
       Path logFile, int launchServerPort, boolean isRated, List<String> args
   ) {
-    Path exePath = getNativeGpgnet4taDir().resolve(org.bridj.Platform.isLinux() ? "gpgnet4ta" : "gpgnet4ta.exe");
+    Path exePath = resolveNativeBinary(org.bridj.Platform.isLinux() ? "gpgnet4ta" : "gpgnet4ta.exe");
 
     List<String> command = new ArrayList<>();
     command.addAll(List.of(
@@ -183,7 +215,7 @@ public class TotalAnnihilationService {
 
   private List<String> getReplayCommand(String modTechnical, String replayUrlOrPath, String playerName,
                                         Path logFile, int launchServerPort) {
-    Path exePath = getNativeGpgnet4taDir().resolve("replayer.exe");
+    Path exePath = resolveNativeBinary("replayer.exe");
 
     List<String> command = new ArrayList<>();
     if (org.bridj.Platform.isLinux()) {
@@ -291,6 +323,10 @@ public class TotalAnnihilationService {
 
     logger.info("[startLaunchServer] starting on port {}", this.launchServerPort);
     List<String> startLaunchServerCommand = getLaunchServerCommand(this.launchServerPort, this.launchServerHasUac, gameGUID);
+    // Keep cwd at the bundled lib/bin so child processes spawned by relative name
+    // (maptool.exe, etc.) are found there — the override dir only contains gpgnet4ta's own
+    // bundle. Override binaries still find their own DLLs via Windows DLL-search-order step 1
+    // (EXE's own directory).
     this.launchServerProcess = launch(getNativeGpgnet4taDir(), startLaunchServerCommand);
     this.launchServerProcess.onExit().thenRun(() -> launchServerKeepAliveTimer.cancel());
     return this.launchServerProcess;

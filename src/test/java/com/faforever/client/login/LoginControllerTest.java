@@ -12,6 +12,7 @@ import com.faforever.client.update.ClientConfiguration.Endpoints;
 import com.faforever.client.update.ClientConfiguration.ReleaseInfo;
 import com.faforever.client.update.ClientUpdateService;
 import com.faforever.client.update.DownloadUpdateTask;
+import com.faforever.client.update.HotfixService;
 import com.faforever.client.update.UpdateInfo;
 import com.faforever.client.update.VersionTest;
 import com.faforever.client.user.UserService;
@@ -53,6 +54,8 @@ public class LoginControllerTest extends AbstractPlainJavaFxTest {
   private I18n i18n;
   @Mock
   private ClientUpdateService clientUpdateService;
+  @Mock
+  private HotfixService hotfixService;
 
   private ClientProperties clientProperties;
 
@@ -62,8 +65,9 @@ public class LoginControllerTest extends AbstractPlainJavaFxTest {
 
     when(preferencesService.getPreferences()).thenReturn(new Preferences());
     when(i18n.get(LOGIN_WITH_EMAIL_WARNING_KEY)).thenReturn(LOGIN_WITH_EMAIL_WARNING_KEY);
+    when(hotfixService.applyClientBinaryHotfixes()).thenReturn(true);
 
-    instance = new LoginController(userService, preferencesService, platformService, clientProperties, i18n, clientUpdateService);
+    instance = new LoginController(userService, preferencesService, platformService, clientProperties, i18n, clientUpdateService, hotfixService);
 
     Website website = clientProperties.getWebsite();
     website.setCreateAccountUrl("create");

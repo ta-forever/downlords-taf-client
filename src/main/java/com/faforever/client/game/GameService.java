@@ -45,6 +45,7 @@ import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.remote.domain.LoginMessage;
 import com.faforever.client.replay.UnhideReplayEvent;
 import com.faforever.client.tada.event.UploadToTadaEvent;
+import com.faforever.client.update.HotfixService;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.faforever.client.util.RatingUtil;
 import com.faforever.client.util.TimeUtil;
@@ -145,6 +146,7 @@ public class GameService implements InitializingBean {
   private final ReconnectTimerService reconnectTimerService;
   private final ChatService chatService;
   private final RatingService ratingService;
+  private final HotfixService hotfixService;
 
   private final ObservableList<Game> games;
   private final String faWindowTitle;
@@ -188,7 +190,8 @@ public class GameService implements InitializingBean {
                      DiscordRichPresenceService discordRichPresenceService,
                      ReconnectTimerService reconnectTimerService,
                      ChatService chatService,
-                     RatingService ratingService) {
+                     RatingService ratingService,
+                     HotfixService hotfixService) {
 
     this.clientProperties = clientProperties;
     this.fafService = fafService;
@@ -208,6 +211,7 @@ public class GameService implements InitializingBean {
     this.reconnectTimerService = reconnectTimerService;
     this.chatService = chatService;
     this.ratingService = ratingService;
+    this.hotfixService = hotfixService;
 
     ircHostAndPort = String.format("%s:%d", clientProperties.getIrc().getHost(), 6667);//clientProperties.getIrc().getPort());
     faWindowTitle = clientProperties.getForgedAlliance().getWindowTitle();
@@ -566,6 +570,11 @@ public class GameService implements InitializingBean {
             if (isGameRunning()) {
               return;
             }
+            if (!hotfixService.applyModFileHotfixes(modTechnical)) {
+              log.warn("[runWithReplay] aborting replay: mandatory mod-file hotfix failed for {}", modTechnical);
+              notificationService.addImmediateWarnNotification("hotfix.modFileFailed", modTechnical);
+              return;
+            }
 
             Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(modTechnical, replayId));
             spawnGenericTerminationListener(launchServerProcess);
@@ -921,6 +930,13 @@ public class GameService implements InitializingBean {
         .thenAccept(ap -> adapterPort[0] = ap)
         .thenCompose((aVoid) -> this.fafService.getLeaderboards())
         .thenAccept(availableLeaderboards -> {
+          if (!hotfixService.applyModFileHotfixes(modTechnical)) {
+            log.warn("[startGame] aborting launch: mandatory mod-file hotfix failed for {}", modTechnical);
+            notificationService.addImmediateWarnNotification("hotfix.modFileFailed", modTechnical);
+            iceAdapter.stop();
+            fafService.notifyGameEnded();
+            return;
+          }
           List<String> args = fixMalformedArgs(gameLaunchMessage.getArgs());
 
           Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(modTechnical, uid));

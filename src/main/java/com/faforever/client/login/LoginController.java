@@ -14,6 +14,7 @@ import com.faforever.client.update.ClientConfiguration;
 import com.faforever.client.update.ClientConfiguration.Endpoints;
 import com.faforever.client.update.ClientUpdateService;
 import com.faforever.client.update.DownloadUpdateTask;
+import com.faforever.client.update.HotfixService;
 import com.faforever.client.update.UpdateInfo;
 import com.faforever.client.update.Version;
 import com.faforever.client.user.UserService;
@@ -84,18 +85,22 @@ public class LoginController implements Controller<Pane> {
   @VisibleForTesting
   CompletableFuture<UpdateInfo> updateInfoFuture;
 
+  private final HotfixService hotfixService;
+
   public LoginController(
       UserService userService,
       PreferencesService preferencesService,
       PlatformService platformService,
       ClientProperties clientProperties,
-      I18n i18n, ClientUpdateService clientUpdateService) {
+      I18n i18n, ClientUpdateService clientUpdateService,
+      HotfixService hotfixService) {
     this.userService = userService;
     this.preferencesService = preferencesService;
     this.platformService = platformService;
     this.clientProperties = clientProperties;
     this.i18n = i18n;
     this.clientUpdateService = clientUpdateService;
+    this.hotfixService = hotfixService;
   }
 
   public void initialize() {
@@ -189,7 +194,25 @@ public class LoginController implements Controller<Pane> {
       loginAllowed = true;
     }
 
-    initializeFuture.complete(null);
+    // Apply CLIENT_BINARY hotfixes (e.g. broken gpgnet4ta) before login completes so any game
+    // launched in this session uses the override binary. Run async so the UI is not blocked
+    // while we hash/download; gate initializeFuture on completion so display() waits.
+    CompletableFuture
+        .supplyAsync(hotfixService::applyClientBinaryHotfixes)
+        .whenComplete((ok, throwable) -> {
+          if (throwable != null) {
+            log.warn("Hotfix check failed", throwable);
+          } else if (Boolean.FALSE.equals(ok)) {
+            log.warn("Mandatory client-binary hotfix failed; blocking login");
+            loginAllowed = false;
+            JavaFxUtil.runLater(() -> {
+              loginErrorLabel.setText(i18n.get("login.hotfixFailedError"));
+              loginErrorLabel.setVisible(true);
+              loginFormPane.setDisable(true);
+            });
+          }
+          initializeFuture.complete(null);
+        });
   }
 
   private void showClientOutdatedPane(String minimumVersion) {
