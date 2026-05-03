@@ -127,9 +127,14 @@ public class GameDetailController implements Controller<Pane> {
   private ChangeListener<GameStatus> currentGameStatusListener;
   private ChangeListener<Number> gameRunningListener;
   private ChangeListener<Game> autoJoinRequestedGameListener;
+  private boolean severed;
 
   /* sever ties to external objects so that this instance can be garbage collected */
   public void sever() {
+    if (severed) {
+      return;
+    }
+    severed = true;
     if (gameTimeSinceStartUpdater !=null) {
       gameTimeSinceStartUpdater.stop();
     }
