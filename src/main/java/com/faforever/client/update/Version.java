@@ -36,6 +36,17 @@ public final class Version {
   }
 
   /**
+   * True when the running client has no real release version — i.e. a dev/IDE/local-gradle build
+   * tagged "snapshot" or "unspecified", or anything else that does not parse as semver. Hotfix
+   * downloads, hotfix-override binary lookups, and any other release-keyed behavior should be
+   * skipped on these builds.
+   */
+  public static boolean isSnapshotBuild() {
+    String v = currentVersion;
+    return v == null || !followsSemverPattern(removePrefix(v));
+  }
+
+  /**
    * Compares a remote version with the current version of the application.
    *
    * @return true if the remote version is higher than the current version

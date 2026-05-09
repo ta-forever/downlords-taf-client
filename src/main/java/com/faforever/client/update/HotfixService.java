@@ -75,6 +75,10 @@ public class HotfixService {
    * @return true if no mandatory hotfix failed.
    */
   public boolean applyClientBinaryHotfixes() {
+    if (Version.isSnapshotBuild()) {
+      log.info("[hotfix] running snapshot build ({}); skipping client-binary hotfixes", Version.getCurrentVersion());
+      return true;
+    }
     ClientConfiguration cfg = preferencesService.getClientRemoteConfiguration();
     List<Hotfix> hotfixes = cfg == null ? null : cfg.getHotfixes();
     if (hotfixes == null || hotfixes.isEmpty()) {
@@ -105,6 +109,11 @@ public class HotfixService {
    */
   public boolean applyModFileHotfixes(String modTechnical) {
     if (modTechnical == null) {
+      return true;
+    }
+    if (Version.isSnapshotBuild()) {
+      log.info("[hotfix] running snapshot build ({}); skipping mod-file hotfixes for {}",
+          Version.getCurrentVersion(), modTechnical);
       return true;
     }
     ClientConfiguration cfg = preferencesService.getClientRemoteConfiguration();

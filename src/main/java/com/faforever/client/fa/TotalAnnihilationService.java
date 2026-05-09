@@ -6,6 +6,7 @@ import com.faforever.client.preferences.MaxPacketSizeOption;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.remote.FafService;
+import com.faforever.client.update.Version;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -80,11 +81,17 @@ public class TotalAnnihilationService {
   /**
    * Resolves a native binary name to either the user-writable hotfix override copy
    * (if present) or the bundled copy. Always returns an absolute path.
+   *
+   * <p>Snapshot/dev builds always resolve to the bundled copy and ignore any override left
+   * behind by a previous release-build run — hotfixes are authored against released versions,
+   * so a leftover override could silently downgrade locally-built binaries to a stock release.
    */
   public Path resolveNativeBinary(String name) {
-    Path override = getHotfixBinDir().resolve(name);
-    if (java.nio.file.Files.isRegularFile(override)) {
-      return override.toAbsolutePath();
+    if (!Version.isSnapshotBuild()) {
+      Path override = getHotfixBinDir().resolve(name);
+      if (java.nio.file.Files.isRegularFile(override)) {
+        return override.toAbsolutePath();
+      }
     }
     return getNativeGpgnet4taDir().resolve(name).toAbsolutePath();
   }
