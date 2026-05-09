@@ -2125,23 +2125,18 @@ public class TournamentsController extends AbstractViewController<Node> {
       }
     }
 
-    // No-show reputation badge — only when the player has actually missed
-    // tournaments. A clean record stays unlabelled to avoid noise. Pulls
-    // from the current tournament since this slot only ever renders for
-    // the displayed tournament's bracket.
+    // No inline reputation badge in match boxes — bracket cells stay
+    // visually quiet so the eye lands on names, ratings, and scores.
+    // The breakdown is still surfaced via the tooltip below and via the
+    // signups section badge.
     TournamentBean.ReputationInfo rep = (playerName != null && currentTournament != null
         && currentTournament.getParticipantReputations() != null)
         ? currentTournament.getParticipantReputations().get(playerName) : null;
-    String repBadge = formatReputationBadge(rep);
-    if (repBadge != null) {
-      Label repLabel = new Label(repBadge);
-      repLabel.getStyleClass().addAll("bracket-player-rating", "bracket-player-reputation");
-      slot.getChildren().add(repLabel);
-    }
 
     // Tooltip with full untruncated name + rating so nothing is lost
     // when the bracket column is too narrow for long usernames. Append
-    // the reputation breakdown so the bare "(N/M)" badge is decodable.
+    // the reputation breakdown so the (shows/signups) info is still
+    // accessible on hover even though the inline badge is gone.
     if (tooltipText != null) {
       if (rep != null && rep.getSignupCount() > 0) {
         int shows = Math.max(0, rep.getSignupCount()
