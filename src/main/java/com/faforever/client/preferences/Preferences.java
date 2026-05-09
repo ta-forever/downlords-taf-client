@@ -65,7 +65,7 @@ public class Preferences {
   private final BooleanProperty autoTeamBalanceEnabled = new SimpleBooleanProperty(true);
   private final BooleanProperty sequencedLaunchEnabled = new SimpleBooleanProperty(false);
   private final BooleanProperty autoJoinEnabled = new SimpleBooleanProperty(false);
-  private final BooleanProperty requireUacEnabled = new SimpleBooleanProperty(true);
+  private final BooleanProperty requireUacEnabled = new SimpleBooleanProperty(false);
 
   private final ListProperty<String> ignoredNotifications = new SimpleListProperty<>(observableArrayList());
   private final StringProperty gamesViewMode = new SimpleStringProperty("tableButton");
