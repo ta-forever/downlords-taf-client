@@ -23,6 +23,20 @@ public class NoticeMessage extends FafServerMessage {
    */
   @com.fasterxml.jackson.annotation.JsonProperty("tournament_id")
   private Integer tournamentId;
+  /**
+   * Machine-readable denial reason. Used to branch client UX without parsing
+   * the english `text`. Currently only "reserved_slots" is defined (sent on
+   * a `game_join_fail` style notice when the join was blocked by the
+   * reserved-slots feature). Legacy clients ignore this field.
+   */
+  private String reasonCode;
+  /**
+   * Game uid this notice relates to, when applicable. Set on reserved-slot
+   * denials so the client can later issue a RequestGameAccess. Set on
+   * `game_join_invite` style notices so the client can show a one-click join
+   * prompt. Null on notices unrelated to a specific game.
+   */
+  private Integer gameUid;
 
   public NoticeMessage() {
     super(FafServerMessageType.NOTICE);
@@ -71,4 +85,12 @@ public class NoticeMessage extends FafServerMessage {
   public Integer getTournamentId() { return tournamentId; }
 
   public void setTournamentId(Integer tournamentId) { this.tournamentId = tournamentId; }
+
+  public String getReasonCode() { return reasonCode; }
+
+  public void setReasonCode(String reasonCode) { this.reasonCode = reasonCode; }
+
+  public Integer getGameUid() { return gameUid; }
+
+  public void setGameUid(Integer gameUid) { this.gameUid = gameUid; }
 }

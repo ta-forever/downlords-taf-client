@@ -34,6 +34,8 @@
       <SeparatorMenuItem fx:id="socialSeparator" mnemonicParsing="false"/>
       <MenuItem fx:id="inviteItem" mnemonicParsing="false" onAction="#onInviteToGameSelected"
                 text="%chat.userContext.inviteToGame"/>
+      <MenuItem fx:id="reserveSlotItem" mnemonicParsing="false" onAction="#onReserveSlotSelected"
+                text="%reservedSlots.contextMenu.addToReserved" visible="false"/>
       <MenuItem fx:id="addFriendItem" mnemonicParsing="false" onAction="#onAddFriendSelected"
                 text="%chat.userContext.addFriend"/>
       <MenuItem fx:id="removeFriendItem" mnemonicParsing="false" onAction="#onRemoveFriendSelected"

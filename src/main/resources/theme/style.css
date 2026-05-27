@@ -1523,6 +1523,111 @@
   -fx-background: -fx-accent;
 }
 
+/***************** Reserved Players Card *****************/
+
+/* A card variant for the reserved-players list in the game-detail view.
+   The card's title + content already differentiate it from team cards;
+   we deliberately match the border to the fill so there's no extra visual
+   noise (dashed/colored borders read as "ants walking on screen"). */
+.reserved-players-card {
+  -fx-border-color: -card-color;
+}
+
+.reserved-player-row {
+  -fx-padding: 1 0 1 0;
+}
+
+/* Collapse the PlayerCardTooltipController's faction-icon slot when used
+   inside a reserved-player row — reserved-slot context has no faction
+   info, so the inline 24px reserve is just wasted left padding. Team
+   cards still get the slot (no .reserved-player-row ancestor). */
+.reserved-player-row .faction-icon {
+  -fx-min-width: 0;
+  -fx-pref-width: 0;
+  -fx-max-width: 0;
+}
+
+.reserved-player-offline-name {
+  -fx-text-fill: #888888;
+}
+
+.reserved-player-remove {
+  -fx-padding: 0 6 0 6;
+  -fx-font-size: 0.8em;
+}
+
+/* Inline "knocking on door" row — non-reserved player asking the host to let
+   them in. The icon replaces the status dot; tick/cross buttons replace the
+   host's remove-X. Icon is a door silhouette with a small knob hole and an
+   arrow pointing right out of the doorway (matches the "let me in / leaving
+   the doorway with permission" visual cue). The icon uses the existing
+   .icon base class which paints with -fx-text-background-color and gives
+   it 16x16 sizing; we tweak padding for a slightly tighter fit. */
+.knock-icon {
+  -fx-shape: "M 80 80 L 540 80 L 540 944 L 80 944 Z M 460 460 L 460 540 L 510 540 L 510 460 Z M 560 400 L 780 400 L 780 280 L 980 512 L 780 744 L 780 624 L 560 624 Z";
+  -fx-padding: 0.5em;
+}
+
+.reserved-player-knock-approve,
+.reserved-player-knock-dismiss {
+  -fx-padding: 0 6 0 6;
+  -fx-font-size: 0.85em;
+  -fx-font-weight: bold;
+}
+
+.reserved-player-knock-approve {
+  -fx-text-fill: #2e7d32;
+}
+
+.reserved-player-knock-dismiss {
+  -fx-text-fill: #c62828;
+}
+
+/* Tooltips spawned by the reserved-slots UI use the default JavaFX styling
+   which renders at ~9pt — too small. Bump to the normal app font size so
+   the hover text is actually legible. */
+.reserved-slots-tooltip {
+  -fx-font-size: 1.0em;
+}
+
+.reserved-players-empty {
+  -fx-opacity: 0.7;
+  -fx-font-style: italic;
+}
+
+/* Per-player status dot. 10x10 circle. Offline + idle players render no
+   dot at all (handled in the controller). The four shown states encode
+   "which game?" via color (green = this game, amber = other game) and
+   "what phase?" via fill (ring = lobby/staging, filled = launched/live). */
+.reserved-player-status-dot {
+  -fx-background-radius: 5;
+  -fx-border-radius: 5;
+}
+
+/* In THIS game, still in lobby/battleroom — green ring. */
+.reserved-player-status-dot.status-in-this-game-staging {
+  -fx-background-color: transparent;
+  -fx-border-color: #4caf50;
+  -fx-border-width: 2;
+}
+
+/* In THIS game, launched — green filled. */
+.reserved-player-status-dot.status-in-this-game-live {
+  -fx-background-color: #4caf50;
+}
+
+/* In some OTHER game, still in lobby/battleroom — amber ring. */
+.reserved-player-status-dot.status-in-other-game-staging {
+  -fx-background-color: transparent;
+  -fx-border-color: #ffb300;
+  -fx-border-width: 2;
+}
+
+/* In some OTHER game, launched — amber filled. */
+.reserved-player-status-dot.status-in-other-game-live {
+  -fx-background-color: #ffb300;
+}
+
 /***************** Game Card *****************/
 
 .game-card .lock-icon {

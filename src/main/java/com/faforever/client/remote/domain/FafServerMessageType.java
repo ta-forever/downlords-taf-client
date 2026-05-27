@@ -35,7 +35,8 @@ public enum FafServerMessageType implements ServerMessageType {
   TOURNAMENT_TEAM_INVITE_RESOLVED("tournament_team_invite_resolved", TournamentTeamInviteResolvedMessage.class),
   TOURNAMENT_TIMER_STOPPED("tournament_timer_stopped", TournamentTimerStoppedMessage.class),
   TOURNAMENT_TIMER_RESTARTED("tournament_timer_restarted", TournamentTimerRestartedMessage.class),
-  TOURNAMENT_CHECK_IN_REQUIRED("tournament_check_in_required", TournamentCheckInRequiredMessage.class);
+  TOURNAMENT_CHECK_IN_REQUIRED("tournament_check_in_required", TournamentCheckInRequiredMessage.class),
+  HOST_GAME_STATE("host_game_state", HostGameStateMessage.class);
 
   private static final Map<String, FafServerMessageType> fromString;
 

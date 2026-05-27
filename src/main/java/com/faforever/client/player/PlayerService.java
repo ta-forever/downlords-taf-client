@@ -423,6 +423,46 @@ public class PlayerService implements InitializingBean {
     return friendList.contains(pid);
   }
 
+  /** Immutable snapshot of the current player's friend list. Used by the
+   *  reserved-slots editor's "Add friends" bulk-add. */
+  public java.util.List<Integer> getFriendIds() {
+    return java.util.List.copyOf(friendList);
+  }
+
+  /** Look up a player by id from the in-memory cache. Returns empty if the
+   *  player isn't currently online / hasn't been seen by this client. */
+  public java.util.Optional<Player> getPlayerById(int playerId) {
+    return java.util.Optional.ofNullable(playersById.get(playerId));
+  }
+
+  /** Observable map of online players keyed by username. Exposed so views
+   *  (e.g. the reserved-players card) can listen for online/offline
+   *  transitions. Modifications go through PlayerService methods; treat
+   *  the returned map as read-only.
+   *
+   *  Note: entries here are NOT removed the moment a player goes offline
+   *  from the FAF server — that happens only when they also leave IRC
+   *  ({@link #onUserOffline}). For an authoritative FAF-online check use
+   *  {@link #isOnline(String)} or listen on {@link #getPlayersById()}. */
+  public ObservableMap<String, Player> getPlayersByName() {
+    return playersByName;
+  }
+
+  /** Observable map of online players keyed by id. Updated immediately when
+   *  a player logs in/out of the FAF server, so this is the right place to
+   *  listen for "did so-and-so just go offline?" events. */
+  public ObservableMap<Integer, Player> getPlayersById() {
+    return playersById;
+  }
+
+  /** True if the player is currently signed in to the FAF server. Returns
+   *  false for players who are only in the chat-side cache (e.g. left FAF
+   *  but still in IRC). */
+  public boolean isOnline(String username) {
+    Player p = playersByName.get(username);
+    return p != null && playersById.containsKey(p.getId());
+  }
+
   public boolean isFoe(Integer pid) {
     return foeList.contains(pid);
   }

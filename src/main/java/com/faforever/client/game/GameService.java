@@ -33,6 +33,7 @@ import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.UserOfflineEvent;
 import com.faforever.client.preferences.AskAlwaysOrNever;
 import com.faforever.client.preferences.AutoUploadLogsOption;
+import com.faforever.client.preferences.LastGamePrefs;
 import com.faforever.client.preferences.NotificationsPrefs;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.rating.RatingService;
@@ -342,6 +343,24 @@ public class GameService implements InitializingBean {
           GameService.this.notifyRecentlyPlayedGameEnded(game);
         }
 
+        // Reserved-slots: the "Hold your spot?" prompt is triggered by the
+        // server sending a `notice` with style `reserved_slot_auto_reserved`
+        // (see ReservedSlotsNotificationService.onNotice). A status-listener
+        // trigger here doesn't work for joiners because their disconnect
+        // doesn't put the game itself into ENDED — the game stays in
+        // BATTLEROOM for the other players.
+
+        // Reserved-slots feature: snapshot the roster of any game we were
+        // actually part of at launch and game-end, for the "Add players
+        // from last game" button. Launch captures the at-launch roster
+        // even if the game later crashes mid-flight without an ENDED
+        // transition; end captures the final roster (which can change
+        // due to mid-game drops/joins on some mods).
+        if ((newStatus == GameStatus.LAUNCHING || newStatus == GameStatus.ENDED)
+            && Objects.equals(currentGame, game)) {
+          GameService.this.snapshotRosterForLastGamePref(game);
+        }
+
         if (Objects.equals(currentGame, game) && currentGameStatusProperty.get() != newStatus) {
           currentGameStatusProperty.setValue(newStatus);
         }
@@ -364,6 +383,141 @@ public class GameService implements InitializingBean {
         }
       }
     };
+  }
+
+  /**
+   * Push a new reserved-players list to the server for the player's current
+   * hosted game. Caller is responsible for being the host of a STAGING/BATTLEROOM
+   * game — server-side checks gate this regardless.
+   */
+  public void sendReservedPlayers(List<Integer> playerIds) {
+    fafService.setReservedPlayers(playerIds);
+  }
+
+  /**
+   * Leave a game while reserving the slot for a short return window. The
+   * server side ({@code command_leave_and_reserve}) records a 5-minute TTL
+   * against the player so the slot is held if they re-join in that window.
+   * The caller is responsible for the actual game-process termination (via
+   * {@link #killGame()} or the existing leave flow) — this method only
+   * tells the server to record the reservation intent first.
+   */
+  public void leaveAndReserve(int gameId) {
+    fafService.leaveAndReserve();
+  }
+
+  /** Race-defense for the leave dialog: if the user picks Reserve / Just-leave
+   *  client-side, we send {@code cancel_reservation} (or {@code leave_and_reserve})
+   *  before killing TA. The server normally processes that command and sets its
+   *  {@code auto_reserve_opt_out} flag before the disconnect lands — in which
+   *  case it skips the auto-reserve + notice entirely and this set is unused.
+   *  But if the disconnect overtakes the command on the network, the server
+   *  fires {@code reserved_slot_auto_reserved} anyway and the client gets a
+   *  redundant prompt. The set absorbs that race. One-shot per gameId. */
+  private final Set<Integer> suppressedAutoReservePromptGameIds = ConcurrentHashMap.newKeySet();
+
+  /**
+   * Mark a game's leave-dialog as already answered so the follow-up
+   * {@code reserved_slot_auto_reserved} notice (if any wins the race against
+   * our outbound {@code cancel_reservation} / {@code leave_and_reserve})
+   * doesn't re-prompt.
+   */
+  public void markBattleroomExitHandled(int gameId) {
+    suppressedAutoReservePromptGameIds.add(gameId);
+  }
+
+  /**
+   * Prompts the player after they exit TA from battleroom to hold their slot
+   * for 5 minutes. Triggered from the game-status listener when their own
+   * game transitions BATTLEROOM -> ENDED. The server has already auto-reserved
+   * the player's slot with a 30-second TTL at disconnect time, so:
+   *   - "Reserve my spot" upgrades the TTL to 5 minutes.
+   *   - "Don't reserve" explicitly cancels the auto-reservation.
+   *   - Ignoring the prompt lets the 30s TTL auto-expire.
+   * No Cancel option — the game already exited; only the reservation choice
+   * is meaningful here.
+   */
+  void offerReserveOnBattleroomExit(int gameId) {
+    if (suppressedAutoReservePromptGameIds.remove(gameId)) {
+      return;
+    }
+    notificationService.addNotification(new ImmediateNotification(
+        i18n.get("reservedSlots.leaveDialog.title"),
+        i18n.get("reservedSlots.exitedDialog.message"),
+        Severity.INFO,
+        List.of(
+            new Action(i18n.get("reservedSlots.leaveDialog.reserveAndLeave"),
+                ev -> leaveAndReserve(gameId)),
+            new Action(i18n.get("reservedSlots.exitedDialog.dontReserve"),
+                ev -> fafService.cancelReservation())
+        )
+    ));
+  }
+
+  /**
+   * Apply the reserved-slots config to the just-hosted game once it has
+   * entered STAGING/BATTLEROOM. Idempotent and safe to call before the
+   * hostGame future resolves: if the game is already there, applies
+   * immediately; otherwise installs a one-shot listener that fires on
+   * first STAGING/BATTLEROOM transition and cancels itself if the game
+   * is abandoned before reaching that state.
+   */
+  public void applyReservedSlotsOnceStaging(boolean enabled, List<Integer> playerIds) {
+    if (!enabled) {
+      return;
+    }
+    Runnable apply = () -> {
+      fafService.setReservedSlotsEnabled(true);
+      if (playerIds != null && !playerIds.isEmpty()) {
+        fafService.setReservedPlayers(playerIds);
+      }
+    };
+    Game game = getCurrentGame();
+    if (game != null
+        && (game.getStatus() == GameStatus.STAGING || game.getStatus() == GameStatus.BATTLEROOM)) {
+      apply.run();
+      return;
+    }
+    ChangeListener<GameStatus> oneShot = new ChangeListener<>() {
+      @Override
+      public void changed(javafx.beans.value.ObservableValue<? extends GameStatus> obs,
+                          GameStatus oldStatus, GameStatus newStatus) {
+        if (newStatus == GameStatus.STAGING || newStatus == GameStatus.BATTLEROOM) {
+          currentGameStatusProperty.removeListener(this);
+          apply.run();
+        } else if (newStatus == GameStatus.ENDED) {
+          currentGameStatusProperty.removeListener(this);
+        }
+      }
+    };
+    currentGameStatusProperty.addListener(oneShot);
+  }
+
+  /**
+   * Snapshot the player roster of the given game into {@link LastGamePrefs}
+   * for the reserved-slots "Add players from last game" button. Players that
+   * aren't in {@link PlayerService}'s cache are skipped (we can't resolve
+   * them to an id, which is what the reserved-list needs).
+   */
+  private void snapshotRosterForLastGamePref(Game game) {
+    if (game == null || game.getTeams() == null) {
+      return;
+    }
+    List<Integer> ids = new ArrayList<>();
+    List<String> logins = new ArrayList<>();
+    for (List<String> teamMembers : game.getTeams().values()) {
+      if (teamMembers == null) continue;
+      for (String login : teamMembers) {
+        playerService.getPlayerForUsername(login).ifPresent(p -> {
+          ids.add(p.getId());
+          logins.add(login);
+        });
+      }
+    }
+    LastGamePrefs prefs = preferencesService.getPreferences().getLastGame();
+    prefs.setLastGameRosterPlayerIds(ids);
+    prefs.setLastGameRosterPlayerLogins(logins);
+    preferencesService.storeInBackground();
   }
 
   public CompletableFuture<Void> hostGame(NewGameInfo newGameInfo) {
@@ -1440,6 +1594,20 @@ public class GameService implements InitializingBean {
         if (gameInfoMessage.getTeams() != null) {
           game.getTeams().putAll(gameInfoMessage.getTeams());
         }
+      }
+
+      game.setReservedSlotsEnabled(Boolean.TRUE.equals(gameInfoMessage.getReservedSlotsEnabled()));
+      synchronized (game.getReservedPlayers()) {
+        game.getReservedPlayers().setAll(
+            gameInfoMessage.getReservedPlayers() != null
+                ? gameInfoMessage.getReservedPlayers()
+                : List.of());
+      }
+      synchronized (game.getReservedPlayerIds()) {
+        game.getReservedPlayerIds().setAll(
+            gameInfoMessage.getReservedPlayerIds() != null
+                ? gameInfoMessage.getReservedPlayerIds()
+                : List.of());
       }
     }
   }

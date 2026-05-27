@@ -132,6 +132,18 @@ public interface FafServerAccessor {
 
   void setGameMapDetails(String mapName, String hpiArchive, String crc);
 
+  void setReservedSlotsEnabled(boolean enabled);
+
+  void setReservedPlayers(List<Integer> playerIds);
+
+  void leaveAndReserve();
+
+  void cancelReservation();
+
+  void requestGameAccess(int gameId);
+
+  void dismissJoinRequest(int playerId);
+
   void resetIdleSince();
 
   List<String> getLocalIps();

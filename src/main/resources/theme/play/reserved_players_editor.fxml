@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Priority?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1"
+      xmlns="http://javafx.com/javafx/8.0.141"
+      fx:id="root"
+      fx:controller="com.faforever.client.game.ReservedPlayersEditorController"
+      styleClass="reserved-players-editor"
+      spacing="6.0">
+    <padding>
+        <Insets bottom="4.0" left="4.0" right="4.0" top="4.0"/>
+    </padding>
+    <Label styleClass="reserved-players-editor-title" text="%reservedSlots.editor.title"/>
+    <HBox spacing="6.0">
+        <TextField fx:id="addPlayerField"
+                   promptText="%reservedSlots.editor.add"
+                   HBox.hgrow="ALWAYS"/>
+        <Button fx:id="addPlayerButton"
+                text="+"
+                onAction="#onAddPlayerClicked">
+            <tooltip>
+                <Tooltip text="%reservedSlots.editor.add"/>
+            </tooltip>
+        </Button>
+    </HBox>
+    <HBox spacing="6.0">
+        <Button fx:id="addFriendsButton"
+                text="%reservedSlots.editor.addFriends"
+                onAction="#onAddFriendsClicked"
+                HBox.hgrow="ALWAYS"
+                maxWidth="1.7976931348623157E308"/>
+        <Button fx:id="addFromLastGameButton"
+                text="%reservedSlots.editor.addFromLastGame"
+                onAction="#onAddFromLastGameClicked"
+                HBox.hgrow="ALWAYS"
+                maxWidth="1.7976931348623157E308"/>
+        <Button fx:id="clearButton"
+                text="%reservedSlots.editor.clear"
+                onAction="#onClearClicked"
+                HBox.hgrow="ALWAYS"
+                maxWidth="1.7976931348623157E308"/>
+    </HBox>
+    <Label fx:id="capacityLabel" styleClass="reserved-players-editor-capacity"/>
+    <ListView fx:id="reservedListView" VBox.vgrow="ALWAYS" prefHeight="180"/>
+</VBox>

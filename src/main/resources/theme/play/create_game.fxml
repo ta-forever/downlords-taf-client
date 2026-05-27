@@ -29,7 +29,8 @@
     </columnConstraints>
     <rowConstraints>
         <RowConstraints minHeight="80.0" vgrow="NEVER"/>
-        <RowConstraints minHeight="35.0" vgrow="NEVER"/>
+        <!-- Settings nested grid: 3 rows (friends/replay/maxplayers, password/replay/rating, reserved-slots-row) -->
+        <RowConstraints minHeight="115.0" vgrow="NEVER"/>
         <RowConstraints minHeight="10.0" vgrow="NEVER" />
         <RowConstraints minHeight="35.0" vgrow="NEVER" valignment="TOP"/>
         <RowConstraints minHeight="35.0" vgrow="NEVER" />
@@ -50,10 +51,23 @@
             <rowConstraints>
                 <RowConstraints vgrow="NEVER"/>
                 <RowConstraints vgrow="NEVER"/>
+                <RowConstraints vgrow="NEVER"/>
               </rowConstraints>
             <children>
                 <CheckBox fx:id="onlyForFriendsCheckBox" mnemonicParsing="false" text="%game.create.onlyFriends" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
                 <PasswordField fx:id="passwordTextField" promptText="%game.create.password" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                <HBox spacing="6.0" GridPane.columnIndex="0" GridPane.rowIndex="2" GridPane.columnSpan="3">
+                    <CheckBox fx:id="reservedSlotsCheckBox" mnemonicParsing="false" text="%reservedSlots.enable">
+                        <tooltip>
+                            <Tooltip text="%reservedSlots.enable.tooltip"/>
+                        </tooltip>
+                    </CheckBox>
+                    <Button fx:id="manageReservedSlotsButton" mnemonicParsing="false"
+                            text="%reservedSlots.manage" onAction="#onManageReservedSlotsClicked"
+                            minWidth="120.0" prefWidth="140.0"/>
+                    <Label fx:id="reservedSlotsSummaryLabel" styleClass="reserved-slots-summary"
+                           maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS"/>
+                </HBox>
                 <Label text="%game.create.liveReplay" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
                 <ComboBox fx:id="liveReplayOptionComboBox" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
                 <Label maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="%games.create.maxPlayers" wrapText="true"

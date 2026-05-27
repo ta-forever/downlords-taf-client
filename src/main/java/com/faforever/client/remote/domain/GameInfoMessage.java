@@ -36,6 +36,12 @@ public class GameInfoMessage extends FafServerMessage {
   private Integer replayDelaySeconds;
   private GameType gameType;
   private String galacticWarPlanetName;
+  private Boolean reservedSlotsEnabled;
+  private List<String> reservedPlayers;
+  /** Parallel to {@link #reservedPlayers}. Sent so the host's edit-list popup
+   *  can seed itself with the current selection even for players who aren't
+   *  in PlayerService (offline / never seen by this client). */
+  private List<Integer> reservedPlayerIds;
   /**
    * The server may either send a single game or a list of games in the same message... *cringe*.
    */

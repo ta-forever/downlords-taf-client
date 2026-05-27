@@ -6,6 +6,8 @@ import com.faforever.client.chat.avatar.AvatarService;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.StringListCell;
+import com.faforever.client.game.Game;
+import com.faforever.client.game.GameService;
 import com.faforever.client.game.JoinGameHelper;
 import com.faforever.client.game.PlayerStatus;
 import com.faforever.client.i18n.I18n;
@@ -73,6 +75,8 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
   private final UiService uiService;
   private final ModeratorService moderatorService;
   private final TeamMatchmakingService teamMatchmakingService;
+  private final GameService gameService;
+  public MenuItem reserveSlotItem;
   public ComboBox<AvatarBean> avatarComboBox;
   public CustomMenuItem avatarPickerMenuItem;
   public MenuItem sendPrivateMessageItem;
@@ -105,7 +109,8 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
                                        PlayerService playerService, ReplayService replayService,
                                        NotificationService notificationService, I18n i18n, EventBus eventBus,
                                        JoinGameHelper joinGameHelper, AvatarService avatarService, UiService uiService,
-                                       ModeratorService moderatorService, TeamMatchmakingService teamMatchmakingService) {
+                                       ModeratorService moderatorService, TeamMatchmakingService teamMatchmakingService,
+                                       GameService gameService) {
     this.preferencesService = preferencesService;
     this.playerService = playerService;
     this.replayService = replayService;
@@ -117,6 +122,7 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
     this.uiService = uiService;
     this.moderatorService = moderatorService;
     this.teamMatchmakingService = teamMatchmakingService;
+    this.gameService = gameService;
   }
 
   public void initialize() {
@@ -218,6 +224,20 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
 //              newValue.statusProperty().get() == PlayerStatus.IDLE,
 //          newValue.statusProperty()));
 
+      // "Reserve a slot for this player" — visible only when:
+      //   - target is not me
+      //   - I am currently hosting a game
+      //   - that game has reserved-slots enabled
+      //   - the target isn't already on the reserved list
+      reserveSlotItem.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
+        if (newValue.getSocialStatus() == SELF) return false;
+        Game myGame = gameService.getCurrentGame();
+        if (myGame == null || !myGame.isReservedSlotsEnabled()) return false;
+        Player self = playerService.getCurrentPlayer().orElse(null);
+        if (self == null || !self.getUsername().equals(myGame.getHost())) return false;
+        return !myGame.getReservedPlayers().contains(newValue.getUsername());
+      }, newValue.socialStatusProperty(), gameService.getCurrentGameStatusProperty()));
+
     };
     JavaFxUtil.addListener(chatUser.playerProperty(), new WeakChangeListener<>(playerChangeListener));
     playerChangeListener.changed(chatUser.playerProperty(), null, chatUser.getPlayer().orElse(null));
@@ -275,6 +295,28 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
 
   public void onCopyUsernameSelected() {
     ClipboardUtil.copyToClipboard(chatUser.getUsername());
+  }
+
+  public void onReserveSlotSelected() {
+    Game myGame = gameService.getCurrentGame();
+    if (myGame == null || !myGame.isReservedSlotsEnabled()) {
+      return;
+    }
+    Player targetPlayer = chatUser.getPlayer().orElse(null);
+    if (targetPlayer == null) {
+      return;
+    }
+    // Build the new id list = current logins (resolved to ids, skipping host
+    // since the server keeps them implicitly) + the new target.
+    java.util.List<Integer> ids = new java.util.ArrayList<>();
+    for (String login : myGame.getReservedPlayers()) {
+      if (login.equals(myGame.getHost())) continue;
+      playerService.getPlayerForUsername(login).ifPresent(p -> ids.add(p.getId()));
+    }
+    if (!ids.contains(targetPlayer.getId())) {
+      ids.add(targetPlayer.getId());
+    }
+    gameService.sendReservedPlayers(ids);
   }
 
   public void onAddFriendSelected() {

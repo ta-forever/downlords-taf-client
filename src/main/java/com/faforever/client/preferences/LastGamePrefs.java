@@ -3,11 +3,14 @@ package com.faforever.client.preferences;
 import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.game.LiveReplayOption;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ListProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleListProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.collections.FXCollections;
 
 public class LastGamePrefs {
   private final StringProperty lastGameType;
@@ -21,6 +24,21 @@ public class LastGamePrefs {
   private final ObjectProperty<LiveReplayOption> liveReplayOption;
   private final BooleanProperty lastGameRankedEnabled;
   private final ObjectProperty<Integer> maxPlayers;
+  // Reserved-slots: remembers the host's last toggle and player list across
+  // sessions so the create-game dialog can prepopulate. We persist IDs (so a
+  // rename doesn't break the saved selection) AND parallel logins (so we can
+  // show the right name in the editor even when the player is currently
+  // offline and not in PlayerService's cache). The two lists are kept the
+  // same length; if a future-write breaks parity, the read-side tolerates it.
+  private final BooleanProperty lastReservedSlotsEnabled;
+  private final ListProperty<Integer> lastReservedPlayerIds;
+  private final ListProperty<String> lastReservedPlayerLogins;
+  // Last-game roster snapshot, taken when our currentGame transitions to
+  // LAUNCHING or ENDED. Feeds the "Add players from last game" button in
+  // the reserved-slots editor. Stored as parallel lists so we can show
+  // the logins in the button label even when the player is offline.
+  private final ListProperty<Integer> lastGameRosterPlayerIds;
+  private final ListProperty<String> lastGameRosterPlayerLogins;
 
   public LastGamePrefs() {
     lastGameType = new SimpleStringProperty(KnownFeaturedMod.DEFAULT.getTechnicalName());
@@ -34,6 +52,11 @@ public class LastGamePrefs {
     liveReplayOption = new SimpleObjectProperty<>(LiveReplayOption.FIVE_MINUTES);
     lastGameRankedEnabled = new SimpleBooleanProperty(true);
     maxPlayers = new SimpleObjectProperty<>(4);
+    lastReservedSlotsEnabled = new SimpleBooleanProperty(false);
+    lastReservedPlayerIds = new SimpleListProperty<>(FXCollections.observableArrayList());
+    lastReservedPlayerLogins = new SimpleListProperty<>(FXCollections.observableArrayList());
+    lastGameRosterPlayerIds = new SimpleListProperty<>(FXCollections.observableArrayList());
+    lastGameRosterPlayerLogins = new SimpleListProperty<>(FXCollections.observableArrayList());
   }
 
   public String getLastGameType() {
@@ -159,4 +182,32 @@ public class LastGamePrefs {
   public void setMaxPlayers(int maxPlayers) { this.maxPlayers.set(maxPlayers); }
   public int getMaxPlayers() { return this.maxPlayers.get(); }
   public ObjectProperty<Integer> maxPlayersProperty() { return this.maxPlayers; }
+
+  public boolean isLastReservedSlotsEnabled() { return lastReservedSlotsEnabled.get(); }
+  public void setLastReservedSlotsEnabled(boolean v) { lastReservedSlotsEnabled.set(v); }
+  public BooleanProperty lastReservedSlotsEnabledProperty() { return lastReservedSlotsEnabled; }
+
+  public javafx.collections.ObservableList<Integer> getLastReservedPlayerIds() { return lastReservedPlayerIds.get(); }
+  public void setLastReservedPlayerIds(java.util.List<Integer> ids) {
+    lastReservedPlayerIds.setAll(ids == null ? java.util.List.of() : ids);
+  }
+  public ListProperty<Integer> lastReservedPlayerIdsProperty() { return lastReservedPlayerIds; }
+
+  public javafx.collections.ObservableList<String> getLastReservedPlayerLogins() { return lastReservedPlayerLogins.get(); }
+  public void setLastReservedPlayerLogins(java.util.List<String> logins) {
+    lastReservedPlayerLogins.setAll(logins == null ? java.util.List.of() : logins);
+  }
+  public ListProperty<String> lastReservedPlayerLoginsProperty() { return lastReservedPlayerLogins; }
+
+  public javafx.collections.ObservableList<Integer> getLastGameRosterPlayerIds() { return lastGameRosterPlayerIds.get(); }
+  public void setLastGameRosterPlayerIds(java.util.List<Integer> ids) {
+    lastGameRosterPlayerIds.setAll(ids == null ? java.util.List.of() : ids);
+  }
+  public ListProperty<Integer> lastGameRosterPlayerIdsProperty() { return lastGameRosterPlayerIds; }
+
+  public javafx.collections.ObservableList<String> getLastGameRosterPlayerLogins() { return lastGameRosterPlayerLogins.get(); }
+  public void setLastGameRosterPlayerLogins(java.util.List<String> logins) {
+    lastGameRosterPlayerLogins.setAll(logins == null ? java.util.List.of() : logins);
+  }
+  public ListProperty<String> lastGameRosterPlayerLoginsProperty() { return lastGameRosterPlayerLogins; }
 }

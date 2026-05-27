@@ -20,6 +20,7 @@ import com.faforever.client.notification.Action;
 import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.Severity;
+import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.LastGamePrefs;
 import com.faforever.client.preferences.PreferencesService;
@@ -65,7 +66,10 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 import javafx.util.StringConverter;
+import ch.micheljung.fxwindow.FxStage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.maven.artifact.versioning.ComparableVersion;
@@ -146,6 +150,9 @@ public class CreateGameController implements Controller<Pane> {
   public ComboBox<PreviewType> mapPreviewTypeComboBox;
   public ComboBox<Integer> maxPlayersComboBox;
   public CheckBox onlyForFriendsCheckBox;
+  public CheckBox reservedSlotsCheckBox;
+  public Button manageReservedSlotsButton;
+  public Label reservedSlotsSummaryLabel;
   public ComboBox<LiveReplayOption> liveReplayOptionComboBox;
   public ListView<MatchmakingQueue> mapPoolListView;
 
@@ -167,6 +174,24 @@ public class CreateGameController implements Controller<Pane> {
 
   private ObjectProperty<Game> contextGameProperty; // is player actually creating a new game (contextGame==null), or inspecting settings for an existing game?
 
+  /**
+   * Working set of player ids selected for the reserved-slots list. Edited
+   * via the popup launched by {@link #onManageReservedSlotsClicked()} and
+   * persisted to {@link LastGamePrefs} on host. The host is NOT in this
+   * list — the server adds them implicitly.
+   *
+   * {@code reservedPlayerLoginsById} is a parallel cache of id -> login for
+   * the same selection: persisted to {@link LastGamePrefs} alongside the ids
+   * and fed back to the editor's display-login fallback so offline players
+   * show their login rather than {@code #42}.
+   */
+  private final List<Integer> reservedPlayerIds = new ArrayList<>();
+  private final Map<Integer, String> reservedPlayerLoginsById = new HashMap<>();
+  /** Set while {@link #mirrorReservedSlotsFromContextGame} is seeding the
+   *  checkbox / list from external state, so the change listener below
+   *  doesn't write that state straight back to CREATE-mode prefs. */
+  private boolean loadingReservedSlots = false;
+
   void setSelectingGalacticWarMap(SelectGalacticWarMapEvent selecting) {
     selectGalacticWarMapEvent.set(selecting);
   }
@@ -184,7 +209,61 @@ public class CreateGameController implements Controller<Pane> {
       }
     }
     this.contextGameProperty.set(game);
+    mirrorReservedSlotsFromContextGame(game);
     selectAppropriateMap();
+  }
+
+  /**
+   * Mirror the reserved-slots state from the context game (UPDATE mode) into
+   * the dialog. When {@code game} is null (CREATE mode) we instead reload
+   * from {@link LastGamePrefs} so reopening the dialog after editing an
+   * existing game gets you back to your saved CREATE-time selection.
+   *
+   * Suppresses the prefs-persistence listener via {@code loadingReservedSlots}
+   * so seeding the checkbox doesn't accidentally clobber the user's CREATE
+   * prefs with the in-game state.
+   */
+  private void mirrorReservedSlotsFromContextGame(Game game) {
+    loadingReservedSlots = true;
+    try {
+      reservedPlayerIds.clear();
+      reservedPlayerLoginsById.clear();
+      if (game == null) {
+        // CREATE mode — reload from prefs.
+        LastGamePrefs lastGame = preferencesService.getPreferences().getLastGame();
+        reservedSlotsCheckBox.setSelected(lastGame.isLastReservedSlotsEnabled());
+        reservedPlayerIds.addAll(lastGame.getLastReservedPlayerIds());
+        List<Integer> ids = lastGame.getLastReservedPlayerIds();
+        List<String> logins = lastGame.getLastReservedPlayerLogins();
+        int n = Math.min(ids.size(), logins.size());
+        for (int i = 0; i < n; i++) {
+          if (ids.get(i) != null && logins.get(i) != null) {
+            reservedPlayerLoginsById.put(ids.get(i), logins.get(i));
+          }
+        }
+      } else {
+        // UPDATE mode — mirror from the live game's broadcast state.
+        reservedSlotsCheckBox.setSelected(game.isReservedSlotsEnabled());
+        String hostLogin = game.getHost();
+        List<Integer> ids = game.getReservedPlayerIds();
+        List<String> logins = game.getReservedPlayers();
+        int n = Math.min(ids.size(), logins.size());
+        for (int i = 0; i < n; i++) {
+          Integer pid = ids.get(i);
+          String login = logins.get(i);
+          if (pid == null) continue;
+          // Skip the host — server keeps them implicitly and our local list excludes them.
+          if (login != null && login.equals(hostLogin)) continue;
+          reservedPlayerIds.add(pid);
+          if (login != null) {
+            reservedPlayerLoginsById.put(pid, login);
+          }
+        }
+      }
+    } finally {
+      loadingReservedSlots = false;
+    }
+    updateReservedSlotsSummary();
   }
 
   String getInteractionLevel() {
@@ -329,8 +408,118 @@ public class CreateGameController implements Controller<Pane> {
     JavaFxUtil.makeNumericTextField(minRankingTextField, MAX_RATING_LENGTH, true);
     JavaFxUtil.makeNumericTextField(maxRankingTextField, MAX_RATING_LENGTH, true);
 
+    LastGamePrefs lastGame = preferencesService.getPreferences().getLastGame();
+    reservedSlotsCheckBox.setSelected(lastGame.isLastReservedSlotsEnabled());
+    reservedPlayerIds.addAll(lastGame.getLastReservedPlayerIds());
+    // Rehydrate the id -> login fallback map from the parallel logins list.
+    // Tolerate length mismatches just in case prefs were written by an older
+    // version without the parallel array.
+    List<Integer> persistedIds = lastGame.getLastReservedPlayerIds();
+    List<String> persistedLogins = lastGame.getLastReservedPlayerLogins();
+    int n = Math.min(persistedIds.size(), persistedLogins.size());
+    for (int i = 0; i < n; i++) {
+      if (persistedIds.get(i) != null && persistedLogins.get(i) != null) {
+        reservedPlayerLoginsById.put(persistedIds.get(i), persistedLogins.get(i));
+      }
+    }
+    // manageReservedSlotsButton.disableProperty bound in init() once the
+    // interaction-level property is available; it also factors in the
+    // checkbox's selected state and its own disable state.
+    reservedSlotsSummaryLabel.visibleProperty().bind(reservedSlotsCheckBox.selectedProperty());
+    reservedSlotsSummaryLabel.managedProperty().bind(reservedSlotsSummaryLabel.visibleProperty());
+    reservedSlotsCheckBox.selectedProperty().addListener((obs, was, isNow) -> {
+      updateReservedSlotsSummary();
+      // Persist only in CREATE mode — UPDATE mode is editing a live game and
+      // should leave CREATE-time prefs untouched. Also skip while we're
+      // mid-mirror from a context game.
+      if (loadingReservedSlots) return;
+      if (!"CREATE".equals(getInteractionLevel())) return;
+      lastGame.setLastReservedSlotsEnabled(isNow);
+      preferencesService.storeInBackground();
+    });
+    updateReservedSlotsSummary();
+
     init();
     modVersionUpdateCompletedProperty.set(true);
+  }
+
+  private void updateReservedSlotsSummary() {
+    int count = reservedPlayerIds.size();
+    if (count == 0) {
+      reservedSlotsSummaryLabel.setText(i18n.get("reservedSlots.summary.empty"));
+    } else {
+      reservedSlotsSummaryLabel.setText(i18n.get("reservedSlots.summary.count", count));
+    }
+  }
+
+  public void onManageReservedSlotsClicked() {
+    ReservedPlayersEditorController editor = uiService.loadFxml("theme/play/reserved_players_editor.fxml");
+    Integer max = maxPlayersComboBox.getValue();
+    if (max != null) {
+      editor.maxPlayersProperty().set(max);
+    }
+    editor.setReservedPlayerIds(reservedPlayerIds);
+    // Seed the editor's display-login fallback so offline reserved players
+    // appear as their saved login rather than "#42".
+    editor.setDisplayLogins(reservedPlayerLoginsById);
+    // The host (current player) will be implicitly reserved by the server,
+    // but the editor pins them at top of the list and counts them toward
+    // the cap so the displayed N/max matches what the user will see in
+    // the game-detail view after host.
+    playerService.getCurrentPlayer().ifPresent(p ->
+        editor.setHost(p.getId(), p.getUsername()));
+
+    FxStage fxStage = FxStage.create(editor.getRoot())
+        .initOwner(createGameRoot.getScene() != null ? createGameRoot.getScene().getWindow() : null)
+        .initModality(Modality.WINDOW_MODAL)
+        .withSceneFactory(uiService::createScene)
+        .allowMinimize(false)
+        .apply();
+    Stage popup = fxStage.getStage();
+    popup.setTitle(i18n.get("reservedSlots.editor.title"));
+    popup.setOnHidden(e -> {
+      // Strip the host id when persisting — host changes (re-login as a
+      // different account) shouldn't leave a stale id in prefs that ends up
+      // as a regular reserved entry next session.
+      Integer editorHostId = editor.getHostId();
+      Map<Integer, String> editorLogins = editor.getDisplayLogins();
+      List<Integer> nonHostIds = new ArrayList<>();
+      List<String> nonHostLogins = new ArrayList<>();
+      for (Integer id : editor.getReservedPlayerIds()) {
+        if (editorHostId != null && editorHostId.equals(id)) continue;
+        nonHostIds.add(id);
+        // Prefer the editor's snapshot, fall back to a live PlayerService
+        // lookup, fall back to a blank string (still parallel — the list
+        // lengths must match so the read-side index alignment holds).
+        String login = editorLogins.get(id);
+        if (login == null) {
+          login = playerService.getPlayerById(id).map(Player::getUsername).orElse("");
+        }
+        nonHostLogins.add(login);
+      }
+      reservedPlayerIds.clear();
+      reservedPlayerIds.addAll(nonHostIds);
+      reservedPlayerLoginsById.clear();
+      for (int i = 0; i < nonHostIds.size(); i++) {
+        String login = nonHostLogins.get(i);
+        if (login != null && !login.isEmpty()) {
+          reservedPlayerLoginsById.put(nonHostIds.get(i), login);
+        }
+      }
+      // Persist to prefs only in CREATE mode. In UPDATE mode the live game
+      // gets the new list immediately so the host doesn't have to click
+      // Update for a manage-list change to take effect.
+      if ("UPDATE".equals(getInteractionLevel())) {
+        gameService.sendReservedPlayers(new ArrayList<>(reservedPlayerIds));
+      } else {
+        LastGamePrefs prefs = preferencesService.getPreferences().getLastGame();
+        prefs.setLastReservedPlayerIds(reservedPlayerIds);
+        prefs.setLastReservedPlayerLogins(nonHostLogins);
+        preferencesService.storeInBackground();
+      }
+      updateReservedSlotsSummary();
+    });
+    popup.show();
   }
 
   public Optional<MapBean> getCurrentSelectedMap() {
@@ -470,6 +659,18 @@ public class CreateGameController implements Controller<Pane> {
     featuredModListView.disableProperty().bind(updateGameButton.visibleProperty());
     installGameButton.disableProperty().bind(updateGameButton.visibleProperty());
     openGameFolderButton.disableProperty().bind(updateGameButton.visibleProperty());
+
+    // Reserved-slots controls are editable only in CREATE and UPDATE modes —
+    // disabled in BROWSE (read-only inspection of someone else's game),
+    // UPDATE_GW (galactic war games don't support reserved slots), and
+    // SELECT_MAP_GW (transient GW map-selection dialog).
+    reservedSlotsCheckBox.disableProperty().bind(
+        interactionLevelProperty.isEqualTo("BROWSE")
+            .or(interactionLevelProperty.isEqualTo("UPDATE_GW"))
+            .or(interactionLevelProperty.isEqualTo("SELECT_MAP_GW")));
+    manageReservedSlotsButton.disableProperty().bind(
+        reservedSlotsCheckBox.selectedProperty().not()
+            .or(reservedSlotsCheckBox.disabledProperty()));
   }
 
   public void sever() {
@@ -890,6 +1091,10 @@ public class CreateGameController implements Controller<Pane> {
       notificationService.addImmediateErrorNotification(throwable, "game.create.failed");
       return null;
     });
+
+    if (reservedSlotsCheckBox.isSelected()) {
+      gameService.applyReservedSlotsOnceStaging(true, new ArrayList<>(reservedPlayerIds));
+    }
   }
 
   public void onUpdateButtonClicked() {
@@ -947,6 +1152,16 @@ public class CreateGameController implements Controller<Pane> {
             maxPlayersComboBox.getValue(),
             enforceRating, minRating, maxRating
             ));
+
+    // Apply reserved-slots state. The checkbox toggle handler doesn't send
+    // anything to the server (it'd be too eager); we batch the apply here on
+    // Update click. Also re-send the player list — manage-popup-close already
+    // sends it eagerly, but doing it again here is idempotent and covers the
+    // case where the user toggled the checkbox without opening the popup.
+    fafService.setReservedSlotsEnabled(reservedSlotsCheckBox.isSelected());
+    if (reservedSlotsCheckBox.isSelected()) {
+      gameService.sendReservedPlayers(new ArrayList<>(reservedPlayerIds));
+    }
   }
 
   public Pane getRoot() {

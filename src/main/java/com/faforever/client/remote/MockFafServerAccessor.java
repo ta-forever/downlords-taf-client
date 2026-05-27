@@ -448,4 +448,22 @@ public class MockFafServerAccessor implements FafServerAccessor {
 
   @Override
   public void setGameMapDetails(String mapName, String hpiArchive, String crc) { };
+
+  @Override
+  public void setReservedSlotsEnabled(boolean enabled) { }
+
+  @Override
+  public void setReservedPlayers(List<Integer> playerIds) { }
+
+  @Override
+  public void leaveAndReserve() { }
+
+  @Override
+  public void cancelReservation() { }
+
+  @Override
+  public void requestGameAccess(int gameId) { }
+
+  @Override
+  public void dismissJoinRequest(int playerId) { }
 }

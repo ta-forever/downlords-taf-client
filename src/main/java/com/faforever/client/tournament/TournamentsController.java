@@ -2865,19 +2865,21 @@ public class TournamentsController extends AbstractViewController<Node> {
       javafx.scene.control.TextField inviteField = new javafx.scene.control.TextField();
       inviteField.setPromptText(i18n.get("tournament.team.invitePlaceholder"));
       inviteField.setPrefWidth(220);
-      bindInviteAutoCompletion(inviteField, teamId);
+      com.faforever.client.fx.PlayerAutocompleteBinder inviteBinder =
+          new com.faforever.client.fx.PlayerAutocompleteBinder(playerService, fafService);
+      inviteBinder.bind(inviteField);
       Button invite = new Button(i18n.get("tournament.team.invite"));
       invite.getStyleClass().add("team-btn-primary");
       Runnable trySendInvite = () -> {
         String raw = inviteField.getText() == null ? "" : inviteField.getText().trim();
         if (raw.isEmpty()) return;
-        String inviteeName = stripClanDecoration(raw);
-        Integer pid = invitePlayerNameToId.get(inviteeName.toLowerCase(java.util.Locale.US));
-        if (pid != null) {
-          teamService.invitePlayer(teamId, pid);
+        java.util.Optional<Integer> resolved = inviteBinder.resolveSelection(raw);
+        if (resolved.isPresent()) {
+          teamService.invitePlayer(teamId, resolved.get());
           inviteField.clear();
           return;
         }
+        String inviteeName = com.faforever.client.fx.PlayerAutocompleteBinder.stripClanDecoration(raw);
         fafService.queryPlayerByName(inviteeName).thenAccept(opt -> JavaFxUtil.runLater(() -> {
           if (opt.isPresent()) {
             teamService.invitePlayer(teamId, opt.get().getId());
@@ -2904,151 +2906,6 @@ public class TournamentsController extends AbstractViewController<Node> {
       box.getChildren().add(actions);
     }
     return box;
-  }
-
-  /**
-   * Persistent lower-cased name → id map for the invite field's autocomplete.
-   * Updated as suggestion lookups complete; read at invite-send time so the
-   * chosen display name resolves to the right id without a second round-trip.
-   * Cleared and repopulated each time the team panel is rebuilt — the panel
-   * is short-lived so unbounded growth isn't a concern in practice.
-   */
-  private final java.util.Map<String, Integer> invitePlayerNameToId =
-      new java.util.concurrent.ConcurrentHashMap<>();
-  /** Lower-cased name → display-case name. Lets us show "Foo_Bar" in the
-   *  popup even for offline players where PlayerService doesn't know them. */
-  private final java.util.Map<String, String> invitePlayerDisplayName =
-      new java.util.concurrent.ConcurrentHashMap<>();
-  /** Lower-cased name → clan tag (already lower-cased), or absent if the
-   *  player has no clan. Used by the suggestion filter for clan-tag
-   *  matching, mirroring how chat users perceive (but doesn't actually
-   *  do — see ChannelTabController) clan-aware autocomplete. */
-  private final java.util.Map<String, String> invitePlayerClanLower =
-      new java.util.concurrent.ConcurrentHashMap<>();
-
-  /** In-flight debounce timer for the api search; cancelled on each keystroke. */
-  private javafx.animation.PauseTransition inviteSearchDebounce;
-
-  private void bindInviteAutoCompletion(javafx.scene.control.TextField field, int teamId) {
-    invitePlayerNameToId.clear();
-    invitePlayerDisplayName.clear();
-    invitePlayerClanLower.clear();
-
-    // Pre-seed with currently-online players. Names, ids, AND clan tags
-    // all come from PlayerService's in-memory cache so the popup is
-    // useful immediately, before any api round-trip. Offline players
-    // get added later as the debounced api search returns results.
-    for (String name : playerService.getPlayerNames()) {
-      playerService.getPlayerForUsername(name).ifPresent(p -> {
-        String lc = name.toLowerCase(java.util.Locale.US);
-        invitePlayerNameToId.put(lc, p.getId());
-        invitePlayerDisplayName.put(lc, name);
-        String clan = p.getClan();
-        if (clan != null && !clan.isBlank()) {
-          invitePlayerClanLower.put(lc, clan.toLowerCase(java.util.Locale.US));
-        }
-      });
-    }
-
-    org.controlsfx.control.textfield.AutoCompletionBinding<String> binding =
-        org.controlsfx.control.textfield.TextFields.bindAutoCompletion(field, request -> {
-          String text = request.getUserText();
-          if (text == null || text.isBlank()) {
-            return java.util.Collections.emptyList();
-          }
-          String lc = text.toLowerCase(java.util.Locale.US);
-          // Synchronous: filter the local name pool. We accept a player
-          // when ANY of these match:
-          //   1. Login startsWith the prefix
-          //   2. Any underscore-split part of the login startsWith the prefix
-          //      (mirrors the chat client's behaviour, so e.g. typing
-          //      "Axle" matches "TAFR_Axle")
-          //   3. The player's clan tag startsWith the prefix
-          //      (genuine clan-tag awareness — chat conflates this with
-          //      the underscore split, but we look at the actual
-          //      Player.clan field, so it works for clans whose tag
-          //      doesn't appear in the login string)
-          return invitePlayerNameToId.keySet().stream()
-              .filter(name -> matchesInvitePrefix(name, lc))
-              .sorted()
-              .limit(20)
-              .map(this::displayWithClan)
-              .collect(java.util.stream.Collectors.toList());
-        });
-    binding.setDelay(0);
-    binding.setVisibleRowCount(10);
-
-    // Async: when the user has typed at least 2 chars, debounce 500ms
-    // and fire a faf-api search for offline players. 500ms is the
-    // common autocomplete sweet spot — fast enough that the popup
-    // feels reactive, slow enough that someone typing at 2-3 chars/sec
-    // doesn't fire 4 wasted api calls before they finish a name.
-    // Results merge into invitePlayerNameToId; we then re-trigger the
-    // popup so new entries appear without the user having to type again.
-    field.textProperty().addListener((obs, oldVal, newVal) -> {
-      if (newVal == null || newVal.length() < 2) return;
-      if (inviteSearchDebounce != null) inviteSearchDebounce.stop();
-      inviteSearchDebounce = new javafx.animation.PauseTransition(
-          javafx.util.Duration.millis(500));
-      inviteSearchDebounce.setOnFinished(ev -> {
-        String prefix = newVal.trim();
-        fafService.findPlayersByLoginPrefix(prefix, 15).thenAccept(players ->
-            JavaFxUtil.runLater(() -> {
-              boolean changed = false;
-              for (com.faforever.client.api.dto.Player p : players) {
-                String key = p.getLogin().toLowerCase(java.util.Locale.US);
-                Integer existing = invitePlayerNameToId.get(key);
-                int newId = Integer.parseInt(p.getId());
-                if (existing == null || existing != newId) {
-                  invitePlayerNameToId.put(key, newId);
-                  invitePlayerDisplayName.put(key, p.getLogin());
-                  changed = true;
-                }
-              }
-              // Re-trigger the popup if new names came in AND the field
-              // still contains the same prefix that prompted the search.
-              if (changed && prefix.equals(field.getText() == null ? "" : field.getText().trim())) {
-                binding.setUserInput(field.getText());
-              }
-            })).exceptionally(t -> {
-              log.debug("findPlayersByLoginPrefix failed for {}", prefix, t);
-              return null;
-            });
-      });
-      inviteSearchDebounce.play();
-    });
-  }
-
-  /** Returns the display-case version of a lowercased name from the
-   *  per-panel cache, falling back to the lowercased form. */
-  private String displayCaseFor(String lcName) {
-    String cached = invitePlayerDisplayName.get(lcName);
-    return cached != null ? cached : lcName;
-  }
-
-  /** Decorates the display name with clan tag like "[TAFR] Axle" when
-   *  available. The name→id resolution at invite-send time strips this
-   *  decoration via stripClanDecoration. */
-  private String displayWithClan(String lcName) {
-    String name = displayCaseFor(lcName);
-    String clanLower = invitePlayerClanLower.get(lcName);
-    if (clanLower == null) {
-      return name;
-    }
-    // We don't store the original-case clan tag (only lowercased), so
-    // upper-case it for display since clan tags are conventionally caps.
-    return "[" + clanLower.toUpperCase(java.util.Locale.US) + "] " + name;
-  }
-
-  /** Inverse of displayWithClan — extracts just the player name from
-   *  the decorated form. */
-  private static String stripClanDecoration(String decorated) {
-    if (decorated == null) return "";
-    int rb = decorated.indexOf("] ");
-    if (decorated.startsWith("[") && rb > 0) {
-      return decorated.substring(rb + 2).trim();
-    }
-    return decorated.trim();
   }
 
   /** Get the displayed rating for a player by name. Tries the local
@@ -3154,29 +3011,6 @@ public class TournamentsController extends AbstractViewController<Node> {
     return displayTimesAsUtc
         ? timeService.asDateTime(dateTime, java.time.ZoneOffset.UTC)
         : timeService.asDateTime(dateTime);
-  }
-
-  private boolean matchesInvitePrefix(String lcName, String lcPrefix) {
-    // Direct prefix match
-    if (lcName.startsWith(lcPrefix)) {
-      return true;
-    }
-    // Clan-tag match (real clan field, not part of the login)
-    String lcClan = invitePlayerClanLower.get(lcName);
-    if (lcClan != null && lcClan.startsWith(lcPrefix)) {
-      return true;
-    }
-    // Underscore-split parts: matches chat behaviour where typing
-    // "Axle" finds "TAFR_Axle". Skip if the prefix itself contains an
-    // underscore — then the user clearly wants the whole-name match.
-    if (!lcPrefix.contains("_")) {
-      for (String part : lcName.split("_")) {
-        if (part.startsWith(lcPrefix)) {
-          return true;
-        }
-      }
-    }
-    return false;
   }
 
   private VBox buildTeamCard(Map<String, Object> team, TournamentBean tournament) {

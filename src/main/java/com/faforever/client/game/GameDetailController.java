@@ -13,11 +13,16 @@ import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.ModService;
+import com.faforever.client.notification.Action;
+import com.faforever.client.notification.ImmediateNotification;
+import com.faforever.client.notification.NotificationService;
+import com.faforever.client.notification.Severity;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.event.CurrentPlayerInfo;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.rating.RatingService;
+import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.vault.replay.WatchButtonController;
@@ -53,12 +58,17 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import ch.micheljung.fxwindow.FxStage;
 
 import static com.faforever.client.leaderboard.LeaderboardService.DEFAULT_RATING_TYPE;
 import static java.lang.Math.min;
@@ -82,6 +92,8 @@ public class GameDetailController implements Controller<Pane> {
   private final RatingService ratingService;
   private final GalacticWarService galacticWarService;
   private final JoinGameHelper joinGameHelper;
+  private final NotificationService notificationService;
+  private final FafService fafService;
   private final EventBus eventBus;
 
   public Pane gameDetailRoot;
@@ -100,6 +112,28 @@ public class GameDetailController implements Controller<Pane> {
   public Button leaveButton;
   public Button startButton;
   public WatchButtonController watchButtonController;
+  public VBox reservedPlayersContainer;
+  public Button editReservedPlayersButton;
+  public VBox reservedPlayersList;
+  /** Listener that re-renders the reserved-players list when the current
+   *  game's reserved_players changes. Re-attached in setGame(). */
+  private javafx.collections.ListChangeListener<String> reservedPlayersListener;
+  /** Listener that re-renders the reserved-players list when the current
+   *  game's join_requests changes (host-side join-request inline rows). */
+  private javafx.collections.ListChangeListener<Game.JoinRequest> joinRequestsListener;
+  /** Listener on PlayerService's online-players map: re-renders the reserved
+   *  list when a reserved login goes online/offline. Installed once in
+   *  initialize() and kept for the controller's lifetime. */
+  private javafx.collections.MapChangeListener<String, Player> playersByNameListener;
+  /** Listener on PlayerService's id-keyed map. {@code playersByName} survives
+   *  a FAF-server logout (cleared only on IRC-offline), so we also listen on
+   *  {@code playersById} which IS updated promptly on FAF logout — that's
+   *  what triggers the "greyed out" treatment in the reserved-players card. */
+  private javafx.collections.MapChangeListener<Integer, Player> playersByIdListener;
+  /** Per-render cleanup callbacks that detach the per-Player status /
+   *  currentGameUid listeners attached during the last rebuild. Run at the
+   *  start of every rebuild so we don't accumulate stale listeners. */
+  private final List<Runnable> perPlayerStatusListenerCleanups = new ArrayList<>();
   private final ReadOnlyObjectWrapper<Game> game;
   @SuppressWarnings("FieldCanBeLocal")
   private final InvalidationListener thisGameTeamsInvalidationListener;
@@ -147,6 +181,7 @@ public class GameDetailController implements Controller<Pane> {
                               LeaderboardService leaderboardService, RatingService ratingService,
                               GalacticWarService galacticWarService,
                               PreferencesService preferencesService, JoinGameHelper joinGameHelper,
+                              NotificationService notificationService, FafService fafService,
                               EventBus eventBus) {
     this.i18n = i18n;
     this.mapService = mapService;
@@ -160,6 +195,8 @@ public class GameDetailController implements Controller<Pane> {
     this.preferencesService = preferencesService;
     this.galacticWarService = galacticWarService;
     this.joinGameHelper = joinGameHelper;
+    this.notificationService = notificationService;
+    this.fafService = fafService;
     this.eventBus = eventBus;
 
     game = new ReadOnlyObjectWrapper<>();
@@ -190,6 +227,39 @@ public class GameDetailController implements Controller<Pane> {
     mapImageView.setDefaultImage(uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
     mapContextMenuController = uiService.loadFxml("theme/play/game_detail_map_context_menu.fxml");
     pingTableContainer.managedProperty().bind(pingTableContainer.visibleProperty());
+
+    // React to players going online/offline so the reserved-players card's
+    // status dots update without needing the whole game_info to change.
+    // We listen on BOTH playersByName (catches IRC-driven changes) AND
+    // playersById (catches the actual FAF login/logout — see the doc on
+    // PlayerService.getPlayersByName for why both are needed).
+    playersByNameListener = change -> {
+      Game g = game.get();
+      if (g == null || !g.isReservedSlotsEnabled()) {
+        return;
+      }
+      if (!g.getReservedPlayers().contains(change.getKey())) {
+        return;
+      }
+      JavaFxUtil.runLater(this::rebuildReservedPlayersList);
+    };
+    playerService.getPlayersByName().addListener(playersByNameListener);
+
+    playersByIdListener = change -> {
+      Game g = game.get();
+      if (g == null || !g.isReservedSlotsEnabled()) {
+        return;
+      }
+      Player p = change.wasAdded() ? change.getValueAdded() : change.getValueRemoved();
+      if (p == null) {
+        return;
+      }
+      if (!g.getReservedPlayers().contains(p.getUsername())) {
+        return;
+      }
+      JavaFxUtil.runLater(this::rebuildReservedPlayersList);
+    };
+    playerService.getPlayersById().addListener(playersByIdListener);
 
     JavaFxUtil.addLabelContextMenus(uiService, gameTitleLabel, hostLabel);
     gameDetailRoot.parentProperty().addListener(observable -> {
@@ -306,12 +376,28 @@ public class GameDetailController implements Controller<Pane> {
       Optional.ofNullable(weakThisGameStatusListener).ifPresent(listener -> oldGame.statusProperty().removeListener(listener));
       Optional.ofNullable(featuredModInvalidationListener).ifPresent(listener -> oldGame.featuredModProperty().removeListener(listener));
       Optional.ofNullable(gameRatingTypeInvalidationListener).ifPresent(listener -> oldGame.ratingTypeProperty().removeListener(listener));
+      Optional.ofNullable(reservedPlayersListener).ifPresent(listener -> oldGame.reservedPlayersProperty().removeListener(listener));
+      Optional.ofNullable(joinRequestsListener).ifPresent(listener -> oldGame.joinRequestsProperty().removeListener(listener));
       if (oldGame.getId() != game.getId()) {
         teamListPane.getChildren().clear();
       }
     });
 
     this.game.set(game);
+
+    // Reserved-slots: show only while the game is still open to joiners
+    // (STAGING / BATTLEROOM). Reservations don't apply once the game has
+    // launched, gone live, or ended — surfacing the list in those states
+    // is misleading.
+    reservedPlayersContainer.visibleProperty().bind(Bindings.createBooleanBinding(
+        () -> game.isReservedSlotsEnabled() && game.getStatus() != null && game.getStatus().isOpen(),
+        game.reservedSlotsEnabledProperty(), game.statusProperty()));
+    reservedPlayersContainer.managedProperty().bind(reservedPlayersContainer.visibleProperty());
+    reservedPlayersListener = c -> JavaFxUtil.runLater(this::rebuildReservedPlayersList);
+    game.reservedPlayersProperty().addListener(reservedPlayersListener);
+    joinRequestsListener = c -> JavaFxUtil.runLater(this::rebuildReservedPlayersList);
+    game.joinRequestsProperty().addListener(joinRequestsListener);
+    rebuildReservedPlayersList();
     if (game.getStartTime() == null) {
       game.startTimeProperty().addListener((obs, oldValue, newValue) -> this.watchButtonController.setGame(game));
     }
@@ -579,8 +665,382 @@ public class GameDetailController implements Controller<Pane> {
     }
   }
 
+  private void rebuildReservedPlayersList() {
+    // Detach the per-Player status/currentGame listeners from the previous
+    // render so they don't pile up. Map-change listener for online/offline
+    // is installed once in initialize() and stays.
+    perPlayerStatusListenerCleanups.forEach(Runnable::run);
+    perPlayerStatusListenerCleanups.clear();
+
+    reservedPlayersList.getChildren().clear();
+    Game g = game.get();
+    if (g == null) {
+      return;
+    }
+    Optional<Player> currentPlayerOpt = playerService.getCurrentPlayer();
+    boolean isHost = currentPlayerOpt.isPresent()
+        && currentPlayerOpt.get().getUsername().equals(g.getHost());
+    editReservedPlayersButton.setVisible(isHost);
+    editReservedPlayersButton.setManaged(isHost);
+
+    // Attach status/currentGame listeners to every reserved player — even
+    // ones we end up filtering out — so the card auto-refreshes when any
+    // of them transitions in or out of "this game". Track the cleanup so
+    // we can detach them on the next rebuild.
+    // Also build the "pending" list: reserved players who are NOT already
+    // in this game. Players who are in-game are visible in the team cards
+    // below; re-listing them here just adds noise. (Edit dialog keeps them
+    // — host needs the full list to manage it.)
+    List<String> pending = new ArrayList<>();
+    for (String login : g.getReservedPlayers()) {
+      Optional<Player> p = playerService.getPlayerForUsername(login);
+      if (p.isPresent()) {
+        attachReservedPlayerStateListener(p.get());
+        // Only suppress when the player is actually FAF-online AND currently
+        // sitting in this game. A stale cached Player whose FAF session has
+        // ended should appear as "offline pending", not "in this game".
+        if (playerService.isOnline(login) && p.get().getCurrentGameUid() == g.getId()) {
+          continue;  // in this game — hide from the "pending" list
+        }
+      }
+      pending.add(login);
+    }
+
+    // Host-only "knocking" rows for incoming join requests. ListProperty is
+    // empty for non-hosts (server only pushes host_game_state to the host).
+    List<Game.JoinRequest> knocking = isHost
+        ? new ArrayList<>(g.getJoinRequests())
+        : Collections.emptyList();
+
+    if (pending.isEmpty() && knocking.isEmpty()) {
+      Label empty = new Label(i18n.get("reservedSlots.detail.empty"));
+      empty.getStyleClass().add("reserved-players-empty");
+      reservedPlayersList.getChildren().add(empty);
+      return;
+    }
+    for (String login : pending) {
+      reservedPlayersList.getChildren().add(buildReservedPlayerRow(login, isHost));
+    }
+    for (Game.JoinRequest req : knocking) {
+      reservedPlayersList.getChildren().add(buildKnockingRow(req));
+    }
+  }
+
+  /**
+   * Subscribe to a single Player's status + currentGameUid properties so
+   * that the reserved-players card rebuilds on any transition (joins/leaves
+   * this game, joins another game, etc). The cleanup is added to
+   * {@link #perPlayerStatusListenerCleanups} and runs at the start of the
+   * next rebuild.
+   */
+  private void attachReservedPlayerStateListener(Player p) {
+    Runnable rebuild = () -> JavaFxUtil.runLater(this::rebuildReservedPlayersList);
+    javafx.beans.value.ChangeListener<PlayerStatus> statusListener = (obs, oldV, newV) -> rebuild.run();
+    javafx.beans.value.ChangeListener<Number> gameUidListener = (obs, oldV, newV) -> rebuild.run();
+    p.statusProperty().addListener(statusListener);
+    p.currentGameUidProperty().addListener(gameUidListener);
+    perPlayerStatusListenerCleanups.add(() -> {
+      p.statusProperty().removeListener(statusListener);
+      p.currentGameUidProperty().removeListener(gameUidListener);
+    });
+  }
+
+  private Node buildReservedPlayerRow(String login, boolean isHost) {
+    javafx.scene.layout.HBox row = new javafx.scene.layout.HBox(6);
+    row.setAlignment(Pos.CENTER_LEFT);
+    row.getStyleClass().add("reserved-player-row");
+
+    Optional<Player> playerOpt = playerService.getPlayerForUsername(login);
+    // Treat as offline if the Player object is missing OR the player is no
+    // longer registered on the FAF server (the name-cache lingers while IRC
+    // still has them — that's not the same as "available to take a slot").
+    if (playerOpt.isPresent() && !playerService.isOnline(login)) {
+      playerOpt = Optional.empty();
+    }
+    Game g = game.get();
+
+    // Decide what status indicator (if any) to show for this row:
+    //   offline   -> no dot; name greyed via .reserved-player-offline-name
+    //   idle      -> no dot; name normal
+    //   in-this-game STAGING/BATTLEROOM -> green ring
+    //   in-this-game LIVE/LAUNCHING     -> green filled
+    //   in-other-game STAGING/BATTLEROOM -> amber ring
+    //   in-other-game LIVE               -> amber filled
+    // The "other game's state" is inferred from the player's own PlayerStatus
+    // since we don't have a Game handle for it.
+    String statusClass = null;
+    String statusText;
+    if (playerOpt.isEmpty()) {
+      statusText = i18n.get("reservedSlots.editor.statusOffline");
+    } else {
+      Player p = playerOpt.get();
+      PlayerStatus pstatus = p.getStatus();
+      boolean idle = pstatus == null || pstatus == PlayerStatus.IDLE;
+      boolean inThis = g != null && p.getCurrentGameUid() == g.getId();
+      if (idle) {
+        statusText = i18n.get("reservedSlots.editor.statusOnline");
+      } else if (inThis) {
+        boolean live = g.getStatus() == GameStatus.LIVE
+            || g.getStatus() == GameStatus.LAUNCHING;
+        statusClass = live ? "status-in-this-game-live" : "status-in-this-game-staging";
+        statusText = i18n.get("reservedSlots.editor.statusInThisGame");
+      } else {
+        // In some other game. PlayerStatus.PLAYING means the other game has
+        // launched (LIVE); HOSTING/HOSTED/JOINING/JOINED mean lobby/BR.
+        boolean live = pstatus == PlayerStatus.PLAYING;
+        statusClass = live ? "status-in-other-game-live" : "status-in-other-game-staging";
+        statusText = i18n.get("reservedSlots.editor.statusInGame");
+      }
+    }
+    // Always insert a 10x10 placeholder so the name column stays aligned
+    // across rows regardless of whether the player has a visible status
+    // indicator. The .reserved-player-status-dot base class is invisible
+    // on its own; the .status-* sibling class draws the circle.
+    Region dot = new Region();
+    dot.getStyleClass().add("reserved-player-status-dot");
+    dot.setPrefSize(10, 10);
+    dot.setMinSize(10, 10);
+    dot.setMaxSize(10, 10);
+    if (statusClass != null) {
+      dot.getStyleClass().add(statusClass);
+      Tooltip.install(dot, biggerTooltip(statusText));
+    }
+    row.getChildren().add(dot);
+
+    Node nameNode;
+    if (playerOpt.isPresent()) {
+      // Use the same PlayerCardTooltipController as the team cards so we get
+      // country flag / friend-foe icons / consistent rendering. No rating
+      // shown (reserved slots don't have a leaderboard context — they're
+      // just a list of "who's reserved").
+      // Per-Player listeners for re-render-on-status-change are attached in
+      // rebuildReservedPlayersList for every reserved player (including
+      // filtered-out in-this-game ones), so we don't attach here.
+      PlayerCardTooltipController tooltip = uiService.loadFxml("theme/player_card_tooltip.fxml");
+      tooltip.setPlayer(playerOpt.get(), null, null, null);
+      nameNode = tooltip.getRoot();
+    } else {
+      // Offline / unknown player — simple label with the login. Status dot
+      // already conveys the offline state.
+      Label name = new Label(login);
+      name.getStyleClass().add("reserved-player-offline-name");
+      nameNode = name;
+    }
+    javafx.scene.layout.HBox.setHgrow(nameNode, javafx.scene.layout.Priority.ALWAYS);
+    if (nameNode instanceof javafx.scene.layout.Region nr) {
+      nr.setMaxWidth(Double.MAX_VALUE);
+    }
+    row.getChildren().add(nameNode);
+
+    // Host can remove anyone except themselves. (Server-side: host id stays
+    // in regardless, so even if we sent the request without the host, the
+    // server would put them back.)
+    if (isHost && g != null && !login.equals(g.getHost())) {
+      Button remove = new Button("x");
+      remove.getStyleClass().add("reserved-player-remove");
+      remove.setOnAction(e -> removeReservedPlayer(login));
+      row.getChildren().add(remove);
+    }
+    return row;
+  }
+
+  private void removeReservedPlayer(String login) {
+    Game g = game.get();
+    if (g == null) return;
+    List<Integer> updated = new ArrayList<>();
+    for (String existing : g.getReservedPlayers()) {
+      if (existing.equals(login)) continue;
+      if (existing.equals(g.getHost())) continue;  // host is implicit on server
+      playerService.getPlayerForUsername(existing).ifPresent(p -> updated.add(p.getId()));
+    }
+    gameService.sendReservedPlayers(updated);
+  }
+
+  public void onEditReservedPlayersClicked(ActionEvent event) {
+    openEditorPopup(null, null);
+  }
+
+  /**
+   * Open the reserved-slots editor modal. Optionally prepopulates the add
+   * field with a candidate name (used by the inline "tick to approve" button
+   * on knocking rows so the host can confirm/edit the slot list in the same
+   * dialog they'd use for any other reservation edit).
+   */
+  private void openEditorPopup(Integer prepopulateId, String prepopulateName) {
+    Game g = game.get();
+    if (g == null) return;
+
+    ReservedPlayersEditorController editor = uiService.loadFxml("theme/play/reserved_players_editor.fxml");
+    editor.maxPlayersProperty().set(g.getMaxPlayers());
+    editor.setCurrentGameId(g.getId());
+    // Seed from the server's parallel id/login arrays so we include offline
+    // players too. Build the seed list and the id->login display fallback
+    // map together so cells can show logins for offline players.
+    Optional<Player> hostPlayer = playerService.getPlayerForUsername(g.getHost());
+    List<Integer> seedIds = new ArrayList<>();
+    Map<Integer, String> seedLogins = new HashMap<>();
+    List<Integer> ids = g.getReservedPlayerIds();
+    List<String> logins = g.getReservedPlayers();
+    int n = Math.min(ids.size(), logins.size());
+    Integer hostIdFromIds = null;
+    for (int i = 0; i < n; i++) {
+      Integer pid = ids.get(i);
+      String login = logins.get(i);
+      if (pid == null) continue;
+      seedIds.add(pid);
+      if (login != null) {
+        seedLogins.put(pid, login);
+      }
+      if (login != null && login.equals(g.getHost())) {
+        hostIdFromIds = pid;
+      }
+    }
+    editor.setReservedPlayerIds(seedIds);
+    // Add the prepopulated candidate's login to the display map so they
+    // render correctly (with login, not "#id") if added.
+    if (prepopulateId != null && prepopulateName != null) {
+      seedLogins.put(prepopulateId, prepopulateName);
+    }
+    editor.setDisplayLogins(seedLogins);
+    // Resolve host id: prefer the id from the server payload (in case the
+    // local PlayerService doesn't know the host login), fall back to local.
+    Integer hostId = hostIdFromIds != null
+        ? hostIdFromIds
+        : hostPlayer.map(Player::getId).orElse(null);
+    if (hostId != null) {
+      editor.setHost(hostId, g.getHost());
+    }
+    if (prepopulateName != null) {
+      editor.prepopulateName(prepopulateName);
+    }
+
+    FxStage fxStage = FxStage.create(editor.getRoot())
+        .initOwner(gameDetailRoot.getScene() != null ? gameDetailRoot.getScene().getWindow() : null)
+        .initModality(Modality.WINDOW_MODAL)
+        .withSceneFactory(uiService::createScene)
+        .allowMinimize(false)
+        .apply();
+    Stage popup = fxStage.getStage();
+    popup.setTitle(i18n.get("reservedSlots.editor.title"));
+    popup.setOnHidden(e -> {
+      // Server handles the "if a reserved id was in join_requests, promote
+      // them and fire the invite notice" logic atomically inside
+      // command_set_reserved_players. No separate approve call needed.
+      gameService.sendReservedPlayers(new ArrayList<>(editor.getReservedPlayerIds()));
+    });
+    popup.show();
+  }
+
+  /**
+   * Render an inline "knocking on door" row for a pending join request.
+   * Only ever called when the current player is the host (the server only
+   * sends join_requests to the host via host_game_state). The tick opens
+   * the editor with the requester's name prepopulated; the cross fires
+   * dismiss_join_request to drop the request silently.
+   */
+  private Node buildKnockingRow(Game.JoinRequest req) {
+    javafx.scene.layout.HBox row = new javafx.scene.layout.HBox(6);
+    row.setAlignment(Pos.CENTER_LEFT);
+    row.getStyleClass().addAll("reserved-player-row", "reserved-player-knocking-row");
+
+    // Knocking icon: door silhouette + arrow glyph via .knock-icon (SVG
+    // shape painted in -fx-text-background-color by the .icon base class).
+    // Distinct from the status dots so the host immediately reads "this
+    // is a pending request, not an established reservation".
+    Region knock = new Region();
+    knock.getStyleClass().addAll("icon", "knock-icon");
+    Tooltip.install(knock, biggerTooltip(i18n.get("reservedSlots.knocking.tooltip", req.getPlayerLogin())));
+    row.getChildren().add(knock);
+
+    // Name display — use PlayerCardTooltipController when the requester is
+    // online (we get country flag / friend-foe icons / consistent rendering),
+    // fall back to a plain Label otherwise.
+    Optional<Player> playerOpt = playerService.getPlayerForUsername(req.getPlayerLogin());
+    if (playerOpt.isPresent() && !playerService.isOnline(req.getPlayerLogin())) {
+      playerOpt = Optional.empty();
+    }
+    Node nameNode;
+    if (playerOpt.isPresent()) {
+      PlayerCardTooltipController tooltip = uiService.loadFxml("theme/player_card_tooltip.fxml");
+      tooltip.setPlayer(playerOpt.get(), null, null, null);
+      nameNode = tooltip.getRoot();
+    } else {
+      Label name = new Label(req.getPlayerLogin());
+      name.getStyleClass().add("reserved-player-offline-name");
+      nameNode = name;
+    }
+    javafx.scene.layout.HBox.setHgrow(nameNode, javafx.scene.layout.Priority.ALWAYS);
+    if (nameNode instanceof javafx.scene.layout.Region nr) {
+      nr.setMaxWidth(Double.MAX_VALUE);
+    }
+    row.getChildren().add(nameNode);
+
+    Button approve = new Button("✓");
+    approve.getStyleClass().add("reserved-player-knock-approve");
+    approve.setTooltip(biggerTooltip(i18n.get("reservedSlots.knocking.approve.tooltip")));
+    approve.setOnAction(e -> openEditorPopup(req.getPlayerId(), req.getPlayerLogin()));
+    row.getChildren().add(approve);
+
+    Button dismiss = new Button("✗");
+    dismiss.getStyleClass().add("reserved-player-knock-dismiss");
+    dismiss.setTooltip(biggerTooltip(i18n.get("reservedSlots.knocking.dismiss.tooltip")));
+    dismiss.setOnAction(e -> fafService.dismissJoinRequest(req.getPlayerId()));
+    row.getChildren().add(dismiss);
+    return row;
+  }
+
+  /** Build a Tooltip with the .reserved-slots-tooltip style class applied so
+   *  the text isn't shown at the default tiny font size. */
+  private Tooltip biggerTooltip(String text) {
+    Tooltip t = new Tooltip(text);
+    t.getStyleClass().add("reserved-slots-tooltip");
+    return t;
+  }
+
   public void onLeaveButtonClicked(ActionEvent event) {
-    log.info("[onLeaveButtonClicked] killGame()");
+    Game g = game.get();
+    Optional<Player> currentPlayer = playerService.getCurrentPlayer();
+    boolean offerReserveAndLeave = g != null
+        && g.isReservedSlotsEnabled()
+        && currentPlayer.isPresent()
+        && !g.getReservedPlayers().contains(currentPlayer.get().getUsername());
+    if (!offerReserveAndLeave) {
+      log.info("[onLeaveButtonClicked] killGame()");
+      leaveGameAndChannel();
+      return;
+    }
+    // Use ImmediateNotification (themed modal) rather than a raw Alert so
+    // the dialog chrome matches the rest of the app.
+    int gameId = g.getId();
+    notificationService.addNotification(new ImmediateNotification(
+        i18n.get("reservedSlots.leaveDialog.title"),
+        i18n.get("reservedSlots.leaveDialog.message"),
+        Severity.INFO,
+        List.of(
+            new Action(i18n.get("reservedSlots.leaveDialog.reserveAndLeave"), ev -> {
+              log.info("[onLeaveButtonClicked] reserve-and-leave for game {}", gameId);
+              // User already picked their reservation outcome — suppress the
+              // server-driven auto-reserve prompt that will follow disconnect.
+              gameService.markBattleroomExitHandled(gameId);
+              gameService.leaveAndReserve(gameId);
+              leaveGameAndChannel();
+            }),
+            new Action(i18n.get("reservedSlots.leaveDialog.justLeave"), ev -> {
+              log.info("[onLeaveButtonClicked] just-leave for game {}", gameId);
+              // Suppress the follow-up prompt AND tell the server to opt out
+              // of the disconnect auto-reserve BEFORE we kill TA — that way
+              // the player never even briefly appears on the reserved list
+              // when the server processes the disconnect.
+              gameService.markBattleroomExitHandled(gameId);
+              fafService.cancelReservation();
+              leaveGameAndChannel();
+            }),
+            new Action(i18n.get("cancel"))
+        )
+    ));
+  }
+
+  private void leaveGameAndChannel() {
     gameService.killGame();
     String gameChannel = gameService.getInGameIrcChannel(game.get());
     this.chatService.leaveChannel(gameChannel);

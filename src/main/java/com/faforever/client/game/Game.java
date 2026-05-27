@@ -7,16 +7,19 @@ import com.faforever.client.remote.domain.VictoryCondition;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ListProperty;
 import javafx.beans.property.MapProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleListProperty;
 import javafx.beans.property.SimpleMapProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 
 import java.time.Instant;
@@ -54,6 +57,16 @@ public class Game {
   private final MapProperty<String, String> simMods;
   private final MapProperty<String, List<String>> teams;
   private final MapProperty<Integer, List<List<Integer>>> pings;  // key=playerid(measuring), value=list of [playerid(measured), ping]
+  // Reserved-slots feature. Mirror of the server's reserved_slots_enabled flag
+  // and reserved_players login list. reservedPlayers may include the host.
+  // reservedPlayerIds is parallel to reservedPlayers (same index ordering).
+  private final BooleanProperty reservedSlotsEnabled;
+  private final ListProperty<String> reservedPlayers;
+  private final ListProperty<Integer> reservedPlayerIds;
+  // Pending "request access" entries from non-reserved players. ONLY populated
+  // for the host (via the host_game_state push); empty for other viewers of
+  // the same game. Updated by ReservedSlotsNotificationService.
+  private final ListProperty<JoinRequest> joinRequests;
   /**
    * Maps an index (1,2,3,4...) to a version number. Don't ask me what this index maps to.
    */
@@ -88,6 +101,37 @@ public class Game {
     gameType = new SimpleObjectProperty<>();
     replayDelaySecondsProperty = new SimpleIntegerProperty(300);
     galacticWarPlanetNameProperty = new SimpleStringProperty(null);
+    reservedSlotsEnabled = new SimpleBooleanProperty(false);
+    reservedPlayers = new SimpleListProperty<>(FXCollections.observableArrayList());
+    reservedPlayerIds = new SimpleListProperty<>(FXCollections.observableArrayList());
+    joinRequests = new SimpleListProperty<>(FXCollections.observableArrayList());
+  }
+
+  public boolean isReservedSlotsEnabled() { return reservedSlotsEnabled.get(); }
+  public void setReservedSlotsEnabled(boolean v) { reservedSlotsEnabled.set(v); }
+  public BooleanProperty reservedSlotsEnabledProperty() { return reservedSlotsEnabled; }
+
+  public ObservableList<String> getReservedPlayers() { return reservedPlayers.get(); }
+  public ListProperty<String> reservedPlayersProperty() { return reservedPlayers; }
+
+  public ObservableList<Integer> getReservedPlayerIds() { return reservedPlayerIds.get(); }
+  public ListProperty<Integer> reservedPlayerIdsProperty() { return reservedPlayerIds; }
+
+  public ObservableList<JoinRequest> getJoinRequests() { return joinRequests.get(); }
+  public ListProperty<JoinRequest> joinRequestsProperty() { return joinRequests; }
+
+  /** One pending request from a non-reserved player asking the host to be
+   *  let in. Carries both id and login since the host's UI displays the
+   *  name and the tick/cross actions need the id. */
+  public static final class JoinRequest {
+    private final int playerId;
+    private final String playerLogin;
+    public JoinRequest(int playerId, String playerLogin) {
+      this.playerId = playerId;
+      this.playerLogin = playerLogin;
+    }
+    public int getPlayerId() { return playerId; }
+    public String getPlayerLogin() { return playerLogin; }
   }
 
   public String getHost() {

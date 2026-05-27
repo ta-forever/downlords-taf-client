@@ -7,5 +7,7 @@
             fx:controller="com.faforever.client.game.TeamCardPlayerContextMenuController">
   <items>
     <MenuItem text="%game.detail.player.kick" onAction="#onKickPlayer" fx:id="kickPlayerMenuItem"/>
+    <MenuItem text="%reservedSlots.contextMenu.addToReserved" onAction="#onReserveSlot"
+              fx:id="reserveSlotMenuItem" visible="false"/>
   </items>
 </ContextMenu>

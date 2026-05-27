@@ -927,6 +927,30 @@ public class FafService {
     fafServerAccessor.setGameMapDetails(mapName, hpiArchive, crc);
   }
 
+  public void setReservedSlotsEnabled(boolean enabled) {
+    fafServerAccessor.setReservedSlotsEnabled(enabled);
+  }
+
+  public void setReservedPlayers(List<Integer> playerIds) {
+    fafServerAccessor.setReservedPlayers(playerIds);
+  }
+
+  public void leaveAndReserve() {
+    fafServerAccessor.leaveAndReserve();
+  }
+
+  public void cancelReservation() {
+    fafServerAccessor.cancelReservation();
+  }
+
+  public void requestGameAccess(int gameId) {
+    fafServerAccessor.requestGameAccess(gameId);
+  }
+
+  public void dismissJoinRequest(int playerId) {
+    fafServerAccessor.dismissJoinRequest(playerId);
+  }
+
   public String getApiAccessToken() {
     return fafApiAccessor.getAccessToken();
   }

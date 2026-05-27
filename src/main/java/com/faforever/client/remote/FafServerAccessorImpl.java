@@ -80,6 +80,7 @@ import com.faforever.client.remote.domain.RatingRange;
 import com.faforever.client.remote.domain.ReadyPartyMessage;
 import com.faforever.client.remote.domain.RemoveFoeMessage;
 import com.faforever.client.remote.domain.RemoveFriendMessage;
+import com.faforever.client.remote.domain.ReservedSlotsProtocol;
 import com.faforever.client.remote.domain.RestoreGameSessionMessage;
 import com.faforever.client.remote.domain.SelectAvatarMessage;
 import com.faforever.client.remote.domain.SerializableMessage;
@@ -90,6 +91,13 @@ import com.faforever.client.remote.domain.SetGameMapDetailsMessage;
 import com.faforever.client.remote.domain.SetGamePasswordMessage;
 import com.faforever.client.remote.domain.SetPartyFactionsMessage;
 import com.faforever.client.remote.domain.SetPlayerAliasMessage;
+import com.faforever.client.remote.domain.DismissJoinRequestMessage;
+import com.faforever.client.remote.domain.HostGameStateMessage;
+import com.faforever.client.remote.domain.CancelReservationMessage;
+import com.faforever.client.remote.domain.LeaveAndReserveMessage;
+import com.faforever.client.remote.domain.RequestGameAccessMessage;
+import com.faforever.client.remote.domain.SetReservedPlayersMessage;
+import com.faforever.client.remote.domain.SetReservedSlotsEnabledMessage;
 import com.faforever.client.remote.domain.UnreadyPartyMessage;
 import com.faforever.client.remote.domain.UploadReplayToTadaMessage;
 import com.faforever.client.remote.domain.VictoryCondition;
@@ -233,11 +241,26 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
       return;
     }
 
-    else if (Objects.equals(noticeMessage.getStyle(), "game_join_fail")) {
+    else if (Objects.equals(noticeMessage.getStyle(), ReservedSlotsProtocol.NOTICE_STYLE_GAME_JOIN_FAIL)) {
       if (gameLaunchFuture != null) {
         gameLaunchFuture.complete(null);
         gameLaunchFuture = null;
       }
+      // Reserved-slots denials carry their own UX in ReservedSlotsNotificationService
+      // (modal with "Request access" / "OK" actions). Suppress the generic
+      // English fallback modal so we don't double-notify on modern clients.
+      // Legacy clients (which don't recognize reason_code) still fall through
+      // and get the plain English modal — that's the intended legacy path.
+      if (ReservedSlotsProtocol.NOTICE_REASON_CODE_RESERVED_SLOTS.equals(noticeMessage.getReasonCode())) {
+        return;
+      }
+    }
+
+    // Also suppress for game_join_invite and reserved_slot_auto_reserved
+    // (modern clients handle these via ReservedSlotsNotificationService).
+    if (Objects.equals(noticeMessage.getStyle(), ReservedSlotsProtocol.NOTICE_STYLE_GAME_JOIN_INVITE)
+        || Objects.equals(noticeMessage.getStyle(), ReservedSlotsProtocol.NOTICE_STYLE_RESERVED_SLOT_AUTO_RESERVED)) {
+      return;
     }
 
     String kind = noticeMessage.getKind();
@@ -870,6 +893,36 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
   @Override
   public void setGameMapDetails(String mapName, String hpiArchive, String crc) {
     writeToServer(new SetGameMapDetailsMessage(mapName, hpiArchive, crc));
+  }
+
+  @Override
+  public void setReservedSlotsEnabled(boolean enabled) {
+    writeToServer(new SetReservedSlotsEnabledMessage(enabled));
+  }
+
+  @Override
+  public void setReservedPlayers(List<Integer> playerIds) {
+    writeToServer(new SetReservedPlayersMessage(playerIds));
+  }
+
+  @Override
+  public void leaveAndReserve() {
+    writeToServer(new LeaveAndReserveMessage());
+  }
+
+  @Override
+  public void cancelReservation() {
+    writeToServer(new CancelReservationMessage());
+  }
+
+  @Override
+  public void requestGameAccess(int gameId) {
+    writeToServer(new RequestGameAccessMessage(gameId));
+  }
+
+  @Override
+  public void dismissJoinRequest(int playerId) {
+    writeToServer(new DismissJoinRequestMessage(playerId));
   }
 
   @Override
