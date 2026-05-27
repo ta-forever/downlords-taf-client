@@ -24,9 +24,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -63,6 +65,18 @@ public class HotfixService {
 
   private static final int HTTP_FOLLOW_LIMIT = 5;
 
+  /**
+   * Names of native binaries that {@link TotalAnnihilationService#resolveNativeBinary(String)}
+   * will shadow with copies from {@link TotalAnnihilationService#getHotfixBinDir()}. Anything
+   * with one of these names left behind by a previous hotfix run silently overrides the freshly
+   * bundled binary on subsequent launches, so the orphan sweep at the end of
+   * {@link #applyClientBinaryHotfixes()} removes them when no current dfc-config entry claims
+   * them. Auxiliary files extracted from the same archive (e.g. Qt5*.dll) are harmless once the
+   * executable override is gone, since the bundled binary then loads from {@code <install>/lib/bin/}.
+   */
+  private static final Set<String> MANAGED_OVERRIDE_NAMES = Set.of(
+      "gpgnet4ta", "gpgnet4ta.exe", "talauncher.exe", "replayer.exe");
+
   private final PreferencesService preferencesService;
   private final TotalAnnihilationService totalAnnihilationService;
   private final NotificationService notificationService;
@@ -80,25 +94,67 @@ public class HotfixService {
       return true;
     }
     ClientConfiguration cfg = preferencesService.getClientRemoteConfiguration();
-    List<Hotfix> hotfixes = cfg == null ? null : cfg.getHotfixes();
-    if (hotfixes == null || hotfixes.isEmpty()) {
+    if (cfg == null) {
+      log.info("[hotfix] no remote configuration loaded; skipping client-binary hotfixes");
       return true;
     }
+    List<Hotfix> hotfixes = cfg.getHotfixes();
     boolean allOk = true;
-    for (Hotfix h : hotfixes) {
-      if (h.getScope() != HotfixScope.CLIENT_BINARY) {
-        continue;
-      }
-      try {
-        if (!applyClientBinaryHotfix(h)) {
+    if (hotfixes != null) {
+      for (Hotfix h : hotfixes) {
+        if (h.getScope() != HotfixScope.CLIENT_BINARY) {
+          continue;
+        }
+        try {
+          if (!applyClientBinaryHotfix(h)) {
+            allOk &= !h.isMandatory();
+          }
+        } catch (Exception e) {
+          log.warn("[hotfix:{}] failed: {}", h.getId(), e.toString(), e);
           allOk &= !h.isMandatory();
         }
-      } catch (Exception e) {
-        log.warn("[hotfix:{}] failed: {}", h.getId(), e.toString(), e);
-        allOk &= !h.isMandatory();
       }
     }
+    sweepOrphanedOverrides(hotfixes);
     return allOk;
+  }
+
+  /**
+   * Removes any file in {@link TotalAnnihilationService#getHotfixBinDir()} whose name matches a
+   * {@link #MANAGED_OVERRIDE_NAMES} entry that no currently-applicable CLIENT_BINARY hotfix
+   * claims as its {@code targetFile}. This handles the case where a hotfix entry was deleted
+   * from {@code dfc-config.json} between launches: without this sweep, the stale override file
+   * would continue to shadow the freshly bundled binary because
+   * {@link TotalAnnihilationService#resolveNativeBinary(String)} prefers the override whenever
+   * one exists.
+   *
+   * <p>Only invoked when remote configuration loaded successfully — a transient config-fetch
+   * failure must not erase the user's overrides.
+   */
+  private void sweepOrphanedOverrides(List<Hotfix> hotfixes) {
+    String running = Version.getCurrentVersion();
+    Set<String> claimed = new HashSet<>();
+    if (hotfixes != null) {
+      for (Hotfix h : hotfixes) {
+        if (h.getScope() != HotfixScope.CLIENT_BINARY) continue;
+        HotfixPlatform p = pickPlatform(h);
+        if (p == null || p.getTargetFile() == null) continue;
+        if (isObsolete(h, running) || !isApplicable(h, running)) continue;
+        claimed.add(p.getTargetFile());
+      }
+    }
+    Path overrideDir = totalAnnihilationService.getHotfixBinDir();
+    for (String name : MANAGED_OVERRIDE_NAMES) {
+      if (claimed.contains(name)) continue;
+      Path orphan = overrideDir.resolve(name);
+      if (!Files.exists(orphan)) continue;
+      try {
+        Files.delete(orphan);
+        log.info("[hotfix] removed orphaned override (no matching dfc-config entry): {}", orphan);
+      } catch (IOException e) {
+        log.warn("[hotfix] failed to remove orphaned override {}: {}", orphan, e.toString());
+      }
+    }
   }
 
   /**
