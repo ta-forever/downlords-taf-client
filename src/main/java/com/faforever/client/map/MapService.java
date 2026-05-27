@@ -620,14 +620,14 @@ public class MapService implements InitializingBean, DisposableBean {
     if (Files.exists(cachedArchivePath) && Files.size(cachedArchivePath) == Files.size(archivePath)) {
       final Path finalCachedArchivePath1 = cachedArchivePath;
       notificationService.addNotification(new ImmediateNotification(
-          i18n.get("mapVault.removingArchive", archivePath),
-          i18n.get("mapVault.removingArchiveAlreadyAt", archivePath, cachedArchivePath),
+          i18n.get("mapVault.updatingArchive", archivePath),
+          i18n.get("mapVault.updatingArchiveAlreadyAt", archivePath, cachedArchivePath),
           Severity.INFO, Arrays.asList(
-          new Action(i18n.get("mapVault.removingArchiveShow"), Action.Type.OK_STAY, event -> this.platformService.reveal(archivePath)),
-          new Action(i18n.get("mapVault.removingArchiveIgnore"), Action.Type.OK_DONE, event -> {
+          new Action(i18n.get("mapVault.updatingArchiveShow"), Action.Type.OK_STAY, event -> this.platformService.reveal(archivePath)),
+          new Action(i18n.get("mapVault.updatingArchiveIgnore"), Action.Type.OK_DONE, event -> {
             future.complete(null);
           }),
-          new Action(i18n.get("mapVault.removingArchiveDelete"), Action.Type.OK_DONE, event -> {
+          new Action(i18n.get("mapVault.updatingArchiveDelete"), Action.Type.OK_DONE, event -> {
             try {
               logger.info("Deleting archive {} (a file of that name and size can be found at {})", archivePath, finalCachedArchivePath1);
               Files.delete(archivePath);
@@ -649,14 +649,14 @@ public class MapService implements InitializingBean, DisposableBean {
     if (Files.exists(cachedArchivePath)) {
       final Path finalCachedArchivePath2 = cachedArchivePath;
       notificationService.addNotification(new ImmediateNotification(
-          i18n.get("mapVault.removingArchive", archivePath),
-          i18n.get("mapVault.removingArchiveAlreadyAt", cachedArchivePath),
+          i18n.get("mapVault.updatingArchive", archivePath),
+          i18n.get("mapVault.updatingArchiveAlreadyAt", cachedArchivePath),
           Severity.INFO, Arrays.asList(
-          new Action(i18n.get("mapVault.removingArchiveShow"), Action.Type.OK_STAY, event -> this.platformService.reveal(archivePath)),
-          new Action(i18n.get("mapVault.removingArchiveIgnore"), Action.Type.OK_DONE, event -> {
+          new Action(i18n.get("mapVault.updatingArchiveShow"), Action.Type.OK_STAY, event -> this.platformService.reveal(archivePath)),
+          new Action(i18n.get("mapVault.updatingArchiveIgnore"), Action.Type.OK_DONE, event -> {
             future.complete(null);
           }),
-          new Action(i18n.get("mapVault.removingArchiveDelete"), Action.Type.OK_DONE, event -> {
+          new Action(i18n.get("mapVault.updatingArchiveDelete"), Action.Type.OK_DONE, event -> {
             try {
               logger.info("Deleting archive {} (a file of that name and crc can be found at {})", archivePath, finalCachedArchivePath2);
               Files.delete(archivePath);
@@ -670,14 +670,14 @@ public class MapService implements InitializingBean, DisposableBean {
     else {
       final Path finalCachedArchivePath = cachedArchivePath;
       notificationService.addNotification(new ImmediateNotification(
-          i18n.get("mapVault.removingArchive", archivePath),
-          i18n.get("mapVault.removingArchiveMoveTo", archivePath, cachedArchivePath),
+          i18n.get("mapVault.updatingArchive", archivePath),
+          i18n.get("mapVault.updatingArchiveMoveTo", archivePath, cachedArchivePath),
           Severity.INFO, Arrays.asList(
-          new Action(i18n.get("mapVault.removingArchiveShow"), Action.Type.OK_STAY, event -> this.platformService.reveal(archivePath)),
-          new Action(i18n.get("mapVault.removingArchiveIgnore"), Action.Type.OK_DONE, event -> {
+          new Action(i18n.get("mapVault.updatingArchiveShow"), Action.Type.OK_STAY, event -> this.platformService.reveal(archivePath)),
+          new Action(i18n.get("mapVault.updatingArchiveIgnore"), Action.Type.OK_DONE, event -> {
             future.complete(null);
           }),
-          new Action(i18n.get("mapVault.removingArchiveDelete"), Action.Type.OK_DONE, event -> {
+          new Action(i18n.get("mapVault.updatingArchiveDelete"), Action.Type.OK_DONE, event -> {
             try {
               logger.info("Moving archive {} to {})", archivePath, finalCachedArchivePath);
               Files.move(archivePath, finalCachedArchivePath);
