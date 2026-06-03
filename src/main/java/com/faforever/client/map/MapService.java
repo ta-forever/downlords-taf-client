@@ -83,6 +83,7 @@ import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -987,16 +988,24 @@ public class MapService implements InitializingBean, DisposableBean {
 
     String modGp3FileName = null;
     try {
+      // This may run on the JavaFX Application Thread (map-preview cell binding), so it must
+      // never block indefinitely. Bound the wait: getFeaturedMods is normally cached and
+      // returns instantly, but on a cache-miss it hits the API, and a saturated network (or a
+      // stuck authorization latch) could otherwise hang the UI forever. On timeout we degrade
+      // gracefully and continue without the gp3 filename, exactly like the catches below.
       Optional<FeaturedMod> featuredMod = fafService.getFeaturedMods().thenCompose(featuredModBeans -> completedFuture(featuredModBeans.stream()
           .filter(mod -> modTechnical.equals(mod.getTechnicalName()))
           .findFirst()
-      )).get();
+      )).get(10, TimeUnit.SECONDS);
       if (featuredMod.isPresent()) {
         modGp3FileName = featuredMod.get().getGp3Filename();
       }
     }
-    catch (InterruptedException e) { }
+    catch (InterruptedException e) { Thread.currentThread().interrupt(); }
     catch (ExecutionException e) { }
+    catch (TimeoutException e) {
+      logger.warn("Timed out resolving featured mod '{}' for map preview '{}'; continuing without gp3 filename", modTechnical, mapName);
+    }
 
     try {
       MapTool.generatePreview(gamePath, modGp3FileName, mapName, cachedFile.getParent().getParent(), previewType, maxPositions);

@@ -149,9 +149,21 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
     return new QBuilder<>();
   }
 
+  // Bound every API call so a stalled/half-open connection can never hang the caller
+  // indefinitely. Without these the request factory defaults to an infinite timeout,
+  // which has frozen the JavaFX Application Thread for the entire game when a preview
+  // lookup ran on it while the network was saturated. Values are generous so slow-but-
+  // progressing connections aren't cut off, but no call waits forever.
+  private static final int CONNECT_TIMEOUT_MS = 10_000;
+  private static final int CONNECTION_REQUEST_TIMEOUT_MS = 10_000;
+  private static final int READ_TIMEOUT_MS = 30_000;
+
   @Override
   public void afterPropertiesSet() {
     eventBus.register(this);
+    requestFactory.setConnectTimeout(CONNECT_TIMEOUT_MS);
+    requestFactory.setConnectionRequestTimeout(CONNECTION_REQUEST_TIMEOUT_MS);
+    requestFactory.setReadTimeout(READ_TIMEOUT_MS);
     templateBuilder = unconfiguredTemplateBuilder
         .requestFactory(() -> requestFactory)
         .additionalMessageConverters(jsonApiMessageConverter)
