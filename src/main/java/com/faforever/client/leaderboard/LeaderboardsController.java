@@ -6,7 +6,10 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.StringCell;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.ShowUserReplaysEvent;
+import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.mod.ModService;
+import com.faforever.client.remote.FafService;
+import com.faforever.client.teammatchmaking.MatchmakingQueue;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
@@ -18,7 +21,6 @@ import com.google.common.eventbus.EventBus;
 import javafx.beans.property.SimpleFloatProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
@@ -40,10 +42,18 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static javafx.collections.FXCollections.observableList;
+
+import javafx.collections.FXCollections;
 
 
 @Slf4j
@@ -55,6 +65,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   private final LeaderboardService leaderboardService;
   private final NotificationService notificationService;
   private final ModService modService;
+  private final FafService fafService;
   private final UiService uiService;
   private final PlayerService playerService;
   private final PreferencesService preferencesService;
@@ -72,6 +83,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   public TableColumn<LeaderboardEntry, Number> bestStreakColumn;
   public TableView<LeaderboardEntry> ratingTable;
   public ComboBox<Leaderboard> leaderboardComboBox;
+  public ComboBox<String> modComboBox;
   public TextField searchTextField;
   public Pane connectionProgressPane;
   public Pane contentPane;
@@ -80,17 +92,44 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   @VisibleForTesting
   protected AutoCompletionBinding<String> usernamesAutoCompletion;
 
+  private List<Leaderboard> allLeaderboards;
+  private Map<String, String> leaderboardToModTech = new HashMap<>();
+
   @Override
   public void initialize() {
     super.initialize();
     friendsOnlyCheckBox.setSelected(preferencesService.getPreferences().getLastLeaderboardFriendsOnlySelection());
 
-    leaderboardService.getLeaderboards().thenApply(leaderboards -> {
-      JavaFxUtil.runLater(() -> {
-        initialiseLeaderboardComboBox(leaderboards);
-      });
-      return null;
-    });
+    leaderboardService.getLeaderboards()
+        .thenCombine(modService.getFeaturedMods(), (leaderboards, featuredMods) -> {
+          Map<String, String> lbTechToModTech = new HashMap<>();
+          leaderboards.stream()
+              .filter(lb -> "global".equals(lb.getTechnicalName()))
+              .forEach(lb -> lbTechToModTech.put("global", "global"));
+
+          List<CompletableFuture<?>> queueFutures = new ArrayList<>();
+          for (FeaturedMod mod : featuredMods) {
+            String modTech = mod.getTechnicalName();
+            queueFutures.add(
+                fafService.getMatchmakerQueuesByMod(modTech).thenAccept(queues -> {
+                  for (MatchmakingQueue q : queues) {
+                    if (q.getLeaderboard() != null) {
+                      String lbTech = q.getLeaderboard().getTechnicalName();
+                      if (lbTech != null) {
+                        lbTechToModTech.put(lbTech, modTech);
+                      }
+                    }
+                  }
+                })
+            );
+          }
+
+          CompletableFuture.allOf(queueFutures.toArray(new CompletableFuture[0]))
+              .thenRun(() -> JavaFxUtil.runLater(() ->
+                  initialiseModAndLeaderboardComboBoxes(leaderboards, featuredMods, lbTechToModTech)
+              ));
+          return null;
+        });
 
     rankColumn.setCellValueFactory(param -> new SimpleIntegerProperty(ratingTable.getItems().indexOf(param.getValue()) + 1));
     rankColumn.setCellFactory(param -> new StringCell<>(rank -> i18n.number(rank.intValue())));
@@ -152,15 +191,99 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     });
   }
 
-  private void initialiseLeaderboardComboBox(List<Leaderboard> leaderboards) {
-    leaderboardComboBox.setConverter(leaderboardStringConverter());
-    leaderboardComboBox.setItems(leaderboards.stream()
-        .collect(Collectors.toCollection(FXCollections::observableArrayList)));
-    leaderboardComboBox.getItems().addListener((ListChangeListener<Leaderboard>) change -> {
-      selectAppropriateLeaderboard();
+  private void initialiseModAndLeaderboardComboBoxes(List<Leaderboard> leaderboards, List<FeaturedMod> featuredMods, Map<String, String> lbTechToModTech) {
+    allLeaderboards = leaderboards;
+    this.leaderboardToModTech = (lbTechToModTech != null) ? lbTechToModTech : new HashMap<>();
+
+    Map<String, String> modDisplayNames = featuredMods.stream()
+        .collect(Collectors.toMap(FeaturedMod::getTechnicalName,
+            fm -> fm.getDisplayName() != null ? fm.getDisplayName() : fm.getTechnicalName(),
+            (a, b) -> a));
+
+    Set<String> modTechs = leaderboards.stream()
+        .map(lb -> lbTechToModTech.getOrDefault(lb.getTechnicalName(), extractModFromLeaderboard(lb.getTechnicalName())))
+        .collect(Collectors.toCollection(LinkedHashSet::new));
+
+    List<String> modList = new ArrayList<>();
+    if (modTechs.contains("global")) {
+      modList.add("global");
+      modTechs.remove("global");
+    }
+    modList.addAll(modTechs);
+
+    modComboBox.setConverter(new StringConverter<>() {
+      @Override
+      public String toString(String modTech) {
+        if (modTech == null) {
+          return "";
+        }
+        if ("global".equals(modTech)) {
+          return "Global";
+        }
+        return modDisplayNames.getOrDefault(modTech, modTech);
+      }
+
+      @Override
+      public String fromString(String string) {
+        return null;
+      }
     });
+
+    modComboBox.setItems(FXCollections.observableArrayList(modList));
+
+    leaderboardComboBox.setConverter(leaderboardStringConverter());
+
+    modComboBox.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+      if (newValue != null) {
+        preferencesService.getPreferences().setLastLeaderboardModSelection(newValue);
+        preferencesService.storeInBackground();
+        updateLeaderboardItemsForMod(newValue);
+      }
+    });
+
+    // initial select will trigger the listener above to populate lb combo + load
+    String lastMod = preferencesService.getPreferences().getLastLeaderboardModSelection();
+    if (lastMod != null && modList.contains(lastMod)) {
+      modComboBox.getSelectionModel().select(lastMod);
+    } else if (!modList.isEmpty()) {
+      modComboBox.getSelectionModel().selectFirst();
+    } else {
+      // fallback
+      leaderboardComboBox.setItems(FXCollections.observableArrayList(leaderboards));
+      selectAppropriateLeaderboard();
+      onLeaderboardSelected();
+    }
+  }
+
+  private String extractModFromLeaderboard(String technicalName) {
+    if (technicalName == null) {
+      return "";
+    }
+    int idx = technicalName.lastIndexOf('_');
+    return idx >= 0 ? technicalName.substring(idx + 1) : technicalName;
+  }
+
+  private void updateLeaderboardItemsForMod(String modTech) {
+    List<Leaderboard> filtered = allLeaderboards.stream()
+        .filter(lb -> {
+          String resolved = leaderboardToModTech.getOrDefault(lb.getTechnicalName(), extractModFromLeaderboard(lb.getTechnicalName()));
+          return resolved.equals(modTech);
+        })
+        .collect(Collectors.toList());
+    leaderboardComboBox.setItems(FXCollections.observableArrayList(filtered));
     selectAppropriateLeaderboard();
     onLeaderboardSelected();
+  }
+
+  // kept for fallback in other places if needed, but main filter uses the map now
+  private boolean matchesMod(String technicalName, String modTech) {
+    if (technicalName == null || modTech == null) {
+      return false;
+    }
+    if ("global".equals(modTech)) {
+      return "global".equals(technicalName);
+    }
+    return technicalName.endsWith("_" + modTech) || technicalName.equals(modTech);
   }
 
   private void selectAppropriateLeaderboard() {
@@ -210,7 +333,6 @@ public class LeaderboardsController extends AbstractViewController<Node> {
       }
       List<LeaderboardEntry> finalLeaderboardEntryBeans = leaderboardEntryBeans;
       JavaFxUtil.runLater(() -> {
-        ratingTable.getItems().clear();
         ratingTable.setItems(observableList(finalLeaderboardEntryBeans));
         usernamesAutoCompletion = TextFields.bindAutoCompletion(
             searchTextField,

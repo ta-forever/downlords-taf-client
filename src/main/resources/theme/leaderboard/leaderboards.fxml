@@ -18,6 +18,7 @@
       fx:controller="com.faforever.client.leaderboard.LeaderboardsController">
     <Separator minHeight="10.0"/>
     <HBox alignment="CENTER_LEFT" spacing="10.0">
+        <ComboBox fx:id="modComboBox" styleClass="query-filter"/>
         <ComboBox fx:id="leaderboardComboBox" onAction="#onLeaderboardSelected" styleClass="query-filter"/>
         <CheckBox fx:id="friendsOnlyCheckBox" text="%leaderboard.friendsOnlyOption" onAction="#onLeaderboardSelected"/>
         <Button text="%refresh" onAction="#onLeaderboardSelected"/>

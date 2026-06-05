@@ -90,6 +90,7 @@ public class Preferences {
   private final ObjectProperty<RatingMetric> userInfoRatingMetric = new SimpleObjectProperty<>(RatingMetric.TRUESKILL);
   private final StringProperty lastLeaderboardSelection = new SimpleStringProperty("global");
   private final BooleanProperty lastLeaderboardFriendsOnlySelection = new SimpleBooleanProperty(false);
+  private final StringProperty lastLeaderboardModSelection = new SimpleStringProperty();
   private final ListProperty<String> LeaderBoardsSelectionFilter = new SimpleListProperty<>(observableArrayList());
   private final BooleanProperty gameRoomPopout = new SimpleBooleanProperty(true);
   private final StringProperty galacticWarInitialGalaxy = new SimpleStringProperty("");
@@ -568,6 +569,16 @@ public class Preferences {
   public void setLastLeaderboardFriendsOnlySelection(boolean selected) { this.lastLeaderboardFriendsOnlySelection.set(selected); }
 
   public BooleanProperty lastLeaderboardFriendsOnlySelection() { return lastLeaderboardFriendsOnlySelection; }
+
+  public String getLastLeaderboardModSelection() {
+    return lastLeaderboardModSelection.get();
+  }
+
+  public void setLastLeaderboardModSelection(String modTechnical) { this.lastLeaderboardModSelection.set(modTechnical); }
+
+  public StringProperty lastLeaderboardModSelectionProperty() {
+    return lastLeaderboardModSelection;
+  }
 
   public boolean getGameRoomPopout() {
     return gameRoomPopout.get();
