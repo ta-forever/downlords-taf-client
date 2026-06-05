@@ -2,6 +2,7 @@
 
 <?import javafx.scene.control.ContextMenu?>
 <?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.SeparatorMenuItem?>
 <ContextMenu fx:id="contextMenu"
             xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.faforever.client.game.TeamCardPlayerContextMenuController">
@@ -9,5 +10,11 @@
     <MenuItem text="%game.detail.player.kick" onAction="#onKickPlayer" fx:id="kickPlayerMenuItem"/>
     <MenuItem text="%reservedSlots.contextMenu.addToReserved" onAction="#onReserveSlot"
               fx:id="reserveSlotMenuItem" visible="false"/>
+    <SeparatorMenuItem fx:id="moderatorActionSeparator" mnemonicParsing="false" visible="false"/>
+    <MenuItem fx:id="kickGameItem" mnemonicParsing="false" onAction="#onKickGame" text="%chat.userContext.kickGame"
+              visible="false"/>
+    <MenuItem fx:id="kickLobbyItem" mnemonicParsing="false" onAction="#onKickLobby" text="%chat.userContext.kickLobby"
+              visible="false"/>
+    <MenuItem fx:id="banItem" mnemonicParsing="false" onAction="#onBan" visible="false" text="%chat.userContext.ban"/>
   </items>
 </ContextMenu>

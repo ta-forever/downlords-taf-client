@@ -14,7 +14,9 @@ import com.faforever.client.theme.UiService;
 import com.faforever.client.util.RatingUtil;
 import javafx.collections.ObservableMap;
 import javafx.scene.Node;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
@@ -121,10 +123,11 @@ public class TeamCardController implements Controller<Node> {
       }
       playerCardTooltipController.setPlayer(player, hidePlayerRatings ? null : playerRating, faction, gwMedalIcon);
       playerCardTooltipController.getRoot().setOnContextMenuRequested(event -> {
-        if (TeamCardPlayerContextMenuController.isMenuAvailable(playerService.getCurrentPlayer().orElse(null), player)) {
-          TeamCardPlayerContextMenuController ctrl = uiService.loadFxml("theme/play/team_card_player_context_menu.fxml");
-          ctrl.setPlayer(player);
-          ctrl.getContextMenu().show(this.getRoot().getScene().getWindow(), event.getScreenX(), event.getScreenY());
+        TeamCardPlayerContextMenuController ctrl = uiService.loadFxml("theme/play/team_card_player_context_menu.fxml");
+        ctrl.setPlayer(player);
+        ContextMenu cm = ctrl.getContextMenu();
+        if (cm.getItems().stream().anyMatch(MenuItem::isVisible)) {
+          cm.show(this.getRoot().getScene().getWindow(), event.getScreenX(), event.getScreenY());
         }
       });
 
