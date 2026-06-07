@@ -25,6 +25,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -129,6 +130,10 @@ public class ChannelTabController extends AbstractChatTabController {
   public Label userListTitleLabel;
   public javafx.scene.control.ComboBox<String> iconModeComboBox;
   private ChatChannel chatChannel;
+  private ChangeListener<ChatBanNoticeMessage> chatBanNoticeListener;
+  private ChangeListener<Boolean> hideFoeMessagesListener;
+  private ChangeListener<ChatColorMode> chatColorModeListener;
+  private ChangeListener<String> iconModeListener;
   private final InvalidationListener channelTopicListener = observable -> JavaFxUtil.runLater(this::updateChannelTopic);
   private Popup filterUserPopup;
   private UserFilterController userFilterController;
@@ -202,7 +207,8 @@ public class ChannelTabController extends AbstractChatTabController {
 
   private void onChatBanMessage(ChatBanNoticeMessage chatBanMessage) {
     if (chatBanMessage != null && chatBanMessage.getIsBanned()) {
-      boolean thisChannel = chatBanMessage.getChannels() == null || chatBanMessage.getChannels().contains(this.getReceiver());
+      boolean thisChannel = chatBanMessage.getChannels() == null
+          || this.getReceiver() != null && chatBanMessage.getChannels().contains(this.getReceiver());
       if (thisChannel) {
         messageTextField.setDisable(true);
         String banText = this.i18n.get("chat.banned.message", chatBanMessage.getExpiry(), chatBanMessage.getReason());
@@ -212,6 +218,31 @@ public class ChannelTabController extends AbstractChatTabController {
     }
     messageTextField.setDisable(false);
     messageTextField.setPromptText(this.i18n.get("chat.messagePrompt"));
+  }
+
+  @Override
+  public void close() {
+    // These listeners are registered on application-scoped singletons (chat service,
+    // chat preferences, chat user service) that outlive this per-channel controller, so
+    // they must be removed explicitly or the controller leaks and fires on dead tabs.
+    if (this.chatBanNoticeListener != null) {
+      this.chatService.getChatBanNoticeMessage().removeListener(this.chatBanNoticeListener);
+      this.chatBanNoticeListener = null;
+    }
+    ChatPrefs chatPrefs = preferencesService.getPreferences().getChat();
+    if (this.hideFoeMessagesListener != null) {
+      chatPrefs.hideFoeMessagesProperty().removeListener(this.hideFoeMessagesListener);
+      this.hideFoeMessagesListener = null;
+    }
+    if (this.chatColorModeListener != null) {
+      chatPrefs.chatColorModeProperty().removeListener(this.chatColorModeListener);
+      this.chatColorModeListener = null;
+    }
+    if (this.iconModeListener != null) {
+      chatUserService.iconModeProperty().removeListener(this.iconModeListener);
+      this.iconModeListener = null;
+    }
+    super.close();
   }
 
   public void setChatChannel(ChatChannel chatChannel) {
@@ -226,7 +257,8 @@ public class ChannelTabController extends AbstractChatTabController {
     onPlayerCount(chatChannel.getUsers().size());
 
     this.onChatBanMessage(chatService.getChatBanNoticeMessage().get());
-    this.chatService.getChatBanNoticeMessage().addListener((obs, oldValue, newValue) -> this.onChatBanMessage(newValue));
+    this.chatBanNoticeListener = (obs, oldValue, newValue) -> this.onChatBanMessage(newValue);
+    this.chatService.getChatBanNoticeMessage().addListener(this.chatBanNoticeListener);
 
     // Maybe there already were some users; fetch them
     chatChannel.getUsers().forEach(this::onPlayerConnected);
@@ -239,7 +271,7 @@ public class ChannelTabController extends AbstractChatTabController {
     JavaFxUtil.addListener(chatChannel.topicProperty(), new WeakInvalidationListener(channelTopicListener));
 
     ChatPrefs chatPrefs = preferencesService.getPreferences().getChat();
-    JavaFxUtil.addListener(chatPrefs.hideFoeMessagesProperty(), ((observable, oldValue, newValue) -> {
+    hideFoeMessagesListener = (observable, oldValue, newValue) -> {
       if (newValue) {
         chatChannel.getUsers().stream().filter(chatUser -> chatUser.getSocialStatus().stream().anyMatch(socialStatus -> socialStatus == FOE))
             .forEach(chatUser -> updateUserMessageDisplay(chatUser, "none"));
@@ -247,9 +279,11 @@ public class ChannelTabController extends AbstractChatTabController {
         chatChannel.getUsers().stream().filter(chatUser -> chatUser.getSocialStatus().stream().anyMatch(socialStatus -> socialStatus == FOE))
             .forEach(chatUser -> updateUserMessageDisplay(chatUser, ""));
       }
-    }));
+    };
+    JavaFxUtil.addListener(chatPrefs.hideFoeMessagesProperty(), hideFoeMessagesListener);
 
-    JavaFxUtil.addListener(chatPrefs.chatColorModeProperty(), ((observable, oldValue, newValue) -> chatChannel.getUsers().forEach(this::updateUserMessageColor)));
+    chatColorModeListener = (observable, oldValue, newValue) -> chatChannel.getUsers().forEach(this::updateUserMessageColor);
+    JavaFxUtil.addListener(chatPrefs.chatColorModeProperty(), chatColorModeListener);
   }
 
   private void updateChannelTopic() {
@@ -334,11 +368,12 @@ public class ChannelTabController extends AbstractChatTabController {
         chatUserService.setIconModeManual(newVal);
       }
     });
-    chatUserService.iconModeProperty().addListener((obs, oldVal, newVal) -> {
+    iconModeListener = (obs, oldVal, newVal) -> {
       if (newVal != null && !newVal.equals(iconModeComboBox.getValue())) {
         JavaFxUtil.runLater(() -> iconModeComboBox.setValue(newVal));
       }
-    });
+    };
+    chatUserService.iconModeProperty().addListener(iconModeListener);
   }
 
   private void initializeSideToggle() {
