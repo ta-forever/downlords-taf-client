@@ -2100,12 +2100,17 @@ public class TournamentsController extends AbstractViewController<Node> {
     HBox slot = new HBox();
     slot.getStyleClass().add("bracket-slot");
     if (isWinner) slot.getStyleClass().add("bracket-slot-winner");
+    else if (isLoser(m, playerName)) slot.getStyleClass().add("bracket-slot-loser");
 
     Label nameLabel;
     String tooltipText = null;
     if (playerName == null) {
-      nameLabel = new Label(i18n.get("tournament.matchTbd"));
-      nameLabel.getStyleClass().addAll("bracket-player", "bracket-player-tbd");
+      // Once the tournament is underway, an empty slot in a match that has
+      // already been decided means the opponent had no one to play (a bye);
+      // otherwise it's a genuine to-be-determined future participant.
+      boolean bye = isByeSlot(m);
+      nameLabel = new Label(i18n.get(bye ? "tournament.matchBye" : "tournament.matchTbd"));
+      nameLabel.getStyleClass().addAll("bracket-player", bye ? "bracket-player-bye" : "bracket-player-tbd");
     } else {
       nameLabel = new Label(playerName);
       nameLabel.getStyleClass().add("bracket-player");
@@ -2476,6 +2481,33 @@ public class TournamentsController extends AbstractViewController<Node> {
 
   private boolean isWinner(TournamentBean.MatchInfo match, String player) {
     return player != null && match.getWinner() != null && player.equals(match.getWinner());
+  }
+
+  /** A real (non-null) participant who lost a decided match — i.e. the match
+   *  has a winner and it isn't this player. Used to colour the losing slot red. */
+  private boolean isLoser(TournamentBean.MatchInfo match, String player) {
+    return player != null && match.getWinner() != null && !player.equals(match.getWinner());
+  }
+
+  /**
+   * True when the empty slot of {@code m} represents a <em>bye</em> (the
+   * filled player advances with no opponent) rather than an undetermined
+   * future participant (TBD). A bye is distinguishable only once the
+   * tournament has started: the match already has a winner and exactly one
+   * of the two slots is filled. A genuine TBD slot — a future-round match
+   * still waiting on a feeder result — has no winner yet, so it stays "TBD".
+   */
+  private boolean isByeSlot(TournamentBean.MatchInfo m) {
+    if (currentTournament == null) {
+      return false;
+    }
+    String state = currentTournament.getApiState();
+    boolean started = "underway".equals(state) || "complete".equals(state);
+    if (!started || m.getWinner() == null) {
+      return false;
+    }
+    // Exactly one slot filled → the empty one is a bye.
+    return (m.getPlayer1() != null) ^ (m.getPlayer2() != null);
   }
 
   /**
