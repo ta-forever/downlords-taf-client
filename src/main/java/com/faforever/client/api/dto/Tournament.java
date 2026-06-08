@@ -59,6 +59,10 @@ public class Tournament {
   @Relationship("mapPool")
   private MapPool mapPool;
 
+  // A single fixed map for the whole tournament (alternative to a map pool).
+  @Relationship("singleMapVersion")
+  private MapVersion singleMapVersion;
+
   @Relationship("teams")
   private List<TournamentTeam> teams;
 

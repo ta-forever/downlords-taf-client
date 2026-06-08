@@ -729,7 +729,7 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
       "matches.plannedMaps,matches.plannedMaps.mapVersion,matches.plannedMaps.mapVersion.map," +
       "matches.games," +
       "teams,teams.members,teams.members.player," +
-      "featuredMod,leaderboard,mapPool," +
+      "featuredMod,leaderboard,mapPool,singleMapVersion,singleMapVersion.map," +
       "winnerAvatar,secondPlaceAvatar,thirdPlaceAvatar," +
       "placements,placements.player," +
       "standings,standings.player";

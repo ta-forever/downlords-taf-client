@@ -59,6 +59,12 @@ public class TournamentBean {
   private String leaderboardName;
   private String leaderboardTechnicalName;
   private String mapPoolName;
+  /** When the tournament uses one fixed map for every game, this is its
+   *  map_version id (the value the server stores as single_map_version_id).
+   *  Null when no fixed map is set. */
+  private Integer singleMapVersionId;
+  /** Display name of the fixed map, for UI labels. Null when none. */
+  private String singleMapName;
   private Integer createdByPlayerId;
   /** Team names for team tournaments, sorted alphabetically. Empty for solo. */
   private List<String> teamNames;
@@ -166,6 +172,13 @@ public class TournamentBean {
     }
     if (tournament.getMapPool() != null) {
       tournamentBean.setMapPoolName(tournament.getMapPool().getName());
+    }
+    if (tournament.getSingleMapVersion() != null) {
+      com.faforever.client.api.dto.MapVersion smv = tournament.getSingleMapVersion();
+      try {
+        tournamentBean.setSingleMapVersionId(smv.getId() != null ? Integer.parseInt(smv.getId()) : null);
+      } catch (NumberFormatException ignored) {}
+      tournamentBean.setSingleMapName(smv.getMap() != null ? smv.getMap().getDisplayName() : smv.getName());
     }
     if (tournament.getCreatedBy() != null) {
       tournamentBean.setCreatedByPlayerId(Integer.parseInt(tournament.getCreatedBy().getId()));
@@ -537,6 +550,10 @@ public class TournamentBean {
   public void setLeaderboardTechnicalName(String v) { this.leaderboardTechnicalName = v; }
   public String getMapPoolName() { return mapPoolName; }
   public void setMapPoolName(String v) { this.mapPoolName = v; }
+  public Integer getSingleMapVersionId() { return singleMapVersionId; }
+  public void setSingleMapVersionId(Integer v) { this.singleMapVersionId = v; }
+  public String getSingleMapName() { return singleMapName; }
+  public void setSingleMapName(String v) { this.singleMapName = v; }
   public Integer getCreatedByPlayerId() { return createdByPlayerId; }
   public void setCreatedByPlayerId(Integer v) { this.createdByPlayerId = v; }
   public boolean isPlayerCreated() { return createdByPlayerId != null; }

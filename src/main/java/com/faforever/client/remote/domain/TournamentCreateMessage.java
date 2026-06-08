@@ -20,6 +20,10 @@ public class TournamentCreateMessage extends ClientMessage {
   private Integer featuredModId;
   @SerializedName("map_pool_id")
   private Integer mapPoolId;
+  // A single fixed map (map_version id) used for every game in the tournament.
+  // Takes precedence over map_pool_id server-side.
+  @SerializedName("single_map_version_id")
+  private Integer singleMapVersionId;
   @SerializedName("min_rating")
   private Integer minRating;
   @SerializedName("max_rating")
@@ -65,6 +69,8 @@ public class TournamentCreateMessage extends ClientMessage {
   public void setFeaturedModId(Integer v) { this.featuredModId = v; }
   public Integer getMapPoolId() { return mapPoolId; }
   public void setMapPoolId(Integer v) { this.mapPoolId = v; }
+  public Integer getSingleMapVersionId() { return singleMapVersionId; }
+  public void setSingleMapVersionId(Integer v) { this.singleMapVersionId = v; }
   public Integer getMinRating() { return minRating; }
   public void setMinRating(Integer v) { this.minRating = v; }
   public Integer getMaxRating() { return maxRating; }

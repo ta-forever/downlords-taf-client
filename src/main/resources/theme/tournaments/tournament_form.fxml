@@ -3,6 +3,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import org.controlsfx.control.SearchableComboBox?>
 <VBox xmlns:fx="http://javafx.com/fxml/1" fx:id="formRoot"
       prefWidth="480" spacing="0"
       xmlns="http://javafx.com/javafx/19"
@@ -77,6 +78,12 @@
                     <Label text="%tournament.detail.mapPool" minWidth="120"/>
                     <ComboBox fx:id="poolCombo" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
                 </HBox>
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="%tournament.create.singleMap" minWidth="120"/>
+                    <SearchableComboBox fx:id="singleMapCombo" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+                </HBox>
+                <Label text="%tournament.create.singleMap.hint" styleClass="hint-label"
+                       style="-fx-text-fill: #888; -fx-padding: 0 0 0 120;" wrapText="true"/>
                 <HBox spacing="8" alignment="CENTER_LEFT">
                     <Label text="%tournament.detail.seedingRating" minWidth="120"/>
                     <ComboBox fx:id="leaderboardCombo" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>

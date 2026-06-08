@@ -2100,7 +2100,6 @@ public class TournamentsController extends AbstractViewController<Node> {
     HBox slot = new HBox();
     slot.getStyleClass().add("bracket-slot");
     if (isWinner) slot.getStyleClass().add("bracket-slot-winner");
-    else if (isLoser(m, playerName)) slot.getStyleClass().add("bracket-slot-loser");
 
     Label nameLabel;
     String tooltipText = null;
@@ -2483,11 +2482,6 @@ public class TournamentsController extends AbstractViewController<Node> {
     return player != null && match.getWinner() != null && player.equals(match.getWinner());
   }
 
-  /** A real (non-null) participant who lost a decided match — i.e. the match
-   *  has a winner and it isn't this player. Used to colour the losing slot red. */
-  private boolean isLoser(TournamentBean.MatchInfo match, String player) {
-    return player != null && match.getWinner() != null && !player.equals(match.getWinner());
-  }
 
   /**
    * True when the empty slot of {@code m} represents a <em>bye</em> (the

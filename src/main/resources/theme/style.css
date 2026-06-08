@@ -1358,9 +1358,6 @@
   -fx-text-fill: -good;
   -fx-font-weight: bold;
 }
-.bracket-slot.bracket-slot-loser > .bracket-player {
-  -fx-text-fill: -bad;
-}
 .bracket-player {
   -fx-text-fill: -fx-text-base-color;
 }

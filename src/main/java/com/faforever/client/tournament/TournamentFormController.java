@@ -4,6 +4,8 @@ import com.faforever.client.api.dto.MapPool;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.map.MapBean;
+import com.faforever.client.map.MapService;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.domain.TournamentCreateMessage;
@@ -47,6 +49,7 @@ public class TournamentFormController implements Controller<Node> {
 
   private final I18n i18n;
   private final FafService fafService;
+  private final MapService mapService;
 
   public VBox formRoot;
   public ScrollPane formScroll;
@@ -75,6 +78,7 @@ public class TournamentFormController implements Controller<Node> {
   public VBox mapsSection;
   public ComboBox<FeaturedMod> modCombo;
   public ComboBox<MapPool> poolCombo;
+  public org.controlsfx.control.SearchableComboBox<MapBean> singleMapCombo;
   public ComboBox<com.faforever.client.leaderboard.Leaderboard> leaderboardCombo;
   public TextField minRatingField;
   public TextField maxRatingField;
@@ -92,10 +96,15 @@ public class TournamentFormController implements Controller<Node> {
   private TournamentBean editTarget;
   private Runnable onDone;
 
-  public TournamentFormController(I18n i18n, FafService fafService) {
+  public TournamentFormController(I18n i18n, FafService fafService, MapService mapService) {
     this.i18n = i18n;
     this.fafService = fafService;
+    this.mapService = mapService;
   }
+
+  /** Deferred fixed-map selection for edit mode: the map_version id to select
+   *  once the ranked-map list finishes loading. Null when nothing to preselect. */
+  private Integer pendingSingleMapVersionId;
 
   @Override
   public Node getRoot() {
@@ -182,6 +191,62 @@ public class TournamentFormController implements Controller<Node> {
     } catch (Exception e) {
       log.warn("Failed to load map pools", e);
     }
+
+    // Single fixed-map combo. A null entry means "no fixed map". Loaded
+    // asynchronously from the ranked-map list. A fixed map and a map pool
+    // are mutually exclusive (the server prefers the fixed map), so picking
+    // one clears and disables the other.
+    singleMapCombo.setCellFactory(lv -> new ListCell<>() {
+      @Override protected void updateItem(MapBean item, boolean empty) {
+        super.updateItem(item, empty);
+        setText(empty || item == null ? i18n.get("tournament.create.noSingleMap") : item.getMapName());
+      }
+    });
+    singleMapCombo.setButtonCell(singleMapCombo.getCellFactory().call(null));
+    // SearchableComboBox builds its type-to-filter text from the converter
+    // (falling back to Object.toString()), so a converter is required for the
+    // search box to match on map names rather than bean identity.
+    singleMapCombo.setConverter(new StringConverter<>() {
+      @Override public String toString(MapBean m) {
+        return m == null ? i18n.get("tournament.create.noSingleMap") : m.getMapName();
+      }
+      @Override public MapBean fromString(String s) {
+        if (s == null || s.isBlank()) {
+          return null;
+        }
+        return singleMapCombo.getItems().stream()
+            .filter(m -> m != null && s.equals(m.getMapName()))
+            .findFirst().orElse(singleMapCombo.getValue());
+      }
+    });
+    singleMapCombo.getItems().add(null);
+    singleMapCombo.getSelectionModel().selectFirst();
+    mapService.getAllRankedMaps().thenAccept(maps -> JavaFxUtil.runLater(() -> {
+      maps.stream()
+          .sorted(Comparator.comparing(MapBean::getMapName,
+              Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+          .forEach(singleMapCombo.getItems()::add);
+      // Edit mode may have asked for a specific map before the list loaded.
+      if (pendingSingleMapVersionId != null) {
+        selectSingleMapById(pendingSingleMapVersionId);
+      }
+    })).exceptionally(t -> {
+      log.warn("Failed to load ranked maps for fixed-map picker", t);
+      return null;
+    });
+
+    singleMapCombo.valueProperty().addListener((obs, o, n) -> {
+      if (n != null && poolCombo.getValue() != null) {
+        poolCombo.setValue(null);
+      }
+      poolCombo.setDisable(n != null);
+    });
+    poolCombo.valueProperty().addListener((obs, o, n) -> {
+      if (n != null && singleMapCombo.getValue() != null) {
+        singleMapCombo.setValue(null);
+      }
+      singleMapCombo.setDisable(n != null);
+    });
 
     // Leaderboard combo (for seeding rating)
     // Display the (i18n'd) nameKey — production hijacks that field to
@@ -322,6 +387,14 @@ public class TournamentFormController implements Controller<Node> {
         }
       }
 
+      // Fixed single map — the ranked-map list loads async, so remember the
+      // target id and let the loader select it; also try now in case it's
+      // already populated.
+      if (editTarget.getSingleMapVersionId() != null) {
+        pendingSingleMapVersionId = editTarget.getSingleMapVersionId();
+        selectSingleMapById(editTarget.getSingleMapVersionId());
+      }
+
       // Mod — loaded async, so defer selection until the items arrive
       String targetModName = editTarget.getFeaturedModTechnicalName();
       if (targetModName != null) {
@@ -402,6 +475,21 @@ public class TournamentFormController implements Controller<Node> {
     if (onDone != null) onDone.run();
   }
 
+  /** Select the fixed-map combo entry whose map_version id matches, if present. */
+  private void selectSingleMapById(int mapVersionId) {
+    for (MapBean m : singleMapCombo.getItems()) {
+      if (m == null || m.getId() == null) {
+        continue;
+      }
+      try {
+        if (Integer.parseInt(m.getId()) == mapVersionId) {
+          singleMapCombo.setValue(m);
+          return;
+        }
+      } catch (NumberFormatException ignored) {}
+    }
+  }
+
   private void submitCreate() {
     String name = nameField.getText();
     if (name == null || name.isBlank()) return;
@@ -423,6 +511,10 @@ public class TournamentFormController implements Controller<Node> {
     MapPool selectedPool = poolCombo.getValue();
     if (selectedPool != null) {
       try { msg.setMapPoolId(Integer.parseInt(selectedPool.getId())); } catch (NumberFormatException ignored) {}
+    }
+    MapBean selectedSingleMap = singleMapCombo.getValue();
+    if (selectedSingleMap != null && selectedSingleMap.getId() != null) {
+      try { msg.setSingleMapVersionId(Integer.parseInt(selectedSingleMap.getId())); } catch (NumberFormatException ignored) {}
     }
     com.faforever.client.leaderboard.Leaderboard selectedLb = leaderboardCombo.getValue();
     if (selectedLb != null) {
@@ -491,6 +583,14 @@ public class TournamentFormController implements Controller<Node> {
       try { msg.setMapPoolId(Integer.parseInt(selectedPool.getId())); } catch (NumberFormatException ignored) {}
     } else {
       msg.setMapPoolId(0);
+    }
+    // Single fixed map: send 0 to clear when none selected (same sentinel as
+    // map pool). A fixed map and a pool are mutually exclusive in the UI.
+    MapBean selectedSingleMap = singleMapCombo.getValue();
+    if (selectedSingleMap != null && selectedSingleMap.getId() != null) {
+      try { msg.setSingleMapVersionId(Integer.parseInt(selectedSingleMap.getId())); } catch (NumberFormatException ignored) {}
+    } else {
+      msg.setSingleMapVersionId(0);
     }
     com.faforever.client.leaderboard.Leaderboard selectedLb = leaderboardCombo.getValue();
     if (selectedLb != null) {
