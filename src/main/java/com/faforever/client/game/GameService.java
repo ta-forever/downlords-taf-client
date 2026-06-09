@@ -173,6 +173,14 @@ public class GameService implements InitializingBean {
   private Optional<Game> rehostRequested;
   private NewGameInfo recentHostGameRequest;  // rehostRequest is  missing a few bits of information (like password)
 
+  // Crash-resilient game-log upload: a marker is written when a game launches and cleared when its
+  // logs are submitted at game end. A marker still present at next login means the client died
+  // mid-game before uploading, so we upload those logs then. See GameLogUploadMarker.
+  private static final String PENDING_LOG_UPLOAD_DIR = "pendingLogUploads";
+  private static final long PENDING_LOG_UPLOAD_MAX_AGE_MS = java.time.Duration.ofDays(7).toMillis();
+  private final java.util.concurrent.atomic.AtomicBoolean crashedLogUploadsRecovered =
+      new java.util.concurrent.atomic.AtomicBoolean(false);
+
   @Inject
   public GameService(ClientProperties clientProperties,
                      FafService fafService,
@@ -1107,6 +1115,12 @@ public class GameService implements InitializingBean {
           process = noCatch(() -> totalAnnihilationService.startGame(modTechnical, uid, args,
               adapterPort[0], getCurrentPlayer(), demoCompilerUrl, ircUrl, autoLaunch, isRated));
           setRunningGameUid(uid);
+          if (process != null) {
+            // Mark this game as "logs not yet uploaded" so that if the client dies before the
+            // termination listener runs, the next login uploads them. Cleared in that listener.
+            GameLogUploadMarker.mark(
+                preferencesService.getFafLogDirectory().resolve(PENDING_LOG_UPLOAD_DIR), uid, modTechnical);
+          }
           currentGameStatusProperty.set(GameStatus.SPAWNING);
           spawnGameTerminationListener(process, uid,  modTechnical, null);
         })
@@ -1233,6 +1247,9 @@ public class GameService implements InitializingBean {
       });
 
       submitLogs(gameId, modTechnical);
+      // Reaching here means we observed the game terminate and handled its logs, so this game did
+      // not crash the client out from under us: drop its pending-upload marker.
+      GameLogUploadMarker.clear(preferencesService.getFafLogDirectory().resolve(PENDING_LOG_UPLOAD_DIR), gameId);
     });
   }
 
@@ -1254,6 +1271,7 @@ public class GameService implements InitializingBean {
 
 
   private void onLoggedIn() {
+    recoverCrashedGameLogUploads();
     if (isGameRunning()) {
       if (getCurrentGame() != null) {
         fafService.restoreGameSession(getCurrentGame().getId());
@@ -1263,6 +1281,40 @@ public class GameService implements InitializingBean {
         killGame();
       }
     }
+  }
+
+  /**
+   * Uploads logs for any game whose previous session ended (crash/kill) before it could submit them.
+   * Runs once per process on first login, off the calling thread, and before any new game launch can
+   * overwrite the fixed-name logs. Reuses {@link #submitLogs} so the user's auto-upload preference
+   * (ALLOW/ASK/DENY) is honoured exactly as for a normal game end.
+   */
+  private void recoverCrashedGameLogUploads() {
+    if (!crashedLogUploadsRecovered.compareAndSet(false, true)) {
+      return;
+    }
+    executorService.execute(() -> {
+      java.nio.file.Path markerDir = preferencesService.getFafLogDirectory().resolve(PENDING_LOG_UPLOAD_DIR);
+      List<GameLogUploadMarker.Pending> pending =
+          GameLogUploadMarker.listAndPrune(markerDir, PENDING_LOG_UPLOAD_MAX_AGE_MS);
+      int currentUid = runningGameUidProperty.get();
+      for (GameLogUploadMarker.Pending p : pending) {
+        if (p.gameId() == currentUid) {
+          // The game we're currently in will upload its logs normally at game end; leave its marker.
+          continue;
+        }
+        log.info("[recoverCrashedGameLogUploads] previous session ended during game {} before its "
+            + "logs were uploaded; uploading now", p.gameId());
+        try {
+          submitLogs(p.gameId(), p.modTechnical());
+        } catch (Exception e) {
+          log.warn("[recoverCrashedGameLogUploads] failed to upload recovered logs for game {}: {}",
+              p.gameId(), e.toString());
+        } finally {
+          GameLogUploadMarker.clear(markerDir, p.gameId());
+        }
+      }
+    });
   }
 
   public class RunAfterTimeout {

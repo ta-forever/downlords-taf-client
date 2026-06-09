@@ -159,6 +159,10 @@ compileTestJava {
   // compile cleanly.
   include '**/player/**'
   include '**/tournament/**'
+  // Self-contained, maintained tests for the crash-resilient game-log upload (marker + log tailing).
+  // Scoped to the single files so they don't pull in broken siblings in those packages.
+  include '**/game/GameLogUploadMarkerTest.java'
+  include '**/util/LogTailUtilTest.java'
   // Test base classes / shared utilities — required by tests in the
   // included packages above. Don't include broken siblings of these.
   include '**/test/AbstractPlainJavaFxTest.java'

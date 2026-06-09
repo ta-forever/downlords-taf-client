@@ -45,6 +45,7 @@ import com.faforever.client.task.ResourceLocks;
 import com.faforever.client.teammatchmaking.MatchmakingQueue;
 import com.faforever.client.tournament.TournamentBean;
 import com.faforever.client.tutorial.TutorialCategory;
+import com.faforever.client.util.LogTailUtil;
 import com.faforever.client.util.Tuple;
 import com.faforever.client.util.ZipUtil;
 import com.faforever.client.vault.review.Review;
@@ -363,17 +364,28 @@ public class FafService {
       tdrawLog = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath().resolve("tdrawlog.txt").toFile();
     }
 
-    File[] files = {
+    java.util.List<File> fileList = new java.util.ArrayList<>(java.util.Arrays.asList(
         logClient, logIceAdapter, logLauncher,
-        logGpgnet4ta, logReplay, taErrorLog, tdrawLog};
+        logGpgnet4ta, logReplay, taErrorLog, tdrawLog));
+    // A hard JVM crash often fails to flush logback's final lines, so the hs_err_pid*.log the JVM
+    // writes is the only record of what killed the client. Bundle any recent ones too.
+    fileList.addAll(collectRecentJvmCrashLogs());
 
-    files = java.util.Arrays.stream(files)
+    File[] files = fileList.stream()
         .filter(Objects::nonNull)
         .toArray(File[]::new);
 
-    java.util.Arrays.sort(files, Comparator.comparingLong(File::length).reversed());
-
+    // Verbose logs (client.log, ice-adapter.log, ...) can each be many MB, but the API caps the whole
+    // zip at ~1 MB. Rather than dropping a whole file (which would lose the crash tail we care about),
+    // replace any oversized text log with just its last PER_LOG_TAIL_BYTES — the most recent activity,
+    // i.e. closest to the crash. Tailed copies keep the original file name (placed in a temp dir).
+    Path tailTempDir = null;
     try {
+      tailTempDir = Files.createTempDirectory("taf-log-upload-");
+      files = LogTailUtil.tailLargeTextLogs(files, tailTempDir, PER_LOG_TAIL_BYTES);
+
+      java.util.Arrays.sort(files, Comparator.comparingLong(File::length).reversed());
+
       int MAX_FILE_SIZE = 1000000; // limited by MAX_FILE_SIZE on the API side
       while (true) {
         ZipUtil.zipFile(files, targetZipFile.toFile(), true);
@@ -382,7 +394,7 @@ public class FafService {
           break;
         }
 
-        // Remove the largest file from the files array
+        // Fallback (rare, even after tailing): drop the largest remaining file and re-zip.
         if (files.length > 0) {
           log.info("[uploadGameLogs] zipfile too large ({} bytes). Excluding {} ({} bytes) from upload",
               zipFileSize, files[0].toString(), files[0].length());
@@ -407,7 +419,55 @@ public class FafService {
     } finally {
       try { ResourceLocks.freeUploadLock(); } catch(Exception ignored) {}
       try { Files.delete(targetZipFile); } catch(Exception ignored) {}
+      LogTailUtil.deleteRecursivelyQuietly(tailTempDir);
     }
+  }
+
+  /** Per-text-log byte cap applied before zipping; we keep the last this-many bytes of oversized logs. */
+  private static final long PER_LOG_TAIL_BYTES = 400_000;
+
+  /**
+   * Best-effort collection of JVM fatal-error logs (hs_err_pid*.log) modified in the last few days.
+   * The JVM writes these to its working directory, or the temp dir when the working dir is not
+   * writable (e.g. an installed client under Program Files), so we scan both plus the faf log dir.
+   * De-duplicated by file name.
+   */
+  private java.util.List<File> collectRecentJvmCrashLogs() {
+    long cutoff = System.currentTimeMillis() - java.time.Duration.ofDays(3).toMillis();
+    java.util.LinkedHashMap<String, File> byName = new java.util.LinkedHashMap<>();
+    java.util.List<Path> dirs = new java.util.ArrayList<>();
+    try {
+      dirs.add(preferencesService.getFafLogDirectory());
+    } catch (Exception ignored) {
+      // log dir not resolvable; skip it
+    }
+    for (String prop : new String[]{"user.dir", "java.io.tmpdir"}) {
+      String value = System.getProperty(prop);
+      if (value != null) {
+        dirs.add(Path.of(value));
+      }
+    }
+    for (Path dir : dirs) {
+      if (dir == null || !Files.isDirectory(dir)) {
+        continue;
+      }
+      try (java.util.stream.Stream<Path> stream = Files.list(dir)) {
+        stream
+            .filter(p -> {
+              String name = p.getFileName().toString();
+              return name.startsWith("hs_err_pid") && name.endsWith(".log");
+            })
+            .map(Path::toFile)
+            .filter(f -> f.lastModified() >= cutoff)
+            .forEach(f -> byName.putIfAbsent(f.getName(), f));
+      } catch (IOException e) {
+        log.debug("[collectRecentJvmCrashLogs] could not scan {}: {}", dir, e.toString());
+      }
+    }
+    if (!byName.isEmpty()) {
+      log.info("[collectRecentJvmCrashLogs] including {} JVM crash log(s) in upload", byName.size());
+    }
+    return new java.util.ArrayList<>(byName.values());
   }
 
   private void removeErrorLog(String modTechnical) {
