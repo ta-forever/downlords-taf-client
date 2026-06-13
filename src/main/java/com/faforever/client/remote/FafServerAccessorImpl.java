@@ -146,6 +146,7 @@ import org.springframework.util.StringUtils;
 
 import javax.security.auth.login.LoginException;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.net.URL;
@@ -789,6 +790,11 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
       String uniqueId = uidService.generate(String.valueOf(sessionId.get()), preferencesService.getFafDataDirectory().resolve("uid.log"));
       writeToServer(new LoginClientMessage(username, Hashing.sha256().hashString(password, UTF_8).toString(), sessionId.get(), uniqueId,
           String.join(";", localIps)));
+    } catch (InterruptedIOException e) {
+      // UID generation was interrupted because the login was cancelled (e.g. the user clicked Cancel). This is not an
+      // error, so don't show the UID failure notification; the cancellation path handles the connection teardown.
+      log.debug("UID generation interrupted; login cancelled");
+      Thread.currentThread().interrupt();
     } catch (IOException e) {
       onUIDNotExecuted(e);
     }
@@ -796,7 +802,7 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
 
   @VisibleForTesting
   protected void onUIDNotExecuted(Exception e) {
-    log.error("UID.exe not executed", e);
+    log.error("Could not generate UID", e);
     if (e.getMessage() == null) {
       return;
     }
