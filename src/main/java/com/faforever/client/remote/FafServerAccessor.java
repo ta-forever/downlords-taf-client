@@ -13,6 +13,7 @@ import com.faforever.client.remote.domain.LoginMessage;
 import com.faforever.client.remote.domain.MatchmakingState;
 import com.faforever.client.remote.domain.PeriodType;
 import com.faforever.client.remote.domain.ServerMessage;
+import com.faforever.client.remote.domain.WatchTicketMessage;
 import com.faforever.client.teammatchmaking.MatchmakingQueue;
 import javafx.beans.property.ReadOnlyObjectProperty;
 
@@ -40,6 +41,8 @@ public interface FafServerAccessor {
   CompletableFuture<GameLaunchMessage> requestHostGame(NewGameInfo newGameInfo);
 
   CompletableFuture<GameLaunchMessage> requestJoinGame(int gameId, String password);
+
+  CompletableFuture<WatchTicketMessage> requestWatchTicket(int gameId);
 
   void disconnect();
 

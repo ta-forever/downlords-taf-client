@@ -69,6 +69,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -102,6 +103,7 @@ public class ReplayService implements InitializingBean {
   private static final String FAF_REPLAY_FILE_ENDING = ".fafreplay";
   private static final String SUP_COM_REPLAY_FILE_ENDING = ".scfareplay";
   private static final String TAF_LIFE_PROTOCOL = "taflive";
+  private static final long WATCH_TICKET_TIMEOUT_SECONDS = 10;
   private static final String GPGNET_SCHEME = "gpgnet";
   private static final String TEMP_SCFA_REPLAY_FILE_NAME = "temp.scfareplay";
   private static final Pattern invalidCharacters = Pattern.compile("[?@*%{}<>|\"]");
@@ -260,13 +262,41 @@ public class ReplayService implements InitializingBean {
 
 
   public void runLiveReplay(Game game) {
-    URI uri = UriComponentsBuilder.newInstance()
+    // Obtain a signed watch ticket from the lobby so the watch session is
+    // attributed server-side and participants are blocked from watching their
+    // own game. The ticket rides the taflive:// URI to the replay server.
+    fafService.requestWatchTicket(game.getId())
+        .orTimeout(WATCH_TICKET_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .whenComplete((ticketMessage, throwable) -> {
+          if (throwable != null) {
+            // Old/unconfigured server or a slow round-trip: fall back to a
+            // ticketless subscribe, which the replay server still serves while
+            // ticket enforcement is in soft-rollout mode.
+            log.info("No watch ticket for game {} ({}); starting live replay without one",
+                game.getId(), throwable.toString());
+            startLiveReplay(game, null);
+          } else if (ticketMessage.isDenied() || ticketMessage.getTicket() == null) {
+            // Lobby refused (the player is a participant). The lobby has already
+            // shown the user a notice; do not start the replay.
+            log.info("Watch ticket denied for game {}", game.getId());
+          } else {
+            startLiveReplay(game, ticketMessage.getTicket());
+          }
+        });
+  }
+
+  private void startLiveReplay(Game game, String ticket) {
+    UriComponentsBuilder builder = UriComponentsBuilder.newInstance()
         .scheme(TAF_LIFE_PROTOCOL)
         .host(clientProperties.getReplay().getRemoteHost())
         .port(clientProperties.getReplay().getReplayServerPort())
-        .path("/" + game.getId())
-        .build()
-        .toUri();
+        .path("/" + game.getId());
+    if (ticket != null && !ticket.isBlank()) {
+      // Pre-encode so base64's '+' '/' '=' survive as query value; build(true)
+      // then leaves it untouched. The replay server fully-decodes it back.
+      builder.queryParam("ticket", URLEncoder.encode(ticket, StandardCharsets.UTF_8));
+    }
+    URI uri = builder.build(true).toUri();
 
     gameService.runWithReplay(uri.toString(), game)
         .exceptionally(throwable -> {

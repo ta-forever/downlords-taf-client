@@ -27,6 +27,7 @@ public enum FafServerMessageType implements ServerMessageType {
   PARTY_KICKED("kicked_from_party", PartyKickedMessage.class),
   SEARCH_INFO("search_info", SearchInfoMessage.class),
   NEW_TADA_REPLAY("new_tada_replay", NewTadaReplayMessage.class),
+  WATCH_TICKET("watch_ticket", WatchTicketMessage.class),
   GALACTIC_WAR_UPDATE("galactic_war_update", GalacticWarUpdateMessage.class),
   PLAYER_LEFT("player_left", PlayerLeftMessage.class),
   // Team tournament messages.

@@ -34,6 +34,7 @@ import com.faforever.client.player.Player;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.domain.GameEndedMessage;
 import com.faforever.client.remote.domain.GameLaunchMessage;
+import com.faforever.client.remote.domain.WatchTicketMessage;
 import com.faforever.client.remote.domain.IceMessage;
 import com.faforever.client.remote.domain.IceServersServerMessage.IceServer;
 import com.faforever.client.remote.domain.LoginMessage;
@@ -110,6 +111,10 @@ public class FafService {
 
   public CompletableFuture<GameLaunchMessage> requestJoinGame(int gameId, String password) {
     return fafServerAccessor.requestJoinGame(gameId, password);
+  }
+
+  public CompletableFuture<WatchTicketMessage> requestWatchTicket(int gameId) {
+    return fafServerAccessor.requestWatchTicket(gameId);
   }
 
   public CompletableFuture<GameLaunchMessage> startSearchMatchmaker() {

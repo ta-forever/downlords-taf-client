@@ -23,7 +23,7 @@ public final class OsUtils {
    * slow-but-healthy {@code faf-uid} (its WMI gathering on Windows can legitimately take several seconds), yet short
    * enough to surface a clear error and let the client retry instead of hanging the login forever.
    */
-  private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(20);
+  private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
 
   /** Grace period to let the stdout/stderr reader threads reach end-of-stream after the process has exited. */
   private static final long STREAM_DRAIN_TIMEOUT_MILLIS = 5_000;

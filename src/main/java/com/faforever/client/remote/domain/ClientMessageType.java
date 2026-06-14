@@ -38,6 +38,7 @@ public enum ClientMessageType {
   MATCHMAKER_INFO("matchmaker_info"),
   GAME_MATCHMAKING("game_matchmaking"),
   UPLOAD_REPLAY_TO_TADA("upload_replay_to_tada"),
+  REQUEST_WATCH_TICKET("request_watch_ticket"),
   GALACTIC_WAR_SET_MAP("galactic_war_set_map"),
   TOURNAMENT_SIGNUP("tournament_signup"),
   TOURNAMENT_WITHDRAW("tournament_withdraw"),

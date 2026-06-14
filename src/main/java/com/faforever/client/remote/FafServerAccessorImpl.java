@@ -54,6 +54,8 @@ import com.faforever.client.remote.domain.TournamentTeamRemoveMemberMessage;
 import com.faforever.client.remote.domain.TournamentWithdrawMessage;
 import com.faforever.client.remote.domain.GameAccess;
 import com.faforever.client.remote.domain.GameLaunchMessage;
+import com.faforever.client.remote.domain.RequestWatchTicketMessage;
+import com.faforever.client.remote.domain.WatchTicketMessage;
 import com.faforever.client.remote.domain.GameMatchmakingMessage;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.GameType;
@@ -211,6 +213,7 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
   private volatile CompletableFuture<LoginMessage> loginFuture;
   private CompletableFuture<SessionMessage> sessionFuture;
   private CompletableFuture<GameLaunchMessage> gameLaunchFuture;
+  private volatile CompletableFuture<WatchTicketMessage> watchTicketFuture;
   private final ObjectProperty<Long> sessionId = new SimpleObjectProperty<>();
   private String username;
   private String password;
@@ -405,6 +408,15 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
             FafServerAccessorImpl.this.fafServerSocket = fafServerSocket;
 
             fafServerSocket.setKeepAlive(true);
+            // Keep the connection alive during the gap between session and login.
+            // Generating the UID (faf-uid) can take many seconds — far longer with
+            // antivirus scanning the client install — and during that window the
+            // connection is idle in both directions, so a NAT/firewall can silently
+            // drop it and the login write then fails ("Lost connection to server
+            // during login"). The OS default keep-alive idle time (~2h) is useless
+            // here, so probe aggressively to hold the path open. Best-effort: not
+            // every platform supports every option.
+            enableAggressiveKeepAlive(fafServerSocket);
 
             // Only the local socket address is used here. We previously
             // also probed three external "what's my IP" services
@@ -469,6 +481,26 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
     return loginFuture;
   }
 
+  /**
+   * Tightens TCP keep-alive on the lobby socket so the connection is probed every few seconds while idle, rather than
+   * after the OS default (~2 hours). This holds NAT/firewall state open during the brief but connection-idle window
+   * between receiving the session and sending the login (while the UID is generated). Best-effort: these extended
+   * options aren't available on every JDK/OS, so each is applied independently and a failure is only logged.
+   */
+  private static void enableAggressiveKeepAlive(Socket socket) {
+    trySetOption(socket, jdk.net.ExtendedSocketOptions.TCP_KEEPIDLE, 10);     // seconds idle before the first probe
+    trySetOption(socket, jdk.net.ExtendedSocketOptions.TCP_KEEPINTERVAL, 5);  // seconds between probes
+    trySetOption(socket, jdk.net.ExtendedSocketOptions.TCP_KEEPCOUNT, 5);     // failed probes before giving up
+  }
+
+  private static <T> void trySetOption(Socket socket, java.net.SocketOption<T> option, T value) {
+    try {
+      socket.setOption(option, value);
+    } catch (UnsupportedOperationException | IOException | IllegalArgumentException e) {
+      log.debug("TCP keep-alive option {} not supported on this platform", option.name());
+    }
+  }
+
 
   @Override
   public CompletableFuture<GameLaunchMessage> requestHostGame(NewGameInfo newGameInfo) {
@@ -502,6 +534,24 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
     gameLaunchFuture = new CompletableFuture<>();
     writeToServer(joinGameMessage);
     return gameLaunchFuture;
+  }
+
+  @Override
+  public CompletableFuture<WatchTicketMessage> requestWatchTicket(int gameId) {
+    // If the lobby refuses (e.g. the player is a participant in this game) it
+    // sends a notice instead of a watch_ticket, so this future is completed
+    // only on success; callers should apply a timeout.
+    watchTicketFuture = new CompletableFuture<>();
+    writeToServer(new RequestWatchTicketMessage(gameId));
+    return watchTicketFuture;
+  }
+
+  private void onWatchTicket(WatchTicketMessage message) {
+    CompletableFuture<WatchTicketMessage> future = watchTicketFuture;
+    if (future != null) {
+      future.complete(message);
+      watchTicketFuture = null;
+    }
   }
 
   @Override
@@ -847,6 +897,7 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
     addOnMessageListener(AuthenticationFailedMessage.class, this::dispatchAuthenticationFailed);
     addOnMessageListener(AvatarMessage.class, this::onAvatarMessage);
     addOnMessageListener(IceServersServerMessage.class, this::onIceServersMessage);
+    addOnMessageListener(WatchTicketMessage.class, this::onWatchTicket);
   }
 
 

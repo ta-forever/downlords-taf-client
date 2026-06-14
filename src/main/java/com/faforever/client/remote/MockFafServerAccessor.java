@@ -15,6 +15,7 @@ import com.faforever.client.remote.domain.Avatar;
 import com.faforever.client.remote.domain.GameAccess;
 import com.faforever.client.remote.domain.GameInfoMessage;
 import com.faforever.client.remote.domain.GameLaunchMessage;
+import com.faforever.client.remote.domain.WatchTicketMessage;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.IceServersServerMessage.IceServer;
 import com.faforever.client.remote.domain.LoginMessage;
@@ -205,6 +206,14 @@ public class MockFafServerAccessor implements FafServerAccessor {
         return gameLaunchMessage;
       }
     }).getFuture();
+  }
+
+  @Override
+  public CompletableFuture<WatchTicketMessage> requestWatchTicket(int gameId) {
+    WatchTicketMessage message = new WatchTicketMessage();
+    message.setGameId(gameId);
+    message.setTicket("mock-ticket");
+    return CompletableFuture.completedFuture(message);
   }
 
   @Override
