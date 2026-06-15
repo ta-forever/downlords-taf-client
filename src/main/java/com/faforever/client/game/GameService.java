@@ -89,8 +89,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
@@ -991,7 +993,7 @@ public class GameService implements InitializingBean {
       Game game = getCurrentGame();
       mapService.optionalEnsureMap(game.getFeaturedMod(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null)
           .thenRun(() -> {
-            List<Player> joinOrder = this.ratingService.getBalancedTeams(game);
+            List<Player> joinOrder = computeStartOrder(game);
             this.totalAnnihilationService.sendToConsole("/set_hash_api_token " + this.fafService.getApiAccessToken());
             if (joinOrder.size() > 2 && preferencesService.getPreferences().getSequencedLaunchEnabled()) {
               this.totalAnnihilationService.sendToConsole("/launch " +
@@ -1015,12 +1017,105 @@ public class GameService implements InitializingBean {
   }
 
   public void setStartPositions(Game game) {
-    List<Player> positions = this.ratingService.getBalancedTeams(game);
+    // A manual arrangement is an explicit host action, so honour it even when
+    // the auto-team-balance preference is off. Otherwise fall back to the
+    // preference gate for the auto-balanced solution.
+    if (!hasManualTeams(game) && !preferencesService.getPreferences().getAutoTeamBalanceEnabled()) {
+      return;
+    }
+    List<Player> positions = computeStartOrder(game);
     if (isGameRunning() && getCurrentGame() == game) {
-      if (!positions.isEmpty() && preferencesService.getPreferences().getAutoTeamBalanceEnabled()) {
+      if (positions != null && !positions.isEmpty()) {
         this.totalAnnihilationService.sendToConsole("/startpositions " +
             String.join(",", positions.stream().map(p -> String.valueOf(p.getId())).toList()));
       }
+    }
+  }
+
+  /** The host's pinned team constraints, keyed by player id -> team index
+   *  (0 or 1), and the game id they apply to. Only the pinned players are
+   *  stored; everyone else is auto-balanced around them. Overrides the
+   *  unconstrained auto-balanced {@code /startpositions} solution while set. */
+  private Integer manualTeamGameId;
+  private Map<Integer, Integer> manualTeamByPlayerId;
+
+  /**
+   * Store the host's pinned team constraints for {@code game} and immediately
+   * push the resulting start-position order to the running game so a
+   * subsequent {@code +autoteam} uses it. An empty map clears the constraints
+   * (pure auto-balance).
+   *
+   * @param pinnedTeamByPlayerId pinned player id -> team index (0 or 1)
+   */
+  public void setManualTeams(Game game, Map<Integer, Integer> pinnedTeamByPlayerId) {
+    if (game == null) {
+      return;
+    }
+    if (pinnedTeamByPlayerId == null || pinnedTeamByPlayerId.isEmpty()) {
+      clearManualTeams();
+    } else {
+      this.manualTeamGameId = game.getId();
+      this.manualTeamByPlayerId = new HashMap<>(pinnedTeamByPlayerId);
+      log.info("[setManualTeams] host pinned {} players to teams for game {}",
+          pinnedTeamByPlayerId.size(), game.getId());
+    }
+    setStartPositions(game);
+  }
+
+  public void clearManualTeams() {
+    this.manualTeamGameId = null;
+    this.manualTeamByPlayerId = null;
+  }
+
+  /** @return a copy of the pinned constraints for {@code gameId}, or {@code null}
+   *  if none are in effect for that game. */
+  public Map<Integer, Integer> getManualTeams(int gameId) {
+    if (manualTeamByPlayerId != null && manualTeamGameId != null && manualTeamGameId == gameId) {
+      return new HashMap<>(manualTeamByPlayerId);
+    }
+    return null;
+  }
+
+  private boolean hasManualTeams(Game game) {
+    return game != null && manualTeamByPlayerId != null && !manualTeamByPlayerId.isEmpty()
+        && manualTeamGameId != null && manualTeamGameId == game.getId();
+  }
+
+  /**
+   * The ordered player list to send via {@code /startpositions}. If the host
+   * has pinned some players for this game, the rest are auto-balanced around
+   * those pins; otherwise the fully auto-balanced solution is used. Either way
+   * the result is an equal (or off-by-one) two-team partition interleaved so
+   * tadr-ddraw's {@code allyTeam = i % teamCount} mapping reproduces it on
+   * {@code +autoteam}.
+   *
+   * <p>If roster churn has since made the pins infeasible (no equal split
+   * exists) the constrained solve returns empty and we fall back to pure
+   * auto-balance rather than send nothing.</p>
+   */
+  private List<Player> computeStartOrder(Game game) {
+    if (hasManualTeams(game)) {
+      List<Player> constrained = this.ratingService.getBalancedTeams(game, manualTeamByPlayerId);
+      if (constrained != null && !constrained.isEmpty()) {
+        return constrained;
+      }
+      log.warn("[computeStartOrder] pinned team constraints are infeasible for game {} "
+          + "(roster changed?); falling back to auto-balance", game.getId());
+    }
+    List<Player> autoOrder = this.ratingService.getBalancedTeams(game);
+    return autoOrder == null ? List.of() : autoOrder;
+  }
+
+  /**
+   * Change just the maximum player count of the current staging game. Only
+   * meaningful while the game is in STAGING (the staging lobby owns the slot
+   * count); ignored otherwise.
+   */
+  public void setMaxPlayersForStagingGame(int maxPlayers) {
+    Game currentGame = getCurrentGame();
+    if (isGameRunning() && currentGame != null && currentGame.getStatus() == GameStatus.STAGING
+        && maxPlayers > 0 && maxPlayers <= 10) {
+      this.totalAnnihilationService.sendToConsole(String.format("/max_players %d", maxPlayers));
     }
   }
 
@@ -1511,6 +1606,9 @@ public class GameService implements InitializingBean {
     }
 
     if (GameStatus.ENDED == game.getStatus()) {
+      if (manualTeamGameId != null && manualTeamGameId == game.getId()) {
+        clearManualTeams();
+      }
       removeGame(gameInfoMessage);
       if (currentPlayerOptional.isEmpty() || !isGameCurrentGame) {
         return;

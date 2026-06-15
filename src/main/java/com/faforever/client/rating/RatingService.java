@@ -21,6 +21,16 @@ public interface RatingService {
   /// metric: "kl" or "quality"
   public List<Player> getBalancedTeams(Game game);
 
+  /**
+   * Balance the game's teams with some players pinned to a team by the host.
+   *
+   * @param pinnedTeamByPlayerId player id -&gt; team index (0 or 1) for pinned
+   *     players; everyone else is balanced freely around them
+   * @return the interleaved start-position order, or an empty list if the pins
+   *     make an equal-size split impossible
+   */
+  public List<Player> getBalancedTeams(Game game, Map<Integer, Integer> pinnedTeamByPlayerId);
+
   public List<Player> getBalancedTeams(Replay replay);
 
   // priority: "teams", "singles", "default" or "all

@@ -79,14 +79,45 @@ public class JSkillsRatingService implements RatingService {
 
   @Override
   public List<Player> getBalancedTeams(Game game) {
+    List<Player> hostAndPlayers = getPlayingRoster(game);
+    if (hostAndPlayers.isEmpty()) return hostAndPlayers;
+
+    Map<Integer, javafx.util.Pair<String, LeaderboardRating>> playerRatings = getRosterRatings(game, hostAndPlayers);
+
+    List<Player> result = balancePlayers(hostAndPlayers, playerRatings);
+    logTeamRatings(game.getId(), result, playerRatings);
+    return result;
+  }
+
+  @Override
+  public List<Player> getBalancedTeams(Game game, Map<Integer, Integer> pinnedTeamByPlayerId) {
+    if (pinnedTeamByPlayerId == null || pinnedTeamByPlayerId.isEmpty()) {
+      return getBalancedTeams(game);
+    }
+    List<Player> hostAndPlayers = getPlayingRoster(game);
+    if (hostAndPlayers.isEmpty()) return hostAndPlayers;
+
+    Map<Integer, javafx.util.Pair<String, LeaderboardRating>> playerRatings = getRosterRatings(game, hostAndPlayers);
+
+    Integer hostId = playerService.getPlayerForUsername(game.getHost()).map(Player::getId).orElse(null);
+    List<Player> result = balancePlayersConstrained(hostAndPlayers, playerRatings, pinnedTeamByPlayerId, hostId);
+    logTeamRatings(game.getId(), result, playerRatings);
+    return result;
+  }
+
+  /**
+   * The set of players that will actually play {@code game}: the host (unless
+   * watching) plus everyone in a team bucket other than observers. Includes the
+   * "no team" bucket (key "1"/"null") that joined players sit in while the game
+   * is still staging — compare keys as strings since "null" would break
+   * parseInt and only observers (key "-1") are excluded.
+   */
+  private List<Player> getPlayingRoster(Game game) {
     Optional<Player> host = playerService.getPlayerForUsername(game.getHost());
     if (host.isEmpty()) return List.of();
 
-    Set<String> teamsLeaderboards = getLeaderboards(game.getFeaturedMod(), true);
-    Set<String> singlesLeaderboards = getLeaderboards(game.getFeaturedMod(), false);
-
     Map<?, List<String>> currentTeams = game.getTeams().entrySet().stream()
-        .filter(entry -> Integer.parseInt(entry.getKey()) >= 2)
+        .filter(entry -> !"-1".equals(entry.getKey()))
         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
     List<Player> players = getNonHostPlayers(currentTeams, game.getHost());
@@ -95,14 +126,147 @@ public class JSkillsRatingService implements RatingService {
     List<Player> hostAndPlayers = new ArrayList<>();
     if (!isHostWatching) hostAndPlayers.add(host.get());
     hostAndPlayers.addAll(players);
-    if (hostAndPlayers.isEmpty()) return hostAndPlayers;
+    return hostAndPlayers;
+  }
 
-    Map<Integer, javafx.util.Pair<String, LeaderboardRating>> playerRatings =
-        getDistilledPlayerRatings(hostAndPlayers, teamsLeaderboards, singlesLeaderboards, "teams");
+  private Map<Integer, javafx.util.Pair<String, LeaderboardRating>> getRosterRatings(Game game, List<Player> roster) {
+    Set<String> teamsLeaderboards = getLeaderboards(game.getFeaturedMod(), true);
+    Set<String> singlesLeaderboards = getLeaderboards(game.getFeaturedMod(), false);
+    return getDistilledPlayerRatings(roster, teamsLeaderboards, singlesLeaderboards, "teams");
+  }
 
-    List<Player> result = balancePlayers(hostAndPlayers, playerRatings);
-    logTeamRatings(game.getId(), result, playerRatings);
-    return result;
+  /**
+   * Like {@link #balancePlayers}, but with some players pinned to a team by the
+   * host. Pinned players (id -&gt; team 0/1) stay where they are; the remaining
+   * "free" players are distributed to optimise balance.
+   *
+   * <p>The result is interleaved as team0[0], team1[0], team0[1], … and consumed
+   * by {@code +autoteam} as {@code allyTeam = i % 2}, so it is only valid when
+   * team 0 (the host's "Team 1", at the even positions) is equal to team 1 or
+   * exactly one larger. Pins are <strong>soft</strong>: if they can't form such
+   * a split (a team is over-pinned), the unassigned players are pinned to the
+   * under-pinned team, all non-host players are unpinned from the over-pinned
+   * team, and the freed players are then balanced around what remains.</p>
+   *
+   * @param hostId the host's player id (never unpinned), or null
+   */
+  List<Player> balancePlayersConstrained(List<Player> allPlayers,
+                                         Map<Integer, javafx.util.Pair<String, LeaderboardRating>> ratings,
+                                         Map<Integer, Integer> pinnedInput,
+                                         Integer hostId) {
+    Map<Integer, Integer> pinned = new HashMap<>(pinnedInput);
+
+    List<Player> result = trySplit(allPlayers, ratings, pinned);
+    if (result != null) {
+      return result;
+    }
+
+    // A team is over-pinned. Pin the unassigned players to the under-pinned
+    // team, unpin every non-host player from the over-pinned team, then balance.
+    relaxOverpinnedTeam(allPlayers, pinned, hostId);
+    result = trySplit(allPlayers, ratings, pinned);
+    if (result != null) {
+      return result;
+    }
+
+    // Defensive: keep only the host's pin and let the balancer place the rest.
+    pinned.entrySet().removeIf(e -> hostId == null || !e.getKey().equals(hostId));
+    result = trySplit(allPlayers, ratings, pinned);
+    return result == null ? List.of() : result;
+  }
+
+  /**
+   * Find the best valid split for the given pins, or null if no split keeps
+   * team 0 (even positions) equal to or one larger than team 1. Returns the
+   * interleaved start-position order.
+   */
+  private List<Player> trySplit(List<Player> allPlayers,
+                                Map<Integer, javafx.util.Pair<String, LeaderboardRating>> ratings,
+                                Map<Integer, Integer> pinned) {
+    List<Player> pinned0 = new ArrayList<>();
+    List<Player> pinned1 = new ArrayList<>();
+    List<Player> free = new ArrayList<>();
+    for (Player p : allPlayers) {
+      Integer t = pinned.get(p.getId());
+      if (t != null && t == 0) {
+        pinned0.add(p);
+      } else if (t != null && t == 1) {
+        pinned1.add(p);
+      } else {
+        free.add(p);
+      }
+    }
+
+    double bestScore = Double.NEGATIVE_INFINITY;
+    List<Player> bestTeam0 = null;
+    List<Player> bestTeam1 = null;
+    for (int k = 0; k <= free.size(); k++) {
+      // k free players go to team 0, the rest to team 1. Only splits where team 0
+      // (host's team, even positions) equals or is one larger than team 1 can be
+      // reproduced by the i%2 interleave.
+      int diff = (pinned0.size() + k) - (pinned1.size() + (free.size() - k));
+      if (diff < 0 || diff > 1) {
+        continue;
+      }
+      for (List<Player> chosen : generateCombinations(free, k)) {
+        List<Player> team0 = new ArrayList<>(pinned0);
+        team0.addAll(chosen);
+        Set<Integer> team0Ids = team0.stream().map(Player::getId).collect(Collectors.toSet());
+        List<Player> team1 = new ArrayList<>(pinned1);
+        for (Player p : free) {
+          if (!team0Ids.contains(p.getId())) {
+            team1.add(p);
+          }
+        }
+        double score = computeScore(team0, team1, ratings);
+        if (score > bestScore) {
+          bestScore = score;
+          bestTeam0 = team0;
+          bestTeam1 = team1;
+        }
+      }
+    }
+
+    if (bestTeam0 == null) {
+      return null;
+    }
+    List<Player> orderedTeam1 = orderIsomorphTeam2(bestTeam0, bestTeam1, ratings);
+    return interleave(bestTeam0, orderedTeam1);
+  }
+
+  /**
+   * Resolve an over-pinned team in {@code pinned} (mutated in place): pin every
+   * unassigned player to the under-pinned team, then unpin all non-host players
+   * from the over-pinned (larger) team so the balancer can redistribute them.
+   */
+  private void relaxOverpinnedTeam(List<Player> allPlayers, Map<Integer, Integer> pinned, Integer hostId) {
+    List<Player> pinned0 = new ArrayList<>();
+    List<Player> pinned1 = new ArrayList<>();
+    List<Player> free = new ArrayList<>();
+    for (Player p : allPlayers) {
+      Integer t = pinned.get(p.getId());
+      if (t != null && t == 0) {
+        pinned0.add(p);
+      } else if (t != null && t == 1) {
+        pinned1.add(p);
+      } else {
+        free.add(p);
+      }
+    }
+
+    int overTeam = pinned0.size() >= pinned1.size() ? 0 : 1;
+    int underTeam = 1 - overTeam;
+    List<Player> overPinned = overTeam == 0 ? pinned0 : pinned1;
+
+    for (Player p : free) {
+      pinned.put(p.getId(), underTeam);
+    }
+    for (Player p : overPinned) {
+      if (hostId != null && p.getId() == hostId) {
+        continue;
+      }
+      pinned.remove(p.getId());
+    }
   }
 
   @Override

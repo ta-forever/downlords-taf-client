@@ -162,6 +162,9 @@ compileTestJava {
   // Self-contained, maintained tests for the crash-resilient game-log upload (marker + log tailing).
   // Scoped to the single files so they don't pull in broken siblings in those packages.
   include '**/game/GameLogUploadMarkerTest.java'
+  include '**/game/ManualTeamArrangementControllerTest.java'
+  include '**/game/ManageGameControllerTest.java'
+  include '**/rating/JSkillsRatingServiceConstrainedTest.java'
   include '**/util/LogTailUtilTest.java'
   // Test base classes / shared utilities — required by tests in the
   // included packages above. Don't include broken siblings of these.

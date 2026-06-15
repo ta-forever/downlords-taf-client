@@ -84,6 +84,7 @@
             <fx:include fx:id="watchButton" source="../vault/replay/watch_button.fxml"/>
             <Button fx:id="leaveButton" mnemonicParsing="false" onAction="#onLeaveButtonClicked" text="%game.leave" styleClass="leave-game-button"><tooltip><Tooltip text="%game.leave.tooltip"/></tooltip></Button>
             <Button fx:id="startButton" mnemonicParsing="false" onAction="#onStartButtonClicked" text="%game.start" styleClass="start-game-button"><tooltip><Tooltip text="%game.start.tooltip"/></tooltip></Button>
+            <Button fx:id="manageGameButton" mnemonicParsing="false" onAction="#onManageGameClicked" text="%game.manage" styleClass="manage-game-button"><tooltip><Tooltip text="%game.manage.tooltip"/></tooltip></Button>
             <Button fx:id="joinButton" mnemonicParsing="false" onAction="#onJoinButtonClicked" text="%game.join" styleClass="join-game-button"><tooltip><Tooltip text="%game.join.tooltip"/></tooltip></Button>
             <Button fx:id="autoJoinButton" mnemonicParsing="false" onAction="#onAutoJoinButtonClicked" text="%game.autojoin" styleClass="autojoin-game-button-not-active"><tooltip><Tooltip text="%game.autojoin.tooltip"/></tooltip></Button>
         </HBox>

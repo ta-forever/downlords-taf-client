@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Spinner?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1"
+      fx:id="root"
+      fx:controller="com.faforever.client.game.ManualTeamArrangementController"
+      styleClass="manual-team-arrangement" spacing="8.0" prefWidth="640.0" prefHeight="420.0">
+    <padding>
+        <Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/>
+    </padding>
+    <Label fx:id="hintLabel" wrapText="true" styleClass="manual-team-hint" maxWidth="1.7976931348623157E308"/>
+    <HBox spacing="10.0" VBox.vgrow="ALWAYS">
+        <VBox fx:id="team0Pane" spacing="4.0" HBox.hgrow="ALWAYS" styleClass="card,manual-team-card">
+            <padding>
+                <Insets bottom="6.0" left="6.0" right="6.0" top="6.0"/>
+            </padding>
+            <Label fx:id="team0Label" styleClass="h3"/>
+            <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS">
+                <VBox fx:id="team0Box" spacing="2.0" styleClass="manual-team-dropzone"/>
+            </ScrollPane>
+        </VBox>
+        <VBox fx:id="poolPane" spacing="4.0" HBox.hgrow="ALWAYS" styleClass="card,manual-team-card,manual-team-pool">
+            <padding>
+                <Insets bottom="6.0" left="6.0" right="6.0" top="6.0"/>
+            </padding>
+            <Label fx:id="poolLabel" styleClass="h3"/>
+            <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS">
+                <VBox fx:id="poolBox" spacing="2.0" styleClass="manual-team-dropzone"/>
+            </ScrollPane>
+        </VBox>
+        <VBox fx:id="team1Pane" spacing="4.0" HBox.hgrow="ALWAYS" styleClass="card,manual-team-card">
+            <padding>
+                <Insets bottom="6.0" left="6.0" right="6.0" top="6.0"/>
+            </padding>
+            <Label fx:id="team1Label" styleClass="h3"/>
+            <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS">
+                <VBox fx:id="team1Box" spacing="2.0" styleClass="manual-team-dropzone"/>
+            </ScrollPane>
+        </VBox>
+    </HBox>
+    <Label fx:id="previewLabel" wrapText="true" styleClass="manual-team-preview" maxWidth="1.7976931348623157E308"/>
+    <HBox spacing="10.0" alignment="CENTER_LEFT">
+        <Button fx:id="refreshButton" mnemonicParsing="false" text="%manualTeams.refresh" onAction="#onRefresh">
+            <tooltip><Tooltip text="%manualTeams.refresh.tooltip"/></tooltip>
+        </Button>
+        <Button fx:id="clearButton" mnemonicParsing="false" text="%manualTeams.clear" onAction="#onClear"/>
+        <Button fx:id="autoFillButton" mnemonicParsing="false" text="%manualTeams.autoFill" onAction="#onAutoFill">
+            <tooltip><Tooltip text="%manualTeams.autoFill.tooltip"/></tooltip>
+        </Button>
+        <Region HBox.hgrow="ALWAYS"/>
+        <HBox fx:id="maxPlayersBox" spacing="6.0" alignment="CENTER_RIGHT">
+            <Label text="%manualTeams.maxPlayers" styleClass="manual-team-maxplayers-label"/>
+            <Spinner fx:id="maxPlayersSpinner" editable="false" prefWidth="80.0"/>
+        </HBox>
+    </HBox>
+</VBox>

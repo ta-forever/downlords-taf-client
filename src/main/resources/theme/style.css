@@ -1560,6 +1560,59 @@
   -fx-font-size: 0.8em;
 }
 
+/* Manual team arrangement dialog (host-only +autoteam editor). Host drags
+   players onto Team 1 / Team 2 to pin them; the rest are auto-balanced. */
+.manual-team-hint {
+  -fx-text-fill: #888888;
+  -fx-font-size: 0.9em;
+}
+
+.manual-team-card {
+  -fx-min-width: 190;
+}
+
+/* The middle "Unassigned" pool reads as a holding area, not a team. */
+.manual-team-pool {
+  -fx-opacity: 0.92;
+}
+
+/* Empty dropzones still need to receive drops, so give them some height. */
+.manual-team-dropzone {
+  -fx-min-height: 60;
+}
+
+.manual-team-player-row {
+  -fx-padding: 2 4 2 4;
+  -fx-background-radius: 3;
+  -fx-cursor: hand;
+}
+
+.manual-team-player-row:hover {
+  -fx-background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Highlight a column while a player is dragged over it. */
+.manual-team-drop-hover {
+  -fx-border-color: rgba(180, 220, 80, 0.9);
+  -fx-border-width: 2;
+  -fx-border-radius: 4;
+}
+
+/* The host row is locked to Team 1 — not draggable; show it as pinned. */
+.manual-team-host-locked {
+  -fx-cursor: default;
+  -fx-opacity: 0.95;
+}
+
+.manual-team-host-tag {
+  -fx-text-fill: #888888;
+  -fx-font-size: 0.85em;
+}
+
+.manual-team-preview {
+  -fx-font-weight: bold;
+}
+
 /* Inline "knocking on door" row — non-reserved player asking the host to let
    them in. The icon replaces the status dot; tick/cross buttons replace the
    host's remove-X. Icon is a door silhouette with a small knob hole and an

@@ -111,6 +111,7 @@ public class GameDetailController implements Controller<Pane> {
   public Button autoJoinButton;
   public Button leaveButton;
   public Button startButton;
+  public Button manageGameButton;
   public WatchButtonController watchButtonController;
   public VBox reservedPlayersContainer;
   public Button editReservedPlayersButton;
@@ -280,10 +281,12 @@ public class GameDetailController implements Controller<Pane> {
     gameTypeLabel.managedProperty().bind(gameTypeLabel.visibleProperty());
     watchButton.managedProperty().bind(watchButton.visibleProperty());
 
-    // make a bit more room for the autoJoin button's text
-    leaveButton.managedProperty().bind(autoJoinButton.visibleProperty().not());
-    startButton.managedProperty().bind(autoJoinButton.visibleProperty().not());
-    joinButton.managedProperty().bind(autoJoinButton.visibleProperty().not());
+    // Each button only takes layout space when it's actually visible, so the
+    // visible buttons get the full row width to show their labels.
+    leaveButton.managedProperty().bind(leaveButton.visibleProperty());
+    startButton.managedProperty().bind(startButton.visibleProperty());
+    manageGameButton.managedProperty().bind(manageGameButton.visibleProperty());
+    joinButton.managedProperty().bind(joinButton.visibleProperty());
     autoJoinButton.managedProperty().bind(autoJoinButton.visibleProperty());
 
     // getStyle.contains doesn't work.  so we'll use this user data to track whether "activated" style has been applied
@@ -350,6 +353,8 @@ public class GameDetailController implements Controller<Pane> {
     autoJoinButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && !isStagingRoomOpen && !isBattleRoomOpen);
     leaveButton.setVisible(isGameProcessRunning && isCurrentGame);
     startButton.setVisible(isGameProcessRunning && isCurrentGame && (isPlayerHosting && isStagingRoomOpen || isPlayerJoining && isBattleRoomOpen));
+    // Host-only: manage teams (+autoteam) and reserved slots while the lobby/battleroom is open.
+    manageGameButton.setVisible(isGameProcessRunning && isCurrentGame && isOwnGame && (isStagingRoomOpen || isBattleRoomOpen));
     watchButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && isLive && thisGame.getReplayDelaySeconds() >= 0);
 
     final String activatedStyleClass = "autojoin-game-button-active";
@@ -857,78 +862,7 @@ public class GameDetailController implements Controller<Pane> {
   }
 
   public void onEditReservedPlayersClicked(ActionEvent event) {
-    openEditorPopup(null, null);
-  }
-
-  /**
-   * Open the reserved-slots editor modal. Optionally prepopulates the add
-   * field with a candidate name (used by the inline "tick to approve" button
-   * on knocking rows so the host can confirm/edit the slot list in the same
-   * dialog they'd use for any other reservation edit).
-   */
-  private void openEditorPopup(Integer prepopulateId, String prepopulateName) {
-    Game g = game.get();
-    if (g == null) return;
-
-    ReservedPlayersEditorController editor = uiService.loadFxml("theme/play/reserved_players_editor.fxml");
-    editor.maxPlayersProperty().set(g.getMaxPlayers());
-    editor.setCurrentGameId(g.getId());
-    // Seed from the server's parallel id/login arrays so we include offline
-    // players too. Build the seed list and the id->login display fallback
-    // map together so cells can show logins for offline players.
-    Optional<Player> hostPlayer = playerService.getPlayerForUsername(g.getHost());
-    List<Integer> seedIds = new ArrayList<>();
-    Map<Integer, String> seedLogins = new HashMap<>();
-    List<Integer> ids = g.getReservedPlayerIds();
-    List<String> logins = g.getReservedPlayers();
-    int n = Math.min(ids.size(), logins.size());
-    Integer hostIdFromIds = null;
-    for (int i = 0; i < n; i++) {
-      Integer pid = ids.get(i);
-      String login = logins.get(i);
-      if (pid == null) continue;
-      seedIds.add(pid);
-      if (login != null) {
-        seedLogins.put(pid, login);
-      }
-      if (login != null && login.equals(g.getHost())) {
-        hostIdFromIds = pid;
-      }
-    }
-    editor.setReservedPlayerIds(seedIds);
-    // Add the prepopulated candidate's login to the display map so they
-    // render correctly (with login, not "#id") if added.
-    if (prepopulateId != null && prepopulateName != null) {
-      seedLogins.put(prepopulateId, prepopulateName);
-    }
-    editor.setDisplayLogins(seedLogins);
-    // Resolve host id: prefer the id from the server payload (in case the
-    // local PlayerService doesn't know the host login), fall back to local.
-    Integer hostId = hostIdFromIds != null
-        ? hostIdFromIds
-        : hostPlayer.map(Player::getId).orElse(null);
-    if (hostId != null) {
-      editor.setHost(hostId, g.getHost());
-    }
-    if (prepopulateName != null) {
-      editor.prepopulateName(prepopulateName);
-    }
-
-    FxStage fxStage = FxStage.create(editor.getRoot())
-        .initOwner(gameDetailRoot.getScene() != null ? gameDetailRoot.getScene().getWindow() : null)
-        .initModality(Modality.WINDOW_MODAL)
-        .withSceneFactory(uiService::createScene)
-        .allowMinimize(false)
-        .apply();
-    Stage popup = fxStage.getStage();
-    popup.setTitle(i18n.get("reservedSlots.editor.title"));
-    popup.setOnHidden(e -> {
-      // Server handles the "if a reserved id was in join_requests, promote
-      // them and fire the invite notice" logic atomically inside
-      // command_set_reserved_players. No separate approve call needed.
-      gameService.sendReservedPlayers(new ArrayList<>(editor.getReservedPlayerIds()));
-    });
-    popup.show();
+    openManageGame(true, null);
   }
 
   /**
@@ -978,7 +912,7 @@ public class GameDetailController implements Controller<Pane> {
     Button approve = new Button("✓");
     approve.getStyleClass().add("reserved-player-knock-approve");
     approve.setTooltip(biggerTooltip(i18n.get("reservedSlots.knocking.approve.tooltip")));
-    approve.setOnAction(e -> openEditorPopup(req.getPlayerId(), req.getPlayerLogin()));
+    approve.setOnAction(e -> openManageGame(true, req.getPlayerLogin()));
     row.getChildren().add(approve);
 
     Button dismiss = new Button("✗");
@@ -1049,6 +983,35 @@ public class GameDetailController implements Controller<Pane> {
   public void onStartButtonClicked(ActionEvent event) {
     log.info("[onStartButtonClicked] startBattleRoom()");
     gameService.startBattleRoom();
+  }
+
+  public void onManageGameClicked(ActionEvent event) {
+    openManageGame(false, null);
+  }
+
+  /**
+   * Open the single host-only "Manage Game" modal (Teams + Reserved Slots tabs).
+   *
+   * @param focusReserved select the Reserved Slots tab on open
+   * @param prepopulateReservedName pre-fill the reserved add field (approve flow)
+   */
+  private void openManageGame(boolean focusReserved, String prepopulateReservedName) {
+    Game g = game.get();
+    if (g == null) {
+      return;
+    }
+    ManageGameController controller = uiService.loadFxml("theme/play/manage_game.fxml");
+    controller.setGame(g, focusReserved, prepopulateReservedName);
+    FxStage fxStage = FxStage.create(controller.getRoot())
+        .initOwner(gameDetailRoot.getScene() != null ? gameDetailRoot.getScene().getWindow() : null)
+        .initModality(Modality.WINDOW_MODAL)
+        .withSceneFactory(uiService::createScene)
+        .allowMinimize(false)
+        .apply();
+    Stage popup = fxStage.getStage();
+    popup.setTitle(i18n.get("manageGame.title"));
+    controller.setOnClose(popup::close);
+    popup.show();
   }
 
   public void onClickedMap(MouseEvent event) {

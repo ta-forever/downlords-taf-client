@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.control.ToggleGroup?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1"
+      fx:id="root"
+      fx:controller="com.faforever.client.game.ManageGameController"
+      styleClass="manage-game" spacing="8.0" prefWidth="680.0" prefHeight="500.0">
+    <padding>
+        <Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/>
+    </padding>
+    <fx:define>
+        <ToggleGroup fx:id="tabGroup"/>
+    </fx:define>
+    <HBox fx:id="tabBar" spacing="0.0" styleClass="manage-game-tabs">
+        <ToggleButton fx:id="teamsToggle" mnemonicParsing="false" text="%manageGame.tab.teams"
+                      styleClass="main-navigation-button" toggleGroup="$tabGroup"/>
+        <ToggleButton fx:id="reservedToggle" mnemonicParsing="false" text="%manageGame.tab.reserved"
+                      styleClass="main-navigation-button" toggleGroup="$tabGroup"/>
+    </HBox>
+    <StackPane fx:id="contentPane" VBox.vgrow="ALWAYS"/>
+    <HBox spacing="6.0" alignment="CENTER_RIGHT">
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button fx:id="cancelButton" mnemonicParsing="false" text="%manageGame.cancel" onAction="#onCancel"/>
+        <Button fx:id="saveButton" mnemonicParsing="false" text="%manageGame.save" onAction="#onSave" styleClass="start-game-button"/>
+    </HBox>
+</VBox>
