@@ -11,6 +11,8 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
+import java.util.Objects;
+
 public class LeaderboardEntry {
 
   private final IntegerProperty userId;
@@ -217,9 +219,20 @@ public class LeaderboardEntry {
     return bestStreak;
   }
 
+  private String leaderboardTechnicalName() {
+    Leaderboard lb = leaderboard.get();
+    return lb != null ? lb.getTechnicalName() : null;
+  }
+
   @Override
   public int hashCode() {
-    return username.get() != null ? username.get().hashCode() : 0;
+    // Value-based: two entries for the same player in different formats (leaderboards) or with
+    // different ratings/stats must NOT be equal, otherwise JavaFX's Cell.isItemChanged() skips
+    // refreshing the row when the player's rank happens to be unchanged across formats, leaving
+    // stale ratings/stats on screen.
+    return Objects.hash(getUserId(), leaderboardTechnicalName(), getRating(), getTotalGames(),
+        getWonGames(), getDrawnGames(), getLostGames(), getStreak(), getBestStreak(),
+        getRecentResults(), getAllResults());
   }
 
   @Override
@@ -233,8 +246,17 @@ public class LeaderboardEntry {
 
     LeaderboardEntry that = (LeaderboardEntry) o;
 
-    return !(username.get() != null ? !username.get().equalsIgnoreCase(that.username.get()) : that.username.get() != null);
-
+    return getUserId() == that.getUserId()
+        && Objects.equals(leaderboardTechnicalName(), that.leaderboardTechnicalName())
+        && getRating() == that.getRating()
+        && getTotalGames() == that.getTotalGames()
+        && getWonGames() == that.getWonGames()
+        && getDrawnGames() == that.getDrawnGames()
+        && getLostGames() == that.getLostGames()
+        && getStreak() == that.getStreak()
+        && getBestStreak() == that.getBestStreak()
+        && Objects.equals(getRecentResults(), that.getRecentResults())
+        && Objects.equals(getAllResults(), that.getAllResults());
   }
 
   @Override
