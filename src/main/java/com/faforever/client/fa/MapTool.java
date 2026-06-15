@@ -1,6 +1,7 @@
 package com.faforever.client.fa;
 
 import com.faforever.client.map.MapService.PreviewType;
+import com.faforever.client.map.MapService.PreviewOverlayType;
 
 import com.google.gson.Gson;
 import org.slf4j.Logger;
@@ -28,6 +29,7 @@ public class MapTool {
   public static final Integer MAP_DETAIL_COLUMN_WIND = 6;
   public static final Integer MAP_DETAIL_COLUMN_TIDAL = 7;
   public static final Integer MAP_DETAIL_COLUMN_GRAVITY = 8;
+  public static final Integer MAP_DETAIL_COLUMN_WATER_PERCENT = 9;
 
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -35,18 +37,23 @@ public class MapTool {
     List<Map<String, String>> mapDetails = new ArrayList();
     for (String[] values : _mapDetails) {
       Map<String, String> keyvals = new HashMap();
-      keyvals.put("name", values[MAP_DETAIL_COLUMN_NAME]);
-      keyvals.put("archive", values[MAP_DETAIL_COLUMN_ARCHIVE]);
-      keyvals.put("crc", values[MAP_DETAIL_COLUMN_CRC]);
-      keyvals.put("description", values[MAP_DETAIL_COLUMN_DESCRIPTION]);
-      keyvals.put("size", values[MAP_DETAIL_COLUMN_SIZE]);
-      keyvals.put("players", values[MAP_DETAIL_COLUMN_NUM_PLAYERS]);
-      keyvals.put("wind", values[MAP_DETAIL_COLUMN_WIND]);
-      keyvals.put("tidal", values[MAP_DETAIL_COLUMN_TIDAL]);
-      keyvals.put("gravity", values[MAP_DETAIL_COLUMN_GRAVITY]);
+      keyvals.put("name", valueAt(values, MAP_DETAIL_COLUMN_NAME));
+      keyvals.put("archive", valueAt(values, MAP_DETAIL_COLUMN_ARCHIVE));
+      keyvals.put("crc", valueAt(values, MAP_DETAIL_COLUMN_CRC));
+      keyvals.put("description", valueAt(values, MAP_DETAIL_COLUMN_DESCRIPTION));
+      keyvals.put("size", valueAt(values, MAP_DETAIL_COLUMN_SIZE));
+      keyvals.put("players", valueAt(values, MAP_DETAIL_COLUMN_NUM_PLAYERS));
+      keyvals.put("wind", valueAt(values, MAP_DETAIL_COLUMN_WIND));
+      keyvals.put("tidal", valueAt(values, MAP_DETAIL_COLUMN_TIDAL));
+      keyvals.put("gravity", valueAt(values, MAP_DETAIL_COLUMN_GRAVITY));
+      keyvals.put("waterPercent", valueAt(values, MAP_DETAIL_COLUMN_WATER_PERCENT));
       mapDetails.add(keyvals);
     }
     return mapDetails;
+  }
+
+  private static String valueAt(String[] values, int index) {
+    return values.length > index ? values[index] : "";
   }
 
   static public String toJson(List<String[]> mapDetails) {
@@ -64,18 +71,26 @@ public class MapTool {
 
   static public List<String[]> listMapsInArchive(Path hpiFile, Path previewCacheDirectory, boolean doCrc) throws IOException {
     // and generate minimap images in previewCacheDirectory if not null
-    return run(hpiFile.getParent(), hpiFile.getFileName().toString(), null, doCrc, previewCacheDirectory, PreviewType.MINI, 0, null);
+    return run(hpiFile.getParent(), hpiFile.getFileName().toString(), null, doCrc, previewCacheDirectory, PreviewType.MINI.getToolName(), 0, null);
   }
 
   public static void generatePreview(Path gamePath, String modGp3FileName, String mapName, Path previewCacheDirectory, PreviewType previewType, int maxPositions) throws IOException {
+    generatePreview(gamePath, modGp3FileName, mapName, previewCacheDirectory, previewType.getToolName(), maxPositions);
+  }
+
+  public static void generateOverlayPreview(Path gamePath, String modGp3FileName, String mapName, Path previewCacheDirectory, PreviewOverlayType previewOverlayType, int maxPositions) throws IOException {
+    generatePreview(gamePath, modGp3FileName, mapName, previewCacheDirectory, previewOverlayType.getToolName(), maxPositions);
+  }
+
+  private static void generatePreview(Path gamePath, String modGp3FileName, String mapName, Path previewCacheDirectory, String previewToolName, int maxPositions) throws IOException {
     String hpiSpecs = "*.hpi;*.gpf;*.ccx;rev31.gp3;*.ufo";
     if (modGp3FileName != null) {
       hpiSpecs = "*.hpi;*.gpf;*.ccx;" + modGp3FileName + ";*.ufo";
     }
-    run(gamePath, hpiSpecs, mapName + "$", false, previewCacheDirectory, previewType, maxPositions, previewCacheDirectory);
+    run(gamePath, hpiSpecs, mapName + "$", false, previewCacheDirectory, previewToolName, maxPositions, previewCacheDirectory);
   }
 
-  static private List<String[]> run(Path gamePath, String hpiSpecs, String mapName, boolean doCrc, Path previewCacheDirectory, PreviewType previewType, int maxPositions, Path featuresCacheDirectory) throws IOException {
+  static private List<String[]> run(Path gamePath, String hpiSpecs, String mapName, boolean doCrc, Path previewCacheDirectory, String previewToolName, int maxPositions, Path featuresCacheDirectory) throws IOException {
     String nativeDir = System.getProperty("nativeDir", "lib");
     Path exe = Paths.get(nativeDir).resolve("bin").resolve(
         org.bridj.Platform.isLinux() ? "maptool" : "maptool.exe"
@@ -106,9 +121,9 @@ public class MapTool {
       command.add("--thumb");
       command.add(previewCacheDirectory.toString());
     }
-    if (previewType != null) {
+    if (previewToolName != null) {
       command.add("--thumbtypes");
-      command.add(previewType.toString().toLowerCase());
+      command.add(previewToolName);
     }
     if (maxPositions > 0) {
       command.add("--maxpositions");

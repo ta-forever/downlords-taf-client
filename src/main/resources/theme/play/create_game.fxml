@@ -32,7 +32,7 @@
         <!-- Settings nested grid: 3 rows (friends/replay/maxplayers, password/replay/rating, reserved-slots-row) -->
         <RowConstraints minHeight="115.0" vgrow="NEVER"/>
         <RowConstraints minHeight="10.0" vgrow="NEVER" />
-        <RowConstraints minHeight="35.0" vgrow="NEVER" valignment="TOP"/>
+        <RowConstraints minHeight="32.0" vgrow="NEVER" valignment="TOP"/>
         <RowConstraints minHeight="35.0" vgrow="NEVER" />
         <RowConstraints maxHeight="480" vgrow="ALWAYS" />
     </rowConstraints>
@@ -105,7 +105,7 @@
         </Separator>
 
         <!-- Game Type -->
-        <Label styleClass="h2" text="%game.create.gameType" GridPane.rowIndex="3"/>
+        <Label styleClass="h2" style="-fx-padding: 0;" text="%game.create.gameType" GridPane.rowIndex="3"/>
         <VBox spacing="10.0" GridPane.columnIndex="0" GridPane.rowIndex="4" GridPane.rowSpan="2" GridPane.vgrow="ALWAYS">
             <ListView fx:id="featuredModListView" VBox.vgrow="SOMETIMES" prefHeight="180"/>
             <HBox alignment="CENTER_LEFT" spacing="10.0">
@@ -136,7 +136,7 @@
         </VBox>
 
         <!-- Map List -->
-        <Label styleClass="h2" text="%game.create.map" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+        <Label styleClass="h2" style="-fx-padding: 0;" text="%game.create.map" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
         <TextField fx:id="mapSearchTextField" promptText="%game.create.searchMap" GridPane.columnIndex="1"
                    GridPane.rowIndex="4"/>
         <VBox spacing="10.0" GridPane.columnIndex="1" GridPane.rowIndex="5" GridPane.vgrow="ALWAYS">
@@ -150,10 +150,18 @@
         </VBox>
 
         <!-- Map Preview -->
-        <HBox alignment="CENTER" spacing="10.0" GridPane.rowIndex="3" GridPane.columnIndex="2">
-            <Label alignment="CENTER_RIGHT" maxHeight="1.7976931348623157E308"
-                   maxWidth="1.7976931348623157E308" text="%game.create.preview" wrapText="true"/>
-            <ComboBox fx:id="mapPreviewTypeComboBox" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" />
+        <HBox alignment="CENTER_LEFT" spacing="10.0" GridPane.rowIndex="3" GridPane.columnIndex="2">
+            <Label minWidth="-Infinity" text="%game.create.preview"/>
+            <GridPane hgap="10.0" HBox.hgrow="ALWAYS">
+                <columnConstraints>
+                    <ColumnConstraints hgrow="ALWAYS" percentWidth="50.0"/>
+                    <ColumnConstraints hgrow="ALWAYS" percentWidth="50.0"/>
+                </columnConstraints>
+                <ComboBox fx:id="mapPreviewTypeComboBox" maxWidth="1.7976931348623157E308"
+                          GridPane.columnIndex="0" GridPane.hgrow="ALWAYS"/>
+                <ComboBox fx:id="mapPreviewOverlayComboBox" maxWidth="1.7976931348623157E308"
+                          GridPane.columnIndex="1" GridPane.hgrow="ALWAYS"/>
+            </GridPane>
         </HBox>
         <VBox fx:id="mapPreview" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" GridPane.columnIndex="2"
               GridPane.columnSpan="2" GridPane.rowIndex="4" GridPane.rowSpan="2" GridPane.vgrow="ALWAYS">
@@ -162,28 +170,48 @@
             <StackPane>
                 <Pane fx:id="mapPreviewPane" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
                       styleClass="map-preview" prefHeight="360"/>
+                <Pane fx:id="mapPreviewOverlayPane" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
+                      mouseTransparent="true" prefHeight="360"/>
                 <AnchorPane onMouseEntered="#showMapPreviewContextButton" onMouseExited="#hideMapPreviewContextButton">
                     <Button fx:id="mapPreviewContextButton" text="..." onMouseClicked="#onMapAPreviewPaneClicked"
                             visible="false"
                             AnchorPane.topAnchor="10.0" AnchorPane.rightAnchor="10.0"/>
                 </AnchorPane>
             </StackPane>
-            <HBox alignment="CENTER" spacing="10.0">
-                <Label fx:id="hpiArchiveLabel" text="&lt;archive.ufo&gt;"/>
-                <Label fx:id="mapSizeLabel" text="&lt;Size&gt;" GridPane.columnIndex="1" GridPane.rowIndex="1">
-                    <graphic>
-                        <Region styleClass="icon,map-size-icon" />
-                    </graphic>
+            <VBox alignment="CENTER" maxWidth="1.7976931348623157E308" spacing="0.0">
+                <Label fx:id="mapNameLabel" alignment="CENTER" maxWidth="1.7976931348623157E308" text="&lt;Map name&gt;"/>
+                <Label fx:id="hpiArchiveLabel" alignment="CENTER" maxWidth="1.7976931348623157E308"
+                       styleClass="secondary" text="&lt;archive.ufo&gt;">
+                    <VBox.margin>
+                        <Insets bottom="2.0"/>
+                    </VBox.margin>
                 </Label>
-                <Label fx:id="mapPlayersLabel" text="&lt;MaxPlayers&gt;" GridPane.rowIndex="1">
-                    <graphic>
-                        <Region styleClass="icon,players-icon" />
-                    </graphic>
-                </Label>
-                <Label fx:id="versionLabel" text="&lt;Version&gt;"/>
-            </HBox>
-            <Separator GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS"/>
+                <HBox alignment="CENTER" maxWidth="1.7976931348623157E308" spacing="12.0">
+                    <Label fx:id="mapSizeLabel" text="&lt;Size&gt;" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                        <graphic>
+                            <Region styleClass="icon,map-size-icon" />
+                        </graphic>
+                    </Label>
+                    <Label fx:id="mapWindLabel" text="&lt;Wind&gt;" GridPane.rowIndex="1"/>
+                    <Label fx:id="mapTidalLabel" text="&lt;Tidal&gt;" GridPane.rowIndex="1"/>
+                    <Label fx:id="mapWaterLabel" text="&lt;Water&gt;" GridPane.rowIndex="1"/>
+                    <Label fx:id="mapPlayersLabel" text="&lt;MaxPlayers&gt;" GridPane.rowIndex="1">
+                        <graphic>
+                            <Region styleClass="icon,players-icon" />
+                        </graphic>
+                    </Label>
+                    <Label fx:id="versionLabel" text="&lt;Version&gt;"/>
+                </HBox>
+            </VBox>
+            <Separator GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS">
+                <VBox.margin>
+                    <Insets bottom="3.0" top="5.0"/>
+                </VBox.margin>
+            </Separator>
             <ScrollPane maxWidth="360" fitToWidth="true" maxHeight="1.7976931348623157E308" VBox.vgrow="ALWAYS">
+                <VBox.margin>
+                    <Insets bottom="12.0"/>
+                </VBox.margin>
                 <Label fx:id="mapDescriptionLabel" alignment="TOP_LEFT" maxHeight="1.7976931348623157E308"
                        maxWidth="360" text="&lt;Description&gt;" wrapText="true"/>
             </ScrollPane>
