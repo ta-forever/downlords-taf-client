@@ -61,6 +61,22 @@ public class PlayerCardTooltipController implements Controller<Node> {
     friendIconText.visibleProperty().bind(Bindings.createBooleanBinding(() -> player.getSocialStatus() == SocialStatus.FRIEND, player.socialStatusProperty()));
   }
 
+  /** Replace the country flag (the player-name label's leading graphic) with
+   *  another node, e.g. a +autoteam pin badge, to save horizontal space. */
+  public void replaceCountryFlag(Node graphic) {
+    playerInfo.setGraphic(graphic);
+  }
+
+  /** Hide the friend/foe status icons (used in the team cards, which shouldn't
+   *  show social status). Unbinds first since their visibility is bound to the
+   *  player's social status in {@link #setPlayer}. */
+  public void hideSocialStatusIcons() {
+    foeIconText.visibleProperty().unbind();
+    foeIconText.setVisible(false);
+    friendIconText.visibleProperty().unbind();
+    friendIconText.setVisible(false);
+  }
+
   public Node getRoot() {
     return root;
   }

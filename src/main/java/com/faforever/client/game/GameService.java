@@ -1059,6 +1059,17 @@ public class GameService implements InitializingBean {
       log.info("[setManualTeams] host pinned {} players to teams for game {}",
           pinnedTeamByPlayerId.size(), game.getId());
     }
+    // Propagate the host's pins to the server so every client can show them in
+    // the team cards (parallel id/team lists; empty clears them server-side).
+    List<Integer> pinIds = new ArrayList<>();
+    List<Integer> pinTeams = new ArrayList<>();
+    if (pinnedTeamByPlayerId != null) {
+      pinnedTeamByPlayerId.forEach((id, team) -> {
+        pinIds.add(id);
+        pinTeams.add(team);
+      });
+    }
+    fafService.setPinnedTeams(pinIds, pinTeams);
     setStartPositions(game);
   }
 
@@ -1758,6 +1769,23 @@ public class GameService implements InitializingBean {
             gameInfoMessage.getReservedPlayerIds() != null
                 ? gameInfoMessage.getReservedPlayerIds()
                 : List.of());
+      }
+
+      // Host's manual +autoteam pins (parallel id/team lists) -> id->team map.
+      synchronized (game.getPinnedTeams()) {
+        Map<Integer, Integer> pins = new HashMap<>();
+        List<Integer> pinIds = gameInfoMessage.getPinnedPlayerIds();
+        List<Integer> pinTeams = gameInfoMessage.getPinnedTeams();
+        if (pinIds != null && pinTeams != null) {
+          int count = Math.min(pinIds.size(), pinTeams.size());
+          for (int i = 0; i < count; i++) {
+            pins.put(pinIds.get(i), pinTeams.get(i));
+          }
+        }
+        if (!game.getPinnedTeams().equals(pins)) {
+          game.getPinnedTeams().clear();
+          game.getPinnedTeams().putAll(pins);
+        }
       }
     }
   }

@@ -31,6 +31,7 @@ public enum ClientMessageType {
   SET_GAME_PASSWORD("set_game_password"),
   SET_RESERVED_SLOTS_ENABLED("set_reserved_slots_enabled"),
   SET_RESERVED_PLAYERS("set_reserved_players"),
+  SET_PINNED_TEAMS("set_pinned_teams"),
   LEAVE_AND_RESERVE("leave_and_reserve"),
   CANCEL_RESERVATION("cancel_reservation"),
   REQUEST_GAME_ACCESS("request_game_access"),

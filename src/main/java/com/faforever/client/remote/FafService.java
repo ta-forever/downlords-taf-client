@@ -1000,6 +1000,10 @@ public class FafService {
     fafServerAccessor.setReservedPlayers(playerIds);
   }
 
+  public void setPinnedTeams(List<Integer> playerIds, List<Integer> teams) {
+    fafServerAccessor.setPinnedTeams(playerIds, teams);
+  }
+
   public void leaveAndReserve() {
     fafServerAccessor.leaveAndReserve();
   }

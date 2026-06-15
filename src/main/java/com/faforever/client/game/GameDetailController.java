@@ -377,6 +377,7 @@ public class GameDetailController implements Controller<Pane> {
 
     Optional.ofNullable(this.game.get()).ifPresent(oldGame -> {
       Optional.ofNullable(weakThisGameTeamsListener).ifPresent(listener -> oldGame.getTeams().removeListener(listener));
+      Optional.ofNullable(weakThisGameTeamsListener).ifPresent(listener -> oldGame.getPinnedTeams().removeListener(listener));
       Optional.ofNullable(weakThisGamePingsListener).ifPresent(listener -> oldGame.pingsProperty().removeListener(listener));
       Optional.ofNullable(weakThisGameStatusListener).ifPresent(listener -> oldGame.statusProperty().removeListener(listener));
       Optional.ofNullable(featuredModInvalidationListener).ifPresent(listener -> oldGame.featuredModProperty().removeListener(listener));
@@ -506,6 +507,7 @@ public class GameDetailController implements Controller<Pane> {
     gameRatingRangeLabel.visibleProperty().bind(gameTypeLabel.visibleProperty().not());
 
     JavaFxUtil.addListener(game.getTeams(), weakThisGameTeamsListener);
+    JavaFxUtil.addListener(game.getPinnedTeams(), weakThisGameTeamsListener);
     thisGameTeamsInvalidationListener.invalidated(game.getTeams());
 
     JavaFxUtil.addListener(game.statusProperty(), weakThisGameStatusListener);
@@ -529,9 +531,25 @@ public class GameDetailController implements Controller<Pane> {
         .thenAccept(leaderboards -> JavaFxUtil.runLater(() -> {
           boolean hidePlayerRatings = leaderboards.stream().noneMatch(lb -> lb.getTechnicalName().equals(game.get().getRatingType()));
           teamListPane.getChildren().clear();
+          // Show the host's +autoteam pins for the full lifetime of the game
+          // (staging, live, ended) so it's always plain to everyone that the
+          // host arranged the teams — including when that arrangement turns out
+          // badly imbalanced. Suppress only when the host is the lone pin (noise);
+          // surface pins once the host has pinned at least one other player.
+          Map<Integer, Integer> pinnedTeams = Map.of();
+          Map<Integer, Integer> allPins = game.get().getPinnedTeams();
+          if (!allPins.isEmpty()) {
+            Integer hostId = playerService.getPlayerForUsername(game.get().getHost())
+                .map(Player::getId).orElse(null);
+            boolean hasNonHostPin = allPins.keySet().stream()
+                .anyMatch(id -> hostId == null || !id.equals(hostId));
+            if (hasNonHostPin) {
+              pinnedTeams = allPins;
+            }
+          }
           TeamCardController.createAndAdd(game.get().getTeams(), game.get().getRatingType(),
               playerService, uiService, ratingService, galacticWarService,
-              teamListPane, hidePlayerRatings, game.get().getGalacticWarPlanetName());
+              teamListPane, hidePlayerRatings, game.get().getGalacticWarPlanetName(), pinnedTeams);
         }));
   }
 

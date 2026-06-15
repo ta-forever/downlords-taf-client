@@ -1560,6 +1560,17 @@
   -fx-font-size: 0.8em;
 }
 
+/* Badge on a player the host pinned to a +autoteam team (pin.png + team number),
+   shown in team cards to every player so the host's arrangement is visible. */
+.pinned-team-badge {
+  -fx-padding: 0 2 0 0;
+}
+
+.pinned-team-badge-label {
+  -fx-font-size: 1.0em;
+  -fx-font-weight: bold;
+}
+
 /* Manual team arrangement dialog (host-only +autoteam editor). Host drags
    players onto Team 1 / Team 2 to pin them; the rest are auto-balanced. */
 .manual-team-hint {

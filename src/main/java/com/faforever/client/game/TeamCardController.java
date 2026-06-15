@@ -13,10 +13,12 @@ import com.faforever.client.replay.Replay.PlayerStats;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.util.RatingUtil;
 import javafx.collections.ObservableMap;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
@@ -44,6 +46,8 @@ public class TeamCardController implements Controller<Node> {
   public VBox teamPane;
   public Label teamNameLabel;
   private final Map<Integer, RatingChangeLabelController> ratingChangeControllersByPlayerId;
+  /** Host's +autoteam pins (player id -> team index 0/1); pinned players get a badge. */
+  private Map<Integer, Integer> pinnedTeams = Map.of();
 
   public TeamCardController(UiService uiService, PlayerService playerService, GalacticWarService galacticWarService, I18n i18n) {
     this.uiService = uiService;
@@ -64,6 +68,20 @@ public class TeamCardController implements Controller<Node> {
                            PlayerService playerService, UiService uiService, RatingService ratingService,
                            GalacticWarService galacticWarService,
                            Pane teamsPane, Boolean hidePlayerRatings, String galacticWarPlanetName) {
+    createAndAdd(teamsList, ratingType, playerService, uiService, ratingService, galacticWarService,
+        teamsPane, hidePlayerRatings, galacticWarPlanetName, Map.of());
+  }
+
+  /**
+   * @param pinnedTeams host's +autoteam pins (player id -&gt; team index 0/1); a
+   *     pinned player gets a small "Team N" badge so everyone can see the host's
+   *     arrangement. Pass an empty map for none.
+   */
+  static void createAndAdd(ObservableMap<? extends String, ? extends List<String>> teamsList, String ratingType,
+                           PlayerService playerService, UiService uiService, RatingService ratingService,
+                           GalacticWarService galacticWarService,
+                           Pane teamsPane, Boolean hidePlayerRatings, String galacticWarPlanetName,
+                           Map<Integer, Integer> pinnedTeams) {
     JavaFxUtil.assertApplicationThread();
     for (Map.Entry<? extends String, ? extends List<String>> entry : teamsList.entrySet()) {
       List<Player> players = entry.getValue().stream()
@@ -73,6 +91,7 @@ public class TeamCardController implements Controller<Node> {
           .collect(Collectors.toList());
 
       TeamCardController teamCardController = uiService.loadFxml("theme/team_card.fxml");
+      teamCardController.pinnedTeams = pinnedTeams != null ? pinnedTeams : Map.of();
       Function<Player, Image> medalIconProvider = player -> {
         ImageView imv = galacticWarService.getMedalIcon(player.getId(), galacticWarPlanetName);
         if (imv != null) {
@@ -122,6 +141,15 @@ public class TeamCardController implements Controller<Node> {
         gwMedalIcon = playerGwMedalProvider.apply(player);
       }
       playerCardTooltipController.setPlayer(player, hidePlayerRatings ? null : playerRating, faction, gwMedalIcon);
+      // Team cards don't show friend/foe status.
+      playerCardTooltipController.hideSocialStatusIcons();
+      // If the host pinned this player, show the pin (pin.png + team number) in
+      // place of the country flag to conserve space; the flag's fixed position
+      // also keeps the pins aligned across rows.
+      Integer pinnedTeam = pinnedTeams.get(player.getId());
+      if (pinnedTeam != null) {
+        playerCardTooltipController.replaceCountryFlag(buildPinBadge(pinnedTeam));
+      }
       playerCardTooltipController.getRoot().setOnContextMenuRequested(event -> {
         TeamCardPlayerContextMenuController ctrl = uiService.loadFxml("theme/play/team_card_player_context_menu.fxml");
         ctrl.setPlayer(player);
@@ -134,6 +162,7 @@ public class TeamCardController implements Controller<Node> {
       RatingChangeLabelController ratingChangeLabelController = uiService.loadFxml("theme/rating_change_label.fxml");
       ratingChangeControllersByPlayerId.put(player.getId(), ratingChangeLabelController);
       HBox container = new HBox(playerCardTooltipController.getRoot(), ratingChangeLabelController.getRoot());
+      container.setAlignment(Pos.CENTER_LEFT);
       teamPane.getChildren().add(container);
     }
 
@@ -148,6 +177,23 @@ public class TeamCardController implements Controller<Node> {
       teamTitle = i18n.get("game.tooltip.teamTitle", Integer.parseInt(team) - 1, totalRating);
     }
     teamNameLabel.setText(teamTitle);
+  }
+
+  /** A team-coloured pin icon followed by the team number, shown for a
+   *  host-pinned player (blue = Team 1, red = Team 2). */
+  private Node buildPinBadge(int teamIndex) {
+    String image = teamIndex == 0 ? "theme/images/pin-blue.png" : "theme/images/pin-red.png";
+    ImageView pin = new ImageView(uiService.getThemeImage(image));
+    pin.setFitWidth(16);
+    pin.setFitHeight(16);
+    pin.setPreserveRatio(true);
+    Label number = new Label(String.valueOf(teamIndex + 1));
+    number.getStyleClass().add("pinned-team-badge-label");
+    HBox badge = new HBox(2.0, pin, number);
+    badge.setAlignment(Pos.CENTER_LEFT);
+    badge.getStyleClass().add("pinned-team-badge");
+    Tooltip.install(badge, new Tooltip(i18n.get("game.pinnedTeamBadge.tooltip", teamIndex + 1)));
+    return badge;
   }
 
   public void showRatingChange(Map<String, List<PlayerStats>> teams) {

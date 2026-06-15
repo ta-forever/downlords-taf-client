@@ -42,6 +42,11 @@ public class GameInfoMessage extends FafServerMessage {
    *  can seed itself with the current selection even for players who aren't
    *  in PlayerService (offline / never seen by this client). */
   private List<Integer> reservedPlayerIds;
+  /** Host's manual +autoteam team pins, parallel lists: player id at index i is
+   *  pinned to team {@link #pinnedTeams}[i] (0 = Team 1, 1 = Team 2). Broadcast
+   *  so every client can show which players the host has pinned. */
+  private List<Integer> pinnedPlayerIds;
+  private List<Integer> pinnedTeams;
   /**
    * The server may either send a single game or a list of games in the same message... *cringe*.
    */

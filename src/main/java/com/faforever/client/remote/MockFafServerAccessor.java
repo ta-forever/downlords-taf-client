@@ -465,6 +465,9 @@ public class MockFafServerAccessor implements FafServerAccessor {
   public void setReservedPlayers(List<Integer> playerIds) { }
 
   @Override
+  public void setPinnedTeams(List<Integer> playerIds, List<Integer> teams) { }
+
+  @Override
   public void leaveAndReserve() { }
 
   @Override

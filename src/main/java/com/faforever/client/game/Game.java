@@ -63,6 +63,10 @@ public class Game {
   private final BooleanProperty reservedSlotsEnabled;
   private final ListProperty<String> reservedPlayers;
   private final ListProperty<Integer> reservedPlayerIds;
+  // Host's manual +autoteam pins, broadcast by the server so every client can
+  // see which players the host has locked to which team. Maps player id -> team
+  // index (0 = Team 1, 1 = Team 2). Empty when the host hasn't pinned anyone.
+  private final MapProperty<Integer, Integer> pinnedTeams;
   // Pending "request access" entries from non-reserved players. ONLY populated
   // for the host (via the host_game_state push); empty for other viewers of
   // the same game. Updated by ReservedSlotsNotificationService.
@@ -104,6 +108,7 @@ public class Game {
     reservedSlotsEnabled = new SimpleBooleanProperty(false);
     reservedPlayers = new SimpleListProperty<>(FXCollections.observableArrayList());
     reservedPlayerIds = new SimpleListProperty<>(FXCollections.observableArrayList());
+    pinnedTeams = new SimpleMapProperty<>(FXCollections.observableHashMap());
     joinRequests = new SimpleListProperty<>(FXCollections.observableArrayList());
   }
 
@@ -116,6 +121,9 @@ public class Game {
 
   public ObservableList<Integer> getReservedPlayerIds() { return reservedPlayerIds.get(); }
   public ListProperty<Integer> reservedPlayerIdsProperty() { return reservedPlayerIds; }
+
+  public ObservableMap<Integer, Integer> getPinnedTeams() { return pinnedTeams.get(); }
+  public MapProperty<Integer, Integer> pinnedTeamsProperty() { return pinnedTeams; }
 
   public ObservableList<JoinRequest> getJoinRequests() { return joinRequests.get(); }
   public ListProperty<JoinRequest> joinRequestsProperty() { return joinRequests; }

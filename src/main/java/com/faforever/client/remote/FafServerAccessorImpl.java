@@ -98,6 +98,7 @@ import com.faforever.client.remote.domain.HostGameStateMessage;
 import com.faforever.client.remote.domain.CancelReservationMessage;
 import com.faforever.client.remote.domain.LeaveAndReserveMessage;
 import com.faforever.client.remote.domain.RequestGameAccessMessage;
+import com.faforever.client.remote.domain.SetPinnedTeamsMessage;
 import com.faforever.client.remote.domain.SetReservedPlayersMessage;
 import com.faforever.client.remote.domain.SetReservedSlotsEnabledMessage;
 import com.faforever.client.remote.domain.UnreadyPartyMessage;
@@ -960,6 +961,11 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
   @Override
   public void setReservedPlayers(List<Integer> playerIds) {
     writeToServer(new SetReservedPlayersMessage(playerIds));
+  }
+
+  @Override
+  public void setPinnedTeams(List<Integer> playerIds, List<Integer> teams) {
+    writeToServer(new SetPinnedTeamsMessage(playerIds, teams));
   }
 
   @Override

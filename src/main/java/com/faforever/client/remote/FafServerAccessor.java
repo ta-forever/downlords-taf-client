@@ -139,6 +139,8 @@ public interface FafServerAccessor {
 
   void setReservedPlayers(List<Integer> playerIds);
 
+  void setPinnedTeams(List<Integer> playerIds, List<Integer> teams);
+
   void leaveAndReserve();
 
   void cancelReservation();
