@@ -132,9 +132,11 @@ public class ClientConfiguration {
    * URL extension.
    *
    * Hashes are CRC32 (8 lowercase hex chars) to match the format already used by
-   * {@link GameFilesWhitelistEntry#whitelist}. Authenticity comes from HTTPS + the
-   * trusted GitHub release URL, not from the hash — CRC32 is purely for integrity
-   * (catches a corrupted download or a wrong file by accident).
+   * {@link GameFilesWhitelistEntry#whitelist}. CRC32 is purely for integrity/idempotency
+   * (catches a corrupted download or a wrong file by accident) and is NOT a security control.
+   * Authenticity comes from the detached Ed25519 "{@code <replacementUrl>.sig}" sidecar verified
+   * against the public key pinned in the client (see {@link UpdateSignatureVerifier}); every
+   * hotfix archive must therefore ship a matching {@code .sig}.
    */
   @Data
   public static class HotfixPlatform {

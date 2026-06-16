@@ -242,6 +242,7 @@ public class HotfixService {
       log.info("[hotfix:{}] downloading {} -> {}", h.getId(), p.getReplacementUrl(), archiveTmp);
       download(p.getReplacementUrl(), archiveTmp);
       verifyArchiveHash(p, archiveTmp);
+      verifyArchiveSignature(p, archiveTmp);
       extractAllInto(archiveTmp, extractRoot);
     } finally {
       try {
@@ -310,6 +311,7 @@ public class HotfixService {
       log.info("[hotfix:{}] downloading {} -> {}", h.getId(), p.getReplacementUrl(), archiveTmp);
       download(p.getReplacementUrl(), archiveTmp);
       verifyArchiveHash(p, archiveTmp);
+      verifyArchiveSignature(p, archiveTmp);
       extractMember(archiveTmp, p.getReplacementMember(), memberTmp);
       String newHash = crc32(memberTmp);
       if (!matchesAny(newHash, p.getReplacementCrc32())) {
@@ -399,6 +401,33 @@ public class HotfixService {
     if (!matchesAny(got, p.getReplacementArchiveCrc32())) {
       throw new IOException("downloaded archive crc32=" + got
           + " does not match expected replacementArchiveCrc32=" + p.getReplacementArchiveCrc32());
+    }
+  }
+
+  /**
+   * Authenticity gate for hotfix archives. CRC32 ({@link #verifyArchiveHash}) only catches
+   * accidental corruption — it is trivially forgeable and is NOT a security control. This fetches
+   * the detached "{@code <replacementUrl>.sig}" sidecar and verifies the archive against the public
+   * key pinned in the client, so a compromised content server / CDN cannot push a malicious binary.
+   * Fails closed: a mandatory hotfix whose signature is missing or invalid aborts; a non-mandatory
+   * one is skipped with a warning.
+   *
+   * <p>DEPLOY REQUIREMENT: every CLIENT_BINARY / MOD_FILE hotfix archive in dfc-config.json must now
+   * be published with a matching "{@code .sig}" sidecar, otherwise the hotfix will no longer apply.
+   */
+  private void verifyArchiveSignature(HotfixPlatform p, Path archivePath) throws IOException {
+    Path sigTmp = Files.createTempFile(archivePath.getParent(), ".hotfix-sig-", ".sig");
+    try {
+      download(p.getReplacementUrl() + ".sig", sigTmp);
+      UpdateSignatureVerifier.verify(archivePath, sigTmp);
+    } catch (SecurityException e) {
+      throw new IOException("hotfix archive signature verification failed: " + e.getMessage(), e);
+    } finally {
+      try {
+        Files.deleteIfExists(sigTmp);
+      } catch (IOException ignored) {
+        // best-effort temp cleanup
+      }
     }
   }
 

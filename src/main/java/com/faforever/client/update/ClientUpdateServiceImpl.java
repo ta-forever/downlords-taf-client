@@ -148,6 +148,18 @@ public class ClientUpdateServiceImpl implements ClientUpdateService {
 
   @VisibleForTesting
   void install(Path binaryPath) {
+    // Re-verify the detached signature immediately before exec — the literal point where untrusted
+    // bytes would otherwise become a running process. DownloadUpdateTask already verified, but this
+    // guards anything that reaches install() by another route (cached file, future caller) and
+    // costs a single Ed25519 pass.
+    Path signatureFile = binaryPath.resolveSibling(binaryPath.getFileName() + ".sig");
+    try {
+      UpdateSignatureVerifier.verify(binaryPath, signatureFile);
+    } catch (SecurityException e) {
+      throw new InstallerExecutionException("Update signature verification failed", new IOException(e));
+    } catch (IOException e) {
+      throw new InstallerExecutionException("Update signature could not be read", e);
+    }
     try {
       platformService.setUnixExecutableAndWritableBits(binaryPath);
     } catch (IOException e) {

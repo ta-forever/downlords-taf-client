@@ -69,7 +69,35 @@ public class DownloadUpdateTask extends CompletableTask<Path> {
       }
     }
 
+    // Authenticity gate: fetch the detached "<artifact>.sig" sidecar and verify it against the
+    // public key pinned in the client before this Path is ever handed to install() and executed.
+    // Fails closed — a missing/invalid signature aborts the task (the caller surfaces the
+    // download-failed notification) and leaves nothing runnable behind.
+    Path signatureFile = targetFile.resolveSibling(targetFile.getFileName() + ".sig");
+    try {
+      downloadSignature(new URL(url.toExternalForm() + ".sig"), signatureFile);
+      UpdateSignatureVerifier.verify(targetFile, signatureFile);
+    } catch (IOException | SecurityException e) {
+      deleteQuietly(targetFile);
+      deleteQuietly(signatureFile);
+      throw new IOException("Update signature verification failed for " + url, e);
+    }
+
     return targetFile;
+  }
+
+  private void downloadSignature(URL url, Path dest) throws IOException {
+    try (InputStream inputStream = url.openStream()) {
+      Files.copy(inputStream, dest, StandardCopyOption.REPLACE_EXISTING);
+    }
+  }
+
+  private void deleteQuietly(Path path) {
+    try {
+      Files.deleteIfExists(path);
+    } catch (IOException e) {
+      logger.warn("Could not delete file: " + path.toAbsolutePath(), e);
+    }
   }
 
   public void setUpdateInfo(UpdateInfo updateInfo) {

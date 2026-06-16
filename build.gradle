@@ -166,6 +166,8 @@ compileTestJava {
   include '**/game/ManageGameControllerTest.java'
   include '**/rating/JSkillsRatingServiceConstrainedTest.java'
   include '**/util/LogTailUtilTest.java'
+  // Self-contained Ed25519 update-signature verifier test (no broken siblings in update/).
+  include '**/update/UpdateSignatureVerifierTest.java'
   // Test base classes / shared utilities — required by tests in the
   // included packages above. Don't include broken siblings of these.
   include '**/test/AbstractPlainJavaFxTest.java'

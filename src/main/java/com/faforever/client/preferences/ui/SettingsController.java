@@ -37,6 +37,8 @@ import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.list.NoSelectionModel;
 import com.faforever.client.ui.preferences.event.GameDirectoryChooseEvent;
 import com.faforever.client.update.ClientUpdateService;
+import com.faforever.client.update.UpdateCheckResult;
+import com.faforever.client.update.UpdateDiagnosticsService;
 import com.faforever.client.user.UserService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
@@ -53,12 +55,15 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Spinner;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -90,6 +95,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static com.faforever.client.fx.JavaFxUtil.PATH_STRING_CONVERTER;
@@ -109,6 +115,7 @@ public class SettingsController implements Controller<Node> {
   private final ClientProperties clientProperties;
   private final ClientUpdateService clientUpdateService;
   private final ModService modService;
+  private final UpdateDiagnosticsService updateDiagnosticsService;
 
   public TextField executableDecoratorField;
   public TextField executionDirectoryField;
@@ -191,6 +198,8 @@ public class SettingsController implements Controller<Node> {
   public CheckBox allowReplayWhileInGameCheckBox;
   public Button allowReplayWhileInGameButton;
   public CheckBox debugLogToggle;
+  public Button reinstallLatestButton;
+  public Button testDownloadsButton;
 
   private final InvalidationListener availableLanguagesListener;
   public CheckBox colorBlindFriendlyToggle;
@@ -214,7 +223,8 @@ public class SettingsController implements Controller<Node> {
   public SettingsController(UserService userService, PreferencesService preferencesService, UiService uiService,
                             I18n i18n, EventBus eventBus, NotificationService notificationService,
                             PlatformService platformService, ClientProperties clientProperties,
-                            ClientUpdateService clientUpdateService, ModService modService) {
+                            ClientUpdateService clientUpdateService, ModService modService,
+                            UpdateDiagnosticsService updateDiagnosticsService) {
     this.userService = userService;
     this.preferencesService = preferencesService;
     this.uiService = uiService;
@@ -225,6 +235,7 @@ public class SettingsController implements Controller<Node> {
     this.clientProperties = clientProperties;
     this.clientUpdateService = clientUpdateService;
     this.modService = modService;
+    this.updateDiagnosticsService = updateDiagnosticsService;
 
     availableLanguagesListener = observable -> {
       LocalizationPrefs localization = preferencesService.getPreferences().getLocalization();
@@ -754,6 +765,77 @@ public class SettingsController implements Controller<Node> {
   public void onAutoUploadLogsSelected(ActionEvent actionEvent) {
     this.preferencesService.getPreferences().autoUploadLogsOptionProperty().setValue(autoUploadLogsOptionComboBox.getValue());
     preferencesService.storeInBackground();
+  }
+
+  /**
+   * Hidden developer tool: force a (re)install of the latest client version configured in the
+   * current dfc-config, regardless of whether it differs from the running version. Goes through
+   * the normal update path — download, Ed25519 signature verification, then run the installer
+   * (which closes this client) — so it's a real install, not a dry run. Confirms first because it
+   * downloads the full installer and relaunches.
+   */
+  public void onReinstallLatest() {
+    Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+    confirm.setTitle(i18n.get("settings.general.reinstallLatest"));
+    confirm.setHeaderText(i18n.get("settings.general.reinstallLatest.confirm"));
+    confirm.showAndWait().ifPresent(buttonType -> {
+      if (buttonType != ButtonType.OK) {
+        return;
+      }
+      reinstallLatestButton.setDisable(true);
+      clientUpdateService.getNewestUpdate().whenComplete((updateInfo, throwable) -> JavaFxUtil.runLater(() -> {
+        if (throwable != null || updateInfo == null) {
+          reinstallLatestButton.setDisable(false);
+          log.warn("Could not determine latest version to reinstall", throwable);
+          notificationService.addImmediateWarnNotification("settings.general.reinstallLatest.unavailable");
+          return;
+        }
+        // Installer launch closes the client; no need to re-enable the button.
+        clientUpdateService.downloadAndInstallInBackground(updateInfo);
+      }));
+    });
+  }
+
+  /**
+   * Hidden developer tool: download every configured client installer AND hotfix archive (plus
+   * their ".sig" sidecars) for ALL platforms — windows, linux and mac — from this one client, and
+   * verify the Ed25519 signatures (and hotfix CRC32s), without installing, extracting or applying
+   * anything. Runs off the FX thread because it performs network downloads.
+   */
+  public void onTestDownloads() {
+    testDownloadsButton.setDisable(true);
+    CompletableFuture
+        .supplyAsync(updateDiagnosticsService::verifyConfiguredDownloads)
+        .whenComplete((results, throwable) -> JavaFxUtil.runLater(() -> {
+          testDownloadsButton.setDisable(false);
+          if (throwable != null) {
+            log.warn("Hotfix-signature self-test failed", throwable);
+            showUpdateDiagnosticsReport("ERROR\n\n" + throwable);
+            return;
+          }
+          StringBuilder report = new StringBuilder();
+          for (UpdateCheckResult result : results) {
+            report.append(switch (result.status()) {
+              case OK -> "[ OK ]  ";
+              case FAIL -> "[FAIL]  ";
+              case SKIP -> "[skip]  ";
+            }).append(result.item()).append("  —  ").append(result.detail()).append('\n');
+          }
+          showUpdateDiagnosticsReport(report.toString());
+        }));
+  }
+
+  private void showUpdateDiagnosticsReport(String report) {
+    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+    alert.setTitle(i18n.get("settings.general.testDownloads"));
+    alert.setHeaderText(i18n.get("settings.general.testDownloads"));
+    TextArea textArea = new TextArea(report);
+    textArea.setEditable(false);
+    textArea.setWrapText(false);
+    textArea.setPrefSize(720, 320);
+    alert.getDialogPane().setContent(textArea);
+    alert.setResizable(true);
+    alert.showAndWait();
   }
 }
 
