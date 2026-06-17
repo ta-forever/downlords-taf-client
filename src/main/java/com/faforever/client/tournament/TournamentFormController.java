@@ -118,7 +118,7 @@ public class TournamentFormController implements Controller<Node> {
     formatCombo.getSelectionModel().selectFirst();
     bestOfCombo.getItems().addAll(1, 3, 5);
     bestOfCombo.getSelectionModel().selectFirst();
-    ppsCombo.getItems().addAll(1, 2);
+    ppsCombo.getItems().addAll(1, 2, 3, 4, 5);
     ppsCombo.getSelectionModel().selectFirst();
     noshowSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(5, 60, 20, 5));
     // Check-in window: 0 disables (legacy behaviour), step 5 to discourage
