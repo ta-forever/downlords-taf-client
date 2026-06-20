@@ -52,6 +52,7 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 @RequiredArgsConstructor
 public class MapDetailController implements Controller<Node> {
+  private static final double WIND_SPEED_DISPLAY_SCALE = 166.6;
 
   private final MapService mapService;
   private final NotificationService notificationService;
@@ -178,7 +179,7 @@ public class MapDetailController implements Controller<Node> {
     mapHpiArchiveNameLabel.setText(map.getHpiArchiveName());
 
     MapSize mapSize = map.getSize();
-    dimensionsLabel.setText(i18n.get("mapPreview.size", mapSize.getWidthInKm(), mapSize.getHeightInKm()));
+    dimensionsLabel.setText(getMapSizeAndEnvironmentText(map, mapSize));
 
     LocalDateTime createTime = map.getCreateTime();
     dateLabel.setText(timeService.asDate(createTime));
@@ -229,6 +230,62 @@ public class MapDetailController implements Controller<Node> {
       mapService.isInstalled(modTechnical, map.getMapName(), map.getCrcValue()).thenAccept(
           isInstalled -> JavaFxUtil.runLater(() -> setInstalled(isInstalled)));
     }
+  }
+
+  private String getMapSizeAndEnvironmentText(MapBean map, MapSize mapSize) {
+    String mapStats = i18n.get("mapPreview.size", mapSize.getWidthInKm(), mapSize.getHeightInKm());
+    String wind = withPositiveSign(formatWindSpeedRange(map.getWind()));
+    if (!wind.isEmpty()) {
+      mapStats += "  " + i18n.get("mapPreview.wind", wind);
+    }
+
+    String tidal = withPositiveSign(map.getTidal());
+    if (!tidal.isEmpty()) {
+      mapStats += "  " + i18n.get("mapPreview.tidal", tidal);
+    }
+
+    return mapStats;
+  }
+
+  private String formatWindSpeedRange(String value) {
+    if (value == null || value.isBlank()) {
+      return "";
+    }
+
+    String trimmed = value.trim();
+    String[] parts = trimmed.split("-", 2);
+    if (parts.length != 2) {
+      return trimmed;
+    }
+
+    String minWind = formatWindSpeed(parts[0]);
+    String maxWind = formatWindSpeed(parts[1]);
+    if (minWind.isEmpty() || maxWind.isEmpty()) {
+      return trimmed;
+    }
+
+    return minWind.equals(maxWind) ? minWind : minWind + "-" + maxWind;
+  }
+
+  private String formatWindSpeed(String value) {
+    try {
+      double wind = Double.parseDouble(value.trim().replace("+", "")) / WIND_SPEED_DISPLAY_SCALE;
+      return Long.toString(Math.round(wind));
+    } catch (NumberFormatException e) {
+      return "";
+    }
+  }
+
+  private String withPositiveSign(String value) {
+    if (value == null || value.isBlank()) {
+      return "";
+    }
+
+    String trimmed = value.trim();
+    if (trimmed.startsWith("+") || trimmed.startsWith("-")) {
+      return trimmed;
+    }
+    return "+" + trimmed;
   }
 
   @VisibleForTesting

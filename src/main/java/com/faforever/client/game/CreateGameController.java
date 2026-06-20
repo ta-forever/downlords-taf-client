@@ -12,6 +12,7 @@ import com.faforever.client.main.event.SelectGalacticWarMapEvent;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapBean.Type;
 import com.faforever.client.map.MapService;
+import com.faforever.client.map.MapService.PreviewOverlayType;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.map.MapSize;
 import com.faforever.client.mod.FeaturedMod;
@@ -116,6 +117,7 @@ public class CreateGameController implements Controller<Pane> {
   public static final String STYLE_CLASS_DUAL_LIST_CELL = "create-game-dual-list-cell";
   public static final PseudoClass PSEUDO_CLASS_INVALID = PseudoClass.getPseudoClass("invalid");
   private static final int MAX_RATING_LENGTH = 4;
+  private static final double WIND_SPEED_DISPLAY_SCALE = 166.6;
   private final MapService mapService;
   private final ModService modService;
   private final GameService gameService;
@@ -130,6 +132,8 @@ public class CreateGameController implements Controller<Pane> {
 
   public Label mapSizeLabel;
   public Label mapPlayersLabel;
+  public Label mapWindLabel;
+  public Label mapTidalLabel;
   public Label mapDescriptionLabel;
   public TextField mapSearchTextField;
   public TextField titleTextField;
@@ -145,9 +149,12 @@ public class CreateGameController implements Controller<Pane> {
   public Button installGameButton;
   public VBox mapPreview;
   public Pane mapPreviewPane;
+  public Pane mapPreviewOverlayPane;
   public Label versionLabel;
+  public Label mapNameLabel;
   public Label hpiArchiveLabel;
   public ComboBox<PreviewType> mapPreviewTypeComboBox;
+  public ComboBox<PreviewOverlayType> mapPreviewOverlayComboBox;
   public ComboBox<Integer> maxPlayersComboBox;
   public CheckBox onlyForFriendsCheckBox;
   public CheckBox reservedSlotsCheckBox;
@@ -327,9 +334,12 @@ public class CreateGameController implements Controller<Pane> {
     rankedMapPoolsAvailableProperty = new SimpleBooleanProperty();
     selectGalacticWarMapEvent = new SimpleObjectProperty<>();
 
-    JavaFxUtil.addLabelContextMenus(uiService, hpiArchiveLabel, mapDescriptionLabel);
+    JavaFxUtil.addLabelContextMenus(uiService, mapNameLabel, hpiArchiveLabel, mapDescriptionLabel);
     versionLabel.managedProperty().bind(versionLabel.visibleProperty());
+    mapNameLabel.managedProperty().bind(mapNameLabel.visibleProperty());
     hpiArchiveLabel.managedProperty().bind(hpiArchiveLabel.visibleProperty());
+    mapWindLabel.managedProperty().bind(mapWindLabel.visibleProperty());
+    mapTidalLabel.managedProperty().bind(mapTidalLabel.visibleProperty());
 
     liveReplayOptionComboBox.getItems().setAll(LiveReplayOption.values());
     LiveReplayOption lastGameLiveReplayOption = preferencesService.getPreferences().getLastGame().getLastGameLiveReplayOption();
@@ -361,7 +371,24 @@ public class CreateGameController implements Controller<Pane> {
       }
     });
     mapPreviewTypeComboBox.getSelectionModel().selectedItemProperty().addListener(
-        (observable, oldValue, newValue) -> setSelectedMap(mapListView.getSelectionModel().getSelectedItem(), newValue, maxPlayersComboBox.getSelectionModel().getSelectedItem()));
+        (observable, oldValue, newValue) -> setSelectedMap(mapListView.getSelectionModel().getSelectedItem(), newValue,
+            mapPreviewOverlayComboBox.getSelectionModel().getSelectedItem(), maxPlayersComboBox.getSelectionModel().getSelectedItem()));
+
+    mapPreviewOverlayComboBox.getItems().setAll(PreviewOverlayType.values());
+    mapPreviewOverlayComboBox.getSelectionModel().select(PreviewOverlayType.NONE);
+    mapPreviewOverlayComboBox.setConverter(new StringConverter<>() {
+      @Override
+      public String toString(PreviewOverlayType previewOverlayType) {
+        return previewOverlayType == null ? "null" : i18n.get(previewOverlayType.getI18nKey());
+      }
+      @Override
+      public PreviewOverlayType fromString(String string) {
+        throw new UnsupportedOperationException("Not supported");
+      }
+    });
+    mapPreviewOverlayComboBox.getSelectionModel().selectedItemProperty().addListener(
+        (observable, oldValue, newValue) -> setSelectedMap(mapListView.getSelectionModel().getSelectedItem(),
+            mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(), newValue, maxPlayersComboBox.getSelectionModel().getSelectedItem()));
 
     maxPlayersComboBox.getItems().setAll(
         IntStream.rangeClosed(2, 10)
@@ -382,7 +409,8 @@ public class CreateGameController implements Controller<Pane> {
       }
     });
     maxPlayersComboBox.getSelectionModel().selectedItemProperty().addListener(
-        (observable, oldValue, newValue) -> setSelectedMap(mapListView.getSelectionModel().getSelectedItem(), mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(), newValue));
+        (observable, oldValue, newValue) -> setSelectedMap(mapListView.getSelectionModel().getSelectedItem(),
+            mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(), mapPreviewOverlayComboBox.getSelectionModel().getSelectedItem(), newValue));
 
     mapSearchTextField.textProperty().addListener(
         (observable, oldValue, newValue) -> setFilteredMapBeansPredicate(newValue));
@@ -727,8 +755,9 @@ public class CreateGameController implements Controller<Pane> {
     mapListView.setCellFactory(param -> new StringListCell<>(MapBean::getMapName));
     ChangeListener<MapBean> selectedMapChangeListener = (observable, oldValue, newValue) -> JavaFxUtil.runLater(() -> {
       PreviewType previewType = mapPreviewTypeComboBox.getSelectionModel().getSelectedItem();
+      PreviewOverlayType previewOverlayType = mapPreviewOverlayComboBox.getSelectionModel().getSelectedItem();
       Integer maxPlayers = maxPlayersComboBox.getSelectionModel().getSelectedItem();
-      setSelectedMap(newValue, previewType, maxPlayers);
+      setSelectedMap(newValue, previewType, previewOverlayType, maxPlayers);
     });
     mapListView.getSelectionModel().selectedItemProperty().addListener(selectedMapChangeListener);
     selectedMapChangeListener.changed(null, null, mapListView.getSelectionModel().selectedItemProperty().getValue());
@@ -838,40 +867,45 @@ public class CreateGameController implements Controller<Pane> {
     rankedMapPoolsAvailableProperty.bind(Bindings.isNotEmpty(mapPoolListView.getItems()));
   }
 
-  protected void setSelectedMap(MapBean newValue, PreviewType previewType, int maxNumPlayers) {
+  protected void setSelectedMap(MapBean newValue, PreviewType previewType, PreviewOverlayType previewOverlayType, int maxNumPlayers) {
     JavaFxUtil.assertApplicationThread();
 
     if (newValue == null) {
       mapPreview.setVisible(false);
+      setMapPreviewPaneBackground(mapPreviewPane, null);
+      setMapPreviewPaneBackground(mapPreviewOverlayPane, null);
       return;
     }
     mapPreview.setVisible(true);
+    previewType = Optional.ofNullable(previewType).orElse(PreviewType.MINI);
+    previewOverlayType = Optional.ofNullable(previewOverlayType).orElse(PreviewOverlayType.NONE);
 
     preferencesService.getPreferences().getLastGame().setLastMap(newValue.getMapName());
     preferencesService.storeInBackground();
 
     String activeMod;
-    if (featuredModListView.getFocusModel().getFocusedItem() != null) {
-      activeMod = featuredModListView.getFocusModel().getFocusedItem().getTechnicalName();
+    if (featuredModListView.getSelectionModel().getSelectedItem() != null) {
+      activeMod = featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName();
     }
     else {
       activeMod = preferencesService.getPreferences().getLastGame().getLastGameType();
     }
+    MapBean mapDetails = mapService.getMapLocallyFromMapBean(activeMod, newValue).orElse(newValue);
+    String previewMapName = mapDetails.getMapName();
 
-    Image preview = mapService.loadPreview(activeMod, newValue.getMapName(), previewType, maxNumPlayers);
-    mapPreviewPane.setBackground(new Background(new BackgroundImage(preview, NO_REPEAT, NO_REPEAT, CENTER,
-        new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, true, false))));
+    Image preview = mapService.loadPreview(activeMod, previewMapName, previewType, maxNumPlayers);
+    setMapPreviewPaneBackground(mapPreviewPane, preview);
+    Image previewOverlay = mapService.loadOverlayPreview(activeMod, previewMapName, previewOverlayType, maxNumPlayers);
+    setMapPreviewPaneBackground(mapPreviewOverlayPane, previewOverlay);
 
-    MapSize mapSize = newValue.getSize();
+    MapSize mapSize = mapDetails.getSize();
     mapSizeLabel.setText(i18n.get("mapPreview.size", mapSize.getWidthInKm(), mapSize.getHeightInKm()));
-    mapPlayersLabel.setText(i18n.number(newValue.getPlayers()));
-    mapDescriptionLabel.setText(Optional.ofNullable(newValue.getDescription())
-        .map(Strings::emptyToNull)
-        .map(FaStrings::removeLocalizationTag)
-        .orElseGet(() -> i18n.get("map.noDescriptionAvailable")));
+    setSignedMapStatLabel(mapWindLabel, formatWindSpeedRange(mapDetails.getWind()), "mapPreview.wind");
+    setSignedMapStatLabel(mapTidalLabel, mapDetails.getTidal(), "mapPreview.tidal");
+    mapPlayersLabel.setText(i18n.number(mapDetails.getPlayers()));
+    mapDescriptionLabel.setText(formatMapDescription(mapDetails.getDescription()));
 
-    hpiArchiveLabel.setText(newValue.getHpiArchiveName());
-    hpiArchiveLabel.setVisible(true);
+    setMapTitleLabels(mapDetails);
 
     ComparableVersion mapVersion = newValue.getVersion();
     if (mapVersion == null) {
@@ -879,6 +913,83 @@ public class CreateGameController implements Controller<Pane> {
     } else {
       versionLabel.setText(i18n.get("map.versionFormat", mapVersion));
     }
+  }
+
+  private String formatMapDescription(String description) {
+    return Optional.ofNullable(description)
+        .map(Strings::emptyToNull)
+        .map(FaStrings::removeLocalizationTag)
+        .map(value -> value.replaceAll("\\s+", " ").trim())
+        .orElseGet(() -> i18n.get("map.noDescriptionAvailable"));
+  }
+
+  private void setMapPreviewPaneBackground(Pane pane, Image image) {
+    if (image == null) {
+      pane.setBackground(null);
+      return;
+    }
+
+    pane.setBackground(new Background(new BackgroundImage(image, NO_REPEAT, NO_REPEAT, CENTER,
+        new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, true, false))));
+  }
+
+  private void setSignedMapStatLabel(Label label, String value, String i18nKey) {
+    String displayValue = withPositiveSign(value);
+    label.setVisible(!displayValue.isEmpty());
+    if (!displayValue.isEmpty()) {
+      label.setText(i18n.get(i18nKey, displayValue));
+    }
+  }
+
+  private void setMapTitleLabels(MapBean map) {
+    String archiveName = Strings.nullToEmpty(map.getHpiArchiveName()).trim();
+    String mapName = Strings.nullToEmpty(map.getMapName()).trim();
+
+    mapNameLabel.setText(mapName.isEmpty() ? archiveName : mapName);
+    mapNameLabel.setVisible(!mapNameLabel.getText().isEmpty());
+    hpiArchiveLabel.setText(archiveName);
+    hpiArchiveLabel.setVisible(!archiveName.isEmpty() && !mapName.isEmpty());
+  }
+
+  private String formatWindSpeedRange(String value) {
+    if (value == null || value.isBlank()) {
+      return "";
+    }
+
+    String trimmed = value.trim();
+    String[] parts = trimmed.split("-", 2);
+    if (parts.length != 2) {
+      return trimmed;
+    }
+
+    String minWind = formatWindSpeed(parts[0]);
+    String maxWind = formatWindSpeed(parts[1]);
+    if (minWind.isEmpty() || maxWind.isEmpty()) {
+      return trimmed;
+    }
+
+    return minWind.equals(maxWind) ? minWind : minWind + "-" + maxWind;
+  }
+
+  private String formatWindSpeed(String value) {
+    try {
+      double wind = Double.parseDouble(value.trim().replace("+", "")) / WIND_SPEED_DISPLAY_SCALE;
+      return Long.toString(Math.round(wind));
+    } catch (NumberFormatException e) {
+      return "";
+    }
+  }
+
+  private String withPositiveSign(String value) {
+    if (value == null || value.isBlank()) {
+      return "";
+    }
+
+    String trimmed = value.trim();
+    if (trimmed.startsWith("+") || trimmed.startsWith("-")) {
+      return trimmed;
+    }
+    return "+" + trimmed;
   }
 
   private void initFeaturedModList() {
@@ -993,7 +1104,7 @@ public class CreateGameController implements Controller<Pane> {
     }
 
     if (mapListView.getItems().isEmpty()) {
-      setSelectedMap(null, null, 10);
+      setSelectedMap(null, null, null, 10);
     }
     else {
       mapListView.getSelectionModel().selectFirst();
@@ -1266,6 +1377,7 @@ public class CreateGameController implements Controller<Pane> {
       setSelectedMap(
           mapListView.getSelectionModel().getSelectedItem(),
           mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(),
+          mapPreviewOverlayComboBox.getSelectionModel().getSelectedItem(),
           maxPlayersComboBox.getSelectionModel().getSelectedItem());
     });
     contextMenu.getItems().add(menuItem);
@@ -1287,6 +1399,7 @@ public class CreateGameController implements Controller<Pane> {
           JavaFxUtil.runLater(() -> setSelectedMap(
               mapListView.getSelectionModel().getSelectedItem(),
               mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(),
+              mapPreviewOverlayComboBox.getSelectionModel().getSelectedItem(),
               maxPlayersComboBox.getSelectionModel().getSelectedItem()));
         });
   }
