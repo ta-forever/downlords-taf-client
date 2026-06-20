@@ -134,7 +134,6 @@ public class CreateGameController implements Controller<Pane> {
   public Label mapPlayersLabel;
   public Label mapWindLabel;
   public Label mapTidalLabel;
-  public Label mapWaterLabel;
   public Label mapDescriptionLabel;
   public TextField mapSearchTextField;
   public TextField titleTextField;
@@ -341,7 +340,6 @@ public class CreateGameController implements Controller<Pane> {
     hpiArchiveLabel.managedProperty().bind(hpiArchiveLabel.visibleProperty());
     mapWindLabel.managedProperty().bind(mapWindLabel.visibleProperty());
     mapTidalLabel.managedProperty().bind(mapTidalLabel.visibleProperty());
-    mapWaterLabel.managedProperty().bind(mapWaterLabel.visibleProperty());
 
     liveReplayOptionComboBox.getItems().setAll(LiveReplayOption.values());
     LiveReplayOption lastGameLiveReplayOption = preferencesService.getPreferences().getLastGame().getLastGameLiveReplayOption();
@@ -904,7 +902,6 @@ public class CreateGameController implements Controller<Pane> {
     mapSizeLabel.setText(i18n.get("mapPreview.size", mapSize.getWidthInKm(), mapSize.getHeightInKm()));
     setSignedMapStatLabel(mapWindLabel, formatWindSpeedRange(mapDetails.getWind()), "mapPreview.wind");
     setSignedMapStatLabel(mapTidalLabel, mapDetails.getTidal(), "mapPreview.tidal");
-    setWaterPercentLabel(mapDetails);
     mapPlayersLabel.setText(i18n.number(mapDetails.getPlayers()));
     mapDescriptionLabel.setText(formatMapDescription(mapDetails.getDescription()));
 
@@ -952,14 +949,6 @@ public class CreateGameController implements Controller<Pane> {
     mapNameLabel.setVisible(!mapNameLabel.getText().isEmpty());
     hpiArchiveLabel.setText(archiveName);
     hpiArchiveLabel.setVisible(!archiveName.isEmpty() && !mapName.isEmpty());
-  }
-
-  private void setWaterPercentLabel(MapBean map) {
-    int waterPercentage = map.getWaterPercentage();
-    mapWaterLabel.setVisible(waterPercentage >= 0);
-    if (waterPercentage >= 0) {
-      mapWaterLabel.setText(i18n.get("mapPreview.water", waterPercentage));
-    }
   }
 
   private String formatWindSpeedRange(String value) {

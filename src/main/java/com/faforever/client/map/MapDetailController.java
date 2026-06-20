@@ -244,10 +244,6 @@ public class MapDetailController implements Controller<Node> {
       mapStats += "  " + i18n.get("mapPreview.tidal", tidal);
     }
 
-    if (map.getWaterPercentage() >= 0) {
-      mapStats += "  " + i18n.get("mapPreview.water", map.getWaterPercentage());
-    }
-
     return mapStats;
   }
 

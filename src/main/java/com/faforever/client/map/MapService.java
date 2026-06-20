@@ -97,7 +97,6 @@ import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_NAME;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_NUM_PLAYERS;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_SIZE;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_TIDAL;
-import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_WATER_PERCENT;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_WIND;
 import static com.faforever.client.util.LinkOrCopy.linkOrCopyWithBackup;
 import static com.github.nocatch.NoCatch.noCatch;
@@ -505,7 +504,6 @@ public class MapService implements InitializingBean, DisposableBean {
     int players = 10;
     String wind = "";
     String tidal = "";
-    int waterPercentage = -1;
 
     try {
       if (mapDetails != null) {
@@ -516,7 +514,6 @@ public class MapService implements InitializingBean, DisposableBean {
         players = parseMapDetailInteger(mapDetailValue(mapDetails, MAP_DETAIL_COLUMN_NUM_PLAYERS), players);
         wind = mapDetailValue(mapDetails, MAP_DETAIL_COLUMN_WIND);
         tidal = mapDetailValue(mapDetails, MAP_DETAIL_COLUMN_TIDAL);
-        waterPercentage = parseMapDetailInteger(mapDetailValue(mapDetails, MAP_DETAIL_COLUMN_WATER_PERCENT), waterPercentage);
       }
       else {
         logger.warn("null map details for map: {}", mapName);
@@ -541,7 +538,6 @@ public class MapService implements InitializingBean, DisposableBean {
     mapBean.setPlayers(players);
     mapBean.setWind(wind);
     mapBean.setTidal(tidal);
-    mapBean.setWaterPercentage(waterPercentage);
     mapBean.setType(Type.SKIRMISH);
 
     if (!"00000000".equals(crc)) {

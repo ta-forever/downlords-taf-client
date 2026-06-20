@@ -39,7 +39,6 @@ public class MapBean implements Comparable<MapBean> {
   private final IntegerProperty players;
   private final StringProperty wind;
   private final StringProperty tidal;
-  private final IntegerProperty waterPercentage;
   private final ObjectProperty<MapSize> size;
   private final ObjectProperty<ComparableVersion> version;
   private CompletableFuture<String> crcFuture;
@@ -67,7 +66,6 @@ public class MapBean implements Comparable<MapBean> {
     players = new SimpleIntegerProperty();
     wind = new SimpleStringProperty("");
     tidal = new SimpleStringProperty("");
-    waterPercentage = new SimpleIntegerProperty(-1);
     size = new SimpleObjectProperty<>();
     version = new SimpleObjectProperty<>();
     thumbnailUrl = new SimpleObjectProperty<>();
@@ -264,18 +262,6 @@ public class MapBean implements Comparable<MapBean> {
 
   public StringProperty tidalProperty() {
     return tidal;
-  }
-
-  public int getWaterPercentage() {
-    return waterPercentage.get();
-  }
-
-  public void setWaterPercentage(int waterPercentage) {
-    this.waterPercentage.set(waterPercentage);
-  }
-
-  public IntegerProperty waterPercentageProperty() {
-    return waterPercentage;
   }
 
   @Nullable

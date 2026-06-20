@@ -194,7 +194,6 @@
                     </Label>
                     <Label fx:id="mapWindLabel" text="&lt;Wind&gt;" GridPane.rowIndex="1"/>
                     <Label fx:id="mapTidalLabel" text="&lt;Tidal&gt;" GridPane.rowIndex="1"/>
-                    <Label fx:id="mapWaterLabel" text="&lt;Water&gt;" GridPane.rowIndex="1"/>
                     <Label fx:id="mapPlayersLabel" text="&lt;MaxPlayers&gt;" GridPane.rowIndex="1">
                         <graphic>
                             <Region styleClass="icon,players-icon" />

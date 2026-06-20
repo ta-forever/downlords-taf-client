@@ -29,7 +29,6 @@ public class MapTool {
   public static final Integer MAP_DETAIL_COLUMN_WIND = 6;
   public static final Integer MAP_DETAIL_COLUMN_TIDAL = 7;
   public static final Integer MAP_DETAIL_COLUMN_GRAVITY = 8;
-  public static final Integer MAP_DETAIL_COLUMN_WATER_PERCENT = 9;
 
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -46,7 +45,6 @@ public class MapTool {
       keyvals.put("wind", valueAt(values, MAP_DETAIL_COLUMN_WIND));
       keyvals.put("tidal", valueAt(values, MAP_DETAIL_COLUMN_TIDAL));
       keyvals.put("gravity", valueAt(values, MAP_DETAIL_COLUMN_GRAVITY));
-      keyvals.put("waterPercent", valueAt(values, MAP_DETAIL_COLUMN_WATER_PERCENT));
       mapDetails.add(keyvals);
     }
     return mapDetails;
