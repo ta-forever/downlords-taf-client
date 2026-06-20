@@ -75,6 +75,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -93,7 +94,10 @@ import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_ARCHIVE;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_CRC;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_DESCRIPTION;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_NAME;
+import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_NUM_PLAYERS;
 import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_SIZE;
+import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_TIDAL;
+import static com.faforever.client.fa.MapTool.MAP_DETAIL_COLUMN_WIND;
 import static com.faforever.client.util.LinkOrCopy.linkOrCopyWithBackup;
 import static com.github.nocatch.NoCatch.noCatch;
 import static com.google.common.net.UrlEscapers.urlFragmentEscaper;
@@ -459,6 +463,36 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   static final Pattern MAP_SIZE_FROM_DESCRIPTION_REGEX = Pattern.compile("([0-9]+\\s?[xX]\\s?[0-9]+)[\\s\\.].*");
+
+  private static String mapDetailValue(String[] mapDetails, int index) {
+    return mapDetailValue(mapDetails, index, "");
+  }
+
+  private static String mapDetailValue(String[] mapDetails, int index, String defaultValue) {
+    return mapDetails.length > index ? mapDetails[index] : defaultValue;
+  }
+
+  private static int parseMapDetailInteger(String value, int defaultValue) {
+    if (value == null || value.isBlank()) {
+      return defaultValue;
+    }
+
+    String[] parts = value.split(",");
+    for (int index = parts.length - 1; index >= 0; index--) {
+      String number = parts[index].trim().replaceAll("[^0-9-]", "");
+      if (number.isEmpty()) {
+        continue;
+      }
+
+      try {
+        return Integer.parseInt(number);
+      } catch (NumberFormatException ignored) {
+      }
+    }
+
+    return defaultValue;
+  }
+
   @NotNull
   public MapBean readMap(String mapName, @Nullable String [] mapDetails, @Nullable Function<Void, String> getInstalledMapCrc) {
     MapBean mapBean = new MapBean();
@@ -467,13 +501,19 @@ public class MapService implements InitializingBean, DisposableBean {
     String description = mapName;
     String mapSizeStr = "16 x 16";
     String crc = "00000000";
+    int players = 10;
+    String wind = "";
+    String tidal = "";
 
     try {
       if (mapDetails != null) {
-        archiveName = mapDetails[MAP_DETAIL_COLUMN_ARCHIVE];
-        description = mapDetails[MAP_DETAIL_COLUMN_DESCRIPTION];
-        mapSizeStr = mapDetails[MAP_DETAIL_COLUMN_SIZE];
-        crc = mapDetails[MAP_DETAIL_COLUMN_CRC];
+        archiveName = mapDetailValue(mapDetails, MAP_DETAIL_COLUMN_ARCHIVE, archiveName);
+        description = mapDetailValue(mapDetails, MAP_DETAIL_COLUMN_DESCRIPTION, description);
+        mapSizeStr = mapDetailValue(mapDetails, MAP_DETAIL_COLUMN_SIZE, mapSizeStr);
+        crc = mapDetailValue(mapDetails, MAP_DETAIL_COLUMN_CRC, crc);
+        players = parseMapDetailInteger(mapDetailValue(mapDetails, MAP_DETAIL_COLUMN_NUM_PLAYERS), players);
+        wind = mapDetailValue(mapDetails, MAP_DETAIL_COLUMN_WIND);
+        tidal = mapDetailValue(mapDetails, MAP_DETAIL_COLUMN_TIDAL);
       }
       else {
         logger.warn("null map details for map: {}", mapName);
@@ -495,7 +535,9 @@ public class MapService implements InitializingBean, DisposableBean {
     mapBean.setMapName(mapName);
     mapBean.setDescription(description.replaceAll("[ ][ ]+", "\n"));  // some maps insert spaces into description to move to new line when displayed in TA lobby
     mapBean.setHpiArchiveName(archiveName);
-    mapBean.setPlayers(10);
+    mapBean.setPlayers(players);
+    mapBean.setWind(wind);
+    mapBean.setTidal(tidal);
     mapBean.setType(Type.SKIRMISH);
 
     if (!"00000000".equals(crc)) {
@@ -538,8 +580,54 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   public Optional<MapBean> getMapLocallyFromName(String modTechnical, String mapName) {
-    logger.debug("Trying to find map '{}' locally", mapName);
-    return Optional.ofNullable(installations.getOrDefault(modTechnical, new Installation(modTechnical)).mapsByName.get(mapName));
+    return getMapLocallyFromNameOrArchive(modTechnical, mapName, null);
+  }
+
+  public Optional<MapBean> getMapLocallyFromNameOrArchive(String modTechnical, @Nullable String mapName, @Nullable String archiveName) {
+    logger.debug("Trying to find map '{}' / archive '{}' locally", mapName, archiveName);
+    Installation installation = getInstallation(modTechnical);
+    if (mapName != null) {
+      MapBean map = installation.mapsByName.get(mapName);
+      if (map != null) {
+        return Optional.of(map);
+      }
+    }
+
+    return installation.maps.stream()
+        .filter(installedMap -> isSameMapIdentifier(installedMap.getMapName(), mapName)
+            || isSameMapIdentifier(installedMap.getMapName(), archiveName)
+            || isSameMapIdentifier(installedMap.getHpiArchiveName(), mapName)
+            || isSameMapIdentifier(installedMap.getHpiArchiveName(), archiveName))
+        .findFirst();
+  }
+
+  public Optional<MapBean> getMapLocallyFromMapBean(String modTechnical, MapBean map) {
+    return getMapLocallyFromNameOrArchive(modTechnical, map.getMapName(), map.getHpiArchiveName());
+  }
+
+  private boolean isSameMapIdentifier(@Nullable String left, @Nullable String right) {
+    String normalizedLeft = normalizeMapIdentifier(left);
+    String normalizedRight = normalizeMapIdentifier(right);
+    return normalizedLeft != null && normalizedLeft.equals(normalizedRight);
+  }
+
+  @Nullable
+  private String normalizeMapIdentifier(@Nullable String value) {
+    if (value == null) {
+      return null;
+    }
+
+    String normalized = value.trim();
+    if (normalized.isEmpty()) {
+      return null;
+    }
+
+    String lowerCase = normalized.toLowerCase(Locale.ROOT);
+    if (lowerCase.endsWith(".ufo") || lowerCase.endsWith(".hpi") || lowerCase.endsWith(".ccx")) {
+      normalized = normalized.substring(0, normalized.length() - 4);
+    }
+    normalized = normalized.replaceFirst("(?i)([._ -]v\\d+)$", "");
+    return normalized.toLowerCase(Locale.ROOT);
   }
 
   public boolean isOfficialMap(String mapName) {
@@ -974,10 +1062,22 @@ public class MapService implements InitializingBean, DisposableBean {
   }
 
   public void generatePreview(String modTechnical, String mapName, Path cachedFile, PreviewType previewType, int maxPositions) {
-    if (previewType == PreviewType.MINI && Files.exists(cachedFile)) {
+    if (Files.exists(cachedFile)) {
       return;
     }
 
+    generatePreview(modTechnical, mapName, cachedFile, previewType.getToolName(), maxPositions, false);
+  }
+
+  public void generateOverlayPreview(String modTechnical, String mapName, Path cachedFile, PreviewOverlayType previewOverlayType, int maxPositions) {
+    if (previewOverlayType == null || previewOverlayType == PreviewOverlayType.NONE || Files.exists(cachedFile)) {
+      return;
+    }
+
+    generatePreview(modTechnical, mapName, cachedFile, previewOverlayType.getToolName(), maxPositions, true);
+  }
+
+  private void generatePreview(String modTechnical, String mapName, Path cachedFile, String previewToolName, int maxPositions, boolean overlay) {
     Path gamePath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath();
     if (gamePath == null) {
       gamePath = preferencesService.getTotalAnnihilation(KnownFeaturedMod.DEFAULT.getTechnicalName()).getInstalledPath();
@@ -1008,7 +1108,11 @@ public class MapService implements InitializingBean, DisposableBean {
     }
 
     try {
-      MapTool.generatePreview(gamePath, modGp3FileName, mapName, cachedFile.getParent().getParent(), previewType, maxPositions);
+      if (overlay) {
+        MapTool.generateOverlayPreview(gamePath, modGp3FileName, mapName, cachedFile.getParent().getParent(), PreviewOverlayType.fromToolName(previewToolName), maxPositions);
+      } else {
+        MapTool.generatePreview(gamePath, modGp3FileName, mapName, cachedFile.getParent().getParent(), PreviewType.fromToolName(previewToolName), maxPositions);
+      }
     }
     catch (IOException e) {
       notifyBadMapTool(e);
@@ -1049,11 +1153,35 @@ public class MapService implements InitializingBean, DisposableBean {
     return assetService.loadAndCacheImage(url, cacheDir, null);
   }
 
+  @Nullable
+  public Image loadOverlayPreview(String modTechnical, String mapName, PreviewOverlayType previewOverlayType, int maxPositions) {
+    if (previewOverlayType == null || previewOverlayType == PreviewOverlayType.NONE) {
+      return null;
+    }
+
+    Path cacheDir = preferencesService.getCacheDirectory().resolve("maps").resolve(previewOverlayType.getFolderName(maxPositions));
+    Path cachedFile = cacheDir.resolve(mapName + ".png");
+    generateOverlayPreview(modTechnical, mapName, cachedFile, previewOverlayType, maxPositions);
+    if (!Files.exists(cachedFile)) {
+      return null;
+    }
+
+    return new Image(noCatch(() -> cachedFile.toUri().toURL().toExternalForm()));
+  }
+
   @CacheEvict(value = CacheNames.MAP_PREVIEW, allEntries = true)
   public void resetPreviews(String mapName) {
     for (PreviewType previewType: PreviewType.values()) {
       for (int maxPositions=2; maxPositions<=10; ++maxPositions) {
         resetPreview(getPreviewUrl(mapName, mapPreviewUrlFormat, previewType), previewType, maxPositions);
+      }
+    }
+    for (PreviewOverlayType previewOverlayType : PreviewOverlayType.values()) {
+      if (previewOverlayType == PreviewOverlayType.NONE) {
+        continue;
+      }
+      for (int maxPositions=2; maxPositions<=10; ++maxPositions) {
+        resetOverlayPreview(mapName, previewOverlayType, maxPositions);
       }
     }
   }
@@ -1065,6 +1193,17 @@ public class MapService implements InitializingBean, DisposableBean {
     String cachedFilename = urlString.substring(urlString.lastIndexOf('/') + 1);
     Path cacheSubFolder = Paths.get("maps").resolve(previewType.getFolderName(maxPositions));
     Path cachedFile = preferencesService.getCacheDirectory().resolve(cacheSubFolder).resolve(cachedFilename);
+    try {
+      Files.deleteIfExists(cachedFile);
+    } catch (IOException e) {
+      logger.error("Unable to delete cached preview {}", cachedFile);
+    }
+  }
+
+  private void resetOverlayPreview(String mapName, PreviewOverlayType previewOverlayType, int maxPositions) {
+    Path cachedFile = preferencesService.getCacheDirectory()
+        .resolve(Paths.get("maps").resolve(previewOverlayType.getFolderName(maxPositions)))
+        .resolve(mapName + ".png");
     try {
       Files.deleteIfExists(cachedFile);
     } catch (IOException e) {
@@ -1183,11 +1322,8 @@ public class MapService implements InitializingBean, DisposableBean {
   public enum PreviewType {
     // These must match the preview URLs
     MINI("mini"),
-    POSITIONS("positions"),
-    MEXES("mexes"),
-    GEOS("geos"),
-    ROCKS("rocks"),
-    TREES("trees");
+    HEIGHTMAP("heightmap"),
+    HEIGHTMAP_WATER("heightmap-water");
 
     final private String folderName;
 
@@ -1198,6 +1334,44 @@ public class MapService implements InitializingBean, DisposableBean {
     public String getI18nKey() {
       return switch (this) {
         case MINI -> "map.previewType.minimap";
+        case HEIGHTMAP -> "map.previewType.heightmap";
+        case HEIGHTMAP_WATER -> "map.previewType.heightmapWater";
+      };
+    }
+
+    public String getToolName() {
+      return folderName;
+    }
+
+    public static PreviewType fromToolName(String toolName) {
+      return Arrays.stream(values())
+          .filter(previewType -> previewType.getToolName().equals(toolName))
+          .findFirst()
+          .orElseThrow(() -> new IllegalArgumentException("Unknown preview type: " + toolName));
+    }
+
+    String getFolderName(int maxNumPlayers) {
+      return this.folderName;
+    }
+  }
+
+  public enum PreviewOverlayType {
+    NONE(null),
+    POSITIONS("positions-overlay"),
+    MEXES("mexes-overlay"),
+    GEOS("geos-overlay"),
+    ROCKS("rocks-overlay"),
+    TREES("trees-overlay");
+
+    final private String folderName;
+
+    PreviewOverlayType(String folderName) {
+      this.folderName = folderName;
+    }
+
+    public String getI18nKey() {
+      return switch (this) {
+        case NONE -> "map.previewOverlay.none";
         case POSITIONS -> "map.previewType.Positions";
         case MEXES -> "map.previewType.metalPatches";
         case GEOS -> "map.previewType.geoVents";
@@ -1206,10 +1380,18 @@ public class MapService implements InitializingBean, DisposableBean {
       };
     }
 
+    public String getToolName() {
+      return folderName;
+    }
+
+    public static PreviewOverlayType fromToolName(String toolName) {
+      return Arrays.stream(values())
+          .filter(previewOverlayType -> Objects.equals(previewOverlayType.getToolName(), toolName))
+          .findFirst()
+          .orElseThrow(() -> new IllegalArgumentException("Unknown preview overlay type: " + toolName));
+    }
+
     String getFolderName(int maxNumPlayers) {
-      if (this == PreviewType.MINI) {
-        return this.folderName;
-      }
       return String.format("%s_%s", this.folderName, maxNumPlayers);
     }
   }
