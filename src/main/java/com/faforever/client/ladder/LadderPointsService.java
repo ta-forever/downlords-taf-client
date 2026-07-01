@@ -16,6 +16,13 @@ public interface LadderPointsService {
    * game tooltips) that render whole rosters repeatedly. */
   CompletableFuture<List<SeasonStanding>> getStandingsForPlayerCached(int playerId);
 
+  /** Batched, board-scoped standings for a whole team card: one query for the given players on the
+   * one board (the game's rating type) instead of a per-player fetch, resolving only that exact
+   * board's rank. Returns {@code playerId -> standing} for the players that have a placement there
+   * (players with none are simply absent). Short-TTL cached per (player, board). */
+  CompletableFuture<java.util.Map<Integer, SeasonStanding>> getStandingsForPlayersOnBoard(
+      java.util.Collection<Integer> playerIds, String leaderboardTechnicalName);
+
   /** All started (current + previous) seasons for a board, newest first, for the season picker.
    * Empty when the board has no league or no scheduled season. */
   CompletableFuture<List<SeasonInfo>> getSeasons(String leaderboardTechnicalName);

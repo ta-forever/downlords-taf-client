@@ -5,9 +5,11 @@ import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.galacticwar.GalacticWarService;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.ladder.LadderPointsService;
 import com.faforever.client.leaderboard.LeaderboardRating;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
+import com.faforever.client.preferences.DisplayMetric;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.replay.Replay.PlayerStats;
 import com.faforever.client.rating.RatingService;
@@ -44,23 +46,28 @@ public class TeamCardController implements Controller<Node> {
   private final GalacticWarService galacticWarService;
   private final I18n i18n;
   private final PreferencesService preferencesService;
+  private final LadderPointsService ladderPointsService;
   public Pane teamPaneRoot;
   public VBox teamPane;
   public Label teamNameLabel;
   /** Host's +autoteam pins (player id -> team index 0/1); pinned players get a badge. */
   private Map<Integer, Integer> pinnedTeams = Map.of();
+  /** The game's rating type (leaderboard technical name), so LP-mode player rows show the ladder
+   * rank for this exact board only. Null when the display context has no fixed game format. */
+  private String ratingType;
   /** Replay detail opt-in: when a row has neither a faction/GW icon nor a country flag, show a
    *  neutral "playing" status icon so names don't sit flush-left. Off elsewhere. */
   private boolean showPlayingStatusIconFallback = false;
   /** Per-player rating-change label (legacy MMR delta), revealed by {@link #showRatingChange}. */
   private final Map<Integer, RatingChangeLabelController> ratingChangeControllersByPlayerId = new HashMap<>();
 
-  public TeamCardController(UiService uiService, PlayerService playerService, GalacticWarService galacticWarService, I18n i18n, PreferencesService preferencesService) {
+  public TeamCardController(UiService uiService, PlayerService playerService, GalacticWarService galacticWarService, I18n i18n, PreferencesService preferencesService, LadderPointsService ladderPointsService) {
     this.uiService = uiService;
     this.playerService = playerService;
     this.galacticWarService = galacticWarService;
     this.i18n = i18n;
     this.preferencesService = preferencesService;
+    this.ladderPointsService = ladderPointsService;
   }
 
   /** Replay detail opt-in: fall back to a "playing" status icon on rows that have neither a
@@ -68,6 +75,13 @@ public class TeamCardController implements Controller<Node> {
    *  {@link #setPlayersInTeam}. */
   public void setShowPlayingStatusIconFallback(boolean enabled) {
     this.showPlayingStatusIconFallback = enabled;
+  }
+
+  /** Fix the game's rating type (leaderboard technical name) so LP-mode player rows show the ladder
+   *  rank for this exact board only — never a most-played-elsewhere fallback. Set before
+   *  {@link #setPlayersInTeam}. ({@link #createAndAdd} sets this itself.) */
+  public void setRatingType(String ratingType) {
+    this.ratingType = ratingType;
   }
 
   /**
@@ -105,6 +119,7 @@ public class TeamCardController implements Controller<Node> {
 
       TeamCardController teamCardController = uiService.loadFxml("theme/team_card.fxml");
       teamCardController.pinnedTeams = pinnedTeams != null ? pinnedTeams : Map.of();
+      teamCardController.ratingType = ratingType;
       Function<Player, Image> medalIconProvider = player -> {
         ImageView imv = galacticWarService.getMedalIcon(player.getId(), galacticWarPlanetName);
         if (imv != null) {
@@ -131,6 +146,12 @@ public class TeamCardController implements Controller<Node> {
       Function<Player, Image> playerGwMedalProvider,
       RatingPrecision ratingPrecision, Boolean hidePlayerRatings) {
     int totalRating = 0;
+    // LP (Season Ladder) mode shows a ladder rank per row. Resolve the whole card's ranks in ONE
+    // board-scoped query rather than a per-row fetch: lighter on the server, and the card fills in
+    // one batch instead of ranks trickling in one at a time.
+    boolean lpMode = preferencesService.getPreferences().getDisplayMetric() != DisplayMetric.RATINGS;
+    boolean batchRanks = lpMode && ratingType != null && !Boolean.TRUE.equals(hidePlayerRatings);
+    Map<Integer, PlayerCardTooltipController> cardsByPlayerId = new HashMap<>();
     for (Player player : playerList) {
       // If the server wasn't bugged, this would never be the case.
       if (player == null) {
@@ -153,7 +174,13 @@ public class TeamCardController implements Controller<Node> {
       if (playerGwMedalProvider != null) {
         gwMedalIcon = playerGwMedalProvider.apply(player);
       }
+      // Fix the LP-mode ladder rank to this game's board, so a player without a placement in this
+      // exact format shows no rank rather than a most-played-elsewhere fallback.
+      playerCardTooltipController.setLeaderboardContext(ratingType);
+      // When batching, the row waits for the shared lookup below instead of self-fetching.
+      playerCardTooltipController.setDeferRankToContainer(batchRanks);
       playerCardTooltipController.setPlayer(player, hidePlayerRatings ? null : playerRating, faction, gwMedalIcon);
+      cardsByPlayerId.put(player.getId(), playerCardTooltipController);
       // Team cards hide friend/foe status by default; users can opt back in via a setting.
       if (!preferencesService.getPreferences().isShowFriendFoeInTeamCards()) {
         playerCardTooltipController.hideSocialStatusIcons();
@@ -182,6 +209,18 @@ public class TeamCardController implements Controller<Node> {
       HBox container = new HBox(playerCardTooltipController.getRoot(), ratingChangeLabelController.getRoot());
       container.setAlignment(Pos.CENTER_LEFT);
       teamPane.getChildren().add(container);
+    }
+
+    // One board-scoped query for the whole card's ranks, pushed back to each row on the FX thread.
+    if (batchRanks && !cardsByPlayerId.isEmpty()) {
+      ladderPointsService.getStandingsForPlayersOnBoard(cardsByPlayerId.keySet(), ratingType)
+          .thenAccept(standingsByPlayerId -> JavaFxUtil.runLater(() ->
+              standingsByPlayerId.forEach((playerId, standing) -> {
+                PlayerCardTooltipController card = cardsByPlayerId.get(playerId);
+                if (card != null) {
+                  card.applyLadderRank(standing.getRank());
+                }
+              })));
     }
 
     String teamTitle;

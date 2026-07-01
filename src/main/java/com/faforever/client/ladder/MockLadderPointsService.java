@@ -25,6 +25,12 @@ public class MockLadderPointsService implements LadderPointsService {
   }
 
   @Override
+  public CompletableFuture<java.util.Map<Integer, SeasonStanding>> getStandingsForPlayersOnBoard(
+      java.util.Collection<Integer> playerIds, String leaderboardTechnicalName) {
+    return CompletableFuture.completedFuture(java.util.Map.of());
+  }
+
+  @Override
   public CompletableFuture<List<SeasonInfo>> getSeasons(String leaderboardTechnicalName) {
     return CompletableFuture.completedFuture(List.of());
   }

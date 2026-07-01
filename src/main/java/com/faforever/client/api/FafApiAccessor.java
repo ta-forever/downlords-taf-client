@@ -92,6 +92,11 @@ public interface FafApiAccessor {
   /** A player's cumulative LP standings this player has on any board (current + past seasons). */
   List<LadderPoints> getLadderPointsForPlayer(int playerId);
 
+  /** LP rows for a set of players on one league only (all seasons they hold points in), for the
+   * batched team-card rank lookup — one request for a whole roster instead of a per-player fetch,
+   * scoped to the game's board. Includes player/league/leaderboard/season. */
+  List<LadderPoints> getLadderPointsForPlayersOnLeague(java.util.Collection<Integer> playerIds, int leagueId);
+
   /** Top-N season standings for a board's league + season, ordered by score desc. */
   Tuple<List<LadderPoints>, java.util.Map<String, ?>> getLadderPointsWithMeta(int leagueId, int seasonId, int count, int page);
 

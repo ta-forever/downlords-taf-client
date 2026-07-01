@@ -47,6 +47,17 @@ public class LadderPointsServiceImpl implements LadderPointsService {
 
   private record CachedStandings(List<SeasonStanding> standings, long expiresAt) {}
 
+  /** Board-scoped standings cache ((player, league) -> standing) for the batched team-card lookup;
+   * caches the "no placement" result too, so a player without a rank on the board isn't re-queried
+   * per render. */
+  private final java.util.Map<String, CachedBoardStanding> boardStandingCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+  private record CachedBoardStanding(Optional<SeasonStanding> standing, long expiresAt) {}
+
+  private static String boardCacheKey(int playerId, int leagueId) {
+    return playerId + ":" + leagueId;
+  }
+
   @Override
   public CompletableFuture<List<SeasonStanding>> getStandingsForPlayer(int playerId) {
     return CompletableFuture.supplyAsync(() -> fafApiAccessor.getLadderPointsForPlayer(playerId).stream()
@@ -66,6 +77,66 @@ public class LadderPointsServiceImpl implements LadderPointsService {
           new CachedStandings(standings, System.currentTimeMillis() + STANDINGS_TTL_MILLIS));
       return standings;
     });
+  }
+
+  @Override
+  public CompletableFuture<java.util.Map<Integer, SeasonStanding>> getStandingsForPlayersOnBoard(
+      java.util.Collection<Integer> playerIds, String leaderboardTechnicalName) {
+    if (playerIds == null || playerIds.isEmpty() || leaderboardTechnicalName == null) {
+      return CompletableFuture.completedFuture(java.util.Map.of());
+    }
+    return CompletableFuture.supplyAsync(() -> {
+      Optional<Integer> leagueIdOpt = leagueIdFor(leaderboardTechnicalName);
+      if (leagueIdOpt.isEmpty()) {
+        return java.util.Map.<Integer, SeasonStanding>of();
+      }
+      int leagueId = leagueIdOpt.get();
+      long now = System.currentTimeMillis();
+      java.util.Map<Integer, SeasonStanding> result = new HashMap<>();
+      List<Integer> missing = new java.util.ArrayList<>();
+      for (Integer id : playerIds) {
+        CachedBoardStanding cached = boardStandingCache.get(boardCacheKey(id, leagueId));
+        if (cached != null && cached.expiresAt() > now) {
+          cached.standing().ifPresent(s -> result.put(id, s));
+        } else {
+          missing.add(id);
+        }
+      }
+      if (missing.isEmpty()) {
+        return result;
+      }
+      // One batched request for the whole roster's rows on this board; keep the latest season each
+      // player holds points in (their current standing).
+      java.util.Map<Integer, LadderPoints> latestByPlayer = new HashMap<>();
+      for (LadderPoints lp : fafApiAccessor.getLadderPointsForPlayersOnLeague(missing, leagueId)) {
+        if (lp.getPlayer() == null || lp.getSeason() == null) {
+          continue;
+        }
+        int pid = Integer.parseInt(lp.getPlayer().getId());
+        LadderPoints prev = latestByPlayer.get(pid);
+        if (prev == null
+            || Integer.parseInt(lp.getSeason().getId()) > Integer.parseInt(prev.getSeason().getId())) {
+          latestByPlayer.put(pid, lp);
+        }
+      }
+      // Resolve the within-board rank once per distinct (season, score) — ties share the count query.
+      java.util.Map<String, Integer> rankByScore = new HashMap<>();
+      for (Integer id : missing) {
+        LadderPoints lp = latestByPlayer.get(id);
+        Optional<SeasonStanding> standing = Optional.empty();
+        if (lp != null) {
+          int seasonId = Integer.parseInt(lp.getSeason().getId());
+          int rank = rankByScore.computeIfAbsent(seasonId + ":" + lp.getScore(),
+              k -> fafApiAccessor.getLadderRank(leagueId, seasonId, lp.getScore()));
+          SeasonStanding s = standing(lp, leaderboardTechnicalName, leagueId, seasonId, rank);
+          standing = Optional.of(s);
+          result.put(id, s);
+        }
+        boardStandingCache.put(boardCacheKey(id, leagueId),
+            new CachedBoardStanding(standing, now + STANDINGS_TTL_MILLIS));
+      }
+      return result;
+    }, executorService);
   }
 
   @Override

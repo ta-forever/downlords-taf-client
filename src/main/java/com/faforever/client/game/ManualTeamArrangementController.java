@@ -368,6 +368,7 @@ public class ManualTeamArrangementController implements Controller<VBox> {
 
   private Node buildRow(Player player) {
     PlayerCardTooltipController card = uiService.loadFxml("theme/player_card_tooltip.fxml");
+    card.setLeaderboardContext(ratingType);
     card.setPlayer(player, ratingOf(player), null, null);
     Node nameNode = card.getRoot();
     HBox.setHgrow(nameNode, Priority.ALWAYS);

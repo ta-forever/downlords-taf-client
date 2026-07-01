@@ -50,11 +50,44 @@ public class PlayerCardTooltipController implements Controller<Node> {
   public StackPane factionIconContainer;
   public Region factionIcon;
   public ImageView factionImage;
+  /** When set, the display context fixes the game format: the LP-mode ladder rank is resolved for
+   * this exact board only (blank if the player has no placement there), instead of a most-played
+   * fallback across boards. Null = context-free (inline badge), which does fall back. */
+  private String leaderboardTechnicalName;
+  /** When true, the container (e.g. the team card) resolves the ladder rank in one batched lookup
+   * and pushes it via {@link #applyLadderRank}, so this row doesn't fire its own per-player query. */
+  private boolean deferRankToContainer;
+  /** Whether this row would show an LP-mode ladder rank (LP mode + a visible rating). Gates both the
+   * self-fetch and the container-pushed {@link #applyLadderRank}. */
+  private boolean rankShown;
+  private Player player;
+
+  /** Fix the ladder-rank board to the current game's rating type. Call before {@link #setPlayer}. */
+  public void setLeaderboardContext(String leaderboardTechnicalName) {
+    this.leaderboardTechnicalName = leaderboardTechnicalName;
+  }
+
+  /** Let the container supply the LP-mode ladder rank from a batched lookup (one query per team
+   * card) instead of this row self-fetching it. Call before {@link #setPlayer}, then push the
+   * resolved rank with {@link #applyLadderRank}. */
+  public void setDeferRankToContainer(boolean deferRankToContainer) {
+    this.deferRankToContainer = deferRankToContainer;
+  }
+
+  /** Container-driven ladder rank from a batched lookup. No-op unless this row shows a rank and the
+   * player has a placement (rank &gt; 0) — otherwise the bare name stands. */
+  public void applyLadderRank(int rank) {
+    if (!rankShown || rank <= 0 || player == null) {
+      return;
+    }
+    playerInfo.setText(i18n.get("userInfo.tooltipFormat.withRank", player.getUsername(), rank));
+  }
 
   public void setPlayer(Player player, Integer rating, Faction faction, Image gwMedalIcon) {
     if (player == null) {
       return;
     }
+    this.player = player;
     countryFlagService.loadCountryFlag(player.getCountry()).ifPresent(image -> countryImageView.setImage(image));
     if (gwMedalIcon != null) {
       factionImage.setImage(gwMedalIcon);
@@ -80,17 +113,25 @@ public class PlayerCardTooltipController implements Controller<Node> {
 
     // Only show a ladder rank where a rating would also be shown — i.e. not on the hidden global
     // "just for fun" board (rating == null means ratings are hidden for this board).
-    if (lpMode && rating != null) {
+    rankShown = lpMode && rating != null;
+    // When a container batches the whole card's ranks in one query it pushes ours via
+    // applyLadderRank; otherwise (a standalone card) fall back to self-fetching this one row.
+    if (rankShown && !deferRankToContainer) {
       loadRankLabel(player);
     }
   }
 
-  /** LP mode: resolve the player's most-played-this-season ladder rank and show it in place of the
-   * rating. Cold start (no standings / unranked) leaves the bare name — never a fabricated standing. */
+  /** LP mode: resolve the player's ladder rank and show it in place of the rating. When a game
+   * format is fixed ({@link #setLeaderboardContext}, e.g. the game-lobby team cards) the rank is
+   * for that exact board only — no most-played fallback, so a player with no placement on this
+   * board is left as the bare name. Cold start (no standings / unranked) also leaves the bare name
+   * — never a fabricated standing. */
   private void loadRankLabel(Player player) {
     ladderPointsService.getStandingsForPlayerCached(player.getId())
         .thenAccept(standings -> {
-          SeasonStanding standing = LadderUiUtil.mostPlayed(standings);
+          SeasonStanding standing = leaderboardTechnicalName != null
+              ? LadderUiUtil.forBoard(standings, leaderboardTechnicalName)
+              : LadderUiUtil.mostPlayed(standings);
           if (standing == null || standing.getRank() <= 0) {
             return;
           }

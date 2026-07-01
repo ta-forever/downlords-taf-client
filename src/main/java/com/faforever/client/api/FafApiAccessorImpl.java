@@ -344,6 +344,17 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   }
 
   @Override
+  public List<LadderPoints> getLadderPointsForPlayersOnLeague(Collection<Integer> playerIds, int leagueId) {
+    if (playerIds.isEmpty()) {
+      return List.of();
+    }
+    List<String> ids = playerIds.stream().map(String::valueOf).collect(Collectors.toList());
+    return getAll(LADDER_POINTS_ENDPOINT, java.util.Map.of(
+        FILTER, rsql(qBuilder().intNum("league.id").eq(leagueId).and().string("player.id").in(ids)),
+        INCLUDE, LADDER_POINTS_INCLUDES));
+  }
+
+  @Override
   public Tuple<List<LadderPoints>, java.util.Map<String, ?>> getLadderPointsWithMeta(int leagueId, int seasonId, int count, int page) {
     JSONAPIDocument<List<LadderPoints>> jsonApiDoc = getPageWithMeta(LADDER_POINTS_ENDPOINT, count, page, ImmutableMap.of(
         FILTER, rsql(qBuilder().intNum("league.id").eq(leagueId).and().intNum("season.id").eq(seasonId)),

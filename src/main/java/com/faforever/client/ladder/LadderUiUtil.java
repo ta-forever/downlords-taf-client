@@ -99,4 +99,17 @@ public final class LadderUiUtil {
   public static SeasonStanding mostPlayed(List<SeasonStanding> standings) {
     return standings.stream().max(java.util.Comparator.comparingInt(SeasonStanding::getGames)).orElse(null);
   }
+
+  /** The player's standing on one specific board (by leaderboard technical name), or null if they
+   * have none there. Used where the display context fixes the game format — e.g. the game-lobby
+   * team cards — so the rank shown is for that exact board, never a most-played fallback (§13.5). */
+  public static SeasonStanding forBoard(List<SeasonStanding> standings, String leaderboardTechnicalName) {
+    if (leaderboardTechnicalName == null) {
+      return null;
+    }
+    return standings.stream()
+        .filter(s -> leaderboardTechnicalName.equals(s.getLeaderboardTechnicalName()))
+        .findFirst()
+        .orElse(null);
+  }
 }

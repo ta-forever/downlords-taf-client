@@ -2,6 +2,7 @@ package com.faforever.client.game;
 
 import com.faforever.client.galacticwar.GalacticWarService;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.ladder.LadderPointsService;
 import com.faforever.client.leaderboard.LeaderboardRating;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
@@ -46,6 +47,8 @@ public class TeamCardControllerTest extends AbstractPlainJavaFxTest {
   private PreferencesService preferencesService;
   @Mock
   private Preferences preferences;
+  @Mock
+  private LadderPointsService ladderPointsService;
   // Not @Mock: creating these mocks triggers static class initialization (PlayerCardTooltipController
   // builds a static Image), which needs the JavaFX toolkit. @Mock fields are created before the
   // TestFX @Before that starts the toolkit, so we instantiate them in setUp() instead.
@@ -60,7 +63,7 @@ public class TeamCardControllerTest extends AbstractPlainJavaFxTest {
   public void setUp() throws IOException {
     playerCardTooltipController = mock(PlayerCardTooltipController.class);
     ratingChangeLabelController = mock(RatingChangeLabelController.class);
-    instance = new TeamCardController(uiService, playerService, galacticWarService, i18n, preferencesService);
+    instance = new TeamCardController(uiService, playerService, galacticWarService, i18n, preferencesService, ladderPointsService);
     when(preferencesService.getPreferences()).thenReturn(preferences);
     playerList = new ArrayList<>();
     playerList.add(player);

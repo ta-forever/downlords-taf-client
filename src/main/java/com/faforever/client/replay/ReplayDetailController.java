@@ -13,6 +13,7 @@ import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.game.RatingPrecision;
 import com.faforever.client.game.TeamCardController;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.leaderboard.LeaderboardRating;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
@@ -73,6 +74,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -440,6 +442,15 @@ public class ReplayDetailController implements Controller<Node> {
       // Replay rosters often have no faction/GW icon and no country flag; fall back to a "playing"
       // status icon so the leading-icon column stays aligned instead of names sitting flush-left.
       controller.setShowPlayingStatusIconFallback(true);
+      // Fix the LP-mode ladder rank to this game's board (all players share it), so a player with no
+      // placement on it shows no rank rather than a most-played-elsewhere fallback — otherwise two
+      // players' #1 ranks from different boards can both surface on the one card.
+      statsByPlayerId.values().stream()
+          .map(PlayerStats::getLeaderboard)
+          .filter(Objects::nonNull)
+          .map(Leaderboard::getTechnicalName)
+          .findFirst()
+          .ifPresent(controller::setRatingType);
       teamCardControllers.add(controller);
 
       Function<Player, LeaderboardRating> playerRatingFunction = player -> getPlayerLeaderboardRating(player, statsByPlayerId);
