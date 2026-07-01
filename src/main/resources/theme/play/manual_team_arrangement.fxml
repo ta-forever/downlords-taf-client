@@ -17,7 +17,10 @@
     <padding>
         <Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/>
     </padding>
-    <Label fx:id="hintLabel" wrapText="true" styleClass="manual-team-hint" maxWidth="1.7976931348623157E308"/>
+    <HBox spacing="10.0" alignment="CENTER_LEFT">
+        <Label fx:id="hintLabel" wrapText="true" styleClass="manual-team-hint" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS"/>
+        <fx:include source="../display_metric_toggle.fxml"/>
+    </HBox>
     <HBox spacing="10.0" VBox.vgrow="ALWAYS">
         <VBox fx:id="team0Pane" spacing="4.0" HBox.hgrow="ALWAYS" styleClass="card,manual-team-card">
             <padding>

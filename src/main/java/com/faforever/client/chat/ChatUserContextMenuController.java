@@ -50,6 +50,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.net.URL;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -76,6 +77,7 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
   private final ModeratorService moderatorService;
   private final TeamMatchmakingService teamMatchmakingService;
   private final GameService gameService;
+  private final com.faforever.client.ladder.LadderPointsService ladderPointsService;
   public MenuItem reserveSlotItem;
   public ComboBox<AvatarBean> avatarComboBox;
   public CustomMenuItem avatarPickerMenuItem;
@@ -110,7 +112,8 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
                                        NotificationService notificationService, I18n i18n, EventBus eventBus,
                                        JoinGameHelper joinGameHelper, AvatarService avatarService, UiService uiService,
                                        ModeratorService moderatorService, TeamMatchmakingService teamMatchmakingService,
-                                       GameService gameService) {
+                                       GameService gameService,
+                                       com.faforever.client.ladder.LadderPointsService ladderPointsService) {
     this.preferencesService = preferencesService;
     this.playerService = playerService;
     this.replayService = replayService;
@@ -123,6 +126,7 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
     this.moderatorService = moderatorService;
     this.teamMatchmakingService = teamMatchmakingService;
     this.gameService = gameService;
+    this.ladderPointsService = ladderPointsService;
   }
 
   public void initialize() {
@@ -138,6 +142,20 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
     return new StringListCell<>(
         AvatarBean::getDescription,
         avatarBean -> {
+          if (avatarBean.getMedalCode() != null) {
+            ImageView medalView = new ImageView(uiService.getThemeImage(
+                com.faforever.client.ladder.LadderUiUtil.medalIconPath(avatarBean.getMedalCode())));
+            // Square medal art scaled 1:1 to fit within a 120x60 box (-> ~60x60), then centred in a
+            // reserved 120x60 slot so medal rows line up like a regular (120x60) avatar.
+            medalView.setPreserveRatio(true);
+            medalView.setFitWidth(120);
+            medalView.setFitHeight(60);
+            javafx.scene.layout.StackPane slot = new javafx.scene.layout.StackPane(medalView);
+            slot.setMinSize(120, 60);
+            slot.setPrefSize(120, 60);
+            slot.setMaxSize(120, 60);
+            return slot;
+          }
           URL url = avatarBean.getUrl();
           if (url == null) {
             return null;
@@ -259,26 +277,54 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
   }
 
   private void loadAvailableAvatars(Player player) {
-    avatarService.getAvailableAvatars().thenAccept(avatars -> {
+    // The picker offers the regular server avatars AND the player's own medals (CL-7), so a medal
+    // can be chosen as the avatar seamlessly alongside avatars.
+    avatarService.getAvailableAvatars()
+        .thenCombine(ladderPointsService.getEarnedMedals(player.getId()),
+            java.util.AbstractMap.SimpleImmutableEntry::new)
+        .thenCombine(ladderPointsService.getFeaturedMedal(player.getId()), (avatarsAndMedals, featured) -> {
+      List<AvatarBean> avatars = avatarsAndMedals.getKey();
+      List<com.faforever.client.ladder.FeaturedMedalDisplay> medals = avatarsAndMedals.getValue();
+
       ObservableList<AvatarBean> items = FXCollections.observableArrayList(avatars);
       items.add(0, new AvatarBean(null, i18n.get("chat.userContext.noAvatar")));
+      for (com.faforever.client.ladder.FeaturedMedalDisplay medal : medals) {
+        items.add(new AvatarBean(null,
+            com.faforever.client.ladder.LadderUiUtil.medalAvatarTooltip(i18n, medal.getCode(), medal.getCount()),
+            medal.getCode()));
+      }
 
       String currentAvatarUrl = player.getAvatarUrl();
       JavaFxUtil.runLater(() -> {
         avatarComboBox.getItems().setAll(items);
-        avatarComboBox.getSelectionModel().select(items.stream()
-            .filter(avatarBean -> Objects.equals(Objects.toString(avatarBean.getUrl(), null), currentAvatarUrl))
-            .findFirst()
-            .orElse(null));
+        // Preselect the current choice: the featured medal if one is set, else the current avatar.
+        AvatarBean selected = featured
+            .flatMap(code -> items.stream().filter(b -> code.equals(b.getMedalCode())).findFirst())
+            .orElseGet(() -> items.stream()
+                .filter(b -> b.getMedalCode() == null
+                    && Objects.equals(Objects.toString(b.getUrl(), null), currentAvatarUrl))
+                .findFirst().orElse(null));
+        avatarComboBox.getSelectionModel().select(selected);
 
-        // Only after the box has been populated and we selected the current value, we add the listener.
-        // Otherwise the code above already triggers a changeAvatar()
+        // Add the listener only after the initial selection so it doesn't fire a spurious change.
         avatarComboBox.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-          player.setAvatarTooltip(newValue == null ? null : newValue.getDescription());
-          player.setAvatarUrl(newValue == null ? null : Objects.toString(newValue.getUrl(), null));
-          avatarService.changeAvatar(newValue);
+          if (newValue != null && newValue.getMedalCode() != null) {
+            // A medal occupies the avatar slot (overrides the regular avatar) via the featured medal.
+            ladderPointsService.setFeaturedMedal(player.getId(), newValue.getMedalCode())
+                .thenRun(() -> eventBus.post(
+                    new com.faforever.client.ladder.FeaturedMedalChangedEvent(player.getId())));
+          } else {
+            // A regular avatar (or "no avatar") clears any medal-as-avatar so the avatar shows.
+            ladderPointsService.setFeaturedMedal(player.getId(), null)
+                .thenRun(() -> eventBus.post(
+                    new com.faforever.client.ladder.FeaturedMedalChangedEvent(player.getId())));
+            player.setAvatarTooltip(newValue == null ? null : newValue.getDescription());
+            player.setAvatarUrl(newValue == null ? null : Objects.toString(newValue.getUrl(), null));
+            avatarService.changeAvatar(newValue);
+          }
         });
       });
+      return null;
     });
   }
 

@@ -2,9 +2,15 @@ package com.faforever.client.game;
 
 import com.faforever.client.chat.CountryFlagService;
 import com.faforever.client.fx.Controller;
+import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.ladder.LadderPointsService;
+import com.faforever.client.ladder.LadderUiUtil;
+import com.faforever.client.ladder.SeasonStanding;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.SocialStatus;
+import com.faforever.client.preferences.DisplayMetric;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.theme.UiService;
 import com.google.common.annotations.VisibleForTesting;
 import javafx.beans.binding.Bindings;
@@ -15,7 +21,9 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -24,17 +32,22 @@ import org.springframework.stereotype.Component;
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 @RequiredArgsConstructor
+@Slf4j
 public class PlayerCardTooltipController implements Controller<Node> {
 
   @VisibleForTesting
   static final Image RANDOM_IMAGE = new Image("/images/factions/random.png");
   private final CountryFlagService countryFlagService;
   private final I18n i18n;
+  private final PreferencesService preferencesService;
+  private final LadderPointsService ladderPointsService;
+  private final UiService uiService;
   public Label playerInfo;
   public ImageView countryImageView;
   public Label foeIconText;
   public HBox root;
   public Label friendIconText;
+  public StackPane factionIconContainer;
   public Region factionIcon;
   public ImageView factionImage;
 
@@ -49,22 +62,62 @@ public class PlayerCardTooltipController implements Controller<Node> {
       factionIcon.setVisible(true);
     }
 
+    // The displayMetric pref swaps the per-player gauge (LADDER_POINTS_DESIGN §13.3): Season Ladder
+    // shows the player's ladder rank (most-played board, §13.5), Skill Rating shows the rating number.
+    boolean lpMode = preferencesService.getPreferences().getDisplayMetric() != DisplayMetric.RATINGS;
     String playerInfoLocalized;
-    if (rating != null) {
+    if (!lpMode && rating != null) {
       playerInfoLocalized = i18n.get("userInfo.tooltipFormat.withRating", player.getUsername(), rating);
     } else {
+      // LP mode renders the rating as a division (filled in async); show the bare name meanwhile so
+      // the skill rating never flashes (and is never shown at all in LP mode).
       playerInfoLocalized = i18n.get("userInfo.tooltipFormat.noRating", player.getUsername());
     }
     //setFactionIcon(faction);
     playerInfo.setText(playerInfoLocalized);
     foeIconText.visibleProperty().bind(Bindings.createBooleanBinding(() -> player.getSocialStatus() == SocialStatus.FOE, player.socialStatusProperty()));
     friendIconText.visibleProperty().bind(Bindings.createBooleanBinding(() -> player.getSocialStatus() == SocialStatus.FRIEND, player.socialStatusProperty()));
+
+    // Only show a ladder rank where a rating would also be shown — i.e. not on the hidden global
+    // "just for fun" board (rating == null means ratings are hidden for this board).
+    if (lpMode && rating != null) {
+      loadRankLabel(player);
+    }
+  }
+
+  /** LP mode: resolve the player's most-played-this-season ladder rank and show it in place of the
+   * rating. Cold start (no standings / unranked) leaves the bare name — never a fabricated standing. */
+  private void loadRankLabel(Player player) {
+    ladderPointsService.getStandingsForPlayerCached(player.getId())
+        .thenAccept(standings -> {
+          SeasonStanding standing = LadderUiUtil.mostPlayed(standings);
+          if (standing == null || standing.getRank() <= 0) {
+            return;
+          }
+          String text = i18n.get("userInfo.tooltipFormat.withRank", player.getUsername(), standing.getRank());
+          JavaFxUtil.runLater(() -> playerInfo.setText(text));
+        })
+        .exceptionally(throwable -> {
+          log.warn("Could not resolve ladder rank for player {}", player.getId(), throwable);
+          return null;
+        });
   }
 
   /** Replace the country flag (the player-name label's leading graphic) with
    *  another node, e.g. a +autoteam pin badge, to save horizontal space. */
   public void replaceCountryFlag(Node graphic) {
     playerInfo.setGraphic(graphic);
+  }
+
+  /** Fallback leading icon for team-card rows that have neither a faction/GW icon nor a country flag
+   *  (e.g. non-GW replay detail): without one the name sits flush-left and the column looks ragged.
+   *  Drop a neutral "playing" status icon into the faction slot (reusing its 16px sizing) so every
+   *  row has a consistent leading graphic. Call after {@link #setPlayer}. No-op if either slot is set. */
+  public void showPlayingStatusIconIfNoIcons() {
+    if (countryImageView.getImage() == null && !factionIconContainer.isVisible()) {
+      factionImage.setImage(uiService.getThemeImage(UiService.CHAT_LIST_STATUS_PLAYING));
+      factionImage.setVisible(true);
+    }
   }
 
   /** Hide the friend/foe status icons (used in the team cards, which shouldn't
@@ -85,6 +138,10 @@ public class PlayerCardTooltipController implements Controller<Node> {
   public void initialize() {
     factionImage.managedProperty().bind(factionImage.visibleProperty());
     factionIcon.managedProperty().bind(factionIcon.visibleProperty());
+    // Faction icons are rarely shown in team cards (only GW rank icons for GW games). Collapse the
+    // 24px container (unmanaged + invisible) whenever neither icon is in use, freeing horizontal space.
+    factionIconContainer.visibleProperty().bind(factionImage.visibleProperty().or(factionIcon.visibleProperty()));
+    factionIconContainer.managedProperty().bind(factionIconContainer.visibleProperty());
     foeIconText.managedProperty().bind(foeIconText.visibleProperty());
     foeIconText.setTooltip(new Tooltip(i18n.get("userInfo.foe")));
     friendIconText.managedProperty().bind(friendIconText.visibleProperty());

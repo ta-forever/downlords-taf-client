@@ -13,6 +13,8 @@
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.control.ToggleGroup?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
@@ -27,18 +29,22 @@
    <children>
       <HBox alignment="CENTER_LEFT" spacing="20.0" styleClass="user-info-header-area">
          <children>
+          <ImageView fx:id="featuredMedalImageView" fitWidth="40.0" fitHeight="40.0" pickOnBounds="true"
+                     preserveRatio="true" visible="false" managed="false" styleClass="featured-medal"/>
           <Label fx:id="usernameLabel" maxWidth="1.7976931348623157E308" styleClass="h1" text="&lt;Username&gt;" />
             <Label fx:id="countryLabel" text="&lt;Country&gt;">
             <graphic>
                 <ImageView fx:id="countryImageView" pickOnBounds="true" preserveRatio="true" />
             </graphic>
           </Label>
+          <Region HBox.hgrow="ALWAYS" maxWidth="1.7976931348623157E308"/>
+          <fx:include source="display_metric_toggle.fxml"/>
          </children>
          <padding>
             <Insets left="10.0" right="10.0" top="10.0" />
          </padding>
       </HBox>
-      <TabPane tabClosingPolicy="UNAVAILABLE">
+      <TabPane fx:id="tabPane" tabClosingPolicy="UNAVAILABLE">
       <tabs>
         <Tab text="%userInfo.general">
           <content>
@@ -85,13 +91,6 @@
                                 <Label fx:id="ratingsValues" textAlignment="CENTER" maxWidth="1.7976931348623157E308"
                                        styleClass="h2" text="&lt;rating values&gt;" GridPane.rowIndex="1"/>
                             </HBox>
-                            <VBox fx:id="tournamentMedalsCard" styleClass="card"
-                                  GridPane.columnSpan="2147483647" GridPane.rowIndex="1"
-                                  visible="false" managed="false">
-                                <padding><Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/></padding>
-                                <Label text="%userInfo.tournamentMedals" styleClass="h2"/>
-                                <VBox fx:id="tournamentMedalsContent" spacing="4"/>
-                            </VBox>
                             <VBox styleClass="card" GridPane.columnSpan="2147483647" GridPane.rowIndex="2">
                                 <padding>
                                     <Insets right="15.0"/>
@@ -224,6 +223,24 @@
                                       <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
                                   </columnResizePolicy>
                               </TableView>
+                              <!-- Season Ladder mode: same columns but season-scoped, Rating -> Ladder Points. -->
+                              <TableView fx:id="seasonStatsTable" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
+                                         minHeight="0.0" minWidth="0.0" VBox.vgrow="ALWAYS" visible="false" managed="false">
+                                  <columns>
+                                      <TableColumn fx:id="seasonStatsBoardColumn" text="%leaderboard.displayName"/>
+                                      <TableColumn fx:id="seasonStatsRankColumn" text="%leaderboard.column.rank"/>
+                                      <TableColumn fx:id="seasonStatsPointsColumn" text="%leaderboard.column.lp"/>
+                                      <TableColumn fx:id="seasonStatsGamesColumn" text="%leaderboard.column.numberOfGames"/>
+                                      <TableColumn fx:id="seasonStatsWinRateColumn" text="%leaderboard.column.winRate"/>
+                                      <TableColumn fx:id="seasonStatsWdlColumn" text="%leaderboard.column.winDrawLoss"/>
+                                      <TableColumn fx:id="seasonStatsWdl10Column" text="%leaderboard.column.winDrawLoss10"/>
+                                      <TableColumn fx:id="seasonStatsStreakColumn" text="%leaderboard.column.streak"/>
+                                      <TableColumn fx:id="seasonStatsBestStreakColumn" text="%leaderboard.column.recordStreak"/>
+                                  </columns>
+                                  <columnResizePolicy>
+                                      <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                                  </columnResizePolicy>
+                              </TableView>
                           </children>
                           <padding>
                               <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
@@ -242,7 +259,30 @@
           </graphic>
         </Tab>
 
-
+        <Tab fx:id="medalCabinetTab" closable="false" text="%userInfo.medalCabinet">
+          <content>
+            <ScrollPane fitToWidth="true">
+              <content>
+                <VBox>
+                  <children>
+                    <VBox fx:id="ladderMedalCabinetCard" styleClass="card,medal-cabinet-card"
+                          visible="false" managed="false">
+                        <padding><Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/></padding>
+                        <Label text="%userInfo.medalCabinet" styleClass="h2"/>
+                        <VBox fx:id="ladderMedalCabinet" styleClass="medal-cabinet" spacing="8.0"/>
+                    </VBox>
+                  </children>
+                  <padding>
+                      <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                  </padding>
+                </VBox>
+              </content>
+            </ScrollPane>
+          </content>
+          <graphic>
+              <Region styleClass="icon,star-icon" />
+          </graphic>
+        </Tab>
 
           <Tab closable="false" text="%userInfo.achievements">
               <content>

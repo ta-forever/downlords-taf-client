@@ -162,6 +162,8 @@ public class SettingsController implements Controller<Node> {
   public CheckBox tournamentMatchReadyCheckBox;
   public CheckBox tournamentResultsCheckBox;
   public CheckBox tournamentAnnouncementsCheckBox;
+  public CheckBox ladderPassToastCheckBox;
+  public CheckBox battleReportCheckBox;
   public Region settingsRoot;
   public ComboBox<Theme> themeComboBox;
   public ToggleGroup toastPositionToggleGroup;
@@ -203,6 +205,7 @@ public class SettingsController implements Controller<Node> {
 
   private final InvalidationListener availableLanguagesListener;
   public CheckBox colorBlindFriendlyToggle;
+  public CheckBox showFriendFoeInTeamCardsToggle;
 
   private ChangeListener<Theme> selectedThemeChangeListener;
   private ChangeListener<Theme> currentThemeChangeListener;
@@ -371,6 +374,8 @@ public class SettingsController implements Controller<Node> {
     tournamentMatchReadyCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().tournamentMatchReadyEnabledProperty());
     tournamentResultsCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().tournamentResultsEnabledProperty());
     tournamentAnnouncementsCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().tournamentAnnouncementsEnabledProperty());
+    ladderPassToastCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().ladderPassToastEnabledProperty());
+    battleReportCheckBox.selectedProperty().bindBidirectional(preferences.getNotification().battleReportEnabledProperty());
 
     notifyOnAtMentionOnlyToggle.selectedProperty().bindBidirectional(preferences.getNotification().notifyOnAtMentionOnlyEnabledProperty());
     enableSoundsToggle.selectedProperty().bindBidirectional(preferences.getNotification().soundsEnabledProperty());
@@ -401,6 +406,7 @@ public class SettingsController implements Controller<Node> {
     enableAutoJoinToggle.selectedProperty().bindBidirectional(preferences.getAutoJoinEnabledProperty());
     requireUacToggle.selectedProperty().bindBidirectional(preferences.getRequireUacEnabledProperty());
     colorBlindFriendlyToggle.selectedProperty().bindBidirectional(preferences.getColorBlindFriendlyProperty());
+    showFriendFoeInTeamCardsToggle.selectedProperty().bindBidirectional(preferences.showFriendFoeInTeamCardsProperty());
     updateGameLocationTable();
 
     backgroundImageLocation.textProperty().bindBidirectional(preferences.getMainWindow().backgroundImagePathProperty(), PATH_STRING_CONVERTER);

@@ -56,6 +56,7 @@ public class ChatUserItemController implements Controller<Node> {
   private final PlatformService platformService;
   private final ChatPrefs chatPrefs;
   private final ChatUserService chatUserService;
+  private final com.faforever.client.ladder.LadderPointsService ladderPointsService;
 
   private final InvalidationListener formatChangeListener;
   private final WeakInvalidationListener weakFormatInvalidationListener;
@@ -87,7 +88,8 @@ public class ChatUserItemController implements Controller<Node> {
 
   public ChatUserItemController(PreferencesService preferencesService,
                                 I18n i18n, UiService uiService, EventBus eventBus, PlayerService playerService,
-                                PlatformService platformService, ChatUserService chatUserService) {
+                                PlatformService platformService, ChatUserService chatUserService,
+                                com.faforever.client.ladder.LadderPointsService ladderPointsService) {
     this.platformService = platformService;
     this.preferencesService = preferencesService;
     this.playerService = playerService;
@@ -96,6 +98,7 @@ public class ChatUserItemController implements Controller<Node> {
     this.eventBus = eventBus;
     this.chatPrefs = preferencesService.getPreferences().getChat();
     this.chatUserService = chatUserService;
+    this.ladderPointsService = ladderPointsService;
 
     formatChangeListener = observable -> updateFormat();
     weakFormatInvalidationListener = new WeakInvalidationListener(formatChangeListener);
@@ -133,11 +136,15 @@ public class ChatUserItemController implements Controller<Node> {
           return isGw ? GW_ICON_FIT_HEIGHT : AVATAR_FIT_HEIGHT;
         },
         chatUserService.iconModeProperty()));
+    // The country flag always keeps its own slot now — a medal goes in the avatar slot, never here.
     JavaFxUtil.bind(countryImageView.visibleProperty(), Bindings.isNotNull(countryImageView.imageProperty()));
     JavaFxUtil.bind(clanMenu.visibleProperty(), Bindings.isNotEmpty(clanMenu.textProperty()));
     JavaFxUtil.bind(playerStatusIndicator.visibleProperty(), Bindings.isNotNull(playerStatusIndicator.imageProperty()));
     JavaFxUtil.bind(playerMapImage.visibleProperty(), Bindings.isNotNull(playerMapImage.imageProperty()));
     JavaFxUtil.bind(playerAfkImage.visibleProperty(), Bindings.isNotNull(playerAfkImage.imageProperty()));
+    // Collapse the hidden icon inside the shared VBox column so a single icon doesn't leave a gap.
+    playerStatusIndicator.managedProperty().bind(playerStatusIndicator.visibleProperty());
+    playerAfkImage.managedProperty().bind(playerAfkImage.visibleProperty());
 
     updateFormat();
     addEventHandlersToPlayerMapImage();
@@ -296,6 +303,8 @@ public class ChatUserItemController implements Controller<Node> {
       JavaFxUtil.bind(usernameLabel.styleProperty(), Bindings.createStringBinding(() ->
               chatUser.getColor().map(color -> String.format("-fx-text-fill: %s", JavaFxUtil.toRgbCode(color))).orElse(""),
           chatUser.colorProperty()));
+      // Avatar slot shows whatever ChatUserService put there — the regular avatar, a GW icon, or a
+      // chosen medal-as-avatar (medal resolution lives there so a change refreshes this cell live).
       JavaFxUtil.bind(avatarImageView.imageProperty(), this.chatUser.avatarProperty());
       JavaFxUtil.bind(clanMenu.textProperty(), this.chatUser.clanTagProperty());
       JavaFxUtil.bind(countryImageView.imageProperty(), this.chatUser.countryFlagProperty());
@@ -304,9 +313,8 @@ public class ChatUserItemController implements Controller<Node> {
       JavaFxUtil.bind(playerAfkImage.imageProperty(), this.chatUser.afkImageProperty());
       JavaFxUtil.bind(playerStatusIndicator.imageProperty(), this.chatUser.gameStatusImageProperty());
       JavaFxUtil.bind(statusGameTooltip.textProperty(), this.chatUser.statusTooltipTextProperty());
-      if (this.chatUser.getPlayer().isPresent()) {
-        JavaFxUtil.bind(avatarTooltip.textProperty(), this.chatUser.getPlayer().get().avatarTooltipProperty());
-      }
+      // Avatar tooltip follows the slot: medal name + count, or the regular avatar's description.
+      JavaFxUtil.bind(avatarTooltip.textProperty(), this.chatUser.avatarTooltipTextProperty());
     }
   }
 

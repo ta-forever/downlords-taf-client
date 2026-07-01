@@ -125,6 +125,7 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
   protected final NotificationService notificationService;
   protected final ReportingService reportingService;
   protected final UiService uiService;
+  protected final com.faforever.client.ladder.LadderPointsService ladderPointsService;
   protected final EventBus eventBus;
   protected final WebViewConfigurer webViewConfigurer;
   protected final ChatUserService chatUserService;
@@ -160,10 +161,12 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
       PreferencesService preferencesService, PlayerService playerService, AudioService audioService,
       TimeService timeService, I18n i18n, ImageUploadService imageUploadService,
       NotificationService notificationService, ReportingService reportingService, UiService uiService,
-      EventBus eventBus, CountryFlagService countryFlagService, ChatUserService chatUserService) {
+      EventBus eventBus, CountryFlagService countryFlagService, ChatUserService chatUserService,
+      com.faforever.client.ladder.LadderPointsService ladderPointsService) {
 
     this.webViewConfigurer = webViewConfigurer;
     this.uiService = uiService;
+    this.ladderPointsService = ladderPointsService;
     this.chatService = chatService;
     this.userService = userService;
     this.preferencesService = preferencesService;
@@ -662,6 +665,8 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
 
     String login = chatMessage.getUsername();
     String avatarUrl = "";
+    String avatarTitle = "";
+    String avatarStyle = "";
     String clanTag = "";
     String decoratedClanTag = "";
     String countryFlagUrl = "";
@@ -670,6 +675,24 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
     if (playerOptional.isPresent()) {
       Player player = playerOptional.get();
       avatarUrl = player.getAvatarUrl();
+      avatarTitle = StringUtils.defaultString(player.getAvatarTooltip());
+      // A chosen medal-as-avatar takes the avatar slot here too (never the flag). Cached read; on a
+      // cold miss the regular avatar shows and the next message renders the medal.
+      Optional<com.faforever.client.ladder.FeaturedMedalDisplay> medal =
+          player.getId() > 0 ? ladderPointsService.peekFeaturedMedal(player.getId()) : Optional.empty();
+      if (medal.isPresent()) {
+        avatarUrl = uiService.getThemeFileUrl(
+            com.faforever.client.ladder.LadderUiUtil.medalIconPath(medal.get().getCode())).toString();
+        avatarTitle = com.faforever.client.ladder.LadderUiUtil.medalAvatarTooltip(
+            i18n, medal.get().getCode(), medal.get().getCount());
+        // Medal art is square. Reserve the same avatar box a regular avatar uses (60x30 compact,
+        // 120x60 extended) but letterbox the square medal inside it via object-fit:contain, so it
+        // keeps a 1:1 ratio without changing the row layout.
+        boolean compact = preferencesService.getPreferences().getChat().getChatFormat() == ChatFormat.COMPACT;
+        avatarStyle = compact
+            ? "width:60px;height:30px;object-fit:contain;"
+            : "width:120px;height:60px;object-fit:contain;";
+      }
       countryFlagUrl = countryFlagService.getCountryFlagUrl(player.getCountry())
           .map(URL::toString)
           .orElse("");
@@ -683,6 +706,8 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
     String timeString = timeService.asShortTime(chatMessage.getTime());
     html = html.replace("{time}", timeString)
         .replace("{avatar}", StringUtils.defaultString(avatarUrl))
+        .replace("{avatar-title}", avatarTitle)
+        .replace("{avatar-style}", avatarStyle)
         .replace("{username}", login)
         .replace("{clan-tag}", clanTag)
         .replace("{decorated-clan-tag}", decoratedClanTag)

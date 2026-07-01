@@ -90,7 +90,13 @@ public class GameTooltipController implements Controller<Node> {
   private void createTeams(ObservableMap<? extends String, ? extends List<String>> teamsList, String ratingType) {
     leaderboardService.getLeaderboards()
       .thenAccept(leaderboards -> JavaFxUtil.runLater(() -> {
-        boolean hidePlayerRatings = leaderboards.stream().noneMatch(lb -> lb.getTechnicalName().equals(ratingType));
+        // Hide ratings (and rank) for unknown rating types AND for the hidden global
+        // "just for fun" board (a real leaderboard but flagged hidden).
+        boolean hidePlayerRatings = leaderboards.stream()
+            .filter(lb -> lb.getTechnicalName().equals(ratingType))
+            .findFirst()
+            .map(lb -> lb.getLeaderboardHidden())
+            .orElse(true);
         synchronized (teamsList) {
           teamsPane.getChildren().clear();
           TeamCardController.createAndAdd(

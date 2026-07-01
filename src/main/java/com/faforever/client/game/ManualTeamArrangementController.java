@@ -64,6 +64,11 @@ public class ManualTeamArrangementController implements Controller<VBox> {
   private final RatingService ratingService;
   private final GameService gameService;
   private final I18n i18n;
+  private final com.faforever.client.preferences.PreferencesService preferencesService;
+
+  /** Re-renders the cards when the global displayMetric pref flips (the in-dialog pill). Field-held
+   * so the weak listener isn't collected. */
+  private javafx.beans.value.ChangeListener<com.faforever.client.preferences.DisplayMetric> displayMetricListener;
 
   public VBox root;
   public Label hintLabel;
@@ -100,6 +105,15 @@ public class ManualTeamArrangementController implements Controller<VBox> {
     setupDropTarget(team0Pane, TEAM0);
     setupDropTarget(team1Pane, TEAM1);
     setupDropTarget(poolPane, POOL);
+
+    // The in-dialog pill flips the global metric; redraw the cards (rating ⇄ rank) when it changes.
+    displayMetricListener = (obs, oldValue, newValue) -> {
+      if (game != null) {
+        render();
+      }
+    };
+    com.faforever.client.fx.JavaFxUtil.addListener(preferencesService.getPreferences().displayMetricProperty(),
+        new javafx.beans.value.WeakChangeListener<>(displayMetricListener));
   }
 
   public void setGame(Game game) {

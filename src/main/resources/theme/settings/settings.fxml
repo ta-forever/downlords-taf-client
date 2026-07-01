@@ -718,6 +718,18 @@
                                                 <CheckBox fx:id="tournamentAnnouncementsCheckBox" mnemonicParsing="false"
                                                           GridPane.columnIndex="1" GridPane.halignment="CENTER"
                                                           GridPane.rowIndex="10" GridPane.valignment="CENTER"/>
+                                                <Label styleClass="setting-title"
+                                                       text="%settings.notifications.ladderPass"
+                                                       GridPane.rowIndex="11"/>
+                                                <CheckBox fx:id="ladderPassToastCheckBox" mnemonicParsing="false"
+                                                          GridPane.columnIndex="1" GridPane.halignment="CENTER"
+                                                          GridPane.rowIndex="11" GridPane.valignment="CENTER"/>
+                                                <Label styleClass="setting-title"
+                                                       text="%settings.notifications.battleReport"
+                                                       GridPane.rowIndex="12"/>
+                                                <CheckBox fx:id="battleReportCheckBox" mnemonicParsing="false"
+                                                          GridPane.columnIndex="1" GridPane.halignment="CENTER"
+                                                          GridPane.rowIndex="12" GridPane.valignment="CENTER"/>
                                             </children>
                                         </GridPane>
                                     </children>
@@ -1237,6 +1249,23 @@
                                                 <Label contentDisplay="RIGHT" maxWidth="1.7976931348623157E308" styleClass="setting-title" text="%settings.appearance.colorBlind" />
                                                 <Label styleClass="setting-description" text="%settings.appearance.colorBlind.description" GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" />
                                                 <CheckBox fx:id="colorBlindFriendlyToggle" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" GridPane.columnIndex="1" />
+                                            </children>
+                                        </GridPane>
+
+
+                                        <GridPane styleClass="setting-container" visible="true">
+                                            <columnConstraints>
+                                                <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
+                                                <ColumnConstraints halignment="RIGHT" hgrow="SOMETIMES" minWidth="10.0" />
+                                            </columnConstraints>
+                                            <rowConstraints>
+                                                <RowConstraints minHeight="10.0" valignment="TOP" vgrow="SOMETIMES" />
+                                                <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
+                                            </rowConstraints>
+                                            <children>
+                                                <Label contentDisplay="RIGHT" maxWidth="1.7976931348623157E308" styleClass="setting-title" text="%settings.appearance.showFriendFoeInTeamCards" />
+                                                <Label styleClass="setting-description" text="%settings.appearance.showFriendFoeInTeamCards.description" GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" />
+                                                <CheckBox fx:id="showFriendFoeInTeamCardsToggle" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" GridPane.columnIndex="1" />
                                             </children>
                                         </GridPane>
 

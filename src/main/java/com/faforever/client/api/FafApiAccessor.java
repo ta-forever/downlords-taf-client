@@ -6,8 +6,15 @@ import com.faforever.client.api.dto.CoopMission;
 import com.faforever.client.api.dto.CoopResult;
 import com.faforever.client.api.dto.FeaturedModFile;
 import com.faforever.client.api.dto.Game;
+import com.faforever.client.api.dto.GameMedal;
+import com.faforever.client.api.dto.GamePlayerMetrics;
 import com.faforever.client.api.dto.GameReview;
+import com.faforever.client.api.dto.LadderPoints;
+import com.faforever.client.api.dto.LadderPointsJournal;
+import com.faforever.client.api.dto.League;
+import com.faforever.client.api.dto.LeagueSchedule;
 import com.faforever.client.api.dto.Leaderboard;
+import com.faforever.client.api.dto.PlayerMedalSummary;
 import com.faforever.client.api.dto.LeaderboardEntry;
 import com.faforever.client.api.dto.LeaderboardRatingJournal;
 import com.faforever.client.api.dto.Map;
@@ -72,6 +79,53 @@ public interface FafApiAccessor {
   List<LeaderboardEntry> getLeaderboardEntriesForPlayer(int playerId);
 
   List<LeaderboardRatingJournal> getRatingJournal(int playerId, int leaderboardId);
+
+  // --- Ladder Points (LADDER_POINTS_DESIGN.md) -------------------------------
+  List<League> getLpLeagues();
+
+  List<LeagueSchedule> getLpSeasons(int leagueId);
+
+  /** Within-board rank for a given score on a league+season: 1 + the number of players who score
+   * strictly higher. Cheap (a filtered count), so it can back per-player rank display. */
+  int getLadderRank(int leagueId, int seasonId, int score);
+
+  /** A player's cumulative LP standings this player has on any board (current + past seasons). */
+  List<LadderPoints> getLadderPointsForPlayer(int playerId);
+
+  /** Top-N season standings for a board's league + season, ordered by score desc. */
+  Tuple<List<LadderPoints>, java.util.Map<String, ?>> getLadderPointsWithMeta(int leagueId, int seasonId, int count, int page);
+
+  /** Per-game LP award + breakdown for a single game (replay card / Combat Score → LP chain). */
+  List<LadderPointsJournal> getLadderPointsJournal(int gameId);
+
+  /** A player's LP journal entries for one league (board), oldest-first, for the LP progression
+   * graph. Spans seasons (score resets show as drops at season boundaries). */
+  List<LadderPointsJournal> getLadderPointsJournalForPlayer(int playerId, int leagueId);
+
+  /** Per-player combat metrics for a single game (replay detail #1). */
+  List<GamePlayerMetrics> getGamePlayerMetrics(int gameId);
+
+  /** Medals awarded in a single game (replay detail #3). */
+  List<GameMedal> getGameMedals(int gameId);
+
+  /** A player's seasonal medal counts (medal case). */
+  List<PlayerMedalSummary> getPlayerMedalSummary(int playerId);
+
+  /** All players' medal counts for one season (league_schedule id), for the Season Ladder medal
+   * column. One bulk call, aggregated client-side. */
+  List<PlayerMedalSummary> getMedalSummaryForSeason(int seasonId);
+
+  /** The medal a player chose to display next to their name (CL-7); empty if none set. */
+  List<com.faforever.client.api.dto.PlayerFeaturedMedal> getFeaturedMedal(int playerId);
+
+  /** Create the caller's featured-medal row (first selection). Owner-only (server-enforced). */
+  com.faforever.client.api.dto.PlayerFeaturedMedal createFeaturedMedal(com.faforever.client.api.dto.PlayerFeaturedMedal featuredMedal);
+
+  /** Update the caller's featured-medal row (change selection). Owner-only (server-enforced). */
+  void updateFeaturedMedal(String id, com.faforever.client.api.dto.PlayerFeaturedMedal featuredMedal);
+
+  /** Delete the caller's featured-medal row (clear selection). Owner-only (server-enforced). */
+  void deleteFeaturedMedal(String id);
 
   Tuple<List<Map>, java.util.Map<String, ?>> getMapsByIdWithMeta(List<Integer> mapIdList, int count, int page);
 

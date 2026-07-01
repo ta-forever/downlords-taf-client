@@ -8,6 +8,7 @@
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.ToggleButton?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
@@ -141,16 +142,25 @@
                            </VBox.margin>
                         </GridPane>
                          <Separator maxWidth="1.7976931348623157E308"/>
-                         <HBox fx:id="teamsInfoBox">
+                         <HBox fx:id="teamsInfoBox" alignment="CENTER_LEFT" spacing="10.0">
                              <children>
                                  <Label maxWidth="1.7976931348623157E308" styleClass="h2" text="%game.lineUp"
                                         HBox.hgrow="ALWAYS"/>
+                                 <fx:include fx:id="displayMetricToggle" source="../../display_metric_toggle.fxml"/>
+                                 <ToggleButton fx:id="viewBattleReportButton" alignment="CENTER" mnemonicParsing="false"
+                                         onAction="#onViewBattleReport" text="%scorescreen.viewBattleReport"/>
                                  <Button fx:id="showRatingChangeButton" alignment="CENTER" mnemonicParsing="false"
                                          onAction="#showRatingChange" text="%game.showRatingChange"/>
                                  <Label fx:id="notRatedReasonLabel" alignment="CENTER"/>
                              </children>
                          </HBox>
                          <HBox fx:id="teamsContainer" alignment="TOP_CENTER" spacing="20.0"/>
+                         <VBox fx:id="combatRewardsContainer" alignment="TOP_CENTER" maxWidth="640.0" spacing="4.0"
+                               managed="false" visible="false">
+                           <VBox.margin>
+                             <Insets top="10.0"/>
+                           </VBox.margin>
+                         </VBox>
                          <HBox alignment="CENTER_RIGHT">
                              <Button fx:id="reportButton" alignment="CENTER_RIGHT" mnemonicParsing="false"
                                      onAction="#onReport" text="%game.report"/>
@@ -163,10 +173,10 @@
                              </children>
                          </VBox>
                          <Separator fx:id="reviewSeparator" layoutX="10.0" layoutY="254.0"
-                                    maxWidth="1.7976931348623157E308"/>
-                         <Button fx:id="downloadMoreInfoButton" mnemonicParsing="false"
-                                    onAction="#onDownloadMoreInfoClicked" text="%game.downloadMoreInfo"/>
-                         <VBox fx:id="moreInformationPane" maxWidth="1.7976931348623157E308">
+                                    maxWidth="1.7976931348623157E308" visible="false" managed="false"/>
+                         <!-- Game Options + Chat are hidden. -->
+                         <VBox fx:id="moreInformationPane" maxWidth="1.7976931348623157E308"
+                               visible="false" managed="false">
                              <children>
                                  <GridPane hgap="10.0" maxWidth="1.7976931348623157E308" vgap="10.0">
                                      <columnConstraints>

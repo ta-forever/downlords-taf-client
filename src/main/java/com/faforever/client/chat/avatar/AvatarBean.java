@@ -14,14 +14,28 @@ import static com.github.nocatch.NoCatch.noCatch;
 public class AvatarBean {
   private final ObjectProperty<URL> url;
   private final StringProperty description;
+  /** When non-null this item is one of the player's medals offered as an avatar (not a server
+   * avatar); selecting it sets the featured medal instead of calling the avatar service. */
+  @Nullable
+  private final String medalCode;
 
   public AvatarBean(@Nullable URL url, @Nullable String description) {
+    this(url, description, null);
+  }
+
+  public AvatarBean(@Nullable URL url, @Nullable String description, @Nullable String medalCode) {
     this.url = new SimpleObjectProperty<>(url);
     this.description = new SimpleStringProperty(description);
+    this.medalCode = medalCode;
   }
 
   public static AvatarBean fromAvatar(Avatar avatar) {
     return new AvatarBean(noCatch(() -> new URL(avatar.getUrl())), avatar.getTooltip());
+  }
+
+  @Nullable
+  public String getMedalCode() {
+    return medalCode;
   }
 
   @Nullable

@@ -22,6 +22,7 @@ import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.NameRecord;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
+import com.faforever.client.preferences.DisplayMetric;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.replay.Replay;
@@ -35,6 +36,7 @@ import com.faforever.client.vault.search.SearchController.SortOrder;
 import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleFloatProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -47,10 +49,15 @@ import javafx.scene.chart.XYChart.Data;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
@@ -69,6 +76,7 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -109,8 +117,11 @@ public class UserInfoWindowController implements Controller<Node> {
   private final PlayerService playerService;
   private final NotificationService notificationService;
   private final LeaderboardService leaderboardService;
+  private final com.faforever.client.leaderboard.RatingTierService ratingTierService;
+  private final com.faforever.client.ladder.LadderPointsService ladderPointsService;
   private final FafService fafService;
   private final PreferencesService preferencesService;
+  private final com.google.common.eventbus.EventBus eventBus;
 
   private final Map<String, AchievementItemController> achievementItemById = new HashMap<>();
   private final Map<String, AchievementDefinition> achievementDefinitionById = new HashMap<>();
@@ -130,6 +141,7 @@ public class UserInfoWindowController implements Controller<Node> {
 
 
   public TabPane tabPane;
+  public Tab medalCabinetTab;
   public PieChart gamesPlayedByLeaderboardChart;
   public PieChart gamesPlayedByModChart;
   public PieChart techBuiltChart;
@@ -156,6 +168,23 @@ public class UserInfoWindowController implements Controller<Node> {
   public TableColumn<NameRecord, OffsetDateTime> changeDateColumn;
   public TableColumn<NameRecord, String> nameColumn;
 
+  /** Re-renders the summary + stats table when the global displayMetric pref flips (e.g. the
+   * in-dialog pill or the top-bar pill). Field-held so the weak listener survives. */
+  private javafx.beans.value.ChangeListener<DisplayMetric> displayMetricListener;
+
+  public TableView<com.faforever.client.ladder.SeasonStanding> seasonStatsTable;
+  public TableColumn<com.faforever.client.ladder.SeasonStanding, String> seasonStatsBoardColumn;
+  public TableColumn<com.faforever.client.ladder.SeasonStanding, Number> seasonStatsRankColumn;
+  public TableColumn<com.faforever.client.ladder.SeasonStanding, Number> seasonStatsPointsColumn;
+  public TableColumn<com.faforever.client.ladder.SeasonStanding, Number> seasonStatsGamesColumn;
+  public TableColumn<com.faforever.client.ladder.SeasonStanding, Number> seasonStatsWinRateColumn;
+  public TableColumn<com.faforever.client.ladder.SeasonStanding, String> seasonStatsWdlColumn;
+  public TableColumn<com.faforever.client.ladder.SeasonStanding, String> seasonStatsWdl10Column;
+  public TableColumn<com.faforever.client.ladder.SeasonStanding, Number> seasonStatsStreakColumn;
+  public TableColumn<com.faforever.client.ladder.SeasonStanding, Number> seasonStatsBestStreakColumn;
+  private final Map<String, String> boardDisplayNames = new HashMap<>();
+  private List<LeaderboardEntry> lastLeaderboardEntries = Collections.emptyList();
+
   public TableView<LeaderboardEntry> ratingTable;
   public TableColumn<LeaderboardEntry, String> ratingTableLeaderboardnameColumn;
   public TableColumn<LeaderboardEntry, Number> ratingTableGamesPlayedColumn;
@@ -165,11 +194,16 @@ public class UserInfoWindowController implements Controller<Node> {
   public TableColumn<LeaderboardEntry, String> ratingTableRecentResultsColumn;
   public TableColumn<LeaderboardEntry, Number> ratingTableStreakColumn;
   public TableColumn<LeaderboardEntry, Number> ratingTableBestStreakColumn;
-  public VBox tournamentMedalsCard;
-  public VBox tournamentMedalsContent;
+  public VBox ladderMedalCabinetCard;
+  public VBox ladderMedalCabinet;
+  public ImageView featuredMedalImageView;
+  private final Map<String, VBox> medalSlotByCode = new HashMap<>();
+  private String featuredMedalCode;
+  private boolean ownProfile;
 
   private Player player;
   private Window ownerWindow;  private List<RatingHistoryDataPoint> ratingData;
+  private List<com.faforever.client.ladder.LpHistoryPoint> lpData = Collections.emptyList();
   private List<Replay> replayHistory;
 
   private static boolean isUnlocked(PlayerAchievement playerAchievement) {
@@ -213,7 +247,15 @@ public class UserInfoWindowController implements Controller<Node> {
     timePeriodComboBox.getItems().addAll(TimePeriod.values());
     timePeriodComboBox.setValue(TimePeriod.ALL_TIME);
 
+    // Animated charts defer rendering newly-set data to an animation that doesn't fire until a
+    // layout/resize — which is why the graph stayed blank on first open until the window was
+    // resized. Disabling animation makes the data (and axes) render immediately.
+    ratingHistoryChart.setAnimated(false);
+    xAxis.setAnimated(false);
+    yAxis.setAnimated(false);
+
     leaderboardService.getLeaderboards().thenApply(leaderboards -> {
+      leaderboards.forEach(lb -> boardDisplayNames.put(lb.getTechnicalName(), i18n.get(lb.getNameKey())));
       JavaFxUtil.runLater(() -> {
         ratingTypeComboBox.getItems().clear();
         ratingTypeComboBox.getItems().addAll(leaderboards);
@@ -254,8 +296,79 @@ public class UserInfoWindowController implements Controller<Node> {
     ratingTableRatingColumn.setCellValueFactory(param -> param.getValue().ratingProperty());
     ratingTableRatingColumn.setCellFactory(param -> new StringCell<>(rating -> i18n.number(rating.intValue())));
 
+    initializeSeasonStatsTable();
+    initializeMetricToggle();
+
     ratingData = Collections.emptyList();
     replayHistory = Collections.emptyList();
+  }
+
+  private void initializeSeasonStatsTable() {
+    ratingTable.managedProperty().bind(ratingTable.visibleProperty());
+    seasonStatsTable.managedProperty().bind(seasonStatsTable.visibleProperty());
+
+    seasonStatsBoardColumn.setCellValueFactory(p -> new SimpleStringProperty(
+        boardDisplayNames.getOrDefault(p.getValue().getLeaderboardTechnicalName(),
+            p.getValue().getLeaderboardTechnicalName())));
+    seasonStatsBoardColumn.setCellFactory(p -> new StringCell<>(name -> name));
+    seasonStatsRankColumn.setCellValueFactory(p -> new SimpleIntegerProperty(p.getValue().getRank()));
+    seasonStatsRankColumn.setCellFactory(p -> new StringCell<>(
+        rank -> rank.intValue() > 0 ? i18n.get("lp.rank.value", rank.intValue()) : "—"));
+    seasonStatsPointsColumn.setCellValueFactory(p -> new SimpleIntegerProperty(p.getValue().getScore()));
+    seasonStatsPointsColumn.setCellFactory(p -> new StringCell<>(lp -> i18n.number(lp.intValue())));
+    seasonStatsGamesColumn.setCellValueFactory(p -> new SimpleIntegerProperty(p.getValue().getGames()));
+    seasonStatsGamesColumn.setCellFactory(p -> new StringCell<>(c -> i18n.number(c.intValue())));
+    seasonStatsWinRateColumn.setCellValueFactory(p -> new SimpleFloatProperty(p.getValue().getWinRate()));
+    seasonStatsWinRateColumn.setCellFactory(p -> new StringCell<>(n -> i18n.get("percentage", n.floatValue() * 100)));
+    seasonStatsWdlColumn.setCellValueFactory(p -> new SimpleStringProperty(
+        com.faforever.client.ladder.LadderUiUtil.winDrawLoss(p.getValue())));
+    seasonStatsWdlColumn.setCellFactory(p -> new StringCell<>(s -> s));
+    seasonStatsWdl10Column.setCellValueFactory(p -> new SimpleStringProperty(p.getValue().getRecentResults()));
+    seasonStatsWdl10Column.setCellFactory(p -> new StringCell<>(s -> s));
+    seasonStatsStreakColumn.setCellValueFactory(p -> new SimpleIntegerProperty(p.getValue().getCurrentStreak()));
+    seasonStatsStreakColumn.setCellFactory(p -> new StringCell<>(n -> i18n.number(n.intValue())));
+    seasonStatsBestStreakColumn.setCellValueFactory(p -> new SimpleIntegerProperty(p.getValue().getBestStreak()));
+    seasonStatsBestStreakColumn.setCellFactory(p -> new StringCell<>(n -> i18n.number(n.intValue())));
+  }
+
+  /** The in-dialog pill (the shared display_metric_toggle include) flips the global displayMetric
+   * pref; this dialog just reacts to it, swapping the rating summary + Statistics table. */
+  private void initializeMetricToggle() {
+    applyMetricMode();
+    displayMetricListener = (obs, oldValue, newValue) -> applyMetricMode();
+    JavaFxUtil.addListener(preferencesService.getPreferences().displayMetricProperty(),
+        new javafx.beans.value.WeakChangeListener<>(displayMetricListener));
+  }
+
+  private boolean isLadderPointsMode() {
+    return preferencesService.getPreferences().getDisplayMetric() != DisplayMetric.RATINGS;
+  }
+
+  /** Show the table + rating summary for the selected metric, (re)loading data as needed. */
+  private void applyMetricMode() {
+    boolean lpMode = isLadderPointsMode();
+    seasonStatsTable.setVisible(lpMode);
+    ratingTable.setVisible(!lpMode);
+    if (player != null) {
+      updateRatingGrids(lastLeaderboardEntries);   // re-render the rating summary in the new mode
+      if (lpMode) {
+        loadSeasonStats();
+      }
+    }
+  }
+
+  private void loadSeasonStats() {
+    ladderPointsService.getStandingsForPlayer(player.getId())
+        .thenAccept(standings -> JavaFxUtil.runLater(() -> {
+          List<com.faforever.client.ladder.SeasonStanding> rows = standings.stream()
+              .sorted(Comparator.comparingInt(com.faforever.client.ladder.SeasonStanding::getGames).reversed())
+              .collect(Collectors.toList());
+          seasonStatsTable.setItems(observableList(rows));
+        }))
+        .exceptionally(throwable -> {
+          log.warn("Could not load season stats for player {}", player.getId(), throwable);
+          return null;
+        });
   }
 
   public Region getRoot() {
@@ -292,7 +405,6 @@ public class UserInfoWindowController implements Controller<Node> {
           plotFactionsChart(events);
           plotUnitsByCategoriesChart(events);
           plotTechBuiltChart(events);
-          plotGamesPlayedByLeaderboardChart();
         })
         .exceptionally(throwable -> {
           log.warn("Could not load player events", throwable);
@@ -300,36 +412,289 @@ public class UserInfoWindowController implements Controller<Node> {
           return null;
         });
 
+    // The rating summary + per-board games pie are driven by leaderboard entries, not player events —
+    // load them independently so a player-events failure doesn't leave the rating summary blank.
+    plotGamesPlayedByLeaderboardChart();
+
     loadReplayHistory(100)
         .thenAccept((x) -> plotGamesPlayedByModChart());
 
-    loadTournamentMedals();
+    loadLadderMedalCabinet();
+    if (isLadderPointsMode()) {
+      loadSeasonStats();
+    }
+
+    // TEMP: open the dialog on the Medal Cabinet tab for now (while reviewing the new cabinet).
+    tabPane.getSelectionModel().select(medalCabinetTab);
+  }
+
+  /**
+   * Fills the faux display cabinet on the General tab with the player's earned LP medals
+   * (career totals across seasons/boards, from {@code taf_player_medal_summary}). The v1 roster
+   * (LadderUiUtil.MEDAL_CODES) always gets a slot — earned slots are lit, never-earned ones are
+   * shown dimmed/locked so the case reads as a collection — and any extra earned codes are
+   * appended. On the viewer's OWN profile, clicking an earned medal features it next to the
+   * name (CL-7, the avatar analogue); the currently featured medal also renders in the header.
+   * Hidden entirely if the summary can't be read (e.g. server without LP tables).
+   */
+  private void loadLadderMedalCabinet() {
+    ownProfile = playerService.getCurrentPlayer().map(p -> p.getId() == player.getId()).orElse(false);
+    ladderPointsService.getMedalCounts(player.getId())
+        .thenCombine(ladderPointsService.getFeaturedMedal(player.getId()), AbstractMap.SimpleImmutableEntry::new)
+        .thenCombine(fafService.getPlayerTournamentSummary(player.getId()).exceptionally(t -> List.of()),
+            (medalsAndFeatured, tournamentSummaries) -> {
+          List<com.faforever.client.ladder.MedalCount> counts = medalsAndFeatured.getKey();
+          java.util.Optional<String> featured = medalsAndFeatured.getValue();
+
+          // career view: sum each LP medal code across seasons/boards
+          Map<String, Long> totalByCode = counts.stream()
+              .collect(Collectors.groupingBy(com.faforever.client.ladder.MedalCount::getCode,
+                  Collectors.summingLong(com.faforever.client.ladder.MedalCount::getCount)));
+
+          // Tournament placements join the case as their own selectable medals (firsts/seconds/
+          // thirds summed across mods). The grand-total rollup row (featuredMod==null) is skipped
+          // to avoid double-counting the per-mod rows.
+          long golds = 0, silvers = 0, bronzes = 0;
+          for (com.faforever.client.api.dto.PlayerTournamentSummary s : tournamentSummaries) {
+            if (s.getFeaturedMod() == null) {
+              continue;
+            }
+            golds += s.getFirsts();
+            silvers += s.getSeconds();
+            bronzes += s.getThirds();
+          }
+          if (golds > 0) totalByCode.put(com.faforever.client.ladder.LadderUiUtil.TOURNAMENT_GOLD, golds);
+          if (silvers > 0) totalByCode.put(com.faforever.client.ladder.LadderUiUtil.TOURNAMENT_SILVER, silvers);
+          if (bronzes > 0) totalByCode.put(com.faforever.client.ladder.LadderUiUtil.TOURNAMENT_BRONZE, bronzes);
+
+          // Every medal in tier order (the canonical roster).
+          List<String> allKnown = com.faforever.client.ladder.LadderUiUtil.MEDAL_CLASSES.stream()
+              .flatMap(mc -> mc.codes().stream()).collect(Collectors.toList());
+
+          // Lead with EARNED (accomplishment first): known earned codes in tier order, then any
+          // extra/legacy earned codes. The still-to-earn medals follow, grouped by tier, so the
+          // greyed set reads as an organized ladder of goals rather than a wall.
+          List<String> earned = allKnown.stream()
+              .filter(c -> totalByCode.getOrDefault(c, 0L) > 0)
+              .collect(Collectors.toCollection(ArrayList::new));
+          totalByCode.keySet().stream()
+              .filter(c -> !allKnown.contains(c) && totalByCode.get(c) > 0)
+              .sorted().forEach(earned::add);
+
+          featuredMedalCode = featured.orElse(null);
+          JavaFxUtil.runLater(() -> {
+            medalSlotByCode.clear();
+            ladderMedalCabinet.getChildren().clear();
+            addCabinetSection(i18n.get("medal.cabinet.earned"), earned, totalByCode, true);
+            for (com.faforever.client.ladder.LadderUiUtil.MedalClass mc
+                : com.faforever.client.ladder.LadderUiUtil.MEDAL_CLASSES) {
+              List<String> locked = mc.codes().stream()
+                  .filter(c -> totalByCode.getOrDefault(c, 0L) == 0).collect(Collectors.toList());
+              addCabinetSection(i18n.get(mc.labelKey()), locked, totalByCode, false);
+            }
+            applyFeaturedHighlight();
+            updateFeaturedHeaderIcon();
+            ladderMedalCabinetCard.setVisible(true);
+            ladderMedalCabinetCard.setManaged(true);
+          });
+          return null;
+        })
+        .exceptionally(throwable -> {
+          log.warn("Could not load ladder medal cabinet for player {}", player.getId(), throwable);
+          return null;
+        });
+  }
+
+  /** Append a labelled cabinet section: a header followed by a wrapping row of medal slots.
+   * No-op when {@code codes} is empty (so a fully-earned tier doesn't leave an empty header).
+   * {@code primary} marks the "Earned" section so it can read more prominently than the
+   * still-to-earn tiers. Must run on the FX thread. */
+  private void addCabinetSection(String header, List<String> codes, Map<String, Long> totalByCode,
+                                 boolean primary) {
+    if (codes.isEmpty()) {
+      return;
+    }
+    Label headerLabel = new Label(header);
+    headerLabel.getStyleClass().add(primary ? "medal-section-earned" : "medal-section-header");
+    FlowPane row = new FlowPane(14, 14);
+    row.getStyleClass().add("medal-section-row");
+    for (String code : codes) {
+      long count = totalByCode.getOrDefault(code, 0L);
+      VBox slot = buildMedalSlot(code, count);
+      medalSlotByCode.put(code, slot);
+      row.getChildren().add(slot);
+    }
+    ladderMedalCabinet.getChildren().addAll(headerLabel, row);
+  }
+
+  private VBox buildMedalSlot(String code, long count) {
+    boolean earned = count > 0;
+    String name = com.faforever.client.ladder.LadderUiUtil.medalDisplayName(i18n, code);
+
+    ImageView icon = new ImageView(uiService.getThemeImage(
+        com.faforever.client.ladder.LadderUiUtil.medalIconPath(code)));
+    icon.setFitWidth(64);
+    icon.setFitHeight(64);
+    icon.setPreserveRatio(true);
+
+    VBox slot = new VBox(2, icon);
+    slot.setAlignment(javafx.geometry.Pos.TOP_CENTER);
+    slot.getStyleClass().addAll("medal-slot", earned ? "earned" : "locked");
+
+    Label nameLabel = new Label(name);
+    nameLabel.getStyleClass().add("medal-name");
+    nameLabel.setWrapText(true);
+    nameLabel.setMaxWidth(80);
+    nameLabel.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+    slot.getChildren().add(nameLabel);
+
+    if (earned) {
+      Label countBadge = new Label(i18n.get("medal.cabinet.count", count));
+      countBadge.getStyleClass().add("medal-count");
+      slot.getChildren().add(countBadge);
+    }
+
+    // Own profile: an earned medal can be featured (or un-featured by clicking it again).
+    String tip;
+    if (ownProfile && earned) {
+      slot.getStyleClass().add("selectable");
+      slot.setOnMouseClicked(e -> onSelectFeaturedMedal(code));
+      tip = i18n.get("medal.cabinet.tooltip.selectable", name, count);
+    } else {
+      tip = earned
+          ? i18n.get("medal.cabinet.tooltip.earned", name, count)
+          : i18n.get("medal.cabinet.tooltip.locked", name);
+    }
+    // Append the qualitative "how to earn it" hint (flavour, not exact thresholds), so the
+    // cabinet doubles as a guide to what's there to win. Falls back to the older .description.
+    String desc = i18n.getWithDefault("", "medal." + code + ".desc");
+    if (desc.isEmpty()) {
+      desc = i18n.getWithDefault("", "medal." + code + ".description");
+    }
+    if (!desc.isEmpty()) {
+      tip = tip + "\n" + desc;
+    }
+    Tooltip.install(slot, new Tooltip(tip));
+    return slot;
+  }
+
+  /** Toggle the clicked medal as the player's featured medal, persist it, and reflect it in the
+   * cabinet highlight + header icon. Optimistic: the UI updates immediately; a failed write is
+   * logged and rolled back on the next reload. */
+  private void onSelectFeaturedMedal(String code) {
+    String newCode = code.equals(featuredMedalCode) ? null : code;
+    featuredMedalCode = newCode;
+    applyFeaturedHighlight();
+    updateFeaturedHeaderIcon();
+    ladderPointsService.setFeaturedMedal(player.getId(), newCode)
+        .thenRun(() -> eventBus.post(new com.faforever.client.ladder.FeaturedMedalChangedEvent(player.getId())))
+        .exceptionally(throwable -> {
+          log.warn("Could not set featured medal {} for player {}", newCode, player.getId(), throwable);
+          return null;
+        });
+  }
+
+  private void applyFeaturedHighlight() {
+    medalSlotByCode.forEach((code, slot) -> {
+      slot.getStyleClass().remove("featured");
+      if (code.equals(featuredMedalCode)) {
+        slot.getStyleClass().add("featured");
+      }
+    });
+  }
+
+  private void updateFeaturedHeaderIcon() {
+    boolean show = featuredMedalCode != null;
+    if (show) {
+      featuredMedalImageView.setImage(uiService.getThemeImage(
+          com.faforever.client.ladder.LadderUiUtil.medalIconPath(featuredMedalCode)));
+      Tooltip.install(featuredMedalImageView, new Tooltip(
+          com.faforever.client.ladder.LadderUiUtil.medalDisplayName(i18n, featuredMedalCode)));
+    }
+    featuredMedalImageView.setVisible(show);
+    featuredMedalImageView.setManaged(show);
   }
 
   private void updateRatingGrids(List<LeaderboardEntry> leaderboardEntries) {
-    Integer winCount = leaderboardEntries.stream().map(LeaderboardEntry::getWonGames).reduce(0, Integer::sum);
-    Integer drawCount = leaderboardEntries.stream().map(LeaderboardEntry::getDrawnGames).reduce(0, Integer::sum);
-    Integer lossCount = leaderboardEntries.stream().map(LeaderboardEntry::getLostGames).reduce(0, Integer::sum);
-    int gameCount = winCount + drawCount + lossCount;
-    gamesPlayedLabel.setText(i18n.number(gameCount));
-    resultsBreakdownLabel.setText(i18n.get("userInfo.winDrawLoss", winCount, drawCount, lossCount));
+    // The displayMetric pref swaps the static gauge (LADDER_POINTS_DESIGN §13.2): Season Ladder
+    // shows each board's division + LP; Skill Rating shows the absolute rating rounded to nearest 100.
+    boolean lpMode = preferencesService.getPreferences().getDisplayMetric() != DisplayMetric.RATINGS;
 
-    leaderboardService.getLeaderboards().thenAccept(leaderboards -> {
-      StringBuilder ratingNames = new StringBuilder();
-      StringBuilder ratingNumbers = new StringBuilder();
-      leaderboardEntries.forEach(lbe -> {
-        if (lbe != null && !lbe.getLeaderboard().getLeaderboardHidden()) {
-          Leaderboard lb = lbe.getLeaderboard();
-          String leaderboardName = i18n.get(lb.getNameKey());
-          ratingNames.append(i18n.get("leaderboard.rating", leaderboardName)).append("\n");
-          ratingNumbers.append(i18n.number((int)lbe.getRating())).append("\n");
-        }
-      });
-      JavaFxUtil.runLater(() -> {
-        ratingsLabels.setText(ratingNames.toString());
-        ratingsValues.setText(ratingNumbers.toString());
-      });
-    });
+    // Skill-Rating mode: all-time games + W-D-L from the leaderboard entries. (Season Ladder mode
+    // overrides these below with the current season's totals from the LP standings.)
+    if (!lpMode) {
+      Integer winCount = leaderboardEntries.stream().map(LeaderboardEntry::getWonGames).reduce(0, Integer::sum);
+      Integer drawCount = leaderboardEntries.stream().map(LeaderboardEntry::getDrawnGames).reduce(0, Integer::sum);
+      Integer lossCount = leaderboardEntries.stream().map(LeaderboardEntry::getLostGames).reduce(0, Integer::sum);
+      gamesPlayedLabel.setText(i18n.number(winCount + drawCount + lossCount));
+      resultsBreakdownLabel.setText(i18n.get("userInfo.winDrawLoss", winCount, drawCount, lossCount));
+    }
+
+    // The standings fetch must never blank the summary: in Skill-Rating mode it isn't even used, and
+    // if LP isn't available we still want the ratings to show. Degrade to empty standings on failure.
+    CompletableFuture<List<com.faforever.client.ladder.SeasonStanding>> standingsFuture =
+        ladderPointsService.getStandingsForPlayer(player.getId())
+            .exceptionally(throwable -> {
+              log.warn("Could not load LP standings for rating summary of player {}", player.getId(), throwable);
+              return List.of();
+            });
+    leaderboardService.getLeaderboards()
+        .thenCombine(standingsFuture, (leaderboards, standings) -> {
+          StringBuilder ratingNames = new StringBuilder();
+          StringBuilder ratingNumbers = new StringBuilder();
+          if (lpMode) {
+            if (standings.isEmpty()) {
+              ratingNames.append(i18n.get("leaderboard.toggle.lp.label")).append("\n");
+              ratingNumbers.append(i18n.get("lp.badge.unranked")).append("\n");
+            } else {
+              Map<String, String> boardNames = leaderboards.stream()
+                  .collect(Collectors.toMap(Leaderboard::getTechnicalName, lb -> i18n.get(lb.getNameKey()), (a, b) -> a));
+              standings.stream()
+                  .sorted(Comparator.comparingInt(com.faforever.client.ladder.SeasonStanding::getGames).reversed())
+                  .forEach(standing -> {
+                    ratingNames.append(boardNames.getOrDefault(standing.getLeaderboardTechnicalName(),
+                        standing.getLeaderboardTechnicalName())).append("\n");
+                    ratingNumbers.append(com.faforever.client.ladder.LadderUiUtil.standingDisplay(i18n, standing))
+                        .append("\n");
+                  });
+            }
+          } else {
+            leaderboardEntries.forEach(lbe -> {
+              if (lbe != null && !lbe.getLeaderboard().getLeaderboardHidden()) {
+                Leaderboard lb = lbe.getLeaderboard();
+                String leaderboardName = i18n.get(lb.getNameKey());
+                ratingNames.append(i18n.get("leaderboard.rating", leaderboardName)).append("\n");
+                // Hysteresis-stabilised tier (§13.2.3): a steady skill tier, not game-to-game movement.
+                int tier = ratingTierService.displayTier(player.getId(), lb.getTechnicalName(), (int) lbe.getRating());
+                ratingNumbers.append(i18n.number(tier)).append("\n");
+              }
+            });
+          }
+          JavaFxUtil.runLater(() -> {
+            ratingsLabels.setText(ratingNames.toString());
+            ratingsValues.setText(ratingNumbers.toString());
+            // Season Ladder mode: Games Played + W-D-L are the current season's totals (summed
+            // across boards), not the all-time leaderboard tally shown in Skill-Rating mode.
+            if (lpMode) {
+              int seasonGames = standings.stream().mapToInt(com.faforever.client.ladder.SeasonStanding::getGames).sum();
+              int seasonWins = standings.stream().mapToInt(com.faforever.client.ladder.SeasonStanding::getWins).sum();
+              int seasonDraws = standings.stream().mapToInt(com.faforever.client.ladder.SeasonStanding::getDraws).sum();
+              int seasonLosses = standings.stream().mapToInt(com.faforever.client.ladder.SeasonStanding::getLosses).sum();
+              gamesPlayedLabel.setText(i18n.number(seasonGames));
+              resultsBreakdownLabel.setText(i18n.get("userInfo.winDrawLoss", seasonWins, seasonDraws, seasonLosses));
+            }
+            // Same first-open paint glitch as the chart: text set asynchronously after the window's
+            // first paint isn't repainted until a manual resize. Force a layout of the dialog content
+            // to paint the new label text (and the games/win-loss labels) immediately.
+            userInfoRoot.applyCss();
+            userInfoRoot.layout();
+          });
+          return null;
+        })
+        .exceptionally(throwable -> {
+          log.warn("Could not populate rating summary for player {}", player.getId(), throwable);
+          return null;
+        });
   }
 
   private void updateNameHistory() {
@@ -476,6 +841,7 @@ public class UserInfoWindowController implements Controller<Node> {
       List<LeaderboardEntry> sortedEntries = leaderboardEntries.stream()
           .sorted((a,b) -> (int)(b.getRating() - a.getRating()))
           .collect(Collectors.toList());
+      lastLeaderboardEntries = sortedEntries;
       updateRatingGrids(sortedEntries);
       sortedEntries.forEach(leaderboardEntry ->
             gamesPlayedByLeaderboardChart.getData().add(new PieChart.Data(
@@ -506,13 +872,22 @@ public class UserInfoWindowController implements Controller<Node> {
   }
 
   private CompletableFuture<Void> loadStatistics(Leaderboard leaderboard) {
-    return statisticsService.getRatingHistory(player.getId(), leaderboard)
+    CompletableFuture<Void> ratingFuture = statisticsService.getRatingHistory(player.getId(), leaderboard)
         .thenAccept(ratingHistory -> ratingData = ratingHistory)
         .exceptionally(throwable -> {
           // FIXME display to user
           log.warn("Statistics could not be loaded", throwable);
           return null;
         });
+    // Ladder Points progression for the same board (a separate metric on the graph).
+    CompletableFuture<Void> lpFuture = ladderPointsService.getLpHistory(player.getId(), leaderboard.getTechnicalName())
+        .thenAccept(history -> lpData = history)
+        .exceptionally(throwable -> {
+          log.warn("LP history could not be loaded", throwable);
+          lpData = Collections.emptyList();
+          return null;
+        });
+    return CompletableFuture.allOf(ratingFuture, lpFuture);
   }
 
   private CompletableFuture<Void> loadReplayHistory(int maxResults) {
@@ -565,11 +940,21 @@ public class UserInfoWindowController implements Controller<Node> {
         .sorted((a,b) -> (int)(a.getInstant().toEpochSecond() - b.getInstant().toEpochSecond()))
         .collect(Collectors.toList()));
 
-    if (ratingMetricComboBox.getSelectionModel().getSelectedItem().equals(RatingMetric.TRUESKILL)) {
+    List<XYChart.Data<Long, Integer>> ladderPointsHistory = lpData.stream()
+        .sorted(Comparator.comparing(com.faforever.client.ladder.LpHistoryPoint::getInstant))
+        .filter(point -> point.getInstant().isAfter(afterDate))
+        .map(point -> new Data<>(point.getInstant().toEpochSecond(), point.getScore()))
+        .collect(Collectors.toList());
+
+    RatingMetric selectedMetric = ratingMetricComboBox.getSelectionModel().getSelectedItem();
+    if (selectedMetric.equals(RatingMetric.TRUESKILL)) {
       values = trueskillHistory;
     }
-    else if (ratingMetricComboBox.getSelectionModel().getSelectedItem().equals(RatingMetric.STREAK)) {
+    else if (selectedMetric.equals(RatingMetric.STREAK)) {
       values = streakHistory;
+    }
+    else if (selectedMetric.equals(RatingMetric.LADDER_POINTS)) {
+      values = ladderPointsHistory;
     }
 
     int recordLowScore = values.stream()
@@ -608,6 +993,11 @@ public class UserInfoWindowController implements Controller<Node> {
     }
     loadingHistoryPane.setVisible(false);
     ratingHistoryChart.setVisible(true);
+    // Force the (now non-animated) chart to lay out its points immediately. setData only requests a
+    // layout for a later pulse, which in this dialog wasn't repositioning the points until a manual
+    // resize; doing it synchronously here paints them on first open.
+    ratingHistoryChart.applyCss();
+    ratingHistoryChart.layout();
   }
 
   @NotNull
@@ -689,99 +1079,6 @@ public class UserInfoWindowController implements Controller<Node> {
       }
     });
     stage.show();
-  }
-
-  private void loadTournamentMedals() {
-    fafService.getPlayerTournamentSummary(player.getId())
-        .thenAccept(summaries -> JavaFxUtil.runLater(() -> {
-          // Per-mod rows. The grand-total rollup (id starts with "all-")
-          // also comes back with featuredMod==null but is a sum across
-          // all mods, so it's normally dropped to avoid double-counting
-          // alongside the per-mod rows below.
-          List<com.faforever.client.api.dto.PlayerTournamentSummary> relevant = summaries.stream()
-              .filter(s -> s.getFeaturedMod() != null && s.getParticipations() > 0)
-              .collect(java.util.stream.Collectors.toList());
-
-          // Fallback: if there are no per-mod rows (e.g. the player has
-          // only participated in tournaments with no featured_mod set,
-          // which is common in dev/test setups and in any ad-hoc
-          // tournament where the moderator didn't pick a mod), show the
-          // grand-total rollup instead so the card isn't hidden. It's
-          // safe here precisely because there are no per-mod rows to
-          // double-count against.
-          com.faforever.client.api.dto.PlayerTournamentSummary fallback = null;
-          if (relevant.isEmpty()) {
-            fallback = summaries.stream()
-                .filter(s -> s.getFeaturedMod() == null && s.getParticipations() > 0)
-                .findFirst()
-                .orElse(null);
-            if (fallback == null) return;
-          }
-
-          javafx.scene.image.Image goldIcon = uiService.getThemeImage("theme/images/hall_of_fame/gold_medal.png");
-          javafx.scene.image.Image silverIcon = uiService.getThemeImage("theme/images/hall_of_fame/silver_medal.png");
-          javafx.scene.image.Image bronzeIcon = uiService.getThemeImage("theme/images/hall_of_fame/bronze_medal.png");
-          javafx.scene.image.Image cookieIcon = uiService.getThemeImage("theme/images/hall_of_fame/cookie.png");
-
-          tournamentMedalsContent.getChildren().clear();
-          List<com.faforever.client.api.dto.PlayerTournamentSummary> toRender =
-              fallback != null ? java.util.List.of(fallback) : relevant;
-          for (var s : toRender) {
-            String modName;
-            if (s.getFeaturedMod() != null) {
-              modName = s.getFeaturedMod().getDisplayName() != null
-                  ? s.getFeaturedMod().getDisplayName()
-                  : s.getFeaturedMod().getTechnicalName();
-            } else {
-              modName = i18n.get("tournament.medals.generalHeader");
-            }
-            javafx.scene.control.Label modLabel = new javafx.scene.control.Label(modName);
-            modLabel.setStyle("-fx-font-weight: bold;");
-
-            javafx.scene.layout.HBox medals = new javafx.scene.layout.HBox(6);
-            medals.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-            addMedalIcons(medals, goldIcon, s.getFirsts());
-            addMedalIcons(medals, silverIcon, s.getSeconds());
-            addMedalIcons(medals, bronzeIcon, s.getThirds());
-            int participationOnly = s.getParticipations() - s.getFirsts() - s.getSeconds() - s.getThirds();
-            if (participationOnly > 0) {
-              addMedalIcons(medals, cookieIcon, participationOnly);
-            }
-
-            javafx.scene.layout.VBox row = new javafx.scene.layout.VBox(2, modLabel, medals);
-            tournamentMedalsContent.getChildren().add(row);
-          }
-          tournamentMedalsCard.setVisible(true);
-          tournamentMedalsCard.setManaged(true);
-        }))
-        .exceptionally(throwable -> {
-          log.warn("Could not load tournament medals", throwable);
-          return null;
-        });
-  }
-
-  private void addMedalIcons(javafx.scene.layout.HBox container,
-                              javafx.scene.image.Image icon, int count) {
-    if (count <= 0) return;
-    if (count < 5) {
-      for (int i = 0; i < count; i++) {
-        javafx.scene.image.ImageView iv = new javafx.scene.image.ImageView(icon);
-        iv.setFitHeight(20);
-        iv.setFitWidth(20);
-        iv.setPreserveRatio(true);
-        container.getChildren().add(iv);
-      }
-    } else {
-      javafx.scene.image.ImageView iv = new javafx.scene.image.ImageView(icon);
-      iv.setFitHeight(20);
-      iv.setFitWidth(20);
-      iv.setPreserveRatio(true);
-      javafx.scene.control.Label multiplier = new javafx.scene.control.Label("x" + count);
-      multiplier.setStyle("-fx-font-size: 0.9em;");
-      javafx.scene.layout.HBox group = new javafx.scene.layout.HBox(2, iv, multiplier);
-      group.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-      container.getChildren().add(group);
-    }
   }
 
   public void setOwnerWindow(Window ownerWindow) {

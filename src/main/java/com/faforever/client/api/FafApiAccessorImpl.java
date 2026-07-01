@@ -6,8 +6,15 @@ import com.faforever.client.api.dto.CoopMission;
 import com.faforever.client.api.dto.CoopResult;
 import com.faforever.client.api.dto.FeaturedModFile;
 import com.faforever.client.api.dto.Game;
+import com.faforever.client.api.dto.GameMedal;
+import com.faforever.client.api.dto.GamePlayerMetrics;
 import com.faforever.client.api.dto.GameReview;
 import com.faforever.client.api.dto.GameReviewsSummary;
+import com.faforever.client.api.dto.LadderPoints;
+import com.faforever.client.api.dto.LadderPointsJournal;
+import com.faforever.client.api.dto.League;
+import com.faforever.client.api.dto.LeagueSchedule;
+import com.faforever.client.api.dto.PlayerMedalSummary;
 import com.faforever.client.api.dto.Leaderboard;
 import com.faforever.client.api.dto.LeaderboardEntry;
 import com.faforever.client.api.dto.LeaderboardRatingJournal;
@@ -66,10 +73,12 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestOperations;
-import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
 import java.io.Serializable;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -102,6 +111,15 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   private static final String ACHIEVEMENT_ENDPOINT = "/data/achievement";
   private static final String LEADERBOARD_ENDPOINT = "/data/leaderboard";
   private static final String LEADERBOARD_ENTRY_ENDPOINT = "/data/leaderboardRating";
+  private static final String LP_LEAGUE_ENDPOINT = "/data/league";
+  private static final String LP_SEASON_ENDPOINT = "/data/leagueSchedule";
+  private static final String LADDER_POINTS_ENDPOINT = "/data/ladderPoints";
+  private static final String LADDER_POINTS_JOURNAL_ENDPOINT = "/data/ladderPointsJournal";
+  private static final String GAME_PLAYER_METRICS_ENDPOINT = "/data/gamePlayerMetrics";
+  private static final String GAME_MEDAL_ENDPOINT = "/data/gameMedal";
+  private static final String PLAYER_MEDAL_SUMMARY_ENDPOINT = "/data/playerMedalSummary";
+  private static final String FEATURED_MEDAL_ENDPOINT = "/data/playerFeaturedMedal";
+  private static final String LADDER_POINTS_INCLUDES = "player,league,league.leaderboard,season";
   private static final String REPORT_ENDPOINT = "/data/moderationReport";
   private static final String TOURNAMENT_ENDPOINT = "/data/tournament";
   private static final String REPLAY_INCLUDES = "featuredMod,playerStats,host,playerStats.player,playerStats.ratingChanges,reviews," +
@@ -285,6 +303,119 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
             .and()
             .intNum("leaderboard.id").eq(leaderboardId)),
         INCLUDE, "gamePlayerStats"));
+  }
+
+  // --- Ladder Points (LADDER_POINTS_DESIGN.md) -------------------------------
+
+  @Override
+  public List<League> getLpLeagues() {
+    // All leagues are LP leagues (one per rated board); the legacy FAF leagues feature is unused.
+    return getAll(LP_LEAGUE_ENDPOINT, java.util.Map.of(INCLUDE, "leaderboard"));
+  }
+
+  @Override
+  public List<LeagueSchedule> getLpSeasons(int leagueId) {
+    return getAll(LP_SEASON_ENDPOINT, java.util.Map.of(
+        FILTER, rsql(qBuilder().intNum("league.id").eq(leagueId)),
+        INCLUDE, "league",
+        SORT, "-timeframeFrom"));
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public int getLadderRank(int leagueId, int seasonId, int score) {
+    // rank = 1 + count of players on this board/season scoring strictly higher (a 1-row page,
+    // read off the page[totals] meta), giving standard competition ranking.
+    JSONAPIDocument<List<LadderPoints>> doc = getPageWithMeta(LADDER_POINTS_ENDPOINT, 1, 1, ImmutableMap.of(
+        FILTER, rsql(qBuilder().intNum("league.id").eq(leagueId).and().intNum("season.id").eq(seasonId)
+            .and().intNum("score").gt(score))));
+    Object pageMeta = doc.getMeta() == null ? null : doc.getMeta().get("page");
+    if (pageMeta instanceof java.util.Map<?, ?> map && map.get("totalRecords") instanceof Number higher) {
+      return higher.intValue() + 1;
+    }
+    return 0;  // unknown
+  }
+
+  @Override
+  public List<LadderPoints> getLadderPointsForPlayer(int playerId) {
+    return getAll(LADDER_POINTS_ENDPOINT, java.util.Map.of(
+        FILTER, rsql(qBuilder().intNum("player.id").eq(playerId)),
+        INCLUDE, LADDER_POINTS_INCLUDES));
+  }
+
+  @Override
+  public Tuple<List<LadderPoints>, java.util.Map<String, ?>> getLadderPointsWithMeta(int leagueId, int seasonId, int count, int page) {
+    JSONAPIDocument<List<LadderPoints>> jsonApiDoc = getPageWithMeta(LADDER_POINTS_ENDPOINT, count, page, ImmutableMap.of(
+        FILTER, rsql(qBuilder().intNum("league.id").eq(leagueId).and().intNum("season.id").eq(seasonId)),
+        INCLUDE, LADDER_POINTS_INCLUDES,
+        SORT, "-score"));
+    return new Tuple<>(jsonApiDoc.get(), jsonApiDoc.getMeta());
+  }
+
+  @Override
+  public List<LadderPointsJournal> getLadderPointsJournal(int gameId) {
+    return getAll(LADDER_POINTS_JOURNAL_ENDPOINT, java.util.Map.of(
+        FILTER, rsql(qBuilder().intNum("gameId").eq(gameId)),
+        INCLUDE, "player,league,league.leaderboard"));
+  }
+
+  @Override
+  public List<LadderPointsJournal> getLadderPointsJournalForPlayer(int playerId, int leagueId) {
+    return getAll(LADDER_POINTS_JOURNAL_ENDPOINT, java.util.Map.of(
+        FILTER, rsql(qBuilder().intNum("player.id").eq(playerId).and().intNum("league.id").eq(leagueId)),
+        SORT, "createTime",
+        INCLUDE, "player,league"));
+  }
+
+  @Override
+  public List<GamePlayerMetrics> getGamePlayerMetrics(int gameId) {
+    return getAll(GAME_PLAYER_METRICS_ENDPOINT, java.util.Map.of(
+        FILTER, rsql(qBuilder().intNum("gameId").eq(gameId)),
+        INCLUDE, "player,leaderboard"));
+  }
+
+  @Override
+  public List<GameMedal> getGameMedals(int gameId) {
+    return getAll(GAME_MEDAL_ENDPOINT, java.util.Map.of(
+        FILTER, rsql(qBuilder().intNum("gameId").eq(gameId)),
+        INCLUDE, "player"));
+  }
+
+  @Override
+  public List<PlayerMedalSummary> getPlayerMedalSummary(int playerId) {
+    return getAll(PLAYER_MEDAL_SUMMARY_ENDPOINT, java.util.Map.of(
+        FILTER, rsql(qBuilder().intNum("player.id").eq(playerId))));
+  }
+
+  @Override
+  public List<PlayerMedalSummary> getMedalSummaryForSeason(int seasonId) {
+    // season == league_schedule.id is globally unique, so it pins one board's season by itself.
+    return getAll(PLAYER_MEDAL_SUMMARY_ENDPOINT, java.util.Map.of(
+        FILTER, rsql(qBuilder().intNum("season").eq(seasonId)),
+        INCLUDE, "player"));
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.PlayerFeaturedMedal> getFeaturedMedal(int playerId) {
+    return getAll(FEATURED_MEDAL_ENDPOINT, java.util.Map.of(
+        FILTER, rsql(qBuilder().intNum("player.id").eq(playerId)),
+        INCLUDE, "player"));
+  }
+
+  @Override
+  public com.faforever.client.api.dto.PlayerFeaturedMedal createFeaturedMedal(
+      com.faforever.client.api.dto.PlayerFeaturedMedal featuredMedal) {
+    return post(FEATURED_MEDAL_ENDPOINT, featuredMedal, com.faforever.client.api.dto.PlayerFeaturedMedal.class);
+  }
+
+  @Override
+  public void updateFeaturedMedal(String id, com.faforever.client.api.dto.PlayerFeaturedMedal featuredMedal) {
+    patch(FEATURED_MEDAL_ENDPOINT + "/" + id, featuredMedal, Void.class);
+  }
+
+  @Override
+  public void deleteFeaturedMedal(String id) {
+    delete(FEATURED_MEDAL_ENDPOINT + "/" + id);
   }
 
   @Override
@@ -900,15 +1031,46 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   @SneakyThrows
   @NotNull
   private <T> T getOne(String endpointPath, Class<T> type, java.util.Map<String, Serializable> params) {
+    URI uri = buildRequestUri(endpointPath, toMultiValueMap(params));
+    authorizedLatch.await();
+    return restOperations.getForObject(uri, type);
+  }
+
+  /**
+   * Build an absolute, fully percent-encoded request URI for a GET query.
+   *
+   * <p>Spring's per-component URI encoders treat RSQL operator characters such as
+   * ';' (AND) and ',' (OR) as legal query sub-delimiters and leave them literal.
+   * A literal ';' is mishandled by proxies built on Go >= 1.17 (e.g. traefik
+   * >= 2.3): the semicolon query is silently dropped/garbled, which is what made
+   * the "Global Map Pool" filter (getAllRankedMaps) come back empty. To be proxy
+   * proof we strict-encode every query parameter name and value (';' -> %3B,
+   * ',' -> %2C, '=' -> %3D, ...) and hand RestTemplate a {@link URI} so it does no
+   * further (double) encoding. The server URL-decodes once, so the backend
+   * (Elide/RSQL) still sees the original characters. Applies to ALL GET queries,
+   * not just maps, so any current or future RSQL filter is safe.
+   */
+  private URI buildRequestUri(String endpointPath, MultiValueMap<String, String> params) {
+    UriComponentsBuilder builder = UriComponentsBuilder
+        .fromUriString(clientProperties.getApi().getBaseUrl())
+        .path(endpointPath);
+    params.forEach((name, values) -> {
+      String encodedName = UriUtils.encode(name, StandardCharsets.UTF_8);
+      for (String value : values) {
+        if (value == null || value.isEmpty()) {
+          builder.queryParam(encodedName);   // valueless param (e.g. page[totals])
+        } else {
+          builder.queryParam(encodedName, UriUtils.encode(value, StandardCharsets.UTF_8));
+        }
+      }
+    });
+    return builder.build(true).toUri();   // build(true): names/values are already encoded
+  }
+
+  private static MultiValueMap<String, String> toMultiValueMap(java.util.Map<String, ? extends Serializable> params) {
     java.util.Map<String, List<String>> multiValues = params.entrySet().stream()
         .collect(Collectors.toMap(Entry::getKey, entry -> Collections.singletonList(String.valueOf(entry.getValue()))));
-
-    UriComponents uriComponents = UriComponentsBuilder.fromPath(endpointPath)
-        .queryParams(CollectionUtils.toMultiValueMap(multiValues))
-        .build();
-
-    authorizedLatch.await();
-    return getOne(uriComponents.toUriString(), type);
+    return CollectionUtils.toMultiValueMap(multiValues);
   }
 
   private <T> List<T> getAll(String endpointPath) {
@@ -948,38 +1110,29 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
 
   @SneakyThrows
   private <T> List<T> getAllNoPaging(String endpointPath, java.util.Map<String, String> params) {
-    java.util.Map<String, List<String>> multiValues = params.entrySet().stream()
-        .collect(Collectors.toMap(Entry::getKey, entry -> Collections.singletonList(String.valueOf(entry.getValue()))));
-    UriComponents uriComponents = UriComponentsBuilder.fromPath(endpointPath)
-        .queryParams(CollectionUtils.toMultiValueMap(multiValues))
-        .build();
-
+    URI uri = buildRequestUri(endpointPath, toMultiValueMap(params));
     authorizedLatch.await();
-    return restOperations.getForObject(uriComponents.toUriString(), List.class);
+    return restOperations.getForObject(uri, List.class);
   }
 
   @SneakyThrows
   private <T> List<T> getPage(String endpointPath, int pageSize, int page, MultiValueMap<String, String> params) {
-    UriComponents uriComponents = UriComponentsBuilder.fromPath(endpointPath)
-        .queryParams(params)
-        .replaceQueryParam("page[size]", pageSize)
-        .replaceQueryParam("page[number]", page)
-        .build();
-
+    MultiValueMap<String, String> p = new LinkedMultiValueMap<>(params);
+    p.set("page[size]", String.valueOf(pageSize));
+    p.set("page[number]", String.valueOf(page));
+    URI uri = buildRequestUri(endpointPath, p);
     authorizedLatch.await();
-    return restOperations.getForObject(uriComponents.toUriString(), List.class);
+    return restOperations.getForObject(uri, List.class);
   }
 
   @SneakyThrows
   private <T> JSONAPIDocument<List<T>> getPageWithMeta(String endpointPath, int pageSize, int page, MultiValueMap<String, String> params) {
-    UriComponents uriComponents = UriComponentsBuilder.fromPath(endpointPath)
-        .queryParams(params)
-        .replaceQueryParam("page[size]", pageSize)
-        .replaceQueryParam("page[number]", page)
-        .queryParam("page[totals]")
-        .build();
-
+    MultiValueMap<String, String> p = new LinkedMultiValueMap<>(params);
+    p.set("page[size]", String.valueOf(pageSize));
+    p.set("page[number]", String.valueOf(page));
+    p.add("page[totals]", "");   // valueless query param -> rendered as "page[totals]"
+    URI uri = buildRequestUri(endpointPath, p);
     authorizedLatch.await();
-    return restOperations.getForObject(uriComponents.toUriString(), JSONAPIDocument.class);
+    return restOperations.getForObject(uri, JSONAPIDocument.class);
   }
 }

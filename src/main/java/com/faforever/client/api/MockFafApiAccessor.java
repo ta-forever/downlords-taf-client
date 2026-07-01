@@ -154,6 +154,82 @@ public class MockFafApiAccessor implements FafApiAccessor {
   }
 
   @Override
+  public List<com.faforever.client.api.dto.League> getLpLeagues() {
+    return List.of();
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.LeagueSchedule> getLpSeasons(int leagueId) {
+    return List.of();
+  }
+
+  @Override
+  public int getLadderRank(int leagueId, int seasonId, int score) {
+    return 0;
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.LadderPoints> getLadderPointsForPlayer(int playerId) {
+    return List.of();
+  }
+
+  @Override
+  public Tuple<List<com.faforever.client.api.dto.LadderPoints>, java.util.Map<String, ?>> getLadderPointsWithMeta(int leagueId, int seasonId, int count, int page) {
+    return new Tuple<>(List.of(), java.util.Map.of());
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.LadderPointsJournal> getLadderPointsJournal(int gameId) {
+    return List.of();
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.LadderPointsJournal> getLadderPointsJournalForPlayer(int playerId, int leagueId) {
+    return List.of();
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.GamePlayerMetrics> getGamePlayerMetrics(int gameId) {
+    return List.of();
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.GameMedal> getGameMedals(int gameId) {
+    return List.of();
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.PlayerMedalSummary> getPlayerMedalSummary(int playerId) {
+    return List.of();
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.PlayerMedalSummary> getMedalSummaryForSeason(int seasonId) {
+    return List.of();
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.PlayerFeaturedMedal> getFeaturedMedal(int playerId) {
+    return List.of();
+  }
+
+  @Override
+  public com.faforever.client.api.dto.PlayerFeaturedMedal createFeaturedMedal(
+      com.faforever.client.api.dto.PlayerFeaturedMedal featuredMedal) {
+    return featuredMedal;
+  }
+
+  @Override
+  public void updateFeaturedMedal(String id, com.faforever.client.api.dto.PlayerFeaturedMedal featuredMedal) {
+    // no-op
+  }
+
+  @Override
+  public void deleteFeaturedMedal(String id) {
+    // no-op
+  }
+
+  @Override
   public Tuple<List<Map>, java.util.Map<String, ?>> getMapsByIdWithMeta(List<Integer> mapIdList, int count, int page) {
     return new Tuple<>(List.of(), Collections.emptyMap());
   }

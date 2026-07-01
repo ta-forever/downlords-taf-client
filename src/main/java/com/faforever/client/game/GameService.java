@@ -15,7 +15,7 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.JoinChannelEvent;
-import com.faforever.client.main.event.ShowReplayEvent;
+import com.faforever.client.main.event.ShowScoreScreenEvent;
 import com.faforever.client.map.MapService;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.mod.FeaturedModVersion;
@@ -1257,10 +1257,15 @@ public class GameService implements InitializingBean {
       }
       actions.add(new Action(i18n.get("tada.upload"), null, Action.Type.OK_ONCE,
           actionEvent -> eventBus.post(new UploadToTadaEvent(game.getId()))));
-      actions.add(new Action(i18n.get("game.rate"), null, Action.Type.OK_ONCE,
-          actionEvent -> eventBus.post(new ShowReplayEvent(game.getId()))));
+      actions.add(new Action(i18n.get("scorescreen.viewResult"), null, Action.Type.OK_ONCE,
+          actionEvent -> eventBus.post(new ShowScoreScreenEvent(game.getId()))));
       notificationService.addNotification(new PersistentNotification(
           i18n.get("game.ended", game.getTitle()), Severity.INFO, actions));
+    }
+    // Auto-open the Battle Report unless the user has switched it off (its "Don't show again"
+    // button, re-enabled in Settings > Notifications).
+    if (notification.isBattleReportEnabled()) {
+      eventBus.post(new ShowScoreScreenEvent(game.getId()));
     }
   }
 

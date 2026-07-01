@@ -63,10 +63,11 @@ public class MatchmakingChatController extends AbstractChatTabController {
                                    ChatService chatService,
                                    WebViewConfigurer webViewConfigurer,
                                    CountryFlagService countryFlagService,
-                                   ChatUserService chatUserService) {
+                                   ChatUserService chatUserService,
+                                   com.faforever.client.ladder.LadderPointsService ladderPointsService) {
     super(webViewConfigurer, userService, chatService, preferencesService, playerService, audioService,
         timeService, i18n, imageUploadService, notificationService, reportingService, uiService,
-        eventBus, countryFlagService, chatUserService);
+        eventBus, countryFlagService, chatUserService, ladderPointsService);
 
     chatChannelUsers = new HashSet<>();
     autoCompletionHelper = new AutoCompletionHelper(

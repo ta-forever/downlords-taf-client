@@ -32,6 +32,12 @@ public class ClientProperties {
   private boolean useRemotePreferences;
   private Duration clientConfigConnectTimeout = Duration.ofSeconds(30);
   private boolean showIceAdapterDebugWindow;
+  /** Cutover switch for the legacy skill-rating (MMR) display. While the lobby's in-process rater
+   * is authoritative, show the rating alongside Ladder Points so players keep their familiar number
+   * (LP is the hero). Flip to false when rating moves to the combat rating service (combat rating is
+   * hidden, LP is the only player-facing number) — at which point the rating delta has nothing live
+   * to show. Defaults on; a remote client-config can flip it at cutover without a redeploy. */
+  private boolean showLegacyRating = true;
   private Map<String, String> links = new HashMap<>();
   private GalacticWar galacticWar = new GalacticWar();
 

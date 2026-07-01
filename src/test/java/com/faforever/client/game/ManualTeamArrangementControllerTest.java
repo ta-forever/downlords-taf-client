@@ -43,13 +43,23 @@ public class ManualTeamArrangementControllerTest extends AbstractPlainJavaFxTest
   @Mock
   private I18n i18n;
   @Mock
+  private com.faforever.client.preferences.PreferencesService preferencesService;
+  @Mock
+  private com.faforever.client.preferences.Preferences preferences;
+  @Mock
   private Game game;
 
   private List<Player> roster;
 
   @Before
   public void setUp() throws IOException {
-    instance = new ManualTeamArrangementController(uiService, ratingService, gameService, i18n);
+    javafx.beans.property.ObjectProperty<com.faforever.client.preferences.DisplayMetric> metricProperty =
+        new javafx.beans.property.SimpleObjectProperty<>(com.faforever.client.preferences.DisplayMetric.LADDER_POINTS);
+    when(preferencesService.getPreferences()).thenReturn(preferences);
+    when(preferences.displayMetricProperty()).thenReturn(metricProperty);
+    when(preferences.getDisplayMetric()).thenReturn(com.faforever.client.preferences.DisplayMetric.LADDER_POINTS);
+
+    instance = new ManualTeamArrangementController(uiService, ratingService, gameService, i18n, preferencesService);
 
     roster = new ArrayList<>();
     for (int i = 1; i <= 4; i++) {
@@ -78,7 +88,10 @@ public class ManualTeamArrangementControllerTest extends AbstractPlainJavaFxTest
       return card;
     });
 
-    loadFxml("theme/play/manual_team_arrangement.fxml", param -> instance);
+    loadFxml("theme/play/manual_team_arrangement.fxml", clazz ->
+        clazz == com.faforever.client.ladder.DisplayMetricToggleController.class
+            ? new com.faforever.client.ladder.DisplayMetricToggleController(preferencesService, i18n)
+            : instance);
   }
 
   @Test

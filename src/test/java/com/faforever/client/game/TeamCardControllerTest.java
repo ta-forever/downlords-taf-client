@@ -2,12 +2,14 @@ package com.faforever.client.game;
 
 import com.faforever.client.galacticwar.GalacticWarService;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.leaderboard.LeaderboardRating;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
+import com.faforever.client.preferences.Preferences;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.replay.Replay.PlayerStats;
 import com.faforever.client.test.AbstractPlainJavaFxTest;
 import com.faforever.client.theme.UiService;
-import com.faforever.client.util.RatingUtil;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
 import javafx.scene.control.Label;
@@ -22,6 +24,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,8 +43,13 @@ public class TeamCardControllerTest extends AbstractPlainJavaFxTest {
   @Mock
   private GalacticWarService galacticWarService;
   @Mock
-  private PlayerCardTooltipController playerCardTooltipController;
+  private PreferencesService preferencesService;
   @Mock
+  private Preferences preferences;
+  // Not @Mock: creating these mocks triggers static class initialization (PlayerCardTooltipController
+  // builds a static Image), which needs the JavaFX toolkit. @Mock fields are created before the
+  // TestFX @Before that starts the toolkit, so we instantiate them in setUp() instead.
+  private PlayerCardTooltipController playerCardTooltipController;
   private RatingChangeLabelController ratingChangeLabelController;
 
   private ArrayList<Player> playerList;
@@ -49,7 +58,10 @@ public class TeamCardControllerTest extends AbstractPlainJavaFxTest {
 
   @Before
   public void setUp() throws IOException {
-    instance = new TeamCardController(uiService, playerService, galacticWarService, i18n);
+    playerCardTooltipController = mock(PlayerCardTooltipController.class);
+    ratingChangeLabelController = mock(RatingChangeLabelController.class);
+    instance = new TeamCardController(uiService, playerService, galacticWarService, i18n, preferencesService);
+    when(preferencesService.getPreferences()).thenReturn(preferences);
     playerList = new ArrayList<>();
     playerList.add(player);
     teams = FXCollections.observableHashMap();
@@ -77,15 +89,43 @@ public class TeamCardControllerTest extends AbstractPlainJavaFxTest {
 
   @Test
   public void setPlayersInTeam() {
-    instance.setPlayersInTeam("2", playerList, player -> RatingUtil.getRating(1000, 0), null, RatingPrecision.ROUNDED, true);
-    verify(i18n).get("game.tooltip.teamTitle", 1, 1000);
+    instance.setPlayersInTeam("2", playerList, player -> LeaderboardRating.create(1000f, 0f), null, null, RatingPrecision.ROUNDED, true);
+    // hidePlayerRatings=true, so the team title omits the total rating and uses the "replay.team" key.
+    verify(i18n).get("replay.team", 1);
   }
 
   @Test
   public void showRatingChange() {
-    instance.setPlayersInTeam("2", playerList, player -> RatingUtil.getRating(1000, 0), null, RatingPrecision.EXACT, true);
+    instance.setPlayersInTeam("2", playerList, player -> LeaderboardRating.create(1000f, 0f), null, null, RatingPrecision.EXACT, true);
     instance.showRatingChange(teams);
     verify(ratingChangeLabelController).setRatingChange(playerStats);
+  }
+
+  @Test
+  public void socialStatusIconsHiddenByDefault() {
+    when(preferences.isShowFriendFoeInTeamCards()).thenReturn(false);
+    instance.setPlayersInTeam("2", playerList, player -> LeaderboardRating.create(1000f, 0f), null, null, RatingPrecision.ROUNDED, true);
+    verify(playerCardTooltipController).hideSocialStatusIcons();
+  }
+
+  @Test
+  public void socialStatusIconsShownWhenEnabled() {
+    when(preferences.isShowFriendFoeInTeamCards()).thenReturn(true);
+    instance.setPlayersInTeam("2", playerList, player -> LeaderboardRating.create(1000f, 0f), null, null, RatingPrecision.ROUNDED, true);
+    verify(playerCardTooltipController, never()).hideSocialStatusIcons();
+  }
+
+  @Test
+  public void playingStatusIconFallbackAppliedWhenEnabled() {
+    instance.setShowPlayingStatusIconFallback(true);
+    instance.setPlayersInTeam("2", playerList, player -> LeaderboardRating.create(1000f, 0f), null, null, RatingPrecision.ROUNDED, true);
+    verify(playerCardTooltipController).showPlayingStatusIconIfNoIcons();
+  }
+
+  @Test
+  public void playingStatusIconFallbackOffByDefault() {
+    instance.setPlayersInTeam("2", playerList, player -> LeaderboardRating.create(1000f, 0f), null, null, RatingPrecision.ROUNDED, true);
+    verify(playerCardTooltipController, never()).showPlayingStatusIconIfNoIcons();
   }
 
 }

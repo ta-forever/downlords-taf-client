@@ -36,12 +36,6 @@ configurations {
   jar.archiveFileName = 'fxstage.jar'
 }
 
-jar {
-  manifest {
-    attributes "Premain-Class": "ch.micheljung.fxwindow.FxStage"
-  }
-}
-
 dependencies {
   api "net.java.dev.jna:jna:${jnaVersion}"
   api "net.java.dev.jna:jna-platform:${jnaVersion}"

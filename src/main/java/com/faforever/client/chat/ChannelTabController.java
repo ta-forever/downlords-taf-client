@@ -154,11 +154,12 @@ public class ChannelTabController extends AbstractChatTabController {
       ImageUploadService imageUploadService, NotificationService notificationService, ReportingService reportingService,
       UiService uiService, EventBus eventBus, WebViewConfigurer webViewConfigurer,
       CountryFlagService countryFlagService, PlatformService platformService, ChatUserService chatUserService,
-      GalacticWarService galacticWarService) {
+      GalacticWarService galacticWarService,
+      com.faforever.client.ladder.LadderPointsService ladderPointsService) {
 
     super(webViewConfigurer, userService, chatService, preferencesService, playerService, audioService,
         timeService, i18n, imageUploadService, notificationService, reportingService, uiService,
-        eventBus, countryFlagService, chatUserService);
+        eventBus, countryFlagService, chatUserService, ladderPointsService);
     this.platformService = platformService;
     this.galacticWarService = galacticWarService;
 

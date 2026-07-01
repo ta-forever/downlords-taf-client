@@ -917,6 +917,46 @@
   -fx-font-size: 14px;
 }
 
+/* Leaderboards metric toggle (Season Ladder | Skill Rating) - joined segmented pill */
+.toggle-button.left-pill,
+.toggle-button.right-pill {
+  -fx-border-color: -fx-accent;
+  -fx-border-width: 1px;
+  -fx-background-radius: 0;
+  -fx-border-radius: 0;
+}
+
+.toggle-button.left-pill {
+  -fx-background-radius: 4 0 0 4;
+  -fx-border-radius: 4 0 0 4;
+}
+
+.toggle-button.right-pill {
+  -fx-background-radius: 0 4 4 0;
+  -fx-border-radius: 0 4 4 0;
+  -fx-border-width: 1px 1px 1px 0;
+}
+
+.toggle-button.left-pill:hover,
+.toggle-button.right-pill:hover {
+  -fx-background-color: #2b71d930;
+}
+
+.toggle-button.left-pill:selected,
+.toggle-button.right-pill:selected {
+  -fx-background-color: -fx-accent;
+}
+
+/* Reusable global metric pill (top bar + dialogs). Segments stay joined (no spacing); compact so
+   it fits the header chrome. */
+.display-metric-toggle {
+  -fx-spacing: 0;
+}
+.display-metric-toggle .toggle-button {
+  -fx-padding: 3 10 3 10;
+  -fx-font-size: 0.85em;
+}
+
 .toggle-button.queue {
   -fx-border-color: -fx-accent;
   -fx-min-height: 50px;
@@ -1092,19 +1132,6 @@
 }
 
 
-/***************** Rating change*****************/
-
-.rating-change-label {
-  -fx-font-size: 9px;
-}
-
-.rating-change-label:positive {
-  -fx-text-fill: -good;
-}
-
-.rating-change-label:negative {
-  -fx-text-fill: -bad;
-}
 
 /***************** Review *****************/
 
@@ -1746,4 +1773,256 @@
     -fx-background-position: center;
     -fx-background-size: cover;
     -fx-opacity: 0.2;
+}
+
+/* ===== Ladder Points — combat rewards (replay detail + post-game score screen) ===== */
+.score-screen {
+  -fx-background-color: -fx-base;
+}
+/* Banner header — a dark plate the hero reward sits on, ruled off from the scoreboard. */
+.score-screen-header {
+  -fx-background-color: linear-gradient(to bottom, derive(-fx-base, 6%), derive(-fx-base, -14%));
+  -fx-border-color: transparent transparent -fx-accent transparent;
+  -fx-border-width: 0 0 1.5 0;
+}
+.score-screen-title {
+  -fx-font-size: 1.05em;
+  -fx-font-weight: bold;
+  -fx-text-fill: derive(-fx-accent, 10%);
+  -fx-letter-spacing: 3;
+}
+.score-screen-state {
+  -fx-text-fill: derive(-fx-text-base-color, -25%);
+}
+.score-screen-hero {
+  -fx-padding: 6 0 0 0;
+}
+/* The hero: the viewer's own banked LP, the one big number on the screen. */
+.score-screen-hero-lp {
+  -fx-font-size: 3.0em;
+  -fx-font-weight: bold;
+  -fx-text-fill: -fx-accent;
+  -fx-effect: dropshadow(gaussian, derive(-fx-accent, -20%), 14, 0.2, 0, 0);
+}
+.score-screen-hero-sub {
+  -fx-text-fill: derive(-fx-text-base-color, -20%);
+  -fx-padding: 0 0 0 2;
+}
+.score-screen-scroll {
+  -fx-background-color: transparent;
+}
+.score-screen-scroll > .viewport {
+  -fx-background-color: transparent;
+}
+.score-screen-body {
+  -fx-padding: 14 22 10 22;
+}
+.score-screen-actions {
+  -fx-border-color: -divider-color transparent transparent transparent;
+  -fx-border-width: 1 0 0 0;
+}
+.score-screen-mute {
+  -fx-background-color: transparent;
+  -fx-text-fill: derive(-fx-text-base-color, -35%);
+}
+
+/* ===== Combat Score -> LP scoreboard (Battle Report + replay detail) ===== */
+.combat-rewards {
+  -fx-spacing: 2;
+  -fx-padding: 2 0 6 0;
+}
+/* Small uppercase section label — encodes "this block is the combat-to-LP ledger". */
+.rewards-eyebrow {
+  -fx-font-size: 0.9em;
+  -fx-font-weight: bold;
+  -fx-letter-spacing: 2;
+  -fx-text-fill: derive(-fx-accent, 5%);
+  -fx-padding: 10 0 2 0;
+}
+.rewards-caption {
+  -fx-font-size: 0.92em;
+  -fx-text-fill: derive(-fx-text-base-color, -35%);
+  -fx-padding: 0 0 4 0;
+}
+/* Clickable "?" badge next to the section title — opens the scoreboard glossary. */
+.rewards-help-icon {
+  -fx-min-width: 16;
+  -fx-min-height: 16;
+  -fx-alignment: center;
+  -fx-font-size: 0.72em;
+  -fx-font-weight: bold;
+  -fx-text-fill: -fx-accent;
+  -fx-background-radius: 8;
+  -fx-border-radius: 8;
+  -fx-border-color: -fx-accent;
+  -fx-border-width: 1;
+  -fx-cursor: hand;
+}
+.rewards-help-icon:hover {
+  -fx-text-fill: -fx-base;
+  -fx-background-color: -fx-accent;
+}
+/* Floating glossary card shown on click. */
+.rewards-help {
+  -fx-spacing: 8;
+  -fx-padding: 14;
+  -fx-background-radius: 6;
+  -fx-background-color: linear-gradient(to bottom, derive(-fx-base, -8%), derive(-fx-base, -22%));
+  -fx-border-color: -fx-accent;
+  -fx-border-width: 1;
+  -fx-border-radius: 6;
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.8), 18, 0, 0, 6);
+}
+.rewards-help-title {
+  -fx-font-weight: bold;
+  -fx-font-size: 1.05em;
+  -fx-text-fill: -fx-accent;
+  -fx-padding: 0 0 2 0;
+}
+.rewards-help-row {
+  -fx-spacing: 1;
+}
+.rewards-help-term {
+  -fx-font-weight: bold;
+  -fx-text-fill: derive(-fx-text-base-color, 10%);
+}
+.rewards-help-desc {
+  -fx-font-size: 0.92em;
+  -fx-text-fill: derive(-fx-text-base-color, -25%);
+}
+.scoreboard {
+  -fx-hgap: 14;
+  -fx-vgap: 3;
+  -fx-padding: 2 0 2 0;
+}
+.scoreboard-col-header {
+  -fx-font-size: 0.82em;
+  -fx-font-weight: bold;
+  -fx-letter-spacing: 1;
+  -fx-text-fill: derive(-fx-text-base-color, -45%);
+  -fx-padding: 0 0 3 0;
+}
+.scoreboard-team-banner {
+  -fx-font-weight: bold;
+  -fx-text-fill: -fx-accent;
+  -fx-padding: 8 6 4 6;
+  -fx-border-color: transparent transparent derive(-fx-accent, -45%) transparent;
+  -fx-border-width: 0 0 1 0;
+}
+.scoreboard-name {
+  -fx-font-size: 1.1em;
+}
+.scoreboard-score {
+  -fx-font-size: 1.05em;
+  -fx-text-fill: derive(-fx-text-base-color, -8%);
+}
+.scoreboard-term {
+  -fx-font-size: 1.0em;
+  -fx-text-fill: derive(-fx-text-base-color, -30%);
+}
+/* The banked LP — the right-hand anchor of every row, what the Combat Score buys. */
+.scoreboard-lp {
+  -fx-font-size: 1.05em;
+  -fx-font-weight: bold;
+  -fx-text-fill: -fx-accent;
+}
+
+/* Medals earned — icon + name pills instead of a comma list. */
+.medal-award-row {
+  -fx-padding: 4 0 0 0;
+}
+.medal-award-name {
+  -fx-text-fill: derive(-fx-text-base-color, -15%);
+}
+.medal-chips {
+  -fx-hgap: 6;
+  -fx-vgap: 4;
+}
+.medal-chip {
+  -fx-spacing: 5;
+  -fx-padding: 2 8 2 4;
+  -fx-background-radius: 11;
+  -fx-background-color: derive(-fx-base, -16%);
+  -fx-border-color: derive(-fx-accent, -40%);
+  -fx-border-width: 1;
+  -fx-border-radius: 11;
+}
+.medal-chip-label {
+  -fx-font-size: 0.95em;
+}
+
+/* ===== Ladder Points — medal cabinet (User Info display case) ===== */
+.medal-cabinet {
+  -fx-padding: 16;
+  -fx-background-radius: 6;
+  -fx-background-color: linear-gradient(to bottom, derive(-fx-base, -16%), derive(-fx-base, -34%));
+  -fx-border-color: -fx-accent;
+  -fx-border-width: 1.5;
+  -fx-border-radius: 6;
+  -fx-effect: innershadow(gaussian, rgba(0, 0, 0, 0.7), 18, 0, 0, 4);
+}
+.medal-slot {
+  -fx-padding: 10 8 8 8;
+  -fx-min-width: 92;
+  -fx-background-radius: 5;
+  -fx-background-color: radial-gradient(center 50% 38%, radius 75%, derive(-fx-base, 10%), derive(-fx-base, -24%));
+  -fx-border-color: derive(-fx-accent, -45%);
+  -fx-border-width: 1;
+  -fx-border-radius: 5;
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 8, 0, 0, 2);
+}
+.medal-slot.earned {
+  -fx-border-color: -fx-accent;
+}
+.medal-slot.locked {
+  -fx-opacity: 0.38;
+  -fx-effect: null;
+}
+.medal-slot.selectable {
+  -fx-cursor: hand;
+}
+.medal-slot.selectable:hover {
+  -fx-background-color: radial-gradient(center 50% 38%, radius 75%, derive(-fx-accent, 30%), derive(-fx-base, -18%));
+}
+.medal-slot.featured {
+  -fx-border-color: -fx-accent;
+  -fx-border-width: 2.5;
+  -fx-effect: dropshadow(gaussian, -fx-accent, 12, 0.2, 0, 0);
+}
+.featured-medal {
+  -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.6), 6, 0, 0, 1);
+}
+.medal-name {
+  -fx-font-size: 0.85em;
+  -fx-padding: 4 0 0 0;
+}
+.medal-count {
+  -fx-font-size: 0.85em;
+  -fx-font-weight: bold;
+  -fx-text-fill: -fx-accent;
+}
+.medal-section-earned {
+  -fx-font-size: 1.0em;
+  -fx-font-weight: bold;
+  -fx-text-fill: -fx-accent;
+  -fx-padding: 2 0 2 2;
+}
+.medal-section-header {
+  -fx-font-size: 0.82em;
+  -fx-font-weight: bold;
+  -fx-text-fill: -fx-text-base-color;
+  -fx-opacity: 0.6;
+  -fx-padding: 8 0 0 2;
+}
+.medal-section-row {
+  -fx-padding: 0 0 2 0;
+}
+.rating-change-label {
+  -fx-font-size: 9px;
+}
+.rating-change-label:positive {
+  -fx-text-fill: -good;
+}
+.rating-change-label:negative {
+  -fx-text-fill: -bad;
 }

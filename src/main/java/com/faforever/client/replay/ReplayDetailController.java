@@ -21,6 +21,8 @@ import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
+import com.faforever.client.preferences.DisplayMetric;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.rating.RatingService;
 import com.faforever.client.replay.Replay.ChatMessage;
 import com.faforever.client.replay.Replay.GameOption;
@@ -37,6 +39,8 @@ import com.faforever.client.vault.review.ReviewsController;
 import com.faforever.commons.io.Bytes;
 import com.google.common.annotations.VisibleForTesting;
 import javafx.beans.binding.Bindings;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ObservableMap;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
@@ -48,6 +52,7 @@ import javafx.scene.control.Separator;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -92,7 +97,15 @@ public class ReplayDetailController implements Controller<Node> {
   private final ReviewService reviewService;
   private final UserService userService;
   private final GalacticWarService galacticWarService;
+  private final PreferencesService preferencesService;
+  private final com.faforever.client.ladder.LadderPointsService ladderPointsService;
   private final ArrayList<TeamCardController> teamCardControllers = new ArrayList<>();
+  /** Re-renders the team cards (rating ⇄ ladder rank) when the global display-metric pill flips. */
+  private ChangeListener<DisplayMetric> displayMetricListener;
+  public javafx.scene.layout.VBox combatRewardsContainer;
+  /** Root node of the included Season Ladder ⇄ Skill Rating pill; hidden for unranked (global /
+   * hidden) boards, where neither metric is meaningful. Injected by the {@code fx:include}. */
+  public Node displayMetricToggle;
   public Pane replayDetailRoot;
   public Label titleLabel;
   public Button copyButton;
@@ -116,7 +129,6 @@ public class ReplayDetailController implements Controller<Node> {
   public TableView<GameOption> optionsTable;
   public TableColumn<GameOption, String> optionKeyColumn;
   public TableColumn<GameOption, String> optionValueColumn;
-  public Button downloadMoreInfoButton;
   public Pane moreInformationPane;
   public DefaultImageView mapThumbnailImageView;
   public Node replayAvailableContainer;
@@ -124,14 +136,23 @@ public class ReplayDetailController implements Controller<Node> {
   public Button tadaUploadButton;
   public TextField replayIdField;
   public ScrollPane scrollPane;
-  public Button showRatingChangeButton;
+  public ToggleButton viewBattleReportButton;
   public Button reportButton;
   public Label notRatedReasonLabel;
+  /** "Show rating change" — reveals the legacy MMR delta per player in the team cards. Shown only
+   * for a rated replay on a non-hidden (ranked) board AND while the {@code showLegacyRating}
+   * cutover flag is on. */
+  public Button showRatingChangeButton;
+  /** Whether this replay's board is hidden (global / just-for-fun) — no MMR delta is offered then. */
+  private boolean ratingBoardHidden;
   public Label ratingTypeLabel;
   public Label visibilityLabel;
   public Button unhideButton;
   private Replay replay;
   private ObservableMap<String, List<PlayerStats>> teams;
+  /** Whether the battle report (Combat Score → LP + medals) has loaded non-empty data for this game;
+   * the report is only shown when this is true and the toggle is on. */
+  private boolean hasRewardData;
 
   public void initialize() {
     JavaFxUtil.addLabelContextMenus(uiService, onMapLabel, titleLabel);
@@ -154,7 +175,7 @@ public class ReplayDetailController implements Controller<Node> {
     optionValueColumn.setCellValueFactory(param -> param.getValue().valueProperty());
     optionValueColumn.setCellFactory(param -> new StringCell<>(String::toString));
 
-    JavaFxUtil.bindManagedToVisible(downloadMoreInfoButton, moreInformationPane, teamsInfoBox,
+    JavaFxUtil.bindManagedToVisible(moreInformationPane, teamsInfoBox,
         reviewsContainer, ratingSeparator, reviewSeparator, getRoot());
 
     replayDetailRoot.setOnKeyPressed(keyEvent -> {
@@ -162,8 +183,6 @@ public class ReplayDetailController implements Controller<Node> {
         onCloseButtonClicked();
       }
     });
-
-    moreInformationPane.setVisible(false);
 
     reviewsController.getRoot().setMaxSize(Integer.MAX_VALUE, Integer.MAX_VALUE);
 
@@ -176,14 +195,23 @@ public class ReplayDetailController implements Controller<Node> {
     ratingLabel.setTooltip(new Tooltip(i18n.get("replay.ratingTooltip")));
     ratingTypeLabel.setTooltip(new Tooltip(i18n.get("leaderboard.displayName")));
     qualityLabel.setTooltip(new Tooltip(i18n.get("replay.qualityTooltip")));
-    showRatingChangeButton.managedProperty().bind(showRatingChangeButton.visibleProperty());
     notRatedReasonLabel.managedProperty().bind(notRatedReasonLabel.visibleProperty());
+    showRatingChangeButton.managedProperty().bind(showRatingChangeButton.visibleProperty());
+
+    // The team cards show a skill rating or a ladder rank depending on the global pill (one of which
+    // is included in this dialog's header); rebuild them live when it flips.
+    displayMetricListener = (obs, oldValue, newValue) -> {
+      if (teams != null) {
+        populateTeamsContainer();
+      }
+    };
+    JavaFxUtil.addListener(preferencesService.getPreferences().displayMetricProperty(),
+        new WeakChangeListener<>(displayMetricListener));
   }
 
   public void setReplay(Replay replay) {
     this.replay = replay;
     replayAvailableContainer.setDisable(false);
-    downloadMoreInfoButton.setDisable(false);
 
     replayIdField.setText(i18n.get("game.idFormat", replay.getId()));
     if (playerService.isFoe(replay.getHostId())) {
@@ -260,13 +288,21 @@ public class ReplayDetailController implements Controller<Node> {
     ratingLabel.setVisible(false);
     ratingLabel.managedProperty().bind(ratingLabel.visibleProperty());
     ratingTypeLabel.setText("-");
+    // No board (or a hidden / global "just for fun" board) → neither rating nor ladder rank is
+    // meaningful, so don't offer the metric pill. Defaults hidden; shown only for a ranked board.
+    displayMetricToggle.setManaged(false);
+    displayMetricToggle.setVisible(false);
     replay.getTeamPlayerStats().values().stream().findAny()
         .flatMap(playerStatsList -> playerStatsList.stream().findAny())
         .flatMap(playerStats -> Optional.ofNullable(playerStats.getLeaderboard()))
         .ifPresent(leaderboard -> {
           ratingTypeLabel.setText(i18n.get(leaderboard.getNameKey()));
           ratingTypeLabel.setVisible(!DEFAULT_RATING_TYPE.equals(leaderboard.getTechnicalName()));
-          ratingLabel.setVisible(!leaderboard.getLeaderboardHidden());
+          boolean hidden = leaderboard.getLeaderboardHidden();
+          ratingBoardHidden = hidden;
+          ratingLabel.setVisible(!hidden);
+          displayMetricToggle.setVisible(!hidden);
+          displayMetricToggle.setManaged(!hidden);
         });
 
     if (replay.getReplayFile() == null) {
@@ -274,19 +310,14 @@ public class ReplayDetailController implements Controller<Node> {
         replayService.getSize(replay.getId())
             .thenAccept(replaySize -> JavaFxUtil.runLater(() -> {
               String humanReadableSize = Bytes.formatSize(replaySize, i18n.getUserSpecificLocale());
-              downloadMoreInfoButton.setText(i18n.get("game.downloadMoreInfo", humanReadableSize));
               watchButton.setText(i18n.get("game.watchButtonFormat", humanReadableSize));
-              downloadMoreInfoButton.setVisible(true);
             }));
       } else {
         if (replay.getStartTime().isBefore(OffsetDateTime.now().minusDays(1))) {
-          downloadMoreInfoButton.setText(i18n.get("game.replayFileMissing"));
           watchButton.setText(i18n.get("game.replayFileMissing"));
         } else {
-          downloadMoreInfoButton.setText(i18n.get("game.replayNotAvailable"));
           watchButton.setText(i18n.get("game.replayNotAvailable"));
         }
-        downloadMoreInfoButton.setDisable(true);
         replayAvailableContainer.setDisable(true);
       }
       Optional<Player> currentPlayer = playerService.getCurrentPlayer();
@@ -299,26 +330,21 @@ public class ReplayDetailController implements Controller<Node> {
           .filter(review -> review.getPlayer().equals(currentPlayer.get()))
           .findFirst());
 
-      // These items are initially empty but will be populated in #onDownloadMoreInfoClicked()
-      moreInformationPane.setVisible(false);
-      optionsTable.setItems(replay.getGameOptions());
-      chatTable.setItems(replay.getChatMessages());
+      // Game Options + Chat (moreInformationPane) stay hidden.
       teams = replay.getTeamPlayerStats();
       populateTeamsContainer();
+      // The battle report starts open for participants, closed for spectators; the toggle reveals it
+      // either way. Data loads regardless so toggling on always works.
+      viewBattleReportButton.setSelected(isCurrentPlayerParticipant());
+      populateCombatRewards(replay.getId());
     } else {
       watchButton.setText(i18n.get("game.watch"));
+      showRatingChangeButton.setVisible(false);
       ratingSeparator.setVisible(false);
       reviewSeparator.setVisible(false);
       reviewsContainer.setVisible(false);
       teamsInfoBox.setVisible(false);
-      downloadMoreInfoButton.setVisible(false);
-      showRatingChangeButton.setVisible(false);
-      optionsTable.setItems(replay.getGameOptions());
-      chatTable.setItems(replay.getChatMessages());
       replayService.enrich(replay, replay.getReplayFile());
-      chatTable.setItems(replay.getChatMessages());
-      optionsTable.setItems(replay.getGameOptions());
-      moreInformationPane.setVisible(true);
     }
   }
 
@@ -356,26 +382,44 @@ public class ReplayDetailController implements Controller<Node> {
         });
   }
 
-  public void onDownloadMoreInfoClicked() {
-    // TODO display loading indicator
-    downloadMoreInfoButton.setVisible(false);
-    replayService.downloadReplay(replay.getId())
-        .thenAccept(path -> {
-          replayService.enrich(replay, path);
-          chatTable.setItems(replay.getChatMessages());
-          optionsTable.setItems(replay.getGameOptions());
-          moreInformationPane.setVisible(true);
-        })
-        .exceptionally(throwable -> {
-          if (throwable.getCause() instanceof FileNotFoundException) {
-            log.warn("Replay not available on server yet", throwable);
-            notificationService.addImmediateWarnNotification("replayNotAvailable", replay.getId());
-          } else {
-            log.error("Replay could not be enriched", throwable);
-            notificationService.addImmediateErrorNotification(throwable, "replay.enrich.error");
-          }
-          return null;
-        });
+  /** Loads the battle-report data (Combat Score → LP + medals) for this game; visibility is then
+   * governed by the toggle via {@link #updateBattleReportVisibility()}. */
+  private void populateCombatRewards(int gameId) {
+    if (combatRewardsContainer == null) {
+      return;
+    }
+    hasRewardData = false;
+    combatRewardsContainer.getChildren().clear();
+    updateBattleReportVisibility();
+    ladderPointsService.getGameResult(gameId).thenAccept(result -> JavaFxUtil.runLater(() -> {
+      if (result == null || result.isEmpty()) {
+        hasRewardData = false;
+        updateBattleReportVisibility();
+        return;
+      }
+      combatRewardsContainer.getChildren().setAll(
+          com.faforever.client.ladder.GameRewardsView.render(i18n, uiService, result));
+      hasRewardData = true;
+      updateBattleReportVisibility();
+    }));
+  }
+
+  /** Shows the battle report only when the toggle is on and there is data to show. The toggle is
+   * disabled entirely when the game has no battle report / awarded medals to reveal. */
+  private void updateBattleReportVisibility() {
+    viewBattleReportButton.setDisable(!hasRewardData);
+    boolean show = viewBattleReportButton.isSelected() && hasRewardData;
+    combatRewardsContainer.setVisible(show);
+    combatRewardsContainer.setManaged(show);
+  }
+
+  private boolean isCurrentPlayerParticipant() {
+    Optional<Player> currentPlayer = playerService.getCurrentPlayer();
+    if (currentPlayer.isEmpty() || teams == null) {
+      return false;
+    }
+    int myId = currentPlayer.get().getId();
+    return teams.values().stream().flatMap(List::stream).anyMatch(stats -> stats.getPlayerId() == myId);
   }
 
   private void populateTeamsContainer() {
@@ -393,6 +437,9 @@ public class ReplayDetailController implements Controller<Node> {
 
 
       TeamCardController controller = uiService.loadFxml("theme/team_card.fxml");
+      // Replay rosters often have no faction/GW icon and no country flag; fall back to a "playing"
+      // status icon so the leading-icon column stays aligned instead of names sitting flush-left.
+      controller.setShowPlayingStatusIconFallback(true);
       teamCardControllers.add(controller);
 
       Function<Player, LeaderboardRating> playerRatingFunction = player -> getPlayerLeaderboardRating(player, statsByPlayerId);
@@ -414,7 +461,7 @@ public class ReplayDetailController implements Controller<Node> {
 
       playerService.getPlayersByIds(playerIds)
           .thenAccept(players ->
-              controller.setPlayersInTeam(team, players, playerRatingFunction, playerFactionFunction, gwMedalProvider, RatingPrecision.EXACT,
+              controller.setPlayersInTeam(team, players, playerRatingFunction, playerFactionFunction, gwMedalProvider, RatingPrecision.ROUNDED,
                   hidePlayerRatings)
           );
 
@@ -458,10 +505,24 @@ public class ReplayDetailController implements Controller<Node> {
       notRatedReasonLabel.setVisible(true);
       notRatedReasonLabel.setText(i18n.get("game.notRatedYet"));
     } else {
-      showRatingChangeButton.setVisible(true);
+      // Rated game: offer the legacy MMR delta — but only while the cutover flag keeps the legacy
+      // rating visible (Ladder Points is the hero; the delta is the familiar companion until the
+      // rating moves to the combat rating service, after which there is no live delta to show).
+      showRatingChangeButton.setVisible(clientProperties.isShowLegacyRating() && !ratingBoardHidden);
       showRatingChangeButton.setDisable(false);
       notRatedReasonLabel.setVisible(false);
     }
+  }
+
+  /** Reveal each player's legacy MMR change in the team cards (one-shot; then disables the button). */
+  public void showRatingChange() {
+    teamCardControllers.forEach(teamCardController -> teamCardController.showRatingChange(teams));
+    showRatingChangeButton.setDisable(true);
+  }
+
+  /** Toggles the Combat Score → Ladder Points + Medals Earned sections shown inline. */
+  public void onViewBattleReport() {
+    updateBattleReportVisibility();
   }
 
   public void onReport() {
@@ -500,11 +561,6 @@ public class ReplayDetailController implements Controller<Node> {
   public void copyLink() {
     String replayUrl = Replay.getReplayUrl(replay.getId(), clientProperties.getVault().getReplayDownloadUrlFormat());
     ClipboardUtil.copyToClipboard(replayUrl);
-  }
-
-  public void showRatingChange() {
-    teamCardControllers.forEach(teamCardController -> teamCardController.showRatingChange(teams));
-    showRatingChangeButton.setDisable(true);
   }
 
   public void onUnhideButton(ActionEvent actionEvent) {

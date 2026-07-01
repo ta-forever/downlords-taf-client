@@ -10,9 +10,11 @@ import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.ladder.ScoreScreenController;
 import com.faforever.client.login.LoginController;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.main.event.NavigationItem;
+import com.faforever.client.main.event.ShowScoreScreenEvent;
 import com.faforever.client.news.UnreadNewsEvent;
 import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.ImmediateNotificationController;
@@ -307,6 +309,18 @@ public class MainController implements Controller<Node> {
   @Subscribe
   public void onUnreadPrivateMessage(UnreadPrivateMessageEvent event) {
     JavaFxUtil.runLater(() -> playButton.pseudoClassStateChanged(HIGHLIGHTED, !currentItem.equals(NavigationItem.PLAY)));
+  }
+
+  @Subscribe
+  public void onShowScoreScreen(ShowScoreScreenEvent event) {
+    JavaFxUtil.runLater(() -> showScoreScreen(event.getGameId()));
+  }
+
+  private void showScoreScreen(int gameId) {
+    ScoreScreenController controller = uiService.loadFxml("theme/score_screen.fxml");
+    controller.setOwnerWindow(mainRoot.getScene().getWindow());
+    controller.setGameId(gameId);
+    controller.show();
   }
 
   private void displayView(AbstractViewController<?> controller, NavigateEvent navigateEvent) {

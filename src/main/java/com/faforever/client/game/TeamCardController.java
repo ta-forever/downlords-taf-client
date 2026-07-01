@@ -8,8 +8,9 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.LeaderboardRating;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
-import com.faforever.client.rating.RatingService;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.replay.Replay.PlayerStats;
+import com.faforever.client.rating.RatingService;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.util.RatingUtil;
 import javafx.collections.ObservableMap;
@@ -42,19 +43,31 @@ public class TeamCardController implements Controller<Node> {
   private final PlayerService playerService;
   private final GalacticWarService galacticWarService;
   private final I18n i18n;
+  private final PreferencesService preferencesService;
   public Pane teamPaneRoot;
   public VBox teamPane;
   public Label teamNameLabel;
-  private final Map<Integer, RatingChangeLabelController> ratingChangeControllersByPlayerId;
   /** Host's +autoteam pins (player id -> team index 0/1); pinned players get a badge. */
   private Map<Integer, Integer> pinnedTeams = Map.of();
+  /** Replay detail opt-in: when a row has neither a faction/GW icon nor a country flag, show a
+   *  neutral "playing" status icon so names don't sit flush-left. Off elsewhere. */
+  private boolean showPlayingStatusIconFallback = false;
+  /** Per-player rating-change label (legacy MMR delta), revealed by {@link #showRatingChange}. */
+  private final Map<Integer, RatingChangeLabelController> ratingChangeControllersByPlayerId = new HashMap<>();
 
-  public TeamCardController(UiService uiService, PlayerService playerService, GalacticWarService galacticWarService, I18n i18n) {
+  public TeamCardController(UiService uiService, PlayerService playerService, GalacticWarService galacticWarService, I18n i18n, PreferencesService preferencesService) {
     this.uiService = uiService;
     this.playerService = playerService;
     this.galacticWarService = galacticWarService;
     this.i18n = i18n;
-    ratingChangeControllersByPlayerId = new HashMap<>();
+    this.preferencesService = preferencesService;
+  }
+
+  /** Replay detail opt-in: fall back to a "playing" status icon on rows that have neither a
+   *  faction/GW icon nor a country flag, so player names stay aligned. Set before
+   *  {@link #setPlayersInTeam}. */
+  public void setShowPlayingStatusIconFallback(boolean enabled) {
+    this.showPlayingStatusIconFallback = enabled;
   }
 
   /**
@@ -141,14 +154,19 @@ public class TeamCardController implements Controller<Node> {
         gwMedalIcon = playerGwMedalProvider.apply(player);
       }
       playerCardTooltipController.setPlayer(player, hidePlayerRatings ? null : playerRating, faction, gwMedalIcon);
-      // Team cards don't show friend/foe status.
-      playerCardTooltipController.hideSocialStatusIcons();
+      // Team cards hide friend/foe status by default; users can opt back in via a setting.
+      if (!preferencesService.getPreferences().isShowFriendFoeInTeamCards()) {
+        playerCardTooltipController.hideSocialStatusIcons();
+      }
       // If the host pinned this player, show the pin (pin.png + team number) in
       // place of the country flag to conserve space; the flag's fixed position
       // also keeps the pins aligned across rows.
       Integer pinnedTeam = pinnedTeams.get(player.getId());
       if (pinnedTeam != null) {
         playerCardTooltipController.replaceCountryFlag(buildPinBadge(pinnedTeam));
+      } else if (showPlayingStatusIconFallback) {
+        // Replay detail: keep names aligned when a row has no faction/GW icon and no country flag.
+        playerCardTooltipController.showPlayingStatusIconIfNoIcons();
       }
       playerCardTooltipController.getRoot().setOnContextMenuRequested(event -> {
         TeamCardPlayerContextMenuController ctrl = uiService.loadFxml("theme/play/team_card_player_context_menu.fxml");
@@ -179,6 +197,16 @@ public class TeamCardController implements Controller<Node> {
     teamNameLabel.setText(teamTitle);
   }
 
+  /** Reveal each player's legacy rating change (before -> after MMR) on their card, for a rated
+   * replay. Gated upstream by the {@code showLegacyRating} cutover flag. */
+  public void showRatingChange(Map<String, List<PlayerStats>> teams) {
+    teams.values().stream()
+        .flatMap(List::stream)
+        .filter(playerStats -> ratingChangeControllersByPlayerId.containsKey(playerStats.getPlayerId()))
+        .forEach(playerStats -> ratingChangeControllersByPlayerId.get(playerStats.getPlayerId())
+            .setRatingChange(playerStats));
+  }
+
   /** A team-coloured pin icon followed by the team number, shown for a
    *  host-pinned player (blue = Team 1, red = Team 2). */
   private Node buildPinBadge(int teamIndex) {
@@ -194,13 +222,6 @@ public class TeamCardController implements Controller<Node> {
     badge.getStyleClass().add("pinned-team-badge");
     Tooltip.install(badge, new Tooltip(i18n.get("game.pinnedTeamBadge.tooltip", teamIndex + 1)));
     return badge;
-  }
-
-  public void showRatingChange(Map<String, List<PlayerStats>> teams) {
-    teams.values().stream()
-        .flatMap(List::stream)
-        .filter(playerStats -> ratingChangeControllersByPlayerId.containsKey(playerStats.getPlayerId()))
-        .forEach(playerStats -> ratingChangeControllersByPlayerId.get(playerStats.getPlayerId()).setRatingChange(playerStats));
   }
 
   public Node getRoot() {

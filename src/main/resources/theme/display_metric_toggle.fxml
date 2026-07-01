@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.control.ToggleGroup?>
+<?import javafx.scene.layout.HBox?>
+<HBox fx:id="root" alignment="CENTER" styleClass="display-metric-toggle"
+      xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.faforever.client.ladder.DisplayMetricToggleController">
+    <fx:define>
+        <ToggleGroup fx:id="group"/>
+    </fx:define>
+    <children>
+        <ToggleButton fx:id="ladderToggle" mnemonicParsing="false" styleClass="left-pill"
+                      text="%leaderboard.toggle.lp.label" toggleGroup="$group"/>
+        <ToggleButton fx:id="ratingToggle" mnemonicParsing="false" styleClass="right-pill"
+                      text="%leaderboard.toggle.ratings.label" toggleGroup="$group"/>
+    </children>
+</HBox>

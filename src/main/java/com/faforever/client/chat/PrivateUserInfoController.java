@@ -7,9 +7,12 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.game.Game;
 import com.faforever.client.game.GameDetailController;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.leaderboard.LeaderboardRating;
 import com.faforever.client.leaderboard.LeaderboardService;
 import com.faforever.client.player.Player;
+import com.faforever.client.preferences.DisplayMetric;
+import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.util.IdenticonUtil;
 import com.faforever.client.util.RatingUtil;
 import com.google.common.eventbus.EventBus;
@@ -28,7 +31,10 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.util.Comparator;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
@@ -37,6 +43,9 @@ public class PrivateUserInfoController implements Controller<Node> {
   private final I18n i18n;
   private final AchievementService achievementService;
   private final LeaderboardService leaderboardService;
+  private final com.faforever.client.leaderboard.RatingTierService ratingTierService;
+  private final com.faforever.client.ladder.LadderPointsService ladderPointsService;
+  private final PreferencesService preferencesService;
   private final EventBus eventBus;
   private final ChatUserService chatUserService;
   public ImageView userImageView;
@@ -55,10 +64,16 @@ public class PrivateUserInfoController implements Controller<Node> {
   private ChatChannelUser chatUser;
 
   public PrivateUserInfoController(I18n i18n, AchievementService achievementService, LeaderboardService leaderboardService,
+                                   com.faforever.client.leaderboard.RatingTierService ratingTierService,
+                                   com.faforever.client.ladder.LadderPointsService ladderPointsService,
+                                   PreferencesService preferencesService,
                                    EventBus eventBus, ChatUserService chatUserService) {
     this.i18n = i18n;
     this.achievementService = achievementService;
     this.leaderboardService = leaderboardService;
+    this.ratingTierService = ratingTierService;
+    this.ladderPointsService = ladderPointsService;
+    this.preferencesService = preferencesService;
     this.eventBus = eventBus;
     this.chatUserService = chatUserService;
   }
@@ -163,21 +178,61 @@ public class PrivateUserInfoController implements Controller<Node> {
   }
 
   private void loadReceiverRatingInformation(Player player) {
-    leaderboardService.getLeaderboards().thenAccept(leaderboards -> {
-      StringBuilder ratingNames = new StringBuilder();
-      StringBuilder ratingNumbers = new StringBuilder();
-      leaderboards.forEach(leaderboard -> {
-        LeaderboardRating leaderboardRating = player.getLeaderboardRatings().get(leaderboard.getTechnicalName());
-        if (leaderboardRating != null) {
-          String leaderboardName = i18n.get(leaderboard.getNameKey());
-          ratingNames.append(i18n.get("leaderboard.rating", leaderboardName)).append("\n\n");
-          ratingNumbers.append(i18n.number(RatingUtil.getLeaderboardRating(player, leaderboard))).append("\n\n");
-        }
-      });
-      JavaFxUtil.runLater(() -> {
-        ratingsLabels.setText(ratingNames.toString());
-        ratingsValues.setText(ratingNumbers.toString());
-      });
+    // The displayMetric pref swaps only the static gauge (LADDER_POINTS_DESIGN §13.2): Season
+    // Ladder shows division + LP; Skill Rating shows the absolute rating rounded to nearest 100.
+    boolean lpMode = preferencesService.getPreferences().getDisplayMetric() != DisplayMetric.RATINGS;
+    leaderboardService.getLeaderboards()
+        .thenCombine(ladderPointsService.getStandingsForPlayer(player.getId()), (leaderboards, standings) -> {
+          StringBuilder ratingNames = new StringBuilder();
+          StringBuilder ratingNumbers = new StringBuilder();
+          if (lpMode) {
+            appendSeasonLadder(leaderboards, standings, ratingNames, ratingNumbers);
+          } else {
+            appendSkillRatings(player, leaderboards, ratingNames, ratingNumbers);
+          }
+          JavaFxUtil.runLater(() -> {
+            ratingsLabels.setText(ratingNames.toString());
+            ratingsValues.setText(ratingNumbers.toString());
+          });
+          return null;
+        });
+  }
+
+  /** Season Ladder gauge (§13.3): each board's rank + LP, most-played first. Cold start (no
+   * standings) shows a single "Unranked" line (§13.5) - never a fabricated value. */
+  private void appendSeasonLadder(java.util.List<Leaderboard> leaderboards,
+                                  java.util.List<com.faforever.client.ladder.SeasonStanding> standings,
+                                  StringBuilder ratingNames, StringBuilder ratingNumbers) {
+    if (standings.isEmpty()) {
+      ratingNames.append(i18n.get("leaderboard.toggle.lp.label")).append("\n\n");
+      ratingNumbers.append(i18n.get("lp.badge.unranked")).append("\n\n");
+      return;
+    }
+    Map<String, String> boardNames = leaderboards.stream()
+        .collect(Collectors.toMap(Leaderboard::getTechnicalName, lb -> i18n.get(lb.getNameKey()), (a, b) -> a));
+    standings.stream()
+        .sorted(Comparator.comparingInt(com.faforever.client.ladder.SeasonStanding::getGames).reversed())
+        .forEach(standing -> {
+          ratingNames.append(boardNames.getOrDefault(standing.getLeaderboardTechnicalName(),
+              standing.getLeaderboardTechnicalName())).append("\n\n");
+          ratingNumbers.append(com.faforever.client.ladder.LadderUiUtil.standingDisplay(i18n, standing))
+              .append("\n\n");
+        });
+  }
+
+  /** Skill Rating gauge (§13.2): absolute rating per board, rounded to nearest 100 so it reads as
+   * a stable skill tier rather than game-to-game movement. */
+  private void appendSkillRatings(Player player, java.util.List<Leaderboard> leaderboards,
+                                  StringBuilder ratingNames, StringBuilder ratingNumbers) {
+    leaderboards.forEach(leaderboard -> {
+      LeaderboardRating leaderboardRating = player.getLeaderboardRatings().get(leaderboard.getTechnicalName());
+      if (leaderboardRating != null) {
+        ratingNames.append(i18n.get("leaderboard.rating", i18n.get(leaderboard.getNameKey()))).append("\n\n");
+        // Hysteresis-stabilised tier (§13.2.3) so the number reads as a steady skill tier.
+        int tier = ratingTierService.displayTier(player.getId(), leaderboard.getTechnicalName(),
+            RatingUtil.getLeaderboardRating(player, leaderboard));
+        ratingNumbers.append(i18n.number(tier)).append("\n\n");
+      }
     });
   }
 }

@@ -159,12 +159,18 @@ compileTestJava {
   // compile cleanly.
   include '**/player/**'
   include '**/tournament/**'
+  // Ladder Points (LADDER_POINTS_DESIGN.md) — new, self-contained package.
+  include '**/ladder/**'
   // Self-contained, maintained tests for the crash-resilient game-log upload (marker + log tailing).
   // Scoped to the single files so they don't pull in broken siblings in those packages.
   include '**/game/GameLogUploadMarkerTest.java'
   include '**/game/ManualTeamArrangementControllerTest.java'
+  // Self-contained team-card test (covers the friend/foe-icons-in-team-cards toggle).
+  include '**/game/TeamCardControllerTest.java'
   include '**/game/ManageGameControllerTest.java'
   include '**/rating/JSkillsRatingServiceConstrainedTest.java'
+  // Self-contained skill-rating tier hysteresis (LADDER_POINTS_DESIGN §13.2.3); no broken siblings pulled in.
+  include '**/leaderboard/RatingTierServiceTest.java'
   include '**/util/LogTailUtilTest.java'
   // Self-contained Ed25519 update-signature verifier test (no broken siblings in update/).
   include '**/update/UpdateSignatureVerifierTest.java'
@@ -206,7 +212,6 @@ bootRun {
             "-XX:ParallelGCThreads=1",
             "-XX:+UseG1GC",
             "-javaagent:webview-patch/build/libs/webview-patch.jar",
-            "-javaagent:fxstage/build/libs/fxstage.jar",
             "-XX:TieredStopAtLevel=1"
     ]
 }

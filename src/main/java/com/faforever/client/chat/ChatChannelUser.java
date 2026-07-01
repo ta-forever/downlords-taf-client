@@ -38,6 +38,9 @@ public class ChatChannelUser {
   private final ObjectProperty<PlayerStatus> gameStatus;
   private final ObjectProperty<SocialStatus> socialStatus;
   private final ObjectProperty<Image> avatar;
+  /** Tooltip for whatever sits in the avatar slot — a medal's name + multiplicity, or the regular
+   * avatar's description. Set alongside {@link #avatar} by ChatUserService. */
+  private final StringProperty avatarTooltipText;
   private final ObjectProperty<Clan> clan;
   private final StringProperty clanTag;
   private final ObjectProperty<Image> countryFlag;
@@ -64,6 +67,7 @@ public class ChatChannelUser {
     this.gameStatus = new SimpleObjectProperty<>();
     this.socialStatus = new SimpleObjectProperty<>();
     this.avatar = new SimpleObjectProperty<>();
+    this.avatarTooltipText = new SimpleStringProperty();
     this.clan = new SimpleObjectProperty<>();
     this.clanTag = new SimpleStringProperty();
     this.countryFlag = new SimpleObjectProperty<>();
@@ -189,6 +193,18 @@ public class ChatChannelUser {
 
   public ObjectProperty<Image> avatarProperty() {
     return avatar;
+  }
+
+  public String getAvatarTooltipText() {
+    return avatarTooltipText.get();
+  }
+
+  public void setAvatarTooltipText(String text) {
+    this.avatarTooltipText.set(text);
+  }
+
+  public StringProperty avatarTooltipTextProperty() {
+    return avatarTooltipText;
   }
 
   public Optional<Clan> getClan() {

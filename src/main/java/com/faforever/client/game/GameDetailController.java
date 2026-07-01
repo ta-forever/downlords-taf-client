@@ -162,6 +162,8 @@ public class GameDetailController implements Controller<Pane> {
   private ChangeListener<GameStatus> currentGameStatusListener;
   private ChangeListener<Number> gameRunningListener;
   private ChangeListener<Game> autoJoinRequestedGameListener;
+  /** Re-renders the team cards (rating ⇄ ladder rank) when the global display-metric pill flips. */
+  private ChangeListener<com.faforever.client.preferences.DisplayMetric> displayMetricListener;
   private boolean severed;
 
   /* sever ties to external objects so that this instance can be garbage collected */
@@ -228,6 +230,16 @@ public class GameDetailController implements Controller<Pane> {
     mapImageView.setDefaultImage(uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
     mapContextMenuController = uiService.loadFxml("theme/play/game_detail_map_context_menu.fxml");
     pingTableContainer.managedProperty().bind(pingTableContainer.visibleProperty());
+
+    // The team cards show either a skill rating or a ladder rank depending on the global pill;
+    // rebuild them live when it flips so the displayed metric stays in sync.
+    displayMetricListener = (obs, oldValue, newValue) -> {
+      if (game.get() != null) {
+        createTeams();
+      }
+    };
+    JavaFxUtil.addListener(preferencesService.getPreferences().displayMetricProperty(),
+        new WeakChangeListener<>(displayMetricListener));
 
     // React to players going online/offline so the reserved-players card's
     // status dots update without needing the whole game_info to change.
@@ -529,7 +541,13 @@ public class GameDetailController implements Controller<Pane> {
 
     this.leaderboardService.getLeaderboards()
         .thenAccept(leaderboards -> JavaFxUtil.runLater(() -> {
-          boolean hidePlayerRatings = leaderboards.stream().noneMatch(lb -> lb.getTechnicalName().equals(game.get().getRatingType()));
+          // Hide ratings (and rank) for unknown rating types AND for the hidden global
+          // "just for fun" board, which has a leaderboard but is flagged hidden.
+          boolean hidePlayerRatings = leaderboards.stream()
+              .filter(lb -> lb.getTechnicalName().equals(game.get().getRatingType()))
+              .findFirst()
+              .map(lb -> lb.getLeaderboardHidden())
+              .orElse(true);
           teamListPane.getChildren().clear();
           // Show the host's +autoteam pins for the full lifetime of the game
           // (staging, live, ended) so it's always plain to everyone that the

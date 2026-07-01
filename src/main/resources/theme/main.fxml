@@ -80,6 +80,12 @@
                     <Pane maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" />
                <HBox fx:id="rightMenuPane" alignment="TOP_RIGHT" maxHeight="-Infinity" minHeight="-Infinity" minWidth="-Infinity" styleClass="right-menu">
                    <children>
+                       <!-- Global Season Ladder / Skill Rating switch; reachable from every tab. -->
+                       <fx:include source="display_metric_toggle.fxml">
+                           <HBox.margin>
+                               <Insets right="10.0"/>
+                           </HBox.margin>
+                       </fx:include>
                        <StackPane alignment="TOP_RIGHT" maxHeight="-Infinity">
                            <children>
                                <Button fx:id="notificationButton" contentDisplay="CENTER"

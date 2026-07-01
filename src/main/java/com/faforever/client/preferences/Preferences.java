@@ -54,6 +54,7 @@ public class Preferences {
 
   private final BooleanProperty forceRelayEnabled = new SimpleBooleanProperty(false);
   private final BooleanProperty colorBlindFriendly = new SimpleBooleanProperty(false);
+  private final BooleanProperty showFriendFoeInTeamCards = new SimpleBooleanProperty(false);
   private final IntegerProperty iceAcceptableLatency = new SimpleIntegerProperty(-1);
   private final BooleanProperty proactiveResendEnabled = new SimpleBooleanProperty(false);
   private final ObjectProperty<MaxPacketSizeOption> maxPacketSizeOption = new SimpleObjectProperty<>(MaxPacketSizeOption.NORMAL);
@@ -88,6 +89,7 @@ public class Preferences {
   private final ObjectProperty<TadaIntegrationOption> tadaIntegrationOption = new SimpleObjectProperty<>(TadaIntegrationOption.BROWSER);
   private final ObjectProperty<AskAlwaysOrNever> featuredModRevertOption = new SimpleObjectProperty<>(AskAlwaysOrNever.ASK);
   private final ObjectProperty<RatingMetric> userInfoRatingMetric = new SimpleObjectProperty<>(RatingMetric.TRUESKILL);
+  private final ObjectProperty<DisplayMetric> displayMetric = new SimpleObjectProperty<>(DisplayMetric.LADDER_POINTS);
   private final StringProperty lastLeaderboardSelection = new SimpleStringProperty("global");
   private final BooleanProperty lastLeaderboardFriendsOnlySelection = new SimpleBooleanProperty(false);
   private final StringProperty lastLeaderboardModSelection = new SimpleStringProperty();
@@ -172,6 +174,10 @@ public class Preferences {
 
   public BooleanProperty getForceRelayEnabledProperty() { return forceRelayEnabled; }
   public BooleanProperty getColorBlindFriendlyProperty() { return colorBlindFriendly; }
+
+  public boolean isShowFriendFoeInTeamCards() { return showFriendFoeInTeamCards.get(); }
+  public void setShowFriendFoeInTeamCards(boolean value) { this.showFriendFoeInTeamCards.set(value); }
+  public BooleanProperty showFriendFoeInTeamCardsProperty() { return showFriendFoeInTeamCards; }
 
   public IntegerProperty getIceAcceptableLatencyProperty() { return iceAcceptableLatency; }
 
@@ -540,6 +546,18 @@ public class Preferences {
 
   public ObjectProperty<RatingMetric> userInfoRatingMetricProperty() {
     return userInfoRatingMetric;
+  }
+
+  public DisplayMetric getDisplayMetric() {
+    return displayMetric.get();
+  }
+
+  public void setDisplayMetric(DisplayMetric metric) {
+    this.displayMetric.set(metric);
+  }
+
+  public ObjectProperty<DisplayMetric> displayMetricProperty() {
+    return displayMetric;
   }
 
   public AutoUploadLogsOption getAutoUploadLogsOption() {

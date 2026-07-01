@@ -29,6 +29,12 @@ public class NotificationsPrefs {
   private final BooleanProperty playerJoinsGameToastEnabled;
   private final BooleanProperty notifyOnAtMentionOnlyEnabled;
   private final BooleanProperty afterGameReviewEnabled;
+  // "You passed a friend on the season ladder" toast (LADDER_POINTS_DESIGN §15.2). Positive-only,
+  // individually mutable; default on.
+  private final BooleanProperty ladderPassToastEnabled;
+  // Auto-show the post-game Battle Report (score screen). Default on; the report's "Don't show
+  // again" button flips this off until the user re-enables it here.
+  private final BooleanProperty battleReportEnabled;
   // Tournament server notifications — three categories matching the kind=
   // dispatch in FafServerAccessorImpl.onNotice. Default to true so existing
   // users keep getting them; opt-out only.
@@ -63,6 +69,8 @@ public class NotificationsPrefs {
     toastScreen = new SimpleIntegerProperty(0);
     toastDisplayTime = new SimpleIntegerProperty(5000);
     afterGameReviewEnabled = new SimpleBooleanProperty(true);
+    ladderPassToastEnabled = new SimpleBooleanProperty(true);
+    battleReportEnabled = new SimpleBooleanProperty(true);
     tournamentMatchReadyEnabled = new SimpleBooleanProperty(true);
     tournamentResultsEnabled = new SimpleBooleanProperty(true);
     tournamentAnnouncementsEnabled = new SimpleBooleanProperty(true);
@@ -354,5 +362,29 @@ public class NotificationsPrefs {
 
   public BooleanProperty afterGameReviewEnabledProperty() {
     return afterGameReviewEnabled;
+  }
+
+  public boolean isLadderPassToastEnabled() {
+    return ladderPassToastEnabled.get();
+  }
+
+  public void setLadderPassToastEnabled(boolean ladderPassToastEnabled) {
+    this.ladderPassToastEnabled.set(ladderPassToastEnabled);
+  }
+
+  public BooleanProperty ladderPassToastEnabledProperty() {
+    return ladderPassToastEnabled;
+  }
+
+  public boolean isBattleReportEnabled() {
+    return battleReportEnabled.get();
+  }
+
+  public void setBattleReportEnabled(boolean battleReportEnabled) {
+    this.battleReportEnabled.set(battleReportEnabled);
+  }
+
+  public BooleanProperty battleReportEnabledProperty() {
+    return battleReportEnabled;
   }
 }

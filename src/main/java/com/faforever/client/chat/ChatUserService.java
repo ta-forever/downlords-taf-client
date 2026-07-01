@@ -55,6 +55,7 @@ public class ChatUserService implements InitializingBean {
   private final EventBus eventBus;
   private final ObjectProvider<GameService> gameServiceProvider;
   private final ObjectProvider<GalacticWarService> galacticWarServiceProvider;
+  private final com.faforever.client.ladder.LadderPointsService ladderPointsService;
 
   // Identity-based: ChatChannelUser.equals is username-only, but one instance exists
   // per (username, channel). Username equality would collapse a user in N channels into
@@ -145,14 +146,48 @@ public class ChatUserService implements InitializingBean {
   }
 
   private void populateAvatar(ChatChannelUser chatChannelUser) {
-    if (chatChannelUser.isDisplayed()) {
-      chatChannelUser.getPlayer()
-          .ifPresent(player -> {
-            Image avatar = getIconForMode(player);
-            JavaFxUtil.runLater(() -> chatChannelUser.setAvatar(avatar));
-          });
-    } else {
+    if (!chatChannelUser.isDisplayed()) {
       chatChannelUser.setAvatar(null);
+      return;
+    }
+    chatChannelUser.getPlayer().ifPresent(player -> {
+      // In normal avatar mode a chosen medal takes the avatar slot (over the regular avatar); GW /
+      // none modes keep their own icons. Resolving the medal here (not in the cell) means a medal
+      // change refreshes the bound cell immediately on repopulate.
+      if (ICON_MODE_AVATAR.equals(getIconMode()) && player.getId() > 0) {
+        ladderPointsService.getFeaturedMedalCached(player.getId())
+            .thenAccept(medal -> JavaFxUtil.runLater(() -> {
+              if (!chatChannelUser.isDisplayed() || !ICON_MODE_AVATAR.equals(getIconMode())) {
+                return;
+              }
+              if (medal.isPresent()) {
+                chatChannelUser.setAvatar(uiService.getThemeImage(
+                    com.faforever.client.ladder.LadderUiUtil.medalIconPath(medal.get().getCode())));
+                chatChannelUser.setAvatarTooltipText(com.faforever.client.ladder.LadderUiUtil
+                    .medalAvatarTooltip(i18n, medal.get().getCode(), medal.get().getCount()));
+              } else {
+                chatChannelUser.setAvatar(getIconForMode(player));
+                chatChannelUser.setAvatarTooltipText(player.getAvatarTooltip());
+              }
+            }));
+      } else {
+        Image icon = getIconForMode(player);
+        JavaFxUtil.runLater(() -> {
+          chatChannelUser.setAvatar(icon);
+          chatChannelUser.setAvatarTooltipText(player.getAvatarTooltip());
+        });
+      }
+    });
+  }
+
+  /** Refresh the avatar slot (incl. medal-as-avatar) for one player across all channels — called
+   * when their featured medal changes so the chat list updates without waiting for a rebind. */
+  @com.google.common.eventbus.Subscribe
+  public void onFeaturedMedalChanged(com.faforever.client.ladder.FeaturedMedalChangedEvent event) {
+    synchronized (trackedUsers) {
+      trackedUsers.stream()
+          .filter(u -> u.getPlayer().map(p -> p.getId() == event.getPlayerId()).orElse(false))
+          .forEach(this::populateAvatar);
     }
   }
 

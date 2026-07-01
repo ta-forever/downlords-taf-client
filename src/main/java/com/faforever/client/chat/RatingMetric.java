@@ -4,7 +4,8 @@ import lombok.Getter;
 
 public enum RatingMetric {
   TRUESKILL("userInfo.ratingHistory.trueskill"),
-  STREAK("userInfo.ratingHistory.streak");
+  STREAK("userInfo.ratingHistory.streak"),
+  LADDER_POINTS("userInfo.ratingHistory.ladderPoints");
 
   @Getter
   private final String i18nKey;
