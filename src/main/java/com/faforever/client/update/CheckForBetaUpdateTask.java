@@ -89,8 +89,13 @@ public class CheckForBetaUpdateTask extends CompletableTask<UpdateInfo> {
   }
 
   private GitHubAssets getAssetOfFileWithEnding(GitHubRelease latestRelease, String ending) {
+    // Must be endsWith, not contains: the release also carries detached "<artifact>.sig" signature
+    // sidecars, so contains(".exe") would also match "…​.exe.sig". findFirst() then returns whichever
+    // one the GitHub API happens to list first (assets are returned in upload order, and stray
+    // signatures from a previous release can sort ahead of the real installer), handing the updater
+    // the signature file instead of the executable.
     return latestRelease.getAssets().stream()
-        .filter(asset -> asset.getName().contains(ending))
+        .filter(asset -> asset.getName().endsWith(ending))
         .findFirst()
         .orElseThrow();
   }
