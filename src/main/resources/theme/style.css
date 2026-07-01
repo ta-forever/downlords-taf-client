@@ -78,6 +78,14 @@
     -fx-pref-height: 35;
 }
 
+.leaderboard-season-title {
+    -fx-font-size: 1.4em;
+    -fx-font-weight: bold;
+    -fx-padding: 4 0 4 0;
+    -fx-alignment: center;
+    -fx-text-alignment: center;
+}
+
 .query-filter-selected {
     -fx-background-color: -fx-accent;
 }

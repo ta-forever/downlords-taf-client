@@ -73,6 +73,8 @@
                     <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
                 </columnResizePolicy>
             </TableView>
+            <Label fx:id="seasonTitleLabel" styleClass="leaderboard-season-title" visible="false" managed="false"
+                   maxWidth="1.7976931348623157E308" wrapText="true"/>
             <TableView fx:id="seasonLadderTable" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
                        onContextMenuRequested="#openSeasonContextMenu"
                        minHeight="0.0" minWidth="0.0" VBox.vgrow="ALWAYS">

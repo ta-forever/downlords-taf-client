@@ -99,6 +99,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   public TableColumn<LeaderboardEntry, Number> streakColumn;
   public TableColumn<LeaderboardEntry, Number> bestStreakColumn;
   public TableView<LeaderboardEntry> ratingTable;
+  public javafx.scene.control.Label seasonTitleLabel;
   public TableView<SeasonStanding> seasonLadderTable;
   public TableColumn<SeasonStanding, Number> seasonRankColumn;
   public TableColumn<SeasonStanding, String> seasonNameColumn;
@@ -253,6 +254,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
 
     ratingTable.managedProperty().bind(ratingTable.visibleProperty());
     seasonLadderTable.managedProperty().bind(seasonLadderTable.visibleProperty());
+    seasonTitleLabel.managedProperty().bind(seasonTitleLabel.visibleProperty());
     seasonComboBox.managedProperty().bind(seasonComboBox.visibleProperty());
     seasonComboBox.setConverter(seasonStringConverter());
 
@@ -277,6 +279,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     if (!lpMode) {
       seasonComboBox.setVisible(false);       // the season picker + hall of fame belong to the
       hallOfFameTitledPane.setVisible(false); // Season Ladder only
+      seasonTitleLabel.setVisible(false);
     }
   }
 
@@ -496,6 +499,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
           }
           if (seasons.isEmpty()) {
             seasonComboBox.setVisible(false);
+            seasonTitleLabel.setVisible(false);
             seasonComboBox.getItems().clear();
             seasonLadderTable.setItems(observableList(List.of()));
             contentPane.setVisible(true);
@@ -560,6 +564,18 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     return seasons.stream().filter(this::isCurrentSeason).findFirst().orElse(seasons.get(0));
   }
 
+  /** Title the Season Ladder with the selected season's description; hide the title if the season
+   * has no description. */
+  private void applySeasonTitle(SeasonInfo season) {
+    String description = season != null ? season.getDescription() : null;
+    if (description != null && !description.isBlank()) {
+      seasonTitleLabel.setText(description);
+      seasonTitleLabel.setVisible(true);
+    } else {
+      seasonTitleLabel.setVisible(false);
+    }
+  }
+
   private boolean isCurrentSeason(SeasonInfo s) {
     OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
     return s.getFrom() != null && s.getTo() != null
@@ -587,6 +603,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     String boardDisplayName = i18n.get(board.getNameKey());
     int seasonId = season.getSeasonId();
     boolean current = isCurrentSeason(season);
+    applySeasonTitle(season);
     contentPane.setVisible(false);
     if (usernamesAutoCompletion != null) {
       usernamesAutoCompletion.dispose();
