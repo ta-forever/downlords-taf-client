@@ -196,10 +196,7 @@ public class MapDetailController implements Controller<Node> {
 
     reviewsController.setOnSendReviewListener(this::onSendReview);
     reviewsController.setOnDeleteReviewListener(this::onDeleteReview);
-    reviewsController.setReviews(map.getReviews());
-    reviewsController.setOwnReview(map.getReviews().stream()
-        .filter(review -> review.getPlayer().getId() == player.getId())
-        .findFirst());
+    populateReviews(map, player);
 
     mapService.getFileSize(map.getDownloadUrl())
         .thenAccept(mapFileSize -> JavaFxUtil.runLater(() -> {
@@ -230,6 +227,39 @@ public class MapDetailController implements Controller<Node> {
       mapService.isInstalled(modTechnical, map.getMapName(), map.getCrcValue()).thenAccept(
           isInstalled -> JavaFxUtil.runLater(() -> setInstalled(isInstalled)));
     }
+  }
+
+  private void populateReviews(MapBean map, Player player) {
+    displayReviews(map, player);
+    // Vault/browse views load maps with "light" API includes that omit the individual reviews.
+    // The reviews relationship is still linked, so the JSON:API converter leaves behind unresolved
+    // "stub" Review objects (id only; null player/text, score 0) which render as no stars and no
+    // entries. A real review always has an author, so a null player marks such a stub — in that
+    // case (or when the list is empty) fetch the fully populated reviews on demand.
+    if (map.getReviews().isEmpty() || map.getReviews().stream().anyMatch(review -> review.getPlayer() == null)) {
+      mapService.findServerMapsByName(map.getMapName())
+          .thenAccept(fullMaps -> fullMaps.stream()
+              .filter(fullMap -> fullMap.getReviews().stream().anyMatch(review -> review.getPlayer() != null))
+              .findFirst()
+              .ifPresent(fullMap -> JavaFxUtil.runLater(() -> {
+                // Guard against a different map having been opened while the fetch was in flight.
+                if (this.map == map) {
+                  map.getReviews().setAll(fullMap.getReviews());
+                  displayReviews(map, player);
+                }
+              })))
+          .exceptionally(throwable -> {
+            log.warn("Could not load reviews for map '{}'", map.getMapName(), throwable);
+            return null;
+          });
+    }
+  }
+
+  private void displayReviews(MapBean map, Player player) {
+    reviewsController.setReviews(map.getReviews());
+    reviewsController.setOwnReview(map.getReviews().stream()
+        .filter(review -> review.getPlayer() != null && review.getPlayer().getId() == player.getId())
+        .findFirst());
   }
 
   private String getMapSizeAndEnvironmentText(MapBean map, MapSize mapSize) {

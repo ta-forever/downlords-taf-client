@@ -150,7 +150,7 @@ public class ModDetailController implements Controller<Node> {
     reviewsController.setOnDeleteReviewListener(this::onDeleteReview);
     reviewsController.setReviews(modVersion.getReviews());
     reviewsController.setOwnReview(modVersion.getReviews().stream()
-        .filter(review -> review.getPlayer().getId() == player.getId())
+        .filter(review -> review.getPlayer() != null && review.getPlayer().getId() == player.getId())
         .findFirst());
   }
 

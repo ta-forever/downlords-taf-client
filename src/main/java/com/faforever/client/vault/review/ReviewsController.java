@@ -126,7 +126,8 @@ public class ReviewsController implements Controller<Pane> {
 
     JavaFxUtil.addListener(this.reviews, onReviewsChangedListener);
     FilteredList<Review> onlyOtherNonEmptyReviews = this.reviews
-        .filtered(review -> review.getPlayer().getId() != currentPlayer.getId() &&
+        .filtered(review -> review.getPlayer() != null &&
+            review.getPlayer().getId() != currentPlayer.getId() &&
             !Strings.isNullOrEmpty(review.getText()) &&
             !playerService.isFoe(review.getPlayer().getId()));
 
