@@ -37,7 +37,13 @@ public enum FafServerMessageType implements ServerMessageType {
   TOURNAMENT_TIMER_STOPPED("tournament_timer_stopped", TournamentTimerStoppedMessage.class),
   TOURNAMENT_TIMER_RESTARTED("tournament_timer_restarted", TournamentTimerRestartedMessage.class),
   TOURNAMENT_CHECK_IN_REQUIRED("tournament_check_in_required", TournamentCheckInRequiredMessage.class),
-  HOST_GAME_STATE("host_game_state", HostGameStateMessage.class);
+  HOST_GAME_STATE("host_game_state", HostGameStateMessage.class),
+  // Live-game wagering — see WagerService (WAGER_DESIGN.md §14)
+  WAGER_MARKETS("wager_markets", WagerMarketsMessage.class),
+  WAGER_PRICE("wager_price", WagerPriceMessage.class),
+  WAGER_TRADE_ACK("wager_trade_ack", WagerTradeAckMessage.class),
+  WAGER_TRADE_REJECT("wager_trade_reject", WagerTradeRejectMessage.class),
+  WAGER_SETTLED("wager_settled", WagerSettledMessage.class);
 
   private static final Map<String, FafServerMessageType> fromString;
 

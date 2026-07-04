@@ -61,7 +61,7 @@ public class LadderSocialServiceTest {
 
   private SeasonStanding row(int playerId) {
     return new SeasonStanding(playerId, "p" + playerId, "ladder1v1_taesc", 1, 1, 0, 0, 0,
-        0, 0, 0, 0, 0, "");
+        0, 0, 0, 0, 0, "", 0);
   }
 
   @Test

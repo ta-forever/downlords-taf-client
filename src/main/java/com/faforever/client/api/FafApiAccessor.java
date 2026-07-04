@@ -107,6 +107,21 @@ public interface FafApiAccessor {
    * graph. Spans seasons (score resets show as drops at season boundaries). */
   List<LadderPointsJournal> getLadderPointsJournalForPlayer(int playerId, int leagueId);
 
+  // --- live-game wagering (read-only; wager_service/WAGER_DESIGN.md §11) ---
+
+  /** Open (+ recently closed) wager markets across all live games, with outcomes — the watchlist. */
+  List<com.faforever.client.api.dto.WagerMarket> getOpenWagerMarkets();
+
+  /** All wager markets for one game, with outcomes (cold snapshot before the WS feed attaches). */
+  List<com.faforever.client.api.dto.WagerMarket> getWagerMarketsForGame(int gameId);
+
+  /** A player's net wager positions (portfolio), with outcome + market. */
+  List<com.faforever.client.api.dto.WagerPosition> getWagerPositionsForPlayer(int playerId);
+
+  /** Recent trades for a whole market (both outcomes), oldest-first — the price-chart source
+   * (a 2-team outcome's price also moves when the OTHER team is traded). */
+  List<com.faforever.client.api.dto.WagerTrade> getWagerTradesForMarket(long marketId, int count);
+
   /** Per-player combat metrics for a single game (replay detail #1). */
   List<GamePlayerMetrics> getGamePlayerMetrics(int gameId);
 

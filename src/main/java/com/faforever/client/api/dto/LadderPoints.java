@@ -13,6 +13,7 @@ public class LadderPoints {
   @Id
   private String id;
   private int score;
+  private int wagerNet;
   private int games;
   private int wins;
   private int draws;

@@ -55,6 +55,9 @@ import com.faforever.client.remote.domain.TournamentWithdrawMessage;
 import com.faforever.client.remote.domain.GameAccess;
 import com.faforever.client.remote.domain.GameLaunchMessage;
 import com.faforever.client.remote.domain.RequestWatchTicketMessage;
+import com.faforever.client.remote.domain.WagerSubscribeMessage;
+import com.faforever.client.remote.domain.WagerTradeMessage;
+import com.faforever.client.remote.domain.WagerUnsubscribeMessage;
 import com.faforever.client.remote.domain.WatchTicketMessage;
 import com.faforever.client.remote.domain.GameMatchmakingMessage;
 import com.faforever.client.remote.domain.GameStatus;
@@ -553,6 +556,21 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
       future.complete(message);
       watchTicketFuture = null;
     }
+  }
+
+  @Override
+  public void subscribeWager(int gameId) {
+    writeToServer(new WagerSubscribeMessage(gameId));
+  }
+
+  @Override
+  public void unsubscribeWager(int gameId) {
+    writeToServer(new WagerUnsubscribeMessage(gameId));
+  }
+
+  @Override
+  public void sendWagerTrade(int gameId, long marketId, String outcomeKey, double deltaShares, String clientRef) {
+    writeToServer(new WagerTradeMessage(gameId, marketId, outcomeKey, deltaShares, clientRef));
   }
 
   @Override

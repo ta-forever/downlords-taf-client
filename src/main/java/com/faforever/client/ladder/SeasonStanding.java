@@ -27,6 +27,9 @@ public class SeasonStanding {
   int bestStreak;
   /** Last <=10 results, oldest-first, chars W/D/L. */
   String recentResults;
+  /** Cumulative wager P&amp;L already folded into {@link #score} (V137, Option B); the
+   * gambling-portion breakdown for the "Wager P&amp;L" column. score - wagerNet = game-earned LP. */
+  int wagerNet;
 
   /** Season win rate in [0,1]; 0 when no decided games. */
   public float getWinRate() {

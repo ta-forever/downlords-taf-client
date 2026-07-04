@@ -89,6 +89,7 @@
                     <TableColumn fx:id="seasonWdl10Column" text="%leaderboard.column.winDrawLoss10"/>
                     <TableColumn fx:id="seasonStreakColumn" text="%leaderboard.column.streak"/>
                     <TableColumn fx:id="seasonBestStreakColumn" text="%leaderboard.column.recordStreak"/>
+                    <TableColumn fx:id="seasonWagerColumn" text="%leaderboard.column.wagerPnl"/>
                 </columns>
                 <columnResizePolicy>
                     <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>

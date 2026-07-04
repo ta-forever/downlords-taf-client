@@ -132,6 +132,7 @@ public class MainController implements Controller<Node> {
   public ToggleButton leaderboardsButton;
   public ToggleButton tournamentsButton;
   public ToggleButton tadaButton;
+  public ToggleButton wagerButton;
   public StackPane contentWrapperPane;
   public ToggleGroup mainNavigation;
   public StackPane mainRoot;
@@ -203,6 +204,7 @@ public class MainController implements Controller<Node> {
     tournamentsButton.setUserData(NavigationItem.TOURNAMENTS);
     tutorialsButton.setUserData(NavigationItem.TUTORIALS);
     tadaButton.setUserData(NavigationItem.TADA);
+    wagerButton.setUserData(NavigationItem.WAGER);
     eventBus.register(this);
 
     PersistentNotificationsController persistentNotificationsController = uiService.loadFxml("theme/persistent_notifications.fxml");

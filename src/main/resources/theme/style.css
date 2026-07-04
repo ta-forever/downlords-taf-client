@@ -30,6 +30,38 @@
   -fx-background-color: -fx-background;
 }
 
+/* Opt-in visible, grabbable dividers (the default divider above is invisible: same colour
+   as the background). Add styleClass="resizable-split" to a SplitPane to get these. */
+.resizable-split > .split-pane-divider {
+  -fx-background-color: -divider-color;
+}
+.resizable-split:horizontal > .split-pane-divider {
+  -fx-padding: 0 0.2em 0 0.2em;
+}
+.resizable-split:vertical > .split-pane-divider {
+  -fx-padding: 0.2em 0 0.2em 0;
+}
+/* centre grab-handle pill so it's obvious the divider can be dragged */
+.resizable-split:horizontal > .split-pane-divider > .horizontal-grabber {
+  -fx-background-color: -fx-text-base-color;
+  -fx-background-radius: 2;
+  -fx-pref-width: 3;
+  -fx-pref-height: 26;
+  -fx-opacity: 0.55;
+}
+.resizable-split:vertical > .split-pane-divider > .vertical-grabber {
+  -fx-background-color: -fx-text-base-color;
+  -fx-background-radius: 2;
+  -fx-pref-width: 26;
+  -fx-pref-height: 3;
+  -fx-opacity: 0.55;
+}
+/* hover affordance: brighten the grab pill (no colour flash while dragging) */
+.resizable-split > .split-pane-divider:hover > .horizontal-grabber,
+.resizable-split > .split-pane-divider:hover > .vertical-grabber {
+  -fx-opacity: 1.0;
+}
+
 /***************** Tab Pane *****************/
 
 .tab-pane > .tab-header-area {

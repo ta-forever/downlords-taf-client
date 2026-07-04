@@ -55,7 +55,11 @@ public enum ClientMessageType {
   TOURNAMENT_TEAM_DISBAND("tournament_team_disband"),
   TOURNAMENT_START("tournament_start"),
   TOURNAMENT_CANCEL("tournament_cancel"),
-  TOURNAMENT_EDIT("tournament_edit");
+  TOURNAMENT_EDIT("tournament_edit"),
+  // Live-game wagering — see WagerService / WagerGateway (WAGER_DESIGN.md §14)
+  WAGER_SUBSCRIBE("wager_subscribe"),
+  WAGER_UNSUBSCRIBE("wager_unsubscribe"),
+  WAGER_TRADE("wager_trade");
 
   private static Map<String, ClientMessageType> fromString;
 

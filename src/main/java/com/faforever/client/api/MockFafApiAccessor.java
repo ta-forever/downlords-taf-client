@@ -179,6 +179,26 @@ public class MockFafApiAccessor implements FafApiAccessor {
   }
 
   @Override
+  public List<com.faforever.client.api.dto.WagerMarket> getOpenWagerMarkets() {
+    return List.of();
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.WagerMarket> getWagerMarketsForGame(int gameId) {
+    return List.of();
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.WagerPosition> getWagerPositionsForPlayer(int playerId) {
+    return List.of();
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.WagerTrade> getWagerTradesForMarket(long marketId, int count) {
+    return List.of();
+  }
+
+  @Override
   public Tuple<List<com.faforever.client.api.dto.LadderPoints>, java.util.Map<String, ?>> getLadderPointsWithMeta(int leagueId, int seasonId, int count, int page) {
     return new Tuple<>(List.of(), java.util.Map.of());
   }
