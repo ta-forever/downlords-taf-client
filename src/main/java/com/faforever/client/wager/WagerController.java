@@ -126,6 +126,10 @@ public class WagerController extends AbstractViewController<Node> {
   private final Map<String, Integer> myLpByBoard = new HashMap<>();
   private final BooleanProperty submitting = new SimpleBooleanProperty(false);
 
+  // When a portfolio row asks to open its market, the outcomes load asynchronously after the
+  // game is selected — stash the outcome to select and apply it once they arrive.
+  private String pendingOutcomeKey;
+
   // price chart state (for the selected outcome)
   private WagerOutcomeBean chartOutcome;
   private ChangeListener<Number> chartPriceListener;
@@ -219,6 +223,23 @@ public class WagerController extends AbstractViewController<Node> {
       if (row != null) {
         onSelectGame(row);
       }
+    });
+    // Clicking one of my positions for a still-live game jumps to that game + outcome so I can
+    // see its price chart and trade it (WAGER_DESIGN.md §11). A row click handler (as well as
+    // the selection listener) so re-clicking the already-selected row still jumps.
+    portfolioTable.getSelectionModel().selectedItemProperty().addListener((obs, old, pos) -> {
+      if (pos != null) {
+        onSelectPosition(pos);
+      }
+    });
+    portfolioTable.setRowFactory(table -> {
+      javafx.scene.control.TableRow<WagerPositionBean> tableRow = new javafx.scene.control.TableRow<>();
+      tableRow.setOnMouseClicked(event -> {
+        if (tableRow.getItem() != null) {
+          onSelectPosition(tableRow.getItem());
+        }
+      });
+      return tableRow;
     });
     outcomesTable.getSelectionModel().selectedItemProperty().addListener((obs, old, outcome) -> {
       recomputeBuyPreview();
@@ -429,9 +450,48 @@ public class WagerController extends AbstractViewController<Node> {
     WagerMarketBean market = currentMarkets.get(0);   // v1: TEAM_WIN is the primary market
     outcomesTable.setItems(market.getOutcomes());
     marketStatusLabel.setText(i18n.get("wager.marketStatus", market.getMarketType(), market.getStatus()));
-    if (outcomesTable.getSelectionModel().getSelectedItem() == null && !market.getOutcomes().isEmpty()) {
+    if (outcomesTable.getSelectionModel().getSelectedItem() == null && !market.getOutcomes().isEmpty()
+        && !selectPendingOutcome()) {
       outcomesTable.getSelectionModel().selectFirst();    // fires the selection listener -> chart
     }
+  }
+
+  /** Jump to a portfolio position's market: select its game in the watchlist (loads the team
+   * cards + market) then its outcome (drives the price chart). Only for still-live games whose
+   * market is still on the watchlist; resolved/absent positions are left untouched. */
+  private void onSelectPosition(WagerPositionBean pos) {
+    if (!pos.isLive()) {
+      return;
+    }
+    GameRow row = gamesList.getItems().stream()
+        .filter(r -> r.gameId() == pos.getGameId())
+        .findFirst().orElse(null);
+    if (row == null) {
+      return;
+    }
+    pendingOutcomeKey = pos.getOutcomeKey();
+    if (gamesList.getSelectionModel().getSelectedItem() == row) {
+      selectPendingOutcome();     // already the selected game — outcomes are loaded, apply now
+    } else {
+      gamesList.getSelectionModel().select(row);   // triggers onSelectGame -> onMarketsChanged
+    }
+  }
+
+  /** Apply a pending {@link #pendingOutcomeKey} once its outcome is present in the table.
+   * @return true if the pending outcome was found and selected. */
+  private boolean selectPendingOutcome() {
+    if (pendingOutcomeKey == null) {
+      return false;
+    }
+    WagerOutcomeBean match = outcomesTable.getItems().stream()
+        .filter(outcome -> pendingOutcomeKey.equals(outcome.getOutcomeKey()))
+        .findFirst().orElse(null);
+    if (match == null) {
+      return false;               // outcomes not loaded yet — retry on the next markets change
+    }
+    pendingOutcomeKey = null;
+    outcomesTable.getSelectionModel().select(match);   // fires the selection listener -> chart
+    return true;
   }
 
   // --- shares <-> LP dual input --------------------------------------------
@@ -583,7 +643,12 @@ public class WagerController extends AbstractViewController<Node> {
         .filter(pos -> pos.getMarketId() == marketId && outcome.getOutcomeKey().equals(pos.getOutcomeKey()))
         .mapToDouble(WagerPositionBean::getShares)
         .findFirst().orElse(0);
-    sharesField.setText(held > 0 ? String.format("%.2f", held) : "0");
+    // Round DOWN to the field's 2-dp precision: String.format rounds half-up, so a holding
+    // like 9.876 would fill "9.88" — a hair MORE than held — and the server rejects the sell
+    // as an oversell (markets.py: held_shares + delta_shares < -1e-9). Flooring guarantees
+    // the amount never exceeds the holding, so "max" sells the whole position cleanly.
+    double sellable = Math.floor(held * 100.0) / 100.0;
+    sharesField.setText(sellable > 0 ? String.format("%.2f", sellable) : "0");
   }
 
   /** A games-list cell with a right-click "Watch live replay" menu targeting that row. */
