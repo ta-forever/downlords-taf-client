@@ -9,7 +9,6 @@ import com.faforever.client.galacticwar.GalacticWarService;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.leaderboard.LeaderboardService;
-import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.ModService;
@@ -42,10 +41,14 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
+import javafx.css.PseudoClass;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -65,6 +68,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -99,7 +103,6 @@ public class GameDetailController implements Controller<Pane> {
   public Pane gameDetailRoot;
   public Label gameTypeLabel;
   public Label mapLabel;
-  public Label mapDescription;
   public Label numberOfPlayersLabel;
   public Label gameStatusLabel;
   public Label hostLabel;
@@ -116,6 +119,45 @@ public class GameDetailController implements Controller<Pane> {
   public VBox reservedPlayersContainer;
   public Button editReservedPlayersButton;
   public VBox reservedPlayersList;
+  /** Position preselection box (title / host pill / instructions) shown below the map.
+   *  The pickable controls themselves are the numbered markers on {@link #positionMarkerPane}. */
+  public VBox positionRequestContainer;
+  /** Host-only pill toggling the game between fixed (preselectable) and random
+   *  start positions. Drives whether the picker is shown at all. */
+  public ToggleButton fixedPositionsPill;
+  /** Brief usage note shown in the picker box (fixed-mode only). */
+  public Label positionRequestInstructions;
+  /** Transparent layer over the map preview onto which numbered, clickable start-position
+   *  markers are drawn from maptool coordinates. */
+  public Pane positionMarkerPane;
+  /** Cache key (mod + map + position count) of the markers currently built, so repeated
+   *  picker refreshes don't re-run maptool or rebuild nodes. */
+  private String loadedMarkersKey;
+  /** The current start-position markers, kept so we can reposition them when the map preview
+   *  resizes and restyle them when the selection changes. */
+  private final List<PositionMarker> positionMarkers = new ArrayList<>();
+  /** Fixed on-screen diameter of a start-position marker button. */
+  private static final double POSITION_MARKER_SIZE = 22.0;
+  /** Pseudo-class toggled on a marker when it belongs to the current player's requested pair. */
+  private static final PseudoClass MARKER_SELECTED = PseudoClass.getPseudoClass("selected");
+
+  /** A numbered start-position marker button plus its normalised map position and role (pair). */
+  private static final class PositionMarker {
+    final Button node;
+    final double nx;
+    final double ny;
+    final int role;
+    PositionMarker(Button node, double nx, double ny, int role) {
+      this.node = node;
+      this.nx = nx;
+      this.ny = ny;
+      this.role = role;
+    }
+  }
+  /** Guards against re-sending a request while the picker is being synced to
+   *  the server-broadcast state (setSelected fires no action event, but be
+   *  defensive against future refactors that might). */
+  private boolean syncingPositionPicker;
   /** Listener that re-renders the reserved-players list when the current
    *  game's reserved_players changes. Re-attached in setGame(). */
   private javafx.collections.ListChangeListener<String> reservedPlayersListener;
@@ -230,6 +272,21 @@ public class GameDetailController implements Controller<Pane> {
     mapImageView.setDefaultImage(uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE));
     mapContextMenuController = uiService.loadFxml("theme/play/game_detail_map_context_menu.fxml");
     pingTableContainer.managedProperty().bind(pingTableContainer.visibleProperty());
+    positionRequestContainer.managedProperty().bind(positionRequestContainer.visibleProperty());
+
+    // Keep the start-position marker layer exactly over the rendered map image (which is
+    // scaled to fit while preserving aspect ratio), so markers land at the right spots.
+    // pickOnBounds=false lets clicks on empty areas fall through to the map; only the marker
+    // buttons capture input. Reposition markers whenever the rendered size changes.
+    positionMarkerPane.setPickOnBounds(false);
+    positionMarkerPane.maxWidthProperty().bind(Bindings.createDoubleBinding(
+        () -> mapImageView.getLayoutBounds().getWidth(), mapImageView.layoutBoundsProperty()));
+    positionMarkerPane.prefWidthProperty().bind(positionMarkerPane.maxWidthProperty());
+    positionMarkerPane.maxHeightProperty().bind(Bindings.createDoubleBinding(
+        () -> mapImageView.getLayoutBounds().getHeight(), mapImageView.layoutBoundsProperty()));
+    positionMarkerPane.prefHeightProperty().bind(positionMarkerPane.maxHeightProperty());
+    positionMarkerPane.widthProperty().addListener((obs, oldV, newV) -> repositionMarkers());
+    positionMarkerPane.heightProperty().addListener((obs, oldV, newV) -> repositionMarkers());
 
     // The team cards show either a skill rating or a ladder rank depending on the global pill;
     // rebuild them live when it flips so the displayed metric stays in sync.
@@ -286,7 +343,6 @@ public class GameDetailController implements Controller<Pane> {
     gameTitleLabel.managedProperty().bind(gameTitleLabel.visibleProperty());
     hostLabel.managedProperty().bind(hostLabel.visibleProperty());
     mapLabel.managedProperty().bind(mapLabel.visibleProperty());
-    mapDescription.managedProperty().bind(mapDescription.visibleProperty());
     numberOfPlayersLabel.managedProperty().bind(numberOfPlayersLabel.visibleProperty());
     mapImageView.managedProperty().bind(mapImageView.visibleProperty());
     mapContainer.managedProperty().bind(mapContainer.visibleProperty());
@@ -369,6 +425,8 @@ public class GameDetailController implements Controller<Pane> {
     manageGameButton.setVisible(isGameProcessRunning && isCurrentGame && isOwnGame && (isStagingRoomOpen || isBattleRoomOpen));
     watchButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && isLive && thisGame.getReplayDelaySeconds() >= 0);
 
+    updatePositionPicker();
+
     final String activatedStyleClass = "autojoin-game-button-active";
     if (autoJoinPrototype != null && this.game.get() != null && autoJoinPrototype.getId() == this.game.get().getId()) {
       if (!((Boolean) autoJoinButton.getUserData())) {
@@ -390,6 +448,9 @@ public class GameDetailController implements Controller<Pane> {
     Optional.ofNullable(this.game.get()).ifPresent(oldGame -> {
       Optional.ofNullable(weakThisGameTeamsListener).ifPresent(listener -> oldGame.getTeams().removeListener(listener));
       Optional.ofNullable(weakThisGameTeamsListener).ifPresent(listener -> oldGame.getPinnedTeams().removeListener(listener));
+      Optional.ofNullable(weakThisGameTeamsListener).ifPresent(listener -> oldGame.getPositionRequests().removeListener(listener));
+      Optional.ofNullable(weakThisGameTeamsListener).ifPresent(listener -> oldGame.fixedPositionsEnabledProperty().removeListener(listener));
+      Optional.ofNullable(weakThisGameTeamsListener).ifPresent(listener -> oldGame.maxPlayersProperty().removeListener(listener));
       Optional.ofNullable(weakThisGamePingsListener).ifPresent(listener -> oldGame.pingsProperty().removeListener(listener));
       Optional.ofNullable(weakThisGameStatusListener).ifPresent(listener -> oldGame.statusProperty().removeListener(listener));
       Optional.ofNullable(featuredModInvalidationListener).ifPresent(listener -> oldGame.featuredModProperty().removeListener(listener));
@@ -422,20 +483,6 @@ public class GameDetailController implements Controller<Pane> {
     else {
       this.watchButtonController.setGame(game);
     }
-
-    ChangeListener<String> mapNameListener = (obs,oldValue,newValue) -> {
-      Optional<MapBean> knownMap = mapService.getMapLocallyFromName(game.getFeaturedMod(), game.getMapName());
-      if (knownMap.isPresent()) {
-        mapDescription.setVisible(true);
-        mapDescription.textProperty().setValue(knownMap.get().getDescription());
-      }
-      else {
-        mapDescription.textProperty().setValue(null);
-        mapDescription.setVisible(false);
-      }
-    };
-    game.mapNameProperty().addListener(mapNameListener);
-    mapNameListener.changed(game.mapNameProperty(), game.mapNameProperty().get(), game.mapNameProperty().get());
 
     Optional<Player> host = playerService.getPlayerForUsername(game.getHost());
     if (host.isPresent() && playerService.isFoe(host.get().getId())) {
@@ -520,6 +567,13 @@ public class GameDetailController implements Controller<Pane> {
 
     JavaFxUtil.addListener(game.getTeams(), weakThisGameTeamsListener);
     JavaFxUtil.addListener(game.getPinnedTeams(), weakThisGameTeamsListener);
+    JavaFxUtil.addListener(game.getPositionRequests(), weakThisGameTeamsListener);
+    // The host's fixed/random pill gates the picker's visibility on every
+    // client, so re-render when the broadcast flag flips.
+    JavaFxUtil.addListener(game.fixedPositionsEnabledProperty(), weakThisGameTeamsListener);
+    // The picker's role-button count and visibility depend on max players,
+    // which the host can change mid-staging via Manage Game.
+    JavaFxUtil.addListener(game.maxPlayersProperty(), weakThisGameTeamsListener);
     thisGameTeamsInvalidationListener.invalidated(game.getTeams());
 
     JavaFxUtil.addListener(game.statusProperty(), weakThisGameStatusListener);
@@ -565,10 +619,265 @@ public class GameDetailController implements Controller<Pane> {
               pinnedTeams = allPins;
             }
           }
+          Map<Integer, Integer> positionRequests;
+          synchronized (game.get().getPositionRequests()) {
+            positionRequests = new HashMap<>(game.get().getPositionRequests());
+          }
           TeamCardController.createAndAdd(game.get().getTeams(), game.get().getRatingType(),
               playerService, uiService, ratingService, galacticWarService,
-              teamListPane, hidePlayerRatings, game.get().getGalacticWarPlanetName(), pinnedTeams);
+              teamListPane, hidePlayerRatings, game.get().getGalacticWarPlanetName(), pinnedTeams,
+              positionRequests);
+          updatePositionPicker();
         }));
+  }
+
+  /**
+   * Show/refresh the position-preselection picker.
+   *
+   * <p>The box is only relevant while the current player is in this open game
+   * with more than two slots. Within that, the host always sees the box — it
+   * carries the fixed/random pill they use to enable preselection — while
+   * joiners only see it once the host has switched the pill to fixed. The
+   * per-role picker buttons (and the map overlay + instructions) appear only in
+   * fixed mode.</p>
+   *
+   * <p>Selecting a toggle sends the request to the server; the authoritative
+   * state comes back via GAME_INFO and re-syncs the toggles (and the badges in
+   * the team cards).</p>
+   */
+  private void updatePositionPicker() {
+    JavaFxUtil.assertApplicationThread();
+    Game g = game.get();
+    Optional<Player> currentPlayer = playerService.getCurrentPlayer();
+    boolean inThisOpenGame = g != null && currentPlayer.isPresent()
+        && g.getId() == gameService.getRunningGameUid()
+        && g.getStatus() != null && g.getStatus().isOpen()
+        && g.getMaxPlayers() > 2;
+    boolean isHost = inThisOpenGame && currentPlayer.get().getUsername().equals(g.getHost());
+    boolean fixed = inThisOpenGame && g.isFixedPositionsEnabled();
+    // Host always sees the box (to reach the pill); joiners only in fixed mode.
+    boolean containerVisible = inThisOpenGame && (isHost || fixed);
+    // The picker proper (on-map markers + instructions) is fixed-mode only.
+    boolean pickerVisible = containerVisible && fixed;
+
+    positionRequestContainer.setVisible(containerVisible);
+    fixedPositionsPill.setVisible(isHost);
+    fixedPositionsPill.setManaged(isHost);
+    positionRequestInstructions.setVisible(pickerVisible);
+    positionRequestInstructions.setManaged(pickerVisible);
+
+    // Keep the host's pill in sync with the authoritative server state without
+    // re-firing its action handler.
+    if (isHost) {
+      syncingPositionPicker = true;
+      try {
+        fixedPositionsPill.setSelected(fixed);
+        fixedPositionsPill.setText(i18n.get(fixed
+            ? "game.positionMode.fixed" : "game.positionMode.random"));
+      } finally {
+        syncingPositionPicker = false;
+      }
+    }
+
+    updateStartPositionMarkers(pickerVisible ? g : null);
+  }
+
+  /**
+   * Build / refresh the numbered start-position markers drawn over the map preview. When
+   * {@code g} is null the markers are cleared. Coordinates come (cached) from maptool's
+   * {@code positions-coords} side-car; a reload only happens when the map or position count
+   * changes. Highlights are refreshed every call so they track the player's selection.
+   */
+  private void updateStartPositionMarkers(Game g) {
+    if (g == null) {
+      positionMarkerPane.getChildren().clear();
+      positionMarkers.clear();
+      loadedMarkersKey = null;
+      return;
+    }
+    int positions = min(10, g.getMaxPlayers());
+    String key = g.getFeaturedMod() + "/" + g.getMapName() + "/" + positions;
+    if (key.equals(loadedMarkersKey)) {
+      refreshMarkerHighlights();
+      return;
+    }
+    loadedMarkersKey = key;
+    final String mod = g.getFeaturedMod();
+    final String map = g.getMapName();
+    // maptool may run on a cache miss, so load off the JavaFX thread; apply on it.
+    CompletableFuture
+        .supplyAsync(() -> mapService.loadStartPositions(mod, map, positions))
+        .thenAccept(coords -> JavaFxUtil.runLater(() -> {
+          if (key.equals(loadedMarkersKey)) {   // still the same map/count
+            buildPositionMarkers(coords, positions);
+            refreshMarkerHighlights();
+          }
+        }));
+  }
+
+  private void buildPositionMarkers(List<MapService.StartPosition> coords, int maxPositions) {
+    positionMarkerPane.getChildren().clear();
+    positionMarkers.clear();
+    for (MapService.StartPosition sp : coords) {
+      // Only show the positions actually in play for this game's max-player count.
+      // maptool may return a larger fallback schema when the map has no exact one.
+      if (sp.number() > maxPositions) {
+        continue;
+      }
+      // Server roles are pairs 0..4 (map positions 2r+1 / 2r+2); ignore anything past position 10.
+      int role = (sp.number() - 1) / 2;
+      if (role >= 5) {
+        continue;
+      }
+      Button marker = new Button(String.valueOf(sp.number()));
+      marker.getStyleClass().add("position-marker");
+      marker.setFocusTraversable(false);
+      marker.setMinSize(POSITION_MARKER_SIZE, POSITION_MARKER_SIZE);
+      marker.setPrefSize(POSITION_MARKER_SIZE, POSITION_MARKER_SIZE);
+      marker.setMaxSize(POSITION_MARKER_SIZE, POSITION_MARKER_SIZE);
+      marker.setTooltip(biggerTooltip(
+          i18n.get("game.positionRequest.button.tooltip", 2 * role + 1, 2 * role + 2)));
+      marker.setOnAction(e -> onPositionMarkerClicked(role));
+      positionMarkers.add(new PositionMarker(marker, sp.x(), sp.y(), role));
+      positionMarkerPane.getChildren().add(marker);
+    }
+    repositionMarkers();
+  }
+
+  /**
+   * Place each marker near its true start position, but nudged apart so overlapping markers
+   * stay clickable. A small relaxation balances two forces per marker: a <em>weak</em> spring
+   * pulling it back to its real map coordinate (the anchor), and a <em>strong</em> short-range
+   * repulsion from every other marker that is intense when they overlap and decays rapidly past
+   * a marker's width. Deterministic (fixed iterations from the anchors) so it doesn't jitter
+   * between reposition calls.
+   */
+  private void repositionMarkers() {
+    double w = positionMarkerPane.getWidth();
+    double h = positionMarkerPane.getHeight();
+    int n = positionMarkers.size();
+    if (n == 0) {
+      return;
+    }
+    double[] ax = new double[n];   // anchor (true position) in pane pixels
+    double[] ay = new double[n];
+    double[] x = new double[n];
+    double[] y = new double[n];
+    for (int i = 0; i < n; i++) {
+      PositionMarker pm = positionMarkers.get(i);
+      ax[i] = pm.nx * w;
+      ay[i] = pm.ny * h;
+      // Seed off the anchor with a tiny index-based offset so exactly-coincident
+      // positions still separate (a symmetric pair has no net direction otherwise).
+      x[i] = ax[i] + 0.01 * (i + 1);
+      y[i] = ay[i] - 0.01 * (i + 1);
+    }
+    if (w <= 0 || h <= 0) {
+      applyMarkerPositions(x, y);
+      return;
+    }
+
+    final double range = POSITION_MARKER_SIZE / 3.0;  // repulsion length scale ≈ a marker radius
+    final double kAttract = 0.15;                     // weak pull back to the true position
+    final double kRepel = POSITION_MARKER_SIZE * 0.8; // strong short-range push
+    final double maxStep = 4.0;                        // clamp per-iteration move for stability
+    final double margin = POSITION_MARKER_SIZE / 2.0;
+    for (int iter = 0; iter < 120; iter++) {
+      double[] fx = new double[n];
+      double[] fy = new double[n];
+      for (int i = 0; i < n; i++) {
+        fx[i] += kAttract * (ax[i] - x[i]);
+        fy[i] += kAttract * (ay[i] - y[i]);
+      }
+      for (int i = 0; i < n; i++) {
+        for (int j = i + 1; j < n; j++) {
+          double dx = x[i] - x[j];
+          double dy = y[i] - y[j];
+          double dist = Math.hypot(dx, dy);
+          if (dist < 1e-4) {
+            dx = i - j;
+            dy = j - i;
+            dist = Math.hypot(dx, dy);
+          }
+          double mag = kRepel * Math.exp(-dist / range);   // strong when close, rapid falloff past range
+          double ux = dx / dist;
+          double uy = dy / dist;
+          fx[i] += mag * ux;
+          fy[i] += mag * uy;
+          fx[j] -= mag * ux;
+          fy[j] -= mag * uy;
+        }
+      }
+      for (int i = 0; i < n; i++) {
+        double len = Math.hypot(fx[i], fy[i]);
+        if (len > maxStep) {
+          fx[i] *= maxStep / len;
+          fy[i] *= maxStep / len;
+        }
+        x[i] = Math.max(margin, Math.min(w - margin, x[i] + fx[i]));
+        y[i] = Math.max(margin, Math.min(h - margin, y[i] + fy[i]));
+      }
+    }
+    applyMarkerPositions(x, y);
+  }
+
+  private void applyMarkerPositions(double[] x, double[] y) {
+    for (int i = 0; i < positionMarkers.size(); i++) {
+      Button node = positionMarkers.get(i).node;
+      node.setLayoutX(x[i] - POSITION_MARKER_SIZE / 2);
+      node.setLayoutY(y[i] - POSITION_MARKER_SIZE / 2);
+    }
+  }
+
+  /** Highlight the markers belonging to the current player's requested pair (role). */
+  private void refreshMarkerHighlights() {
+    Integer myRole = requestedRoleOfCurrentPlayer();
+    for (PositionMarker pm : positionMarkers) {
+      pm.node.pseudoClassStateChanged(MARKER_SELECTED, myRole != null && myRole == pm.role);
+    }
+  }
+
+  private Integer requestedRoleOfCurrentPlayer() {
+    Game g = game.get();
+    Optional<Player> currentPlayer = playerService.getCurrentPlayer();
+    if (g == null || currentPlayer.isEmpty()) {
+      return null;
+    }
+    synchronized (g.getPositionRequests()) {
+      return g.getPositionRequests().get(currentPlayer.get().getId());
+    }
+  }
+
+  /** Host flipped the fixed/random pill. Push the new mode to the server; the
+   *  GAME_INFO broadcast re-syncs the pill and shows/hides the picker on every
+   *  client (including this one, via {@link #updatePositionPicker()}). */
+  public void onFixedPositionsToggled(ActionEvent event) {
+    if (syncingPositionPicker) {
+      return;
+    }
+    Game g = game.get();
+    if (g == null) {
+      return;
+    }
+    gameService.setFixedPositionsEnabled(g, fixedPositionsPill.isSelected());
+  }
+
+  /**
+   * A start-position marker was clicked: toggle a request for its pair (role). Clicking the
+   * pair the player already holds clears it. The selection is reflected optimistically and
+   * re-synced authoritatively when the server echoes it back in GAME_INFO.
+   */
+  private void onPositionMarkerClicked(int role) {
+    if (syncingPositionPicker) {
+      return;
+    }
+    Integer myRole = requestedRoleOfCurrentPlayer();
+    boolean select = myRole == null || myRole != role;
+    Integer optimisticRole = select ? role : null;
+    for (PositionMarker pm : positionMarkers) {
+      pm.node.pseudoClassStateChanged(MARKER_SELECTED, optimisticRole != null && optimisticRole == pm.role);
+    }
+    fafService.setPositionRequest(select ? role : null);
   }
 
   private void createPingTable() {

@@ -37,6 +37,9 @@ public class GameInfoMessage extends FafServerMessage {
   private GameType gameType;
   private String galacticWarPlanetName;
   private Boolean reservedSlotsEnabled;
+  /** Host toggle for start-position preselection. When false the position
+   *  picker is hidden on every client and the game uses TA's random starts. */
+  private Boolean fixedPositionsEnabled;
   private List<String> reservedPlayers;
   /** Parallel to {@link #reservedPlayers}. Sent so the host's edit-list popup
    *  can seed itself with the current selection even for players who aren't
@@ -47,6 +50,12 @@ public class GameInfoMessage extends FafServerMessage {
    *  so every client can show which players the host has pinned. */
   private List<Integer> pinnedPlayerIds;
   private List<Integer> pinnedTeams;
+  /** Players' start-position role requests, parallel lists in request order:
+   *  player id at index i requests role {@link #positionRequests}[i] (0..4, a
+   *  pair of mirrored map start positions, one per team). Order matters — the
+   *  host's client resolves same-role ties first-come-first-served. */
+  private List<Integer> positionRequestPlayerIds;
+  private List<Integer> positionRequests;
   /**
    * The server may either send a single game or a list of games in the same message... *cringe*.
    */

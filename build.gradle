@@ -168,6 +168,8 @@ compileTestJava {
   // Self-contained team-card test (covers the friend/foe-icons-in-team-cards toggle).
   include '**/game/TeamCardControllerTest.java'
   include '**/game/ManageGameControllerTest.java'
+  // Self-contained position-preselection start-order test (pure static helper).
+  include '**/game/PositionRequestOrderTest.java'
   include '**/rating/JSkillsRatingServiceConstrainedTest.java'
   // Self-contained skill-rating tier hysteresis (LADDER_POINTS_DESIGN §13.2.3); no broken siblings pulled in.
   include '**/leaderboard/RatingTierServiceTest.java'
