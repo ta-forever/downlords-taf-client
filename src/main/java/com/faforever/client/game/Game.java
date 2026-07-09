@@ -29,6 +29,15 @@ import java.util.Optional;
 public class Game {
   private final StringProperty host;
   private final StringProperty title;
+  // The title exactly as the server broadcast it (already badword-rewritten server-side).
+  // Unlike {@link #title}, this is NEVER overridden with the host's original wording, so it is
+  // safe to derive the chat channel from it: host and joiners then agree on the same channel.
+  private final StringProperty serverTitle;
+  // IRC channel the server assigned to this game's chat, decoupled from the title
+  // so a badword-rewritten title doesn't split host and joiners into different
+  // channels. Null/blank when the server didn't send one (older server); callers
+  // fall back to deriving the channel from host+serverTitle in that case.
+  private final StringProperty chatChannel;
   private final StringProperty mapName;
   private final StringProperty mapCrc;
   private final StringProperty mapArchiveName;
@@ -91,6 +100,8 @@ public class Game {
     id = new SimpleIntegerProperty();
     host = new SimpleStringProperty();
     title = new SimpleStringProperty();
+    serverTitle = new SimpleStringProperty();
+    chatChannel = new SimpleStringProperty();
     mapName = new SimpleStringProperty();
     mapCrc = new SimpleStringProperty();
     mapArchiveName = new SimpleStringProperty();
@@ -185,6 +196,30 @@ public class Game {
 
   public StringProperty titleProperty() {
     return title;
+  }
+
+  public String getServerTitle() {
+    return serverTitle.get();
+  }
+
+  public void setServerTitle(String serverTitle) {
+    this.serverTitle.set(serverTitle);
+  }
+
+  public StringProperty serverTitleProperty() {
+    return serverTitle;
+  }
+
+  public String getChatChannel() {
+    return chatChannel.get();
+  }
+
+  public void setChatChannel(String chatChannel) {
+    this.chatChannel.set(chatChannel);
+  }
+
+  public StringProperty chatChannelProperty() {
+    return chatChannel;
   }
 
   public String getMapName() {

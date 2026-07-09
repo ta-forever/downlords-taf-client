@@ -178,6 +178,12 @@ public class GameService implements InitializingBean {
   private Process process;
   private Optional<Game> rehostRequested;
   private NewGameInfo recentHostGameRequest;  // rehostRequest is  missing a few bits of information (like password)
+  // Titles the local player originally requested when hosting, keyed by game uid. The server may
+  // rewrite a title that trips its badword filter; this map lets us show the host their ORIGINAL
+  // wording on their own screen only, so they aren't tipped off that the filter fired (which would
+  // just motivate them to work around it). Only ever populated on the hosting client, which is what
+  // scopes the override to "host's screen only". Entries are dropped when the game is removed.
+  private final Map<Integer, String> hostOriginalTitles = new ConcurrentHashMap<>();
 
   // Crash-resilient game-log upload: a marker is written when a game launches and cleared when its
   // logs are submitted at game end. A marker still present at next login means the client died
@@ -555,8 +561,6 @@ public class GameService implements InitializingBean {
       addAlreadyInQueueNotification();
       return completedFuture(null);
     }
-    String inGameChannel = getInGameIrcChannel(newGameInfo);
-    String inGameIrcUrl = getInGameIrcUrl(inGameChannel);
     boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchOnHostEnabled();
 
     autoJoinRequestedGameProperty.set(null);
@@ -566,7 +570,30 @@ public class GameService implements InitializingBean {
           newGameInfo.setFeaturedModVersionKey(modVersionKey);
           return fafService.requestHostGame(newGameInfo);
         })
-        .thenAccept(gameLaunchMessage -> startGame(gameLaunchMessage, inGameIrcUrl, autoLaunch, playerService.getCurrentPlayer().get().getUsername()));
+        .thenAccept(gameLaunchMessage -> {
+          // Remember the host's original title so their own screen keeps showing it even if the
+          // server rewrote it via the badword filter. Populated only here, on the hosting client,
+          // which is what scopes the override to "host's screen only".
+          if (newGameInfo.getTitle() != null) {
+            hostOriginalTitles.put(gameLaunchMessage.getUid(), newGameInfo.getTitle());
+            // A GAME_INFO carrying the (possibly rewritten) title may already have created the Game;
+            // re-apply the original now so the host never briefly sees the rewritten wording.
+            Game hostedGame = getByUid(gameLaunchMessage.getUid());
+            if (hostedGame != null) {
+              JavaFxUtil.runLater(() -> hostedGame.setTitle(newGameInfo.getTitle()));
+            }
+          }
+          // Join the channel the server assigned to this game (decoupled from the title). Fall back
+          // to deriving it from the host's name + the server's returned game name for older servers
+          // that don't send a channel. Crucially this uses gameLaunchMessage.getName() (the server's
+          // possibly-rewritten title), NOT newGameInfo.getTitle() (our original), so the host lands
+          // in the same channel the joiners derive from the broadcast title.
+          String channel = gameLaunchMessage.getChatChannel() != null && !gameLaunchMessage.getChatChannel().isBlank()
+              ? gameLaunchMessage.getChatChannel()
+              : getInGameIrcChannel(getCurrentPlayer().getUsername(), gameLaunchMessage.getName());
+          String inGameIrcUrl = getInGameIrcUrl(channel);
+          startGame(gameLaunchMessage, inGameIrcUrl, autoLaunch, playerService.getCurrentPlayer().get().getUsername());
+        });
   }
 
   private void addAlreadyInQueueNotification() {
@@ -858,11 +885,37 @@ public class GameService implements InitializingBean {
   }
 
   public String getInGameIrcChannel(Game game) {
-    return getInGameIrcChannel(game.getHost(), game.getTitle());
+    // Prefer the channel the server assigned (decoupled from the title). Only fall back to
+    // deriving it from host+title for older servers that don't send one. NOTE: on the hosting
+    // client game.getTitle() may have been overridden to the host's original wording, so the
+    // fallback must not be relied on to agree with joiners when the title was rewritten — that
+    // agreement is exactly what the server-sent channel provides.
+    String serverChannel = game.getChatChannel();
+    if (serverChannel != null && !serverChannel.isBlank()) {
+      return serverChannel;
+    }
+    // Fallback for older servers: derive from the server's (rewritten) title, NOT the displayed
+    // title, which on the hosting client is the host's original wording. Deriving from serverTitle
+    // keeps host and joiners on the same channel.
+    return getInGameIrcChannel(game.getHost(), game.getServerTitle());
   }
 
   public String getInGameIrcChannel(NewGameInfo gameInfo) {
     return getInGameIrcChannel(getCurrentPlayer().getUsername(), gameInfo.getTitle());
+  }
+
+  /** Finds the game whose chat channel is {@code channelName}, matching against the server-assigned
+   *  channel (or the host+title fallback for older servers). Used by the chat UI to label a game-room
+   *  channel tab with the game's title instead of the raw channel name. */
+  public Optional<Game> findGameByChatChannel(String channelName) {
+    if (channelName == null) {
+      return Optional.empty();
+    }
+    synchronized (uidToGameInfoBean) {
+      return uidToGameInfoBean.values().stream()
+          .filter(game -> channelName.equals(getInGameIrcChannel(game)))
+          .findFirst();
+    }
   }
 
   public String getInGameIrcUrl(String channel) {
@@ -1897,7 +1950,20 @@ public class GameService implements InitializingBean {
       game.setReplayDelaySeconds(gameInfoMessage.getReplayDelaySeconds());
 
       game.setHost(gameInfoMessage.getHost());
-      game.setTitle(StringEscapeUtils.unescapeHtml4(gameInfoMessage.getTitle()));
+      // The server assigns the chat channel explicitly; keep it verbatim so host and joiners share
+      // one channel regardless of what the title got rewritten to.
+      game.setChatChannel(gameInfoMessage.getChatChannel());
+      // Always record the server's title verbatim. This is the value the channel is derived from
+      // (in the fallback path), so it must NOT be the host's original wording — otherwise the host
+      // would derive a different channel than the joiners.
+      String serverTitle = StringEscapeUtils.unescapeHtml4(gameInfoMessage.getTitle());
+      game.setServerTitle(serverTitle);
+      // If we're the host of this game, DISPLAY the title we originally requested over whatever the
+      // server broadcast (which may be a badword-rewritten generic title). hostOriginalTitles is
+      // only populated on the hosting client, so joiners always see the server's title. Note this
+      // only affects the displayed title, never the channel (which uses serverTitle above).
+      String hostOriginalTitle = hostOriginalTitles.get(gameInfoMessage.getUid());
+      game.setTitle(hostOriginalTitle != null ? hostOriginalTitle : serverTitle);
       game.setMapName(gameInfoMessage.getMapName());
       game.setFeaturedMod(gameInfoMessage.getFeaturedMod());
       game.setGalacticWarPlanetName(gameInfoMessage.getGalacticWarPlanetName());
@@ -2004,6 +2070,7 @@ public class GameService implements InitializingBean {
     synchronized (uidToGameInfoBean) {
       game = uidToGameInfoBean.remove(gameInfoMessage.getUid());
     }
+    hostOriginalTitles.remove(gameInfoMessage.getUid());
 
     if (gameInfoMessage.getUid().equals(getRunningGameUid())) {
       // getRunningGameUid() is determined immediately upon starting gpgnet4ta

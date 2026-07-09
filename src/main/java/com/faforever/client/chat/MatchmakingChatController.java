@@ -127,6 +127,17 @@ public class MatchmakingChatController extends AbstractChatTabController {
     setTopic(i18n.get("teammatchmaking.chat.topic"));
   }
 
+  /**
+   * Overrides the tab label (which {@link #setChannel(String)} defaults to the raw channel name).
+   * Used by the game chat box to show the game's title — on the hosting client the host's original
+   * wording — instead of the {@code #Title[host]} channel name, which could reveal a badword rewrite.
+   */
+  public void setDisplayTitle(String title) {
+    if (title != null && !title.isBlank()) {
+      matchmakingChatTabRoot.setText(title);
+    }
+  }
+
   @Override
   protected TextInputControl messageTextField() {
     return messageTextField;

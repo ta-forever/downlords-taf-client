@@ -25,6 +25,12 @@ public class GameInfoMessage extends FafServerMessage {
   private Integer uid;
   private Integer maxPlayers;
   private String title;
+  /** IRC channel the server assigns to this game's in-game/game-room chat. Sent
+   *  explicitly so the channel is decoupled from {@link #title}: when the server
+   *  rewrites a badword title it still keeps every participant in one channel
+   *  (host and joiners no longer derive divergent channels from divergent titles).
+   *  When null (older server) the client falls back to computing it from host+title. */
+  private String chatChannel;
   private Map<String, String> simMods;
   private String mapName;
   private String mapFilePath;

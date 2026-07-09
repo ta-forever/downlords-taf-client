@@ -183,6 +183,9 @@ public class PlayController extends AbstractViewController<Node> implements Disp
   private void setGameChatBoxChannel(Game game) {
     if (game != null) {
       gameChatController.setChannel(gameService.getInGameIrcChannel(game));
+      // Label the game chat box "<host>'s Game" rather than the raw channel name — stable and never
+      // revealing a server badword rewrite of the title.
+      gameChatController.setDisplayTitle(i18n.get("game.chatChannel.title", game.getHost()));
       gameChatController.setTopic(String.format("%s's Game: %s", game.getHost(), game.getTitle()));
     }
     else {
