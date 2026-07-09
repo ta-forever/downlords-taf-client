@@ -118,6 +118,7 @@ public class CreateGameController implements Controller<Pane> {
   public static final PseudoClass PSEUDO_CLASS_INVALID = PseudoClass.getPseudoClass("invalid");
   private static final int MAX_RATING_LENGTH = 4;
   private static final double WIND_SPEED_DISPLAY_SCALE = 166.6;
+  private static final int MAX_WIND_SPEED = 30;
   private final MapService mapService;
   private final ModService modService;
   private final GameService gameService;
@@ -974,7 +975,7 @@ public class CreateGameController implements Controller<Pane> {
   private String formatWindSpeed(String value) {
     try {
       double wind = Double.parseDouble(value.trim().replace("+", "")) / WIND_SPEED_DISPLAY_SCALE;
-      return Long.toString(Math.round(wind));
+      return Long.toString(Math.min(MAX_WIND_SPEED, Math.round(wind)));
     } catch (NumberFormatException e) {
       return "";
     }
