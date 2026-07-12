@@ -1202,32 +1202,57 @@ public class GameService implements InitializingBean {
   }
 
   /**
-   * The ordered player list to send via {@code /startpositions}. If the host
-   * has pinned some players for this game, the rest are auto-balanced around
-   * those pins; otherwise the fully auto-balanced solution is used. Either way
-   * the result is an equal (or off-by-one) two-team partition interleaved so
+   * The ordered player list to send via {@code /startpositions}, honouring (in
+   * priority order) the host's manual team pins, then the players' start-position
+   * preselections, then rating balance. A start-position pair straddles both
+   * teams, so any pair two players both requested forces them onto opposite
+   * teams; the balancer then optimises rating balance around those constraints.
+   * The result is an equal (or off-by-one) two-team partition interleaved so
    * tadr-ddraw's {@code allyTeam = i % teamCount} mapping reproduces it on
    * {@code +autoteam}.
    *
-   * <p>If roster churn has since made the pins infeasible (no equal split
-   * exists) the constrained solve returns empty and we fall back to pure
-   * auto-balance rather than send nothing.</p>
+   * <p>Host pins win over preselection: a preselection the pins can't satisfy is
+   * dropped by the balancer. If the pins themselves have become infeasible after
+   * roster churn the balancer falls back to pure auto-balance rather than send
+   * nothing. Within-team seating ({@link #applyPositionRequests}) then places each
+   * requester at their pair's slot.</p>
    */
   private List<Player> computeStartOrder(Game game) {
     Map<Integer, Integer> positionRequests;
     synchronized (game.getPositionRequests()) {
       positionRequests = new LinkedHashMap<>(game.getPositionRequests());
     }
-    if (hasManualTeams(game)) {
-      List<Player> constrained = this.ratingService.getBalancedTeams(game, manualTeamByPlayerId);
-      if (constrained != null && !constrained.isEmpty()) {
-        return applyPositionRequests(positionRequests, constrained);
+    Map<Integer, Integer> hostPins = hasManualTeams(game) ? manualTeamByPlayerId : Map.of();
+    List<int[]> oppositeTeamPairs = oppositeTeamPairsFromRequests(positionRequests, game.getMaxPlayers());
+    List<Player> order = this.ratingService.getBalancedTeams(game, hostPins, oppositeTeamPairs);
+    return order == null ? List.of() : applyPositionRequests(positionRequests, order);
+  }
+
+  /**
+   * A pair (role) requested by two players must place those two on opposite
+   * teams, since a pair occupies one mirrored map position on each side. Returns
+   * one {@code [playerIdA, playerIdB]} constraint per such pair, in request
+   * order. Roles beyond the game's available pairs are ignored, and a third-or-
+   * later requester of an already-full pair is dropped (the server rejects those,
+   * but be defensive against races).
+   */
+  static List<int[]> oppositeTeamPairsFromRequests(Map<Integer, Integer> requests, int maxPlayers) {
+    int numPairs = Math.min(10, maxPlayers) / 2;
+    Map<Integer, List<Integer>> byRole = new LinkedHashMap<>();
+    for (Entry<Integer, Integer> e : requests.entrySet()) {
+      Integer role = e.getValue();
+      if (role == null || role < 0 || role >= numPairs) {
+        continue;
       }
-      log.warn("[computeStartOrder] pinned team constraints are infeasible for game {} "
-          + "(roster changed?); falling back to auto-balance", game.getId());
+      byRole.computeIfAbsent(role, r -> new ArrayList<>()).add(e.getKey());
     }
-    List<Player> autoOrder = this.ratingService.getBalancedTeams(game);
-    return autoOrder == null ? List.of() : applyPositionRequests(positionRequests, autoOrder);
+    List<int[]> edges = new ArrayList<>();
+    for (List<Integer> requesters : byRole.values()) {
+      if (requesters.size() >= 2) {
+        edges.add(new int[]{requesters.get(0), requesters.get(1)});
+      }
+    }
+    return edges;
   }
 
   /**

@@ -117,4 +117,49 @@ public class PositionRequestOrderTest {
     List<Integer> result = ids(GameService.applyPositionRequests(requests, order));
     assertThat(result, contains(1, 2));
   }
+
+  // --- oppositeTeamPairsFromRequests: derive the "must be on opposite teams"
+  // constraints handed to the balancer (a pair claimed by two players). ---
+
+  private static List<List<Integer>> edges(List<int[]> pairs) {
+    return pairs.stream().map(e -> List.of(e[0], e[1])).toList();
+  }
+
+  @Test
+  public void noSharedPairYieldsNoEdges() {
+    Map<Integer, Integer> requests = new LinkedHashMap<>();
+    requests.put(1, 0);
+    requests.put(2, 1);  // different pairs -> no opposite-team constraint
+    assertThat(GameService.oppositeTeamPairsFromRequests(requests, 8).isEmpty(), is(true));
+  }
+
+  @Test
+  public void twoPlayersOnSamePairBecomeAnOppositeTeamEdge() {
+    Map<Integer, Integer> requests = new LinkedHashMap<>();
+    requests.put(5, 2);
+    requests.put(7, 2);  // both want pair 2 -> forced onto opposite teams
+    assertThat(edges(GameService.oppositeTeamPairsFromRequests(requests, 8)),
+        contains(List.of(5, 7)));
+  }
+
+  @Test
+  public void thirdRequesterOfAFullPairIsDropped() {
+    // The server rejects a third claim, but defend against races: only the first
+    // two requesters of a pair form the edge.
+    Map<Integer, Integer> requests = new LinkedHashMap<>();
+    requests.put(1, 0);
+    requests.put(2, 0);
+    requests.put(3, 0);
+    assertThat(edges(GameService.oppositeTeamPairsFromRequests(requests, 8)),
+        contains(List.of(1, 2)));
+  }
+
+  @Test
+  public void roleBeyondAvailablePairsIsIgnored() {
+    // 6 players -> 3 pairs (roles 0..2). Role 3 has no mirrored positions.
+    Map<Integer, Integer> requests = new LinkedHashMap<>();
+    requests.put(1, 3);
+    requests.put(2, 3);
+    assertThat(GameService.oppositeTeamPairsFromRequests(requests, 6).isEmpty(), is(true));
+  }
 }

@@ -105,6 +105,90 @@ public class JSkillsRatingService implements RatingService {
     return result;
   }
 
+  @Override
+  public List<Player> getBalancedTeams(Game game, Map<Integer, Integer> pinnedTeamByPlayerId,
+                                       List<int[]> oppositeTeamPairs) {
+    Map<Integer, Integer> hostPins = pinnedTeamByPlayerId == null
+        ? Map.of() : pinnedTeamByPlayerId;
+    if (oppositeTeamPairs == null || oppositeTeamPairs.isEmpty()) {
+      return getBalancedTeams(game, hostPins);
+    }
+    List<Player> hostAndPlayers = getPlayingRoster(game);
+    if (hostAndPlayers.isEmpty()) return hostAndPlayers;
+
+    Map<Integer, javafx.util.Pair<String, LeaderboardRating>> ratings = getRosterRatings(game, hostAndPlayers);
+    Set<Integer> rosterIds = hostAndPlayers.stream().map(Player::getId).collect(Collectors.toSet());
+
+    // Resolve each opposite-team pair against the host pins. Pairs where a pin already
+    // decides one side force the other side; pairs the pins can't satisfy are dropped
+    // (host pins win). What remains is a set of free edges whose orientation we search.
+    Map<Integer, Integer> resolvedPins = new HashMap<>(hostPins);
+    List<int[]> freeEdges = new ArrayList<>();
+    for (int[] edge : oppositeTeamPairs) {
+      if (edge.length != 2 || !rosterIds.contains(edge[0]) || !rosterIds.contains(edge[1])) {
+        continue;
+      }
+      Integer ta = resolvedPins.get(edge[0]);
+      Integer tb = resolvedPins.get(edge[1]);
+      if (ta != null && tb != null) {
+        // Both already pinned: either already opposite (satisfied) or the same team
+        // (impossible — host pins win, so we simply can't honour this preselection).
+        continue;
+      } else if (ta != null) {
+        resolvedPins.put(edge[1], 1 - ta);
+      } else if (tb != null) {
+        resolvedPins.put(edge[0], 1 - tb);
+      } else {
+        freeEdges.add(edge);
+      }
+    }
+
+    // Search every orientation of the free edges; for each, pin the edge members to
+    // opposite teams and let trySplit balance the remaining free players. Keep the
+    // best-scoring feasible split. Edge counts are tiny (<= maxPlayers/2), so 2^n is cheap.
+    double bestScore = Double.NEGATIVE_INFINITY;
+    List<Player> best = null;
+    int orientations = 1 << freeEdges.size();
+    for (int mask = 0; mask < orientations; mask++) {
+      Map<Integer, Integer> pins = new HashMap<>(resolvedPins);
+      for (int i = 0; i < freeEdges.size(); i++) {
+        int[] edge = freeEdges.get(i);
+        boolean firstOnTeam0 = ((mask >> i) & 1) == 0;
+        pins.put(edge[firstOnTeam0 ? 0 : 1], 0);
+        pins.put(edge[firstOnTeam0 ? 1 : 0], 1);
+      }
+      List<Player> order = trySplit(hostAndPlayers, ratings, pins);
+      if (order == null) {
+        continue;
+      }
+      double score = scoreOrder(order, ratings);
+      if (score > bestScore) {
+        bestScore = score;
+        best = order;
+      }
+    }
+
+    // If no orientation produced a valid split (e.g. the host over-pinned a team),
+    // fall back to the pins-only balancer, which relaxes over-pinning gracefully.
+    if (best == null) {
+      return getBalancedTeams(game, hostPins);
+    }
+    logTeamRatings(game.getId(), best, ratings);
+    return best;
+  }
+
+  /** Score an interleaved order the same way {@link #trySplit} does, by de-interleaving
+   *  team 0 (even positions) and team 1 (odd positions). */
+  private double scoreOrder(List<Player> order,
+                            Map<Integer, javafx.util.Pair<String, LeaderboardRating>> ratings) {
+    List<Player> team0 = new ArrayList<>();
+    List<Player> team1 = new ArrayList<>();
+    for (int i = 0; i < order.size(); i++) {
+      (i % 2 == 0 ? team0 : team1).add(order.get(i));
+    }
+    return computeScore(team0, team1, ratings);
+  }
+
   /**
    * The set of players that will actually play {@code game}: the host (unless
    * watching) plus everyone in a team bucket other than observers. Includes the

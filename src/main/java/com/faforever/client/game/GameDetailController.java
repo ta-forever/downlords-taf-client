@@ -66,6 +66,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -140,6 +142,10 @@ public class GameDetailController implements Controller<Pane> {
   private static final double POSITION_MARKER_SIZE = 22.0;
   /** Pseudo-class toggled on a marker when it belongs to the current player's requested pair. */
   private static final PseudoClass MARKER_SELECTED = PseudoClass.getPseudoClass("selected");
+  /** Pseudo-class toggled on a marker whose pair has exactly one requester (half-filled). */
+  private static final PseudoClass MARKER_HALF = PseudoClass.getPseudoClass("half");
+  /** Pseudo-class toggled on a marker whose pair has two or more requesters (fully filled). */
+  private static final PseudoClass MARKER_FULL = PseudoClass.getPseudoClass("full");
 
   /** A numbered start-position marker button plus its normalised map position and role (pair). */
   private static final class PositionMarker {
@@ -829,11 +835,74 @@ public class GameDetailController implements Controller<Pane> {
     }
   }
 
-  /** Highlight the markers belonging to the current player's requested pair (role). */
+  /**
+   * Highlight the markers belonging to the current player's requested pair (role) and shade
+   * every marker by how many players have requested its pair: empty (0), half-filled (1) or
+   * fully filled (2+). Since a pair straddles both teams it has exactly two physical slots, so
+   * two or more requesters means the pair is full.
+   */
   private void refreshMarkerHighlights() {
     Integer myRole = requestedRoleOfCurrentPlayer();
+    Map<Integer, Long> requestsPerRole = requestCountByRole();
     for (PositionMarker pm : positionMarkers) {
-      pm.node.pseudoClassStateChanged(MARKER_SELECTED, myRole != null && myRole == pm.role);
+      long count = requestsPerRole.getOrDefault(pm.role, 0L);
+      boolean mine = myRole != null && myRole == pm.role;
+      pm.node.pseudoClassStateChanged(MARKER_SELECTED, mine);
+      pm.node.pseudoClassStateChanged(MARKER_HALF, count == 1);
+      pm.node.pseudoClassStateChanged(MARKER_FULL, count >= 2);
+      // A pair I don't already hold is unclickable once it's full or the host's pins
+      // rule it out for me; my own pick stays clickable so I can release it.
+      pm.node.setDisable(!mine && !canRequestRole(pm.role));
+    }
+  }
+
+  /**
+   * Whether the current player could claim pair {@code role} right now. A pair straddles
+   * both teams, so it has only two slots: it's full once two other players hold it. It is
+   * also blocked when the host has pinned this player and another requester of the same pair
+   * to the <em>same</em> team, since only one of them can occupy the pair's single slot on
+   * that team. Mirrors the authoritative check in the server's {@code command_set_position_request}.
+   */
+  private boolean canRequestRole(int role) {
+    Game g = game.get();
+    Optional<Player> me = playerService.getCurrentPlayer();
+    if (g == null || me.isEmpty()) {
+      return false;
+    }
+    // A claimable pair needs both mirrored positions (2r+1, 2r+2) in play. With an odd
+    // position count the last, unmirrored position is shown but can't be claimed.
+    int numPairs = min(10, g.getMaxPlayers()) / 2;
+    if (role < 0 || role >= numPairs) {
+      return false;
+    }
+    int myId = me.get().getId();
+    List<Integer> others;
+    synchronized (g.getPositionRequests()) {
+      others = g.getPositionRequests().entrySet().stream()
+          .filter(e -> e.getValue() != null && e.getValue() == role && e.getKey() != myId)
+          .map(Entry::getKey)
+          .collect(Collectors.toList());
+    }
+    if (others.size() >= 2) {
+      return false;
+    }
+    Integer myPin = g.getPinnedTeams().get(myId);
+    if (myPin != null && others.stream().anyMatch(pid -> myPin.equals(g.getPinnedTeams().get(pid)))) {
+      return false;
+    }
+    return true;
+  }
+
+  /** How many players have requested each pair (role), from the authoritative GAME_INFO state. */
+  private Map<Integer, Long> requestCountByRole() {
+    Game g = game.get();
+    if (g == null) {
+      return Map.of();
+    }
+    synchronized (g.getPositionRequests()) {
+      return g.getPositionRequests().values().stream()
+          .filter(Objects::nonNull)
+          .collect(Collectors.groupingBy(role -> role, Collectors.counting()));
     }
   }
 
@@ -873,9 +942,26 @@ public class GameDetailController implements Controller<Pane> {
     }
     Integer myRole = requestedRoleOfCurrentPlayer();
     boolean select = myRole == null || myRole != role;
+    // Selecting a pair I can't claim (full, or ruled out by host pins) is a no-op; the
+    // marker is disabled too, but guard the handler in case of a stale click.
+    if (select && !canRequestRole(role)) {
+      return;
+    }
     Integer optimisticRole = select ? role : null;
+    // Reflect the selection and the pair-occupancy shading immediately; the authoritative
+    // GAME_INFO echo re-syncs it (and may drop the request if the server rejects a full pair).
+    Map<Integer, Long> counts = new HashMap<>(requestCountByRole());
+    if (myRole != null) {
+      counts.merge(myRole, -1L, Long::sum);
+    }
+    if (optimisticRole != null) {
+      counts.merge(optimisticRole, 1L, Long::sum);
+    }
     for (PositionMarker pm : positionMarkers) {
+      long count = counts.getOrDefault(pm.role, 0L);
       pm.node.pseudoClassStateChanged(MARKER_SELECTED, optimisticRole != null && optimisticRole == pm.role);
+      pm.node.pseudoClassStateChanged(MARKER_HALF, count == 1);
+      pm.node.pseudoClassStateChanged(MARKER_FULL, count >= 2);
     }
     fafService.setPositionRequest(select ? role : null);
   }

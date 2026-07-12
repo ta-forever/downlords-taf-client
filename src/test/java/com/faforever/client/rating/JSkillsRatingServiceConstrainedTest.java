@@ -140,4 +140,45 @@ public class JSkillsRatingServiceConstrainedTest {
     assertThat(indexOfId(order, 1) % 2, is(0));         // host on team 0
     assertThat(indexOfId(order, 2) % 2, is(1));         // p2 honoured on team 1
   }
+
+  // --- getBalancedTeams(game, pins, oppositeTeamPairs): preselected pairs force
+  // their two claimants onto opposite teams; balance is optimised around that. ---
+
+  private com.faforever.client.game.Game gameOf(List<Player> all, String host) {
+    com.faforever.client.game.Game game = org.mockito.Mockito.mock(com.faforever.client.game.Game.class);
+    Map<String, List<String>> teams = new HashMap<>();
+    teams.put("1", all.stream().map(Player::getUsername).toList());
+    when(game.getTeams()).thenReturn(javafx.collections.FXCollections.observableMap(teams));
+    when(game.getHost()).thenReturn(host);
+    when(game.getFeaturedMod()).thenReturn("faf");
+    when(game.getId()).thenReturn(1);
+    for (Player p : all) {
+      when(playerService.getPlayerForUsername(p.getUsername())).thenReturn(java.util.Optional.of(p));
+    }
+    // Leaderboard lookup feeds getDistilledPlayerRatings, which we stub on the spy;
+    // just keep the queue lookup from NPEing.
+    when(fafService.getMatchmakerQueueMapPools())
+        .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(List.of()));
+    return game;
+  }
+
+  @Test
+  public void sharedPairPutsBothClaimantsOnOppositeTeams() {
+    // p2 and p3 both claim the same pair -> they must end up on opposite teams.
+    List<Player> all = new ArrayList<>(List.of(
+        player(1, 1000), player(2, 1500), player(3, 1400), player(4, 900)));
+    com.faforever.client.game.Game game = gameOf(all, "p1");
+    JSkillsRatingService spy = org.mockito.Mockito.spy(instance);
+    org.mockito.Mockito.doReturn(new ArrayList<>(all)).when(spy).getBalancedTeams(game);
+    org.mockito.Mockito.doReturn(ratings).when(spy)
+        .getDistilledPlayerRatings(org.mockito.ArgumentMatchers.anyList(),
+            org.mockito.ArgumentMatchers.anySet(), org.mockito.ArgumentMatchers.anySet(),
+            org.mockito.ArgumentMatchers.anyString());
+
+    List<Player> order = spy.getBalancedTeams(game, Map.of(), List.of(new int[]{2, 3}));
+
+    assertThat(order.size(), is(4));
+    assertThat("p2 and p3 must be on opposite teams",
+        indexOfId(order, 2) % 2 != indexOfId(order, 3) % 2, is(true));
+  }
 }

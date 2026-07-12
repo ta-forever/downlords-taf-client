@@ -1635,12 +1635,28 @@
   -fx-padding: 0;
 }
 
+/* Pair occupancy: one requester half-fills the marker (lower half accent), two or more
+   fill it entirely. A pair straddles both teams, so it has only two slots. */
+.position-marker:half {
+  -fx-background-color: linear-gradient(to right, -fx-accent 0%, -fx-accent 50%, rgba(10, 20, 60, 0.8) 50%, rgba(10, 20, 60, 0.8) 100%);
+}
+
+.position-marker:full {
+  -fx-background-color: -fx-accent;
+}
+
 .position-marker:hover {
   -fx-background-color: -fx-accent;
 }
 
+/* Full (two requesters) or ruled out by the host's pins: not claimable, so dim it.
+   Disabled nodes don't receive hover, so the fill shading below still shows through. */
+.position-marker:disabled {
+  -fx-opacity: 0.55;
+}
+
+/* The current player's own pick: outlined regardless of fill. */
 .position-marker:selected {
-  -fx-background-color: -fx-accent;
   -fx-border-color: white;
   -fx-border-width: 2;
 }

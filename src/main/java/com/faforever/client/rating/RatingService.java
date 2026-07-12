@@ -31,6 +31,23 @@ public interface RatingService {
    */
   public List<Player> getBalancedTeams(Game game, Map<Integer, Integer> pinnedTeamByPlayerId);
 
+  /**
+   * Balance the game's teams honouring both the host's manual pins and the
+   * players' start-position preselections. A start-position pair straddles both
+   * teams, so any pair requested by two players forces those two players onto
+   * opposite teams. Host pins take precedence: a preselection that would
+   * contradict the pins is dropped rather than allowed to override them. Balance
+   * is optimised over the remaining freedom (edge orientation + free players).
+   *
+   * @param pinnedTeamByPlayerId host pins (player id -&gt; team 0/1), may be null/empty
+   * @param oppositeTeamPairs    each entry is a two-element {@code [playerIdA, playerIdB]}
+   *                             that must land on opposite teams
+   * @return the interleaved start-position order, or the best available fallback
+   *     if the combined constraints are infeasible
+   */
+  public List<Player> getBalancedTeams(Game game, Map<Integer, Integer> pinnedTeamByPlayerId,
+                                       List<int[]> oppositeTeamPairs);
+
   public List<Player> getBalancedTeams(Replay replay);
 
   // priority: "teams", "singles", "default" or "all
