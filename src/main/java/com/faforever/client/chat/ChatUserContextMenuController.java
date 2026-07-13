@@ -107,6 +107,13 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
   @SuppressWarnings("FieldCanBeLocal")
   private ChangeListener<Player> playerChangeListener;
 
+  // The avatar/medal combo box is populated imperatively (not via a live binding), so a reused menu
+  // (see ChatUserItemController's WeakReference cache) must be refreshed on show to reflect a featured
+  // medal the user just changed elsewhere (e.g. the User Info dialog). These guard re-population so the
+  // selection listener is installed exactly once and doesn't fire for programmatic re-selection.
+  private boolean avatarSelectionListenerInstalled;
+  private boolean suppressAvatarSelectionListener;
+
   public ChatUserContextMenuController(PreferencesService preferencesService,
                                        PlayerService playerService, ReplayService replayService,
                                        NotificationService notificationService, I18n i18n, EventBus eventBus,
@@ -266,6 +273,17 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
                 removeFoeItem.visibleProperty()))));
   }
 
+  /**
+   * Re-syncs the avatar/medal picker with the current featured-medal selection. Called when a cached
+   * menu is re-shown (see ChatUserItemController) so a medal chosen elsewhere (e.g. the User Info
+   * dialog) is reflected instead of the stale selection captured when the menu was first built.
+   */
+  public void refreshAvatarSelection() {
+    chatUser.getPlayer()
+        .filter(player -> player.getSocialStatus() == SELF)
+        .ifPresent(this::loadAvailableAvatars);
+  }
+
   private void setModeratorOptions(Set<String> permissions, Player newValue) {
     boolean notSelf = !newValue.getSocialStatus().equals(SELF);
 
@@ -296,6 +314,9 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
 
       String currentAvatarUrl = player.getAvatarUrl();
       JavaFxUtil.runLater(() -> {
+        // Suppress the selection listener while we (re)build and preselect programmatically, so a
+        // refresh of a reused menu doesn't post a spurious featured-medal change back to the server.
+        suppressAvatarSelectionListener = true;
         avatarComboBox.getItems().setAll(items);
         // Preselect the current choice: the featured medal if one is set, else the current avatar.
         AvatarBean selected = featured
@@ -305,9 +326,18 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
                     && Objects.equals(Objects.toString(b.getUrl(), null), currentAvatarUrl))
                 .findFirst().orElse(null));
         avatarComboBox.getSelectionModel().select(selected);
+        suppressAvatarSelectionListener = false;
 
-        // Add the listener only after the initial selection so it doesn't fire a spurious change.
+        // Add the listener only once (the menu can be re-populated on reuse), and only after the
+        // initial selection so it doesn't fire a spurious change.
+        if (avatarSelectionListenerInstalled) {
+          return;
+        }
+        avatarSelectionListenerInstalled = true;
         avatarComboBox.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+          if (suppressAvatarSelectionListener) {
+            return;
+          }
           if (newValue != null && newValue.getMedalCode() != null) {
             // A medal occupies the avatar slot (overrides the regular avatar) via the featured medal.
             ladderPointsService.setFeaturedMedal(player.getId(), newValue.getMedalCode())

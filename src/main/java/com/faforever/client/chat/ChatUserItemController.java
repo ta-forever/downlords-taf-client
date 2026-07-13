@@ -247,6 +247,9 @@ public class ChatUserItemController implements Controller<Node> {
     if (contextMenuController != null) {
       ChatUserContextMenuController controller = contextMenuController.get();
       if (controller != null) {
+        // The menu is reused; re-sync the avatar/medal picker in case the featured medal changed
+        // since it was built (e.g. via the User Info dialog).
+        controller.refreshAvatarSelection();
         controller.getContextMenu().show(chatUserItemRoot.getScene().getWindow(), event.getScreenX(), event.getScreenY());
         return;
       }
