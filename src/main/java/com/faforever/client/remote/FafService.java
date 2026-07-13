@@ -1004,6 +1004,16 @@ public class FafService {
     fafServerAccessor.setPinnedTeams(playerIds, teams);
   }
 
+  /** This player's start-position role request (0..4), or null to clear. */
+  public void setPositionRequest(Integer position) {
+    fafServerAccessor.setPositionRequest(position);
+  }
+
+  /** Host toggle: enable/disable start-position preselection for this game. */
+  public void setFixedPositionsEnabled(boolean enabled) {
+    fafServerAccessor.setFixedPositionsEnabled(enabled);
+  }
+
   public void leaveAndReserve() {
     fafServerAccessor.leaveAndReserve();
   }

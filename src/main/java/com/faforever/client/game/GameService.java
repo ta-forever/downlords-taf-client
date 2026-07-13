@@ -14,6 +14,7 @@ import com.faforever.client.fa.relay.ice.IceAdapter;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.ladder.LadderPointsService;
 import com.faforever.client.main.event.JoinChannelEvent;
 import com.faforever.client.main.event.ShowScoreScreenEvent;
 import com.faforever.client.map.MapService;
@@ -91,6 +92,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -104,6 +106,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -150,6 +153,7 @@ public class GameService implements InitializingBean {
   private final ChatService chatService;
   private final RatingService ratingService;
   private final HotfixService hotfixService;
+  private final LadderPointsService ladderPointsService;
 
   private final ObservableList<Game> games;
   private final String faWindowTitle;
@@ -174,6 +178,12 @@ public class GameService implements InitializingBean {
   private Process process;
   private Optional<Game> rehostRequested;
   private NewGameInfo recentHostGameRequest;  // rehostRequest is  missing a few bits of information (like password)
+  // Titles the local player originally requested when hosting, keyed by game uid. The server may
+  // rewrite a title that trips its badword filter; this map lets us show the host their ORIGINAL
+  // wording on their own screen only, so they aren't tipped off that the filter fired (which would
+  // just motivate them to work around it). Only ever populated on the hosting client, which is what
+  // scopes the override to "host's screen only". Entries are dropped when the game is removed.
+  private final Map<Integer, String> hostOriginalTitles = new ConcurrentHashMap<>();
 
   // Crash-resilient game-log upload: a marker is written when a game launches and cleared when its
   // logs are submitted at game end. A marker still present at next login means the client died
@@ -202,7 +212,8 @@ public class GameService implements InitializingBean {
                      ReconnectTimerService reconnectTimerService,
                      ChatService chatService,
                      RatingService ratingService,
-                     HotfixService hotfixService) {
+                     HotfixService hotfixService,
+                     LadderPointsService ladderPointsService) {
 
     this.clientProperties = clientProperties;
     this.fafService = fafService;
@@ -223,6 +234,7 @@ public class GameService implements InitializingBean {
     this.chatService = chatService;
     this.ratingService = ratingService;
     this.hotfixService = hotfixService;
+    this.ladderPointsService = ladderPointsService;
 
     ircHostAndPort = String.format("%s:%d", clientProperties.getIrc().getHost(), 6667);//clientProperties.getIrc().getPort());
     faWindowTitle = clientProperties.getForgedAlliance().getWindowTitle();
@@ -549,8 +561,6 @@ public class GameService implements InitializingBean {
       addAlreadyInQueueNotification();
       return completedFuture(null);
     }
-    String inGameChannel = getInGameIrcChannel(newGameInfo);
-    String inGameIrcUrl = getInGameIrcUrl(inGameChannel);
     boolean autoLaunch = preferencesService.getPreferences().getAutoLaunchOnHostEnabled();
 
     autoJoinRequestedGameProperty.set(null);
@@ -560,7 +570,30 @@ public class GameService implements InitializingBean {
           newGameInfo.setFeaturedModVersionKey(modVersionKey);
           return fafService.requestHostGame(newGameInfo);
         })
-        .thenAccept(gameLaunchMessage -> startGame(gameLaunchMessage, inGameIrcUrl, autoLaunch, playerService.getCurrentPlayer().get().getUsername()));
+        .thenAccept(gameLaunchMessage -> {
+          // Remember the host's original title so their own screen keeps showing it even if the
+          // server rewrote it via the badword filter. Populated only here, on the hosting client,
+          // which is what scopes the override to "host's screen only".
+          if (newGameInfo.getTitle() != null) {
+            hostOriginalTitles.put(gameLaunchMessage.getUid(), newGameInfo.getTitle());
+            // A GAME_INFO carrying the (possibly rewritten) title may already have created the Game;
+            // re-apply the original now so the host never briefly sees the rewritten wording.
+            Game hostedGame = getByUid(gameLaunchMessage.getUid());
+            if (hostedGame != null) {
+              JavaFxUtil.runLater(() -> hostedGame.setTitle(newGameInfo.getTitle()));
+            }
+          }
+          // Join the channel the server assigned to this game (decoupled from the title). Fall back
+          // to deriving it from the host's name + the server's returned game name for older servers
+          // that don't send a channel. Crucially this uses gameLaunchMessage.getName() (the server's
+          // possibly-rewritten title), NOT newGameInfo.getTitle() (our original), so the host lands
+          // in the same channel the joiners derive from the broadcast title.
+          String channel = gameLaunchMessage.getChatChannel() != null && !gameLaunchMessage.getChatChannel().isBlank()
+              ? gameLaunchMessage.getChatChannel()
+              : getInGameIrcChannel(getCurrentPlayer().getUsername(), gameLaunchMessage.getName());
+          String inGameIrcUrl = getInGameIrcUrl(channel);
+          startGame(gameLaunchMessage, inGameIrcUrl, autoLaunch, playerService.getCurrentPlayer().get().getUsername());
+        });
   }
 
   private void addAlreadyInQueueNotification() {
@@ -852,11 +885,37 @@ public class GameService implements InitializingBean {
   }
 
   public String getInGameIrcChannel(Game game) {
-    return getInGameIrcChannel(game.getHost(), game.getTitle());
+    // Prefer the channel the server assigned (decoupled from the title). Only fall back to
+    // deriving it from host+title for older servers that don't send one. NOTE: on the hosting
+    // client game.getTitle() may have been overridden to the host's original wording, so the
+    // fallback must not be relied on to agree with joiners when the title was rewritten — that
+    // agreement is exactly what the server-sent channel provides.
+    String serverChannel = game.getChatChannel();
+    if (serverChannel != null && !serverChannel.isBlank()) {
+      return serverChannel;
+    }
+    // Fallback for older servers: derive from the server's (rewritten) title, NOT the displayed
+    // title, which on the hosting client is the host's original wording. Deriving from serverTitle
+    // keeps host and joiners on the same channel.
+    return getInGameIrcChannel(game.getHost(), game.getServerTitle());
   }
 
   public String getInGameIrcChannel(NewGameInfo gameInfo) {
     return getInGameIrcChannel(getCurrentPlayer().getUsername(), gameInfo.getTitle());
+  }
+
+  /** Finds the game whose chat channel is {@code channelName}, matching against the server-assigned
+   *  channel (or the host+title fallback for older servers). Used by the chat UI to label a game-room
+   *  channel tab with the game's title instead of the raw channel name. */
+  public Optional<Game> findGameByChatChannel(String channelName) {
+    if (channelName == null) {
+      return Optional.empty();
+    }
+    synchronized (uidToGameInfoBean) {
+      return uidToGameInfoBean.values().stream()
+          .filter(game -> channelName.equals(getInGameIrcChannel(game)))
+          .findFirst();
+    }
   }
 
   public String getInGameIrcUrl(String channel) {
@@ -995,7 +1054,17 @@ public class GameService implements InitializingBean {
           .thenRun(() -> {
             List<Player> joinOrder = computeStartOrder(game);
             this.totalAnnihilationService.sendToConsole("/set_hash_api_token " + this.fafService.getApiAccessToken());
-            if (joinOrder.size() > 2 && preferencesService.getPreferences().getSequencedLaunchEnabled()) {
+            boolean sequenced = joinOrder.size() > 2 && preferencesService.getPreferences().getSequencedLaunchEnabled();
+            // TA's start-position mode maps directly off the host's fixed/random
+            // pill — no longer inferred from whether positions happen to be
+            // managed (requests / pins / sequenced launch). The host decides;
+            // if they want preselection, pins or a sequenced order to land on
+            // specific positions they set the pill to fixed (the picker is
+            // already gated on it). gpgnet4ta writes this straight to
+            // TAForever.ini location (1=fixed, 2=random).
+            boolean fixedPositions = game.isFixedPositionsEnabled();
+            this.totalAnnihilationService.sendToConsole("/fixed_positions " + (fixedPositions ? "1" : "0"));
+            if (sequenced) {
               this.totalAnnihilationService.sendToConsole("/launch " +
                   String.join(",", joinOrder.stream().map(p -> String.valueOf(p.getId())).toList()));
             } else {
@@ -1017,10 +1086,12 @@ public class GameService implements InitializingBean {
   }
 
   public void setStartPositions(Game game) {
-    // A manual arrangement is an explicit host action, so honour it even when
-    // the auto-team-balance preference is off. Otherwise fall back to the
-    // preference gate for the auto-balanced solution.
-    if (!hasManualTeams(game) && !preferencesService.getPreferences().getAutoTeamBalanceEnabled()) {
+    // A manual arrangement or a player's position request is an explicit
+    // action, so honour it even when the auto-team-balance preference is off.
+    // Otherwise fall back to the preference gate for the auto-balanced
+    // solution.
+    if (!hasManualTeams(game) && !hasPositionRequests(game)
+        && !preferencesService.getPreferences().getAutoTeamBalanceEnabled()) {
       return;
     }
     List<Player> positions = computeStartOrder(game);
@@ -1073,6 +1144,35 @@ public class GameService implements InitializingBean {
     setStartPositions(game);
   }
 
+  /**
+   * Host toggle: enable/disable start-position preselection for {@code game}.
+   * Propagated to the server, which rebroadcasts it in GAME_INFO so every
+   * client shows or hides the position picker accordingly. Disabling clears any
+   * outstanding position requests server-side.
+   */
+  public void setFixedPositionsEnabled(Game game, boolean enabled) {
+    if (game == null) {
+      return;
+    }
+    fafService.setFixedPositionsEnabled(enabled);
+  }
+
+  /**
+   * Host control: change the maximum number of players for a staging game.
+   * Sends the same {@code /max_players} console command used by the Create Game
+   * dialog's update mode; the server rebroadcasts the new cap in GAME_INFO.
+   * No-op unless we're the host of the current staging game and the value is 2-10.
+   */
+  public void setMaxPlayers(Game game, int maxPlayers) {
+    if (game == null || maxPlayers < 2 || maxPlayers > 10) {
+      return;
+    }
+    Game currentGame = getCurrentGame();
+    if (isGameRunning() && currentGame != null && currentGame.getStatus() == GameStatus.STAGING) {
+      this.totalAnnihilationService.sendToConsole(String.format("/max_players %d", maxPlayers));
+    }
+  }
+
   public void clearManualTeams() {
     this.manualTeamGameId = null;
     this.manualTeamByPlayerId = null;
@@ -1092,29 +1192,132 @@ public class GameService implements InitializingBean {
         && manualTeamGameId != null && manualTeamGameId == game.getId();
   }
 
+  private boolean hasPositionRequests(Game game) {
+    if (game == null) {
+      return false;
+    }
+    synchronized (game.getPositionRequests()) {
+      return !game.getPositionRequests().isEmpty();
+    }
+  }
+
   /**
-   * The ordered player list to send via {@code /startpositions}. If the host
-   * has pinned some players for this game, the rest are auto-balanced around
-   * those pins; otherwise the fully auto-balanced solution is used. Either way
-   * the result is an equal (or off-by-one) two-team partition interleaved so
+   * The ordered player list to send via {@code /startpositions}, honouring (in
+   * priority order) the host's manual team pins, then the players' start-position
+   * preselections, then rating balance. A start-position pair straddles both
+   * teams, so any pair two players both requested forces them onto opposite
+   * teams; the balancer then optimises rating balance around those constraints.
+   * The result is an equal (or off-by-one) two-team partition interleaved so
    * tadr-ddraw's {@code allyTeam = i % teamCount} mapping reproduces it on
    * {@code +autoteam}.
    *
-   * <p>If roster churn has since made the pins infeasible (no equal split
-   * exists) the constrained solve returns empty and we fall back to pure
-   * auto-balance rather than send nothing.</p>
+   * <p>Host pins win over preselection: a preselection the pins can't satisfy is
+   * dropped by the balancer. If the pins themselves have become infeasible after
+   * roster churn the balancer falls back to pure auto-balance rather than send
+   * nothing. Within-team seating ({@link #applyPositionRequests}) then places each
+   * requester at their pair's slot.</p>
    */
   private List<Player> computeStartOrder(Game game) {
-    if (hasManualTeams(game)) {
-      List<Player> constrained = this.ratingService.getBalancedTeams(game, manualTeamByPlayerId);
-      if (constrained != null && !constrained.isEmpty()) {
-        return constrained;
-      }
-      log.warn("[computeStartOrder] pinned team constraints are infeasible for game {} "
-          + "(roster changed?); falling back to auto-balance", game.getId());
+    Map<Integer, Integer> positionRequests;
+    synchronized (game.getPositionRequests()) {
+      positionRequests = new LinkedHashMap<>(game.getPositionRequests());
     }
-    List<Player> autoOrder = this.ratingService.getBalancedTeams(game);
-    return autoOrder == null ? List.of() : autoOrder;
+    Map<Integer, Integer> hostPins = hasManualTeams(game) ? manualTeamByPlayerId : Map.of();
+    List<int[]> oppositeTeamPairs = oppositeTeamPairsFromRequests(positionRequests, game.getMaxPlayers());
+    List<Player> order = this.ratingService.getBalancedTeams(game, hostPins, oppositeTeamPairs);
+    return order == null ? List.of() : applyPositionRequests(positionRequests, order);
+  }
+
+  /**
+   * A pair (role) requested by two players must place those two on opposite
+   * teams, since a pair occupies one mirrored map position on each side. Returns
+   * one {@code [playerIdA, playerIdB]} constraint per such pair, in request
+   * order. Roles beyond the game's available pairs are ignored, and a third-or-
+   * later requester of an already-full pair is dropped (the server rejects those,
+   * but be defensive against races).
+   */
+  static List<int[]> oppositeTeamPairsFromRequests(Map<Integer, Integer> requests, int maxPlayers) {
+    int numPairs = Math.min(10, maxPlayers) / 2;
+    Map<Integer, List<Integer>> byRole = new LinkedHashMap<>();
+    for (Entry<Integer, Integer> e : requests.entrySet()) {
+      Integer role = e.getValue();
+      if (role == null || role < 0 || role >= numPairs) {
+        continue;
+      }
+      byRole.computeIfAbsent(role, r -> new ArrayList<>()).add(e.getKey());
+    }
+    List<int[]> edges = new ArrayList<>();
+    for (List<Integer> requesters : byRole.values()) {
+      if (requesters.size() >= 2) {
+        edges.add(new int[]{requesters.get(0), requesters.get(1)});
+      }
+    }
+    return edges;
+  }
+
+  /**
+   * Reorder the interleaved start order within each team so players' position
+   * role requests are honoured where possible. The interleave convention maps
+   * list index i to map position i+1 and team i%2, so a player placed at index
+   * 2r (team A) or 2r+1 (team B) receives role r — one of the two mirrored map
+   * start positions of that pair. Team membership is never changed, only the
+   * order of players within a team, so balance and pins are unaffected.
+   *
+   * <p>Requests are granted in {@code requests} iteration order (the server's
+   * request order, i.e. first-come-first-served on same-role conflicts). A
+   * request for role r is only satisfiable when r is a valid role for the
+   * requester's team (r &lt; team size). Players without a granted request
+   * keep their relative order in the leftover roles.</p>
+   */
+  static List<Player> applyPositionRequests(Map<Integer, Integer> requests, List<Player> order) {
+    if (requests == null || requests.isEmpty() || order.size() < 2) {
+      return order;
+    }
+
+    List<List<Player>> teams = List.of(new ArrayList<>(), new ArrayList<>());
+    for (int i = 0; i < order.size(); i++) {
+      teams.get(i % 2).add(order.get(i));
+    }
+
+    for (List<Player> team : teams) {
+      Player[] byRole = new Player[team.size()];
+      Set<Integer> placedIds = new HashSet<>();
+      for (Entry<Integer, Integer> request : requests.entrySet()) {
+        int role = request.getValue();
+        if (role < 0 || role >= team.size() || byRole[role] != null) {
+          continue;
+        }
+        team.stream()
+            .filter(p -> p.getId() == request.getKey() && !placedIds.contains(p.getId()))
+            .findFirst()
+            .ifPresent(p -> {
+              byRole[role] = p;
+              placedIds.add(p.getId());
+            });
+      }
+      // Everyone else fills the leftover roles in their existing order.
+      int nextRole = 0;
+      for (Player player : team) {
+        if (placedIds.contains(player.getId())) {
+          continue;
+        }
+        while (byRole[nextRole] != null) {
+          nextRole++;
+        }
+        byRole[nextRole] = player;
+      }
+      team.clear();
+      team.addAll(Arrays.asList(byRole));
+    }
+
+    List<Player> result = new ArrayList<>(order.size());
+    for (int r = 0; r < teams.get(0).size(); r++) {
+      result.add(teams.get(0).get(r));
+      if (r < teams.get(1).size()) {
+        result.add(teams.get(1).get(r));
+      }
+    }
+    return result;
   }
 
   /**
@@ -1263,10 +1466,50 @@ public class GameService implements InitializingBean {
           i18n.get("game.ended", game.getTitle()), Severity.INFO, actions));
     }
     // Auto-open the Battle Report unless the user has switched it off (its "Don't show again"
-    // button, re-enabled in Settings > Notifications).
+    // button, re-enabled in Settings > Notifications) — and only once the game actually has
+    // results to show, so the user is never greeted with "Results unavailable".
     if (notification.isBattleReportEnabled()) {
-      eventBus.post(new ShowScoreScreenEvent(game.getId()));
+      autoShowBattleReportWhenReady(game.getId(), 0);
     }
+  }
+
+  /** Poll cadence for a just-ended game's results before giving up on auto-opening
+   *  the Battle Report (the combat service compiles them asynchronously). */
+  private static final int BATTLE_REPORT_POLL_DELAY_SECONDS = 15;
+  private static final int BATTLE_REPORT_POLL_MAX_ATTEMPTS = 12;   // ~3 minutes
+
+  /**
+   * Auto-open the Battle Report only once {@code gameId} actually has results
+   * (the same emptiness check the score screen itself uses). Results are
+   * compiled asynchronously by the combat service after game end (demo download
+   * + parse + rate), so poll for a few minutes; if nothing ever appears (unrated
+   * game type, invalid launch codes, service down) don't open at all. Also skips
+   * auto-opening if the user has since started another game — the persistent
+   * notification's "View result" action remains as the manual path.
+   */
+  private void autoShowBattleReportWhenReady(int gameId, int attempt) {
+    ladderPointsService.getGameResult(gameId)
+        .thenAccept(result -> {
+          if (result != null && !result.isEmpty()) {
+            JavaFxUtil.runLater(() -> {
+              if (isGameRunning()) {
+                log.info("[autoShowBattleReport] results for game {} ready but user is in a game; not auto-opening", gameId);
+                return;
+              }
+              eventBus.post(new ShowScoreScreenEvent(gameId));
+            });
+          } else if (attempt < BATTLE_REPORT_POLL_MAX_ATTEMPTS) {
+            CompletableFuture.delayedExecutor(BATTLE_REPORT_POLL_DELAY_SECONDS, TimeUnit.SECONDS, executorService)
+                .execute(() -> autoShowBattleReportWhenReady(gameId, attempt + 1));
+          } else {
+            log.info("[autoShowBattleReport] no results for game {} after {} checks; not opening the battle report",
+                gameId, attempt + 1);
+          }
+        })
+        .exceptionally(throwable -> {
+          log.warn("[autoShowBattleReport] failed to check results for game {}", gameId, throwable);
+          return null;
+        });
   }
 
   /**
@@ -1602,6 +1845,15 @@ public class GameService implements InitializingBean {
       }
     }
 
+    // Detect a position-request change for the current game BEFORE
+    // createOrUpdateGame overwrites the model, so the host can re-push
+    // /startpositions below just like on a roster change.
+    boolean positionRequestsChanged = false;
+    if (currentGame.get() != null && currentGame.get().getId() == gameInfoMessage.getUid()) {
+      positionRequestsChanged = !new ArrayList<>(currentGame.get().getPositionRequests().entrySet())
+          .equals(new ArrayList<>(parsePositionRequests(gameInfoMessage).entrySet()));
+    }
+
     String currentGameRatingType = null;
     if (currentGame.get() != null) {
       currentGameRatingType = currentGame.get().getRatingType();
@@ -1643,7 +1895,7 @@ public class GameService implements InitializingBean {
           currentGame.set(game);
         }
         if (gameInfoMessage.getHost() != null && currentPlayerOptional.get().getUsername().equals(gameInfoMessage.getHost())) {
-          if (isCurrentGameAndPlayersChanged) {
+          if (isCurrentGameAndPlayersChanged || positionRequestsChanged) {
             setStartPositions();
           }
         }
@@ -1723,7 +1975,20 @@ public class GameService implements InitializingBean {
       game.setReplayDelaySeconds(gameInfoMessage.getReplayDelaySeconds());
 
       game.setHost(gameInfoMessage.getHost());
-      game.setTitle(StringEscapeUtils.unescapeHtml4(gameInfoMessage.getTitle()));
+      // The server assigns the chat channel explicitly; keep it verbatim so host and joiners share
+      // one channel regardless of what the title got rewritten to.
+      game.setChatChannel(gameInfoMessage.getChatChannel());
+      // Always record the server's title verbatim. This is the value the channel is derived from
+      // (in the fallback path), so it must NOT be the host's original wording — otherwise the host
+      // would derive a different channel than the joiners.
+      String serverTitle = StringEscapeUtils.unescapeHtml4(gameInfoMessage.getTitle());
+      game.setServerTitle(serverTitle);
+      // If we're the host of this game, DISPLAY the title we originally requested over whatever the
+      // server broadcast (which may be a badword-rewritten generic title). hostOriginalTitles is
+      // only populated on the hosting client, so joiners always see the server's title. Note this
+      // only affects the displayed title, never the channel (which uses serverTitle above).
+      String hostOriginalTitle = hostOriginalTitles.get(gameInfoMessage.getUid());
+      game.setTitle(hostOriginalTitle != null ? hostOriginalTitle : serverTitle);
       game.setMapName(gameInfoMessage.getMapName());
       game.setFeaturedMod(gameInfoMessage.getFeaturedMod());
       game.setGalacticWarPlanetName(gameInfoMessage.getGalacticWarPlanetName());
@@ -1763,6 +2028,7 @@ public class GameService implements InitializingBean {
       }
 
       game.setReservedSlotsEnabled(Boolean.TRUE.equals(gameInfoMessage.getReservedSlotsEnabled()));
+      game.setFixedPositionsEnabled(Boolean.TRUE.equals(gameInfoMessage.getFixedPositionsEnabled()));
       synchronized (game.getReservedPlayers()) {
         game.getReservedPlayers().setAll(
             gameInfoMessage.getReservedPlayers() != null
@@ -1792,7 +2058,36 @@ public class GameService implements InitializingBean {
           game.getPinnedTeams().putAll(pins);
         }
       }
+
+      // Players' position requests (parallel id/role lists) -> id->role map.
+      // Insertion order is request order (first-come tie-break on same-role
+      // conflicts), so replace the content whenever the mapping OR the order
+      // changed. The backing map is a LinkedHashMap, and putAll of another
+      // LinkedHashMap preserves its iteration order.
+      synchronized (game.getPositionRequests()) {
+        Map<Integer, Integer> requests = parsePositionRequests(gameInfoMessage);
+        if (!new ArrayList<>(game.getPositionRequests().entrySet())
+            .equals(new ArrayList<>(requests.entrySet()))) {
+          game.getPositionRequests().clear();
+          game.getPositionRequests().putAll(requests);
+        }
+      }
     }
+  }
+
+  /** The message's parallel position-request lists as an id->role map whose
+   *  iteration order is the server's request order. */
+  private static Map<Integer, Integer> parsePositionRequests(GameInfoMessage gameInfoMessage) {
+    Map<Integer, Integer> requests = new LinkedHashMap<>();
+    List<Integer> ids = gameInfoMessage.getPositionRequestPlayerIds();
+    List<Integer> roles = gameInfoMessage.getPositionRequests();
+    if (ids != null && roles != null) {
+      int count = Math.min(ids.size(), roles.size());
+      for (int i = 0; i < count; i++) {
+        requests.put(ids.get(i), roles.get(i));
+      }
+    }
+    return requests;
   }
 
   private void removeGame(GameInfoMessage gameInfoMessage) {
@@ -1800,6 +2095,7 @@ public class GameService implements InitializingBean {
     synchronized (uidToGameInfoBean) {
       game = uidToGameInfoBean.remove(gameInfoMessage.getUid());
     }
+    hostOriginalTitles.remove(gameInfoMessage.getUid());
 
     if (gameInfoMessage.getUid().equals(getRunningGameUid())) {
       // getRunningGameUid() is determined immediately upon starting gpgnet4ta

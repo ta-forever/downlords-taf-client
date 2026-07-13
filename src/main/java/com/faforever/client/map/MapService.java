@@ -1108,7 +1108,9 @@ public class MapService implements InitializingBean, DisposableBean {
     }
 
     try {
-      if (overlay) {
+      if (START_POSITIONS_TOOL_NAME.equals(previewToolName)) {
+        MapTool.generateStartPositions(gamePath, modGp3FileName, mapName, cachedFile.getParent().getParent(), maxPositions);
+      } else if (overlay) {
         MapTool.generateOverlayPreview(gamePath, modGp3FileName, mapName, cachedFile.getParent().getParent(), PreviewOverlayType.fromToolName(previewToolName), maxPositions);
       } else {
         MapTool.generatePreview(gamePath, modGp3FileName, mapName, cachedFile.getParent().getParent(), PreviewType.fromToolName(previewToolName), maxPositions);
@@ -1167,6 +1169,45 @@ public class MapService implements InitializingBean, DisposableBean {
     }
 
     return new Image(noCatch(() -> cachedFile.toUri().toURL().toExternalForm()));
+  }
+
+  /** maptool thumbtype for the start-position coordinate side-car (a text file, not an image). */
+  private static final String START_POSITIONS_TOOL_NAME = "positions-coords";
+
+  /** One map start position: its number (1-based) and centre normalised to [0,1] over the map. */
+  public record StartPosition(int number, double x, double y) {}
+
+  /**
+   * The start positions for a map at a given player count, as {@code (number, x, y)} with x/y
+   * normalised to [0,1] over the map dimensions. Generated (and cached) by maptool's
+   * {@code positions-coords} side-car; the client draws its own position markers from these.
+   * Returns an empty list if the map can't be analysed. Runs maptool on a cache miss, so call
+   * this off the JavaFX thread.
+   */
+  public List<MapService.StartPosition> loadStartPositions(String modTechnical, String mapName, int maxPositions) {
+    Path cacheDir = preferencesService.getCacheDirectory().resolve("maps")
+        .resolve(START_POSITIONS_TOOL_NAME + "_" + maxPositions);
+    Path cachedFile = cacheDir.resolve(mapName + ".txt");
+    if (!Files.exists(cachedFile)) {
+      generatePreview(modTechnical, mapName, cachedFile, START_POSITIONS_TOOL_NAME, maxPositions, true);
+    }
+    if (!Files.exists(cachedFile)) {
+      return List.of();
+    }
+    List<MapService.StartPosition> positions = new ArrayList<>();
+    try {
+      for (String line : Files.readAllLines(cachedFile)) {
+        String[] parts = line.trim().split("\\s+");
+        if (parts.length >= 3) {
+          positions.add(new MapService.StartPosition(
+              Integer.parseInt(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2])));
+        }
+      }
+    }
+    catch (IOException | NumberFormatException e) {
+      logger.warn("Could not read start positions for map '{}' ({} players)", mapName, maxPositions, e);
+    }
+    return positions;
   }
 
   @CacheEvict(value = CacheNames.MAP_PREVIEW, allEntries = true)

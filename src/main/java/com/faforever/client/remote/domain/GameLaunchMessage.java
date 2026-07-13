@@ -29,6 +29,11 @@ public class GameLaunchMessage extends FafServerMessage {
   private Faction faction;
   private LobbyMode initMode;
   private String ratingType;
+  /** IRC channel the server assigns to this game's chat, mirroring
+   *  {@link GameInfoMessage#getChatChannel()}. Delivered in the host/join launch
+   *  response so the client can join the correct (server-decided) channel without
+   *  inferring it from the possibly-rewritten title. Null on older servers. */
+  private String chatChannel;
 
   public GameLaunchMessage() {
     super(FafServerMessageType.GAME_LAUNCH);

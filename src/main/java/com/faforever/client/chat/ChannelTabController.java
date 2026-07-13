@@ -113,6 +113,7 @@ public class ChannelTabController extends AbstractChatTabController {
   private final AutoCompletionHelper autoCompletionHelper;
   private final PlatformService platformService;
   private final GalacticWarService galacticWarService;
+  private final com.faforever.client.game.GameService gameService;
   public SplitPane splitPane;
   public ToggleButton advancedUserFilter;
   public HBox searchFieldContainer;
@@ -155,6 +156,7 @@ public class ChannelTabController extends AbstractChatTabController {
       UiService uiService, EventBus eventBus, WebViewConfigurer webViewConfigurer,
       CountryFlagService countryFlagService, PlatformService platformService, ChatUserService chatUserService,
       GalacticWarService galacticWarService,
+      com.faforever.client.game.GameService gameService,
       com.faforever.client.ladder.LadderPointsService ladderPointsService) {
 
     super(webViewConfigurer, userService, chatService, preferencesService, playerService, audioService,
@@ -162,6 +164,7 @@ public class ChannelTabController extends AbstractChatTabController {
         eventBus, countryFlagService, chatUserService, ladderPointsService);
     this.platformService = platformService;
     this.galacticWarService = galacticWarService;
+    this.gameService = gameService;
 
     categoriesToUserListItems = new HashMap<>();
     categoriesToCategoryListItems = new HashMap<>();
@@ -252,9 +255,10 @@ public class ChannelTabController extends AbstractChatTabController {
 
     String channelName = chatChannel.getName();
     setReceiver(channelName);
+    // The tab id must stay the real IRC channel name — it's how the tab is looked up and how
+    // messages are routed. Only the displayed label may differ.
     channelTabRoot.setId(channelName);
-    channelTabRoot.setText(channelName);
-    userListTitleLabel.setText(channelName);
+    bindDisplayedTitle(channelName);
     onPlayerCount(chatChannel.getUsers().size());
 
     this.onChatBanMessage(chatService.getChatBanNoticeMessage().get());
@@ -285,6 +289,23 @@ public class ChannelTabController extends AbstractChatTabController {
 
     chatColorModeListener = (observable, oldValue, newValue) -> chatChannel.getUsers().forEach(this::updateUserMessageColor);
     JavaFxUtil.addListener(chatPrefs.chatColorModeProperty(), chatColorModeListener);
+  }
+
+  /**
+   * Sets the tab label and user-list header. For a custom game-room channel the label is always
+   * "&lt;host&gt;'s Game" rather than the raw {@code #Title[host]} channel name, so it's stable and
+   * never reveals a server badword rewrite of the title. For every other channel the label is just
+   * the channel name.
+   */
+  private void bindDisplayedTitle(String channelName) {
+    String displayTitle = channelName;
+    if (channelName.matches(com.faforever.client.game.GameService.CUSTOM_GAME_CHANNEL_REGEX)) {
+      displayTitle = gameService.findGameByChatChannel(channelName)
+          .map(game -> i18n.get("game.chatChannel.title", game.getHost()))
+          .orElse(channelName);
+    }
+    channelTabRoot.setText(displayTitle);
+    userListTitleLabel.setText(displayTitle);
   }
 
   private void updateChannelTopic() {

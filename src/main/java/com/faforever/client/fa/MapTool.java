@@ -80,6 +80,12 @@ public class MapTool {
     generatePreview(gamePath, modGp3FileName, mapName, previewCacheDirectory, previewOverlayType.getToolName(), maxPositions);
   }
 
+  /** Generate the start-position coordinate side-car (a text file the client reads to draw its
+   *  own position markers). Written to {@code <previewCacheDirectory>/positions-coords_<max>/<map>.txt}. */
+  public static void generateStartPositions(Path gamePath, String modGp3FileName, String mapName, Path previewCacheDirectory, int maxPositions) throws IOException {
+    generatePreview(gamePath, modGp3FileName, mapName, previewCacheDirectory, "positions-coords", maxPositions);
+  }
+
   private static void generatePreview(Path gamePath, String modGp3FileName, String mapName, Path previewCacheDirectory, String previewToolName, int maxPositions) throws IOException {
     String hpiSpecs = "*.hpi;*.gpf;*.ccx;rev31.gp3;*.ufo";
     if (modGp3FileName != null) {

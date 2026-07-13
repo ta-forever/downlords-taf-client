@@ -25,6 +25,12 @@ public class GameInfoMessage extends FafServerMessage {
   private Integer uid;
   private Integer maxPlayers;
   private String title;
+  /** IRC channel the server assigns to this game's in-game/game-room chat. Sent
+   *  explicitly so the channel is decoupled from {@link #title}: when the server
+   *  rewrites a badword title it still keeps every participant in one channel
+   *  (host and joiners no longer derive divergent channels from divergent titles).
+   *  When null (older server) the client falls back to computing it from host+title. */
+  private String chatChannel;
   private Map<String, String> simMods;
   private String mapName;
   private String mapFilePath;
@@ -37,6 +43,9 @@ public class GameInfoMessage extends FafServerMessage {
   private GameType gameType;
   private String galacticWarPlanetName;
   private Boolean reservedSlotsEnabled;
+  /** Host toggle for start-position preselection. When false the position
+   *  picker is hidden on every client and the game uses TA's random starts. */
+  private Boolean fixedPositionsEnabled;
   private List<String> reservedPlayers;
   /** Parallel to {@link #reservedPlayers}. Sent so the host's edit-list popup
    *  can seed itself with the current selection even for players who aren't
@@ -47,6 +56,12 @@ public class GameInfoMessage extends FafServerMessage {
    *  so every client can show which players the host has pinned. */
   private List<Integer> pinnedPlayerIds;
   private List<Integer> pinnedTeams;
+  /** Players' start-position role requests, parallel lists in request order:
+   *  player id at index i requests role {@link #positionRequests}[i] (0..4, a
+   *  pair of mirrored map start positions, one per team). Order matters — the
+   *  host's client resolves same-role ties first-come-first-served. */
+  private List<Integer> positionRequestPlayerIds;
+  private List<Integer> positionRequests;
   /**
    * The server may either send a single game or a list of games in the same message... *cringe*.
    */

@@ -150,6 +150,10 @@ public interface FafServerAccessor {
 
   void setPinnedTeams(List<Integer> playerIds, List<Integer> teams);
 
+  void setPositionRequest(Integer position);
+
+  void setFixedPositionsEnabled(boolean enabled);
+
   void leaveAndReserve();
 
   void cancelReservation();

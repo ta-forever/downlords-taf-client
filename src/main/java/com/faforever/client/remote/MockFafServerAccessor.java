@@ -480,6 +480,12 @@ public class MockFafServerAccessor implements FafServerAccessor {
   public void setPinnedTeams(List<Integer> playerIds, List<Integer> teams) { }
 
   @Override
+  public void setPositionRequest(Integer position) { }
+
+  @Override
+  public void setFixedPositionsEnabled(boolean enabled) { }
+
+  @Override
   public void leaveAndReserve() { }
 
   @Override

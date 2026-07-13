@@ -26,6 +26,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
@@ -52,6 +53,8 @@ public class TeamCardController implements Controller<Node> {
   public Label teamNameLabel;
   /** Host's +autoteam pins (player id -> team index 0/1); pinned players get a badge. */
   private Map<Integer, Integer> pinnedTeams = Map.of();
+  /** Players' start-position role requests (player id -> role 0..4); requesters get a badge. */
+  private Map<Integer, Integer> positionRequests = Map.of();
   /** The game's rating type (leaderboard technical name), so LP-mode player rows show the ladder
    * rank for this exact board only. Null when the display context has no fixed game format. */
   private String ratingType;
@@ -96,19 +99,22 @@ public class TeamCardController implements Controller<Node> {
                            GalacticWarService galacticWarService,
                            Pane teamsPane, Boolean hidePlayerRatings, String galacticWarPlanetName) {
     createAndAdd(teamsList, ratingType, playerService, uiService, ratingService, galacticWarService,
-        teamsPane, hidePlayerRatings, galacticWarPlanetName, Map.of());
+        teamsPane, hidePlayerRatings, galacticWarPlanetName, Map.of(), Map.of());
   }
 
   /**
    * @param pinnedTeams host's +autoteam pins (player id -&gt; team index 0/1); a
    *     pinned player gets a small "Team N" badge so everyone can see the host's
    *     arrangement. Pass an empty map for none.
+   * @param positionRequests players' start-position role requests (player id -&gt;
+   *     role 0..4); a requester gets a small "positions 2r+1/2r+2" badge. Pass an
+   *     empty map for none.
    */
   public static void createAndAdd(ObservableMap<? extends String, ? extends List<String>> teamsList, String ratingType,
                            PlayerService playerService, UiService uiService, RatingService ratingService,
                            GalacticWarService galacticWarService,
                            Pane teamsPane, Boolean hidePlayerRatings, String galacticWarPlanetName,
-                           Map<Integer, Integer> pinnedTeams) {
+                           Map<Integer, Integer> pinnedTeams, Map<Integer, Integer> positionRequests) {
     JavaFxUtil.assertApplicationThread();
     for (Map.Entry<? extends String, ? extends List<String>> entry : teamsList.entrySet()) {
       List<Player> players = entry.getValue().stream()
@@ -119,6 +125,7 @@ public class TeamCardController implements Controller<Node> {
 
       TeamCardController teamCardController = uiService.loadFxml("theme/team_card.fxml");
       teamCardController.pinnedTeams = pinnedTeams != null ? pinnedTeams : Map.of();
+      teamCardController.positionRequests = positionRequests != null ? positionRequests : Map.of();
       teamCardController.ratingType = ratingType;
       Function<Player, Image> medalIconProvider = player -> {
         ImageView imv = galacticWarService.getMedalIcon(player.getId(), galacticWarPlanetName);
@@ -206,9 +213,16 @@ public class TeamCardController implements Controller<Node> {
 
       RatingChangeLabelController ratingChangeLabelController = uiService.loadFxml("theme/rating_change_label.fxml");
       ratingChangeControllersByPlayerId.put(player.getId(), ratingChangeLabelController);
-      HBox container = new HBox(playerCardTooltipController.getRoot(), ratingChangeLabelController.getRoot());
-      container.setAlignment(Pos.CENTER_LEFT);
-      teamPane.getChildren().add(container);
+      // The position-pair badge and rating-change delta join the card's right-aligned tag cluster,
+      // which floats on top of the (full-width) name. Cluster order left->right: friend/foe, 3/4 badge,
+      // rating-change, rank/rating — so add the badge first, then the rating-change (both land left of
+      // the rank).
+      Integer requestedRole = positionRequests.get(player.getId());
+      if (requestedRole != null) {
+        playerCardTooltipController.addTrailingTag(buildPositionRequestBadge(requestedRole));
+      }
+      playerCardTooltipController.addTrailingTag(ratingChangeLabelController.getRoot());
+      teamPane.getChildren().add(playerCardTooltipController.getRoot());
     }
 
     // One board-scoped query for the whole card's ranks, pushed back to each row on the FX thread.
@@ -260,6 +274,17 @@ public class TeamCardController implements Controller<Node> {
     badge.setAlignment(Pos.CENTER_LEFT);
     badge.getStyleClass().add("pinned-team-badge");
     Tooltip.install(badge, new Tooltip(i18n.get("game.pinnedTeamBadge.tooltip", teamIndex + 1)));
+    return badge;
+  }
+
+  /** A small "3/4" chip shown for a player who preselected a start-position
+   *  role (a pair of mirrored map start positions, one per team). */
+  private Node buildPositionRequestBadge(int role) {
+    Label badge = new Label(i18n.get("game.positionRequestBadge.format", 2 * role + 1, 2 * role + 2));
+    badge.getStyleClass().add("position-request-badge");
+    // Never let the badge squish to just "…" when the name is long — keep it wide enough for the pair.
+    badge.setMinWidth(Region.USE_PREF_SIZE);
+    Tooltip.install(badge, new Tooltip(i18n.get("game.positionRequestBadge.tooltip", 2 * role + 1, 2 * role + 2)));
     return badge;
   }
 

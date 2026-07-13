@@ -29,6 +29,15 @@ import java.util.Optional;
 public class Game {
   private final StringProperty host;
   private final StringProperty title;
+  // The title exactly as the server broadcast it (already badword-rewritten server-side).
+  // Unlike {@link #title}, this is NEVER overridden with the host's original wording, so it is
+  // safe to derive the chat channel from it: host and joiners then agree on the same channel.
+  private final StringProperty serverTitle;
+  // IRC channel the server assigned to this game's chat, decoupled from the title
+  // so a badword-rewritten title doesn't split host and joiners into different
+  // channels. Null/blank when the server didn't send one (older server); callers
+  // fall back to deriving the channel from host+serverTitle in that case.
+  private final StringProperty chatChannel;
   private final StringProperty mapName;
   private final StringProperty mapCrc;
   private final StringProperty mapArchiveName;
@@ -61,12 +70,23 @@ public class Game {
   // and reserved_players login list. reservedPlayers may include the host.
   // reservedPlayerIds is parallel to reservedPlayers (same index ordering).
   private final BooleanProperty reservedSlotsEnabled;
+  // Host toggle for start-position preselection. Mirror of the server's
+  // fixed_positions_enabled flag. While false the game uses TA's traditional
+  // random start positions and the position picker is hidden everywhere; while
+  // true players may request a preferred start-position pair.
+  private final BooleanProperty fixedPositionsEnabled;
   private final ListProperty<String> reservedPlayers;
   private final ListProperty<Integer> reservedPlayerIds;
   // Host's manual +autoteam pins, broadcast by the server so every client can
   // see which players the host has locked to which team. Maps player id -> team
   // index (0 = Team 1, 1 = Team 2). Empty when the host hasn't pinned anyone.
   private final MapProperty<Integer, Integer> pinnedTeams;
+  // Players' start-position role requests, broadcast by the server. Maps player
+  // id -> requested role index (0..4; a role is a pair of mirrored map start
+  // positions, one per team). Backed by a LinkedHashMap: iteration order is
+  // request order, which the host's client uses for first-come-first-served
+  // tie-breaking. Empty when nobody has requested a position.
+  private final MapProperty<Integer, Integer> positionRequests;
   // Pending "request access" entries from non-reserved players. ONLY populated
   // for the host (via the host_game_state push); empty for other viewers of
   // the same game. Updated by ReservedSlotsNotificationService.
@@ -80,6 +100,8 @@ public class Game {
     id = new SimpleIntegerProperty();
     host = new SimpleStringProperty();
     title = new SimpleStringProperty();
+    serverTitle = new SimpleStringProperty();
+    chatChannel = new SimpleStringProperty();
     mapName = new SimpleStringProperty();
     mapCrc = new SimpleStringProperty();
     mapArchiveName = new SimpleStringProperty();
@@ -106,15 +128,22 @@ public class Game {
     replayDelaySecondsProperty = new SimpleIntegerProperty(300);
     galacticWarPlanetNameProperty = new SimpleStringProperty(null);
     reservedSlotsEnabled = new SimpleBooleanProperty(false);
+    fixedPositionsEnabled = new SimpleBooleanProperty(false);
     reservedPlayers = new SimpleListProperty<>(FXCollections.observableArrayList());
     reservedPlayerIds = new SimpleListProperty<>(FXCollections.observableArrayList());
     pinnedTeams = new SimpleMapProperty<>(FXCollections.observableHashMap());
+    positionRequests = new SimpleMapProperty<>(
+        FXCollections.observableMap(new java.util.LinkedHashMap<>()));
     joinRequests = new SimpleListProperty<>(FXCollections.observableArrayList());
   }
 
   public boolean isReservedSlotsEnabled() { return reservedSlotsEnabled.get(); }
   public void setReservedSlotsEnabled(boolean v) { reservedSlotsEnabled.set(v); }
   public BooleanProperty reservedSlotsEnabledProperty() { return reservedSlotsEnabled; }
+
+  public boolean isFixedPositionsEnabled() { return fixedPositionsEnabled.get(); }
+  public void setFixedPositionsEnabled(boolean v) { fixedPositionsEnabled.set(v); }
+  public BooleanProperty fixedPositionsEnabledProperty() { return fixedPositionsEnabled; }
 
   public ObservableList<String> getReservedPlayers() { return reservedPlayers.get(); }
   public ListProperty<String> reservedPlayersProperty() { return reservedPlayers; }
@@ -124,6 +153,9 @@ public class Game {
 
   public ObservableMap<Integer, Integer> getPinnedTeams() { return pinnedTeams.get(); }
   public MapProperty<Integer, Integer> pinnedTeamsProperty() { return pinnedTeams; }
+
+  public ObservableMap<Integer, Integer> getPositionRequests() { return positionRequests.get(); }
+  public MapProperty<Integer, Integer> positionRequestsProperty() { return positionRequests; }
 
   public ObservableList<JoinRequest> getJoinRequests() { return joinRequests.get(); }
   public ListProperty<JoinRequest> joinRequestsProperty() { return joinRequests; }
@@ -164,6 +196,30 @@ public class Game {
 
   public StringProperty titleProperty() {
     return title;
+  }
+
+  public String getServerTitle() {
+    return serverTitle.get();
+  }
+
+  public void setServerTitle(String serverTitle) {
+    this.serverTitle.set(serverTitle);
+  }
+
+  public StringProperty serverTitleProperty() {
+    return serverTitle;
+  }
+
+  public String getChatChannel() {
+    return chatChannel.get();
+  }
+
+  public void setChatChannel(String chatChannel) {
+    this.chatChannel.set(chatChannel);
+  }
+
+  public StringProperty chatChannelProperty() {
+    return chatChannel;
   }
 
   public String getMapName() {

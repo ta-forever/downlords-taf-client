@@ -1138,6 +1138,12 @@
   -fx-border-color: -divider-color;
 }
 
+/* Map name shown as a caption directly beneath the game-detail map preview
+   (moved off the image, so it uses the normal card foreground colour). */
+.map-name-label {
+  -fx-font-weight: bold;
+}
+
 /***************** Game status indicator *****************/
 
 .game-status-indicator {
@@ -1636,6 +1642,85 @@
 .pinned-team-badge-label {
   -fx-font-size: 1.0em;
   -fx-font-weight: bold;
+}
+
+/***************** Position Preselection *****************/
+
+/* Card holding the start-position picker in the game-detail view; match the
+   reserved-players card treatment (border blends into the fill). */
+.position-request-card {
+  -fx-border-color: -card-color;
+}
+
+/* Numbered, clickable start-position markers drawn over the game-detail map preview
+   at maptool coordinates. Circular; tinted/outlined when the player has requested
+   that marker's pair. */
+.position-marker {
+  -fx-background-radius: 11;
+  -fx-border-radius: 11;
+  -fx-background-color: rgba(10, 20, 60, 0.8);
+  -fx-border-color: white;
+  -fx-border-width: 1;
+  -fx-text-fill: white;
+  -fx-font-size: 0.8em;
+  -fx-font-weight: bold;
+  -fx-padding: 0;
+}
+
+/* Pair occupancy: one requester half-fills the marker (lower half accent), two or more
+   fill it entirely. A pair straddles both teams, so it has only two slots. */
+.position-marker:half {
+  -fx-background-color: linear-gradient(to right, -fx-accent 0%, -fx-accent 50%, rgba(10, 20, 60, 0.8) 50%, rgba(10, 20, 60, 0.8) 100%);
+}
+
+.position-marker:full {
+  -fx-background-color: -fx-accent;
+}
+
+.position-marker:hover {
+  -fx-background-color: -fx-accent;
+}
+
+/* Full (two requesters) or ruled out by the host's pins: not claimable, so dim it.
+   Disabled nodes don't receive hover, so the fill shading below still shows through. */
+.position-marker:disabled {
+  -fx-opacity: 0.55;
+}
+
+/* The current player's own pick: outlined regardless of fill. */
+.position-marker:selected {
+  -fx-border-color: white;
+  -fx-border-width: 2;
+}
+
+/* Brief usage note in the picker box (fixed-mode only). */
+.position-request-instructions {
+  -fx-text-fill: #888888;
+  -fx-font-size: 0.85em;
+}
+
+/* Host-only pill toggling fixed vs random start positions. Rounded, and tinted
+   when selected (fixed) to read as an active mode. */
+.position-mode-pill {
+  -fx-padding: 2 10 2 10;
+  -fx-font-size: 0.85em;
+  -fx-background-radius: 10;
+  -fx-border-radius: 10;
+}
+
+.position-mode-pill:selected {
+  -fx-background-color: -fx-accent;
+  -fx-text-fill: white;
+}
+
+/* Badge next to a player's name in team cards showing the pair they requested. */
+.position-request-badge {
+  -fx-padding: 0 4 0 4;
+  -fx-font-size: 0.85em;
+  -fx-font-weight: bold;
+  -fx-border-color: #888888;
+  -fx-border-radius: 3;
+  -fx-background-radius: 3;
 }
 
 /* Manual team arrangement dialog (host-only +autoteam editor). Host drags

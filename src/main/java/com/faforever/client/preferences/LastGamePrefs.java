@@ -2,6 +2,8 @@ package com.faforever.client.preferences;
 
 import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.game.LiveReplayOption;
+import com.faforever.client.preferences.gson.ExcludeFromGson;
+import com.google.gson.annotations.SerializedName;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ListProperty;
 import javafx.beans.property.ObjectProperty;
@@ -24,14 +26,21 @@ public class LastGamePrefs {
   private final ObjectProperty<LiveReplayOption> liveReplayOption;
   private final BooleanProperty lastGameRankedEnabled;
   private final ObjectProperty<Integer> maxPlayers;
-  // Reserved-slots: remembers the host's last toggle and player list across
-  // sessions so the create-game dialog can prepopulate. We persist IDs (so a
-  // rename doesn't break the saved selection) AND parallel logins (so we can
-  // show the right name in the editor even when the player is currently
-  // offline and not in PlayerService's cache). The two lists are kept the
-  // same length; if a future-write breaks parity, the read-side tolerates it.
+  // Reserved-slots toggle: remembers the host's last toggle state across games
+  // and client restarts, defaulting ON. Uses a fresh serialized key
+  // ("reserveSlotsEnabled") so existing users — whose prefs hold the old
+  // "lastReservedSlotsEnabled" key — pick up the new enabled-by-default value.
+  @SerializedName("reserveSlotsEnabled")
   private final BooleanProperty lastReservedSlotsEnabled;
+  // Reserved player list: kept only in memory for the current session so it is
+  // remembered between hosted game instances but reverts to empty on restart.
+  // Excluded from Gson so it is never written to disk. IDs (so a rename doesn't
+  // break the selection) plus a parallel logins list (so the editor can show
+  // the right name even when the player is offline). The two lists are kept the
+  // same length; if a future-write breaks parity, the read-side tolerates it.
+  @ExcludeFromGson
   private final ListProperty<Integer> lastReservedPlayerIds;
+  @ExcludeFromGson
   private final ListProperty<String> lastReservedPlayerLogins;
   // Last-game roster snapshot, taken when our currentGame transitions to
   // LAUNCHING or ENDED. Feeds the "Add players from last game" button in
@@ -52,7 +61,7 @@ public class LastGamePrefs {
     liveReplayOption = new SimpleObjectProperty<>(LiveReplayOption.FIVE_MINUTES);
     lastGameRankedEnabled = new SimpleBooleanProperty(true);
     maxPlayers = new SimpleObjectProperty<>(4);
-    lastReservedSlotsEnabled = new SimpleBooleanProperty(false);
+    lastReservedSlotsEnabled = new SimpleBooleanProperty(true);
     lastReservedPlayerIds = new SimpleListProperty<>(FXCollections.observableArrayList());
     lastReservedPlayerLogins = new SimpleListProperty<>(FXCollections.observableArrayList());
     lastGameRosterPlayerIds = new SimpleListProperty<>(FXCollections.observableArrayList());

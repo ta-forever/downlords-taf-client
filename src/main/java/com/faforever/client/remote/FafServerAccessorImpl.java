@@ -102,6 +102,8 @@ import com.faforever.client.remote.domain.CancelReservationMessage;
 import com.faforever.client.remote.domain.LeaveAndReserveMessage;
 import com.faforever.client.remote.domain.RequestGameAccessMessage;
 import com.faforever.client.remote.domain.SetPinnedTeamsMessage;
+import com.faforever.client.remote.domain.SetPositionRequestMessage;
+import com.faforever.client.remote.domain.SetFixedPositionsMessage;
 import com.faforever.client.remote.domain.SetReservedPlayersMessage;
 import com.faforever.client.remote.domain.SetReservedSlotsEnabledMessage;
 import com.faforever.client.remote.domain.UnreadyPartyMessage;
@@ -984,6 +986,16 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
   @Override
   public void setPinnedTeams(List<Integer> playerIds, List<Integer> teams) {
     writeToServer(new SetPinnedTeamsMessage(playerIds, teams));
+  }
+
+  @Override
+  public void setPositionRequest(Integer position) {
+    writeToServer(new SetPositionRequestMessage(position));
+  }
+
+  @Override
+  public void setFixedPositionsEnabled(boolean enabled) {
+    writeToServer(new SetFixedPositionsMessage(enabled));
   }
 
   @Override

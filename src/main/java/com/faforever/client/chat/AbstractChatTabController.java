@@ -650,10 +650,83 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
     if (html != null) {
       insertIntoContainer(html, MESSAGE_CONTAINER_ID);
       appendMessage(chatMessage);
+      // renderHtml only shows a medal-as-avatar if it was already cached (peek). On a cold miss the
+      // regular avatar was rendered; resolve the medal in the background and swap it in, so message
+      // avatars match how the chat user list resolves them.
+      scheduleMedalAvatarRefreshIfNeeded(chatMessage.getUsername());
       return true;
     }
     else {
       return false;
+    }
+  }
+
+  /** Async-resolve the player's chosen medal-as-avatar and, if present, swap it into the sections
+   * just rendered with the fallback avatar. No-op when the medal was already rendered synchronously
+   * (warm cache) or the player has no featured medal. */
+  private void scheduleMedalAvatarRefreshIfNeeded(String username) {
+    Optional<Player> playerOptional = playerService.getPlayerForUsername(username);
+    if (playerOptional.isEmpty()) {
+      return;
+    }
+    Player player = playerOptional.get();
+    if (player.getId() <= 0 || ladderPointsService.peekFeaturedMedal(player.getId()).isPresent()) {
+      return; // no id, or the synchronous render already applied the medal
+    }
+    applyMedalAvatar(player, false);
+  }
+
+  /** Inline style that letterboxes the square medal art into the rectangular avatar box (see the
+   * matching note in {@link #renderHtml}). */
+  private static String medalAvatarStyle(boolean compact) {
+    return compact
+        ? "width:60px;height:30px;object-fit:contain;"
+        : "width:120px;height:60px;object-fit:contain;";
+  }
+
+  /** Resolve the player's featured medal and, on the FX thread, swap the avatar image on every
+   * already-rendered chat section for that player. When the medal is absent: revert to the regular
+   * avatar if {@code revertIfAbsent}, otherwise leave the rendered (fallback) avatar untouched. */
+  private void applyMedalAvatar(Player player, boolean revertIfAbsent) {
+    String username = player.getUsername();
+    boolean compact = preferencesService.getPreferences().getChat().getChatFormat() == ChatFormat.COMPACT;
+    ladderPointsService.getFeaturedMedalCached(player.getId()).thenAccept(medalOptional -> {
+      String avatarUrl;
+      String avatarTitle;
+      String avatarStyle;
+      if (medalOptional.isPresent()) {
+        com.faforever.client.ladder.FeaturedMedalDisplay medal = medalOptional.get();
+        avatarUrl = uiService.getThemeFileUrl(
+            com.faforever.client.ladder.LadderUiUtil.medalIconPath(medal.getCode())).toString();
+        avatarTitle = com.faforever.client.ladder.LadderUiUtil.medalAvatarTooltip(
+            i18n, medal.getCode(), medal.getCount());
+        avatarStyle = medalAvatarStyle(compact);
+      } else if (revertIfAbsent) {
+        avatarUrl = StringUtils.defaultString(player.getAvatarUrl());
+        avatarTitle = StringUtils.defaultString(player.getAvatarTooltip());
+        avatarStyle = "";
+      } else {
+        return;
+      }
+      JavaFxUtil.runLater(() -> {
+        if (isChatReady) {
+          getJsObject().call("updateUserAvatarMedal", username, avatarUrl, avatarTitle, avatarStyle);
+        }
+      });
+    });
+  }
+
+  /** A player changed (set or cleared) their chosen medal-as-avatar: swap the avatar image on every
+   * already-rendered chat section for that player, mirroring how the chat user list refreshes. On a
+   * clear we revert to the player's regular avatar. */
+  @com.google.common.eventbus.Subscribe
+  public void onFeaturedMedalChanged(com.faforever.client.ladder.FeaturedMedalChangedEvent event) {
+    if (event.getPlayerId() <= 0) {
+      return;
+    }
+    Player player = playerService.getPlayersById().get(event.getPlayerId());
+    if (player != null) {
+      applyMedalAvatar(player, true);
     }
   }
 
@@ -689,9 +762,7 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
         // 120x60 extended) but letterbox the square medal inside it via object-fit:contain, so it
         // keeps a 1:1 ratio without changing the row layout.
         boolean compact = preferencesService.getPreferences().getChat().getChatFormat() == ChatFormat.COMPACT;
-        avatarStyle = compact
-            ? "width:60px;height:30px;object-fit:contain;"
-            : "width:120px;height:60px;object-fit:contain;";
+        avatarStyle = medalAvatarStyle(compact);
       }
       countryFlagUrl = countryFlagService.getCountryFlagUrl(player.getCountry())
           .map(URL::toString)

@@ -109,6 +109,21 @@ function updateUserMessageDisplay(user, display) {
   }
 }
 
+// Swap the avatar image for every already-rendered chat section of one user. Used when a chosen
+// medal-as-avatar resolves after the message was rendered (cold cache) or changes live, so message
+// avatars stay in sync with the chat user list. Pass the regular avatar url/title/"" to revert.
+function updateUserAvatarMedal(user, avatarUrl, avatarTitle, avatarStyle) {
+  var sections = document.getElementsByClassName("chat-section-" + user);
+  for (var i = 0; i < sections.length; i++) {
+    var avatars = sections[i].getElementsByClassName("avatar");
+    for (var j = 0; j < avatars.length; j++) {
+      avatars[j].src = avatarUrl;
+      avatars[j].title = avatarTitle;
+      avatars[j].setAttribute("style", avatarStyle);
+    }
+  }
+}
+
 
 function highlightText(text) {
   $('#chat-container').removeHighlight().highlight(text);
