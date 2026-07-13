@@ -26,6 +26,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
@@ -212,13 +213,16 @@ public class TeamCardController implements Controller<Node> {
 
       RatingChangeLabelController ratingChangeLabelController = uiService.loadFxml("theme/rating_change_label.fxml");
       ratingChangeControllersByPlayerId.put(player.getId(), ratingChangeLabelController);
-      HBox container = new HBox(playerCardTooltipController.getRoot(), ratingChangeLabelController.getRoot());
-      container.setAlignment(Pos.CENTER_LEFT);
+      // The position-pair badge and rating-change delta join the card's right-aligned tag cluster,
+      // which floats on top of the (full-width) name. Cluster order left->right: friend/foe, 3/4 badge,
+      // rating-change, rank/rating — so add the badge first, then the rating-change (both land left of
+      // the rank).
       Integer requestedRole = positionRequests.get(player.getId());
       if (requestedRole != null) {
-        container.getChildren().add(buildPositionRequestBadge(requestedRole));
+        playerCardTooltipController.addTrailingTag(buildPositionRequestBadge(requestedRole));
       }
-      teamPane.getChildren().add(container);
+      playerCardTooltipController.addTrailingTag(ratingChangeLabelController.getRoot());
+      teamPane.getChildren().add(playerCardTooltipController.getRoot());
     }
 
     // One board-scoped query for the whole card's ranks, pushed back to each row on the FX thread.
@@ -278,6 +282,8 @@ public class TeamCardController implements Controller<Node> {
   private Node buildPositionRequestBadge(int role) {
     Label badge = new Label(i18n.get("game.positionRequestBadge.format", 2 * role + 1, 2 * role + 2));
     badge.getStyleClass().add("position-request-badge");
+    // Never let the badge squish to just "…" when the name is long — keep it wide enough for the pair.
+    badge.setMinWidth(Region.USE_PREF_SIZE);
     Tooltip.install(badge, new Tooltip(i18n.get("game.positionRequestBadge.tooltip", 2 * role + 1, 2 * role + 2)));
     return badge;
   }

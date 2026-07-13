@@ -7,36 +7,54 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 
-<HBox fx:id="root" alignment="CENTER_LEFT" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.faforever.client.game.PlayerCardTooltipController">
-   <StackPane fx:id="factionIconContainer" prefHeight="24.0" prefWidth="24.0" styleClass="faction-icon" visible="false">
-      <children>
-         <Region fx:id="factionIcon" styleClass="icon" visible="false" />
-         <ImageView fx:id="factionImage" fitHeight="16.0" fitWidth="16.0" pickOnBounds="true" preserveRatio="true" visible="false">
-            <HBox.margin>
-               <Insets right="4.0" />
-            </HBox.margin>
-         </ImageView>
-      </children>
-   </StackPane>
-   <Label fx:id="playerInfo" styleClass="player-card-text" text="&lt;PlayerInfo&gt;" wrapText="true">
-      <graphic>
-         <ImageView fx:id="countryImageView" pickOnBounds="true" preserveRatio="true" />
-      </graphic>
-   </Label>
-   <Label fx:id="foeIconText" minWidth="-Infinity">
-      <graphic>
-         <Region styleClass="icon,foe-icon" />
-      </graphic>
-      <HBox.margin>
-         <Insets left="5.0" />
-      </HBox.margin>
-   </Label>
-   <Label fx:id="friendIconText" minWidth="-Infinity">
-      <graphic>
-         <Region styleClass="icon,friend-icon" />
-      </graphic>
-         <HBox.margin>
-           <Insets left="5.0" />
-         </HBox.margin>
-   </Label>
-</HBox>
+<!-- The row is an overlay: the name (left) is drawn at full width and the tag cluster (rank/rating,
+     friend/foe, and any trailing badges) floats right-aligned ON TOP of it. So the name is never
+     truncated to reserve room for tags — only its tail is overlapped when it runs long. -->
+<StackPane fx:id="root" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.faforever.client.game.PlayerCardTooltipController">
+   <children>
+      <HBox alignment="CENTER_LEFT" pickOnBounds="false" StackPane.alignment="CENTER_LEFT">
+         <children>
+            <StackPane fx:id="factionIconContainer" prefHeight="24.0" prefWidth="24.0" styleClass="faction-icon" visible="false">
+               <children>
+                  <Region fx:id="factionIcon" styleClass="icon" visible="false" />
+                  <ImageView fx:id="factionImage" fitHeight="16.0" fitWidth="16.0" pickOnBounds="true" preserveRatio="true" visible="false">
+                     <HBox.margin>
+                        <Insets right="4.0" />
+                     </HBox.margin>
+                  </ImageView>
+               </children>
+            </StackPane>
+            <!-- Full-width name; clipped (no ellipsis) by the row when it overruns, so every letter that
+                 fits is shown right up to the edge. -->
+            <Label fx:id="playerInfo" styleClass="player-card-text" text="&lt;PlayerInfo&gt;" textOverrun="CLIP">
+               <graphic>
+                  <ImageView fx:id="countryImageView" pickOnBounds="true" preserveRatio="true" />
+               </graphic>
+            </Label>
+         </children>
+      </HBox>
+      <!-- Tag cluster: right-aligned, only as wide as its content (maxWidth = USE_PREF_SIZE), drawn on
+           top of the name. pickOnBounds=false so the transparent gaps don't swallow row clicks. -->
+      <HBox fx:id="tagBox" alignment="CENTER_RIGHT" maxWidth="-Infinity" pickOnBounds="false" StackPane.alignment="CENTER_RIGHT">
+         <children>
+            <!-- Cluster order left->right: friend/foe, trailing badges (e.g. 3/4 position pair) inserted
+                 here by the container, then the rank/rating (kept rightmost). -->
+            <Label fx:id="foeIconText" minWidth="-Infinity">
+               <graphic>
+                  <Region styleClass="icon,foe-icon" />
+               </graphic>
+            </Label>
+            <Label fx:id="friendIconText" minWidth="-Infinity">
+               <graphic>
+                  <Region styleClass="icon,friend-icon" />
+               </graphic>
+            </Label>
+            <Label fx:id="rankLabel" styleClass="player-card-text" minWidth="-Infinity" visible="false">
+               <HBox.margin>
+                  <Insets left="5.0" />
+               </HBox.margin>
+            </Label>
+         </children>
+      </HBox>
+   </children>
+</StackPane>

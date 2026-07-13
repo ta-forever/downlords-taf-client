@@ -22,6 +22,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
+import javafx.scene.shape.Rectangle;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -43,9 +44,11 @@ public class PlayerCardTooltipController implements Controller<Node> {
   private final LadderPointsService ladderPointsService;
   private final UiService uiService;
   public Label playerInfo;
+  public Label rankLabel;
   public ImageView countryImageView;
   public Label foeIconText;
-  public HBox root;
+  public StackPane root;
+  public HBox tagBox;
   public Label friendIconText;
   public StackPane factionIconContainer;
   public Region factionIcon;
@@ -80,7 +83,22 @@ public class PlayerCardTooltipController implements Controller<Node> {
     if (!rankShown || rank <= 0 || player == null) {
       return;
     }
-    playerInfo.setText(i18n.get("userInfo.tooltipFormat.withRank", player.getUsername(), rank));
+    setRankSuffix(i18n.get("userInfo.tooltipFormat.rankSuffix", rank));
+  }
+
+  /** Show (or clear, when null/blank) the rank/rating in its own label so it stays next to the name
+   *  and the friend/foe icon can't crowd it off the row. */
+  private void setRankSuffix(String text) {
+    rankLabel.setText(text);
+    rankLabel.setVisible(text != null && !text.isBlank());
+  }
+
+  /** Append a trailing tag (e.g. rating-change delta, position-pair badge) into the right-aligned tag
+   *  cluster that floats on top of the name. Inserted just left of the rank/rating so it stays
+   *  rightmost — giving the cluster order friend/foe, badges…, rank/rating. */
+  public void addTrailingTag(Node node) {
+    int rankIndex = tagBox.getChildren().indexOf(rankLabel);
+    tagBox.getChildren().add(rankIndex < 0 ? tagBox.getChildren().size() : rankIndex, node);
   }
 
   public void setPlayer(Player player, Integer rating, Faction faction, Image gwMedalIcon) {
@@ -98,16 +116,18 @@ public class PlayerCardTooltipController implements Controller<Node> {
     // The displayMetric pref swaps the per-player gauge (LADDER_POINTS_DESIGN §13.3): Season Ladder
     // shows the player's ladder rank (most-played board, §13.5), Skill Rating shows the rating number.
     boolean lpMode = preferencesService.getPreferences().getDisplayMetric() != DisplayMetric.RATINGS;
-    String playerInfoLocalized;
-    if (!lpMode && rating != null) {
-      playerInfoLocalized = i18n.get("userInfo.tooltipFormat.withRating", player.getUsername(), rating);
-    } else {
-      // LP mode renders the rating as a division (filled in async); show the bare name meanwhile so
-      // the skill rating never flashes (and is never shown at all in LP mode).
-      playerInfoLocalized = i18n.get("userInfo.tooltipFormat.noRating", player.getUsername());
-    }
+    // The name and the rank/rating live in separate labels: the name (this one) wraps if the row is
+    // tight, while the rank/rating sits in its own non-shrinking label so the friend/foe icon can't
+    // crowd it off the row (see rankLabel / setRankSuffix).
     //setFactionIcon(faction);
-    playerInfo.setText(playerInfoLocalized);
+    playerInfo.setText(i18n.get("userInfo.tooltipFormat.noRating", player.getUsername()));
+    if (!lpMode && rating != null) {
+      setRankSuffix(i18n.get("userInfo.tooltipFormat.ratingSuffix", rating));
+    } else {
+      // LP mode renders the rating as a division (filled in async); leave the rank label blank
+      // meanwhile so the skill rating never flashes (and is never shown at all in LP mode).
+      setRankSuffix(null);
+    }
     foeIconText.visibleProperty().bind(Bindings.createBooleanBinding(() -> player.getSocialStatus() == SocialStatus.FOE, player.socialStatusProperty()));
     friendIconText.visibleProperty().bind(Bindings.createBooleanBinding(() -> player.getSocialStatus() == SocialStatus.FRIEND, player.socialStatusProperty()));
 
@@ -135,8 +155,8 @@ public class PlayerCardTooltipController implements Controller<Node> {
           if (standing == null || standing.getRank() <= 0) {
             return;
           }
-          String text = i18n.get("userInfo.tooltipFormat.withRank", player.getUsername(), standing.getRank());
-          JavaFxUtil.runLater(() -> playerInfo.setText(text));
+          String text = i18n.get("userInfo.tooltipFormat.rankSuffix", standing.getRank());
+          JavaFxUtil.runLater(() -> setRankSuffix(text));
         })
         .exceptionally(throwable -> {
           log.warn("Could not resolve ladder rank for player {}", player.getId(), throwable);
@@ -177,6 +197,14 @@ public class PlayerCardTooltipController implements Controller<Node> {
 
   @Override
   public void initialize() {
+    // Clip the row so a long name (drawn full width beneath the right-aligned tags) can't spill past
+    // the card edge into a neighbouring team card.
+    Rectangle clip = new Rectangle();
+    clip.widthProperty().bind(root.widthProperty());
+    clip.heightProperty().bind(root.heightProperty());
+    root.setClip(clip);
+    // Collapse the rank/rating label when it has no text so it adds no gap next to the name.
+    rankLabel.managedProperty().bind(rankLabel.visibleProperty());
     factionImage.managedProperty().bind(factionImage.visibleProperty());
     factionIcon.managedProperty().bind(factionIcon.visibleProperty());
     // Faction icons are rarely shown in team cards (only GW rank icons for GW games). Collapse the
