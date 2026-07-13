@@ -44,6 +44,19 @@ public final class LadderUiUtil {
   public static final List<String> SEASON_MEDAL_CODES =
       List.of(SEASON_GOLD, SEASON_SILVER, SEASON_BRONZE, SEASON_TOP10, SEASON_TOP33);
 
+  /** Achievement medals — per-game personal feats (combat_rating_service/medals.py
+   * {@code _achievement_awards}). NOT win-gated (a loser who did the deed still earns it) and
+   * with no team-size floor (1v1-eligible). Sniper is a 1-5 tier ladder (kill N enemy
+   * Commanders in one game); only the single highest tier is awarded per game, but a player's
+   * career can hold different tiers from different games, so all five get a cabinet slot. */
+  public static final List<String> SNIPER_MEDAL_CODES =
+      List.of("sniper_1", "sniper_2", "sniper_3", "sniper_4", "sniper_5");
+  public static final String MASS_PRODUCER = "mass_producer";  // built >= 1000 of one unit type
+  public static final String ACE = "ace";                      // a unit with > 100 kills
+  public static final List<String> ACHIEVEMENT_MEDAL_CODES = java.util.stream.Stream
+      .concat(SNIPER_MEDAL_CODES.stream(), java.util.stream.Stream.of(MASS_PRODUCER, ACE))
+      .collect(java.util.stream.Collectors.toUnmodifiableList());
+
   /** A cabinet display tier: a localized header key + the medal codes in it. The Medal Cabinet
    * lays the still-to-earn medals out under these labelled tiers (earned medals are shown first,
    * in their own section). */
@@ -53,6 +66,7 @@ public final class LadderUiUtil {
   public static final List<MedalClass> MEDAL_CLASSES = List.of(
       new MedalClass("medal.class.common", MEDAL_CODES),
       new MedalClass("medal.class.rare", HARD_MEDAL_CODES),
+      new MedalClass("medal.class.achievement", ACHIEVEMENT_MEDAL_CODES),
       new MedalClass("medal.class.podium", List.of(SEASON_GOLD, SEASON_SILVER, SEASON_BRONZE)),
       new MedalClass("medal.class.percentile", List.of(SEASON_TOP10, SEASON_TOP33)),
       new MedalClass("medal.class.tournament", TOURNAMENT_MEDAL_CODES));
