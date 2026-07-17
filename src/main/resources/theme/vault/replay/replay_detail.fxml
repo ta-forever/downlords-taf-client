@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.chart.LineChart?>
+<?import javafx.scene.chart.NumberAxis?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
@@ -149,8 +152,6 @@
                                  <fx:include fx:id="displayMetricToggle" source="../../display_metric_toggle.fxml"/>
                                  <ToggleButton fx:id="viewBattleReportButton" alignment="CENTER" mnemonicParsing="false"
                                          onAction="#onViewBattleReport" text="%scorescreen.viewBattleReport"/>
-                                 <Button fx:id="showRatingChangeButton" alignment="CENTER" mnemonicParsing="false"
-                                         onAction="#showRatingChange" text="%game.showRatingChange"/>
                                  <Label fx:id="notRatedReasonLabel" alignment="CENTER"/>
                              </children>
                          </HBox>
@@ -161,6 +162,27 @@
                              <Insets top="10.0"/>
                            </VBox.margin>
                          </VBox>
+                         <TitledPane fx:id="wagerChartPane" animated="false" expanded="false"
+                                     maxWidth="640.0" text="%replay.wagerChart.title"
+                                     visible="false" managed="false">
+                           <VBox.margin>
+                             <Insets top="10.0"/>
+                           </VBox.margin>
+                           <VBox alignment="TOP_CENTER" spacing="4.0">
+                             <Label fx:id="wagerChartPlaceholder" styleClass="text-secondary"
+                                    text="%replay.wagerChart.none" wrapText="true"/>
+                             <LineChart fx:id="wagerPriceChart" animated="false" createSymbols="false"
+                                        legendVisible="true" managed="false" minHeight="180.0" visible="false">
+                               <xAxis>
+                                 <NumberAxis label="%replay.wagerChart.xAxis" side="BOTTOM"/>
+                               </xAxis>
+                               <yAxis>
+                                 <NumberAxis autoRanging="false" label="%replay.wagerChart.yAxis"
+                                             lowerBound="0.0" upperBound="1.0" tickUnit="0.25" side="LEFT"/>
+                               </yAxis>
+                             </LineChart>
+                           </VBox>
+                         </TitledPane>
                          <HBox alignment="CENTER_RIGHT">
                              <Button fx:id="reportButton" alignment="CENTER_RIGHT" mnemonicParsing="false"
                                      onAction="#onReport" text="%game.report"/>

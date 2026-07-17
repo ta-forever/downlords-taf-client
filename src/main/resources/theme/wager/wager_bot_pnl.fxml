@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:id="botPnlRoot" spacing="4.0"
+      xmlns="http://javafx.com/javafx/8.0.111"
+      fx:controller="com.faforever.client.wager.WagerBotPnlController">
+  <Label styleClass="h2" text="%wager.bot.title"/>
+  <Label styleClass="text-secondary" text="%wager.bot.blurb" wrapText="true"
+         maxWidth="1.7976931348623157E308"/>
+  <TableView fx:id="botPnlTable" prefHeight="150.0">
+    <columns>
+      <TableColumn fx:id="boardColumn" text="%wager.bot.column.board"/>
+      <TableColumn fx:id="gamesColumn" text="%wager.bot.column.games"/>
+      <TableColumn fx:id="hitColumn" text="%wager.bot.column.hit"/>
+      <TableColumn fx:id="stakedColumn" text="%wager.bot.column.staked"/>
+      <TableColumn fx:id="pnlColumn" text="%wager.bot.column.pnl"/>
+      <TableColumn fx:id="roiColumn" text="%wager.bot.column.roi"/>
+    </columns>
+    <columnResizePolicy>
+      <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+    </columnResizePolicy>
+  </TableView>
+  <Label fx:id="summaryLabel" styleClass="text-secondary" wrapText="true"
+         maxWidth="1.7976931348623157E308"/>
+  <Label fx:id="youLabel" styleClass="h3" wrapText="true"
+         maxWidth="1.7976931348623157E308"/>
+</VBox>

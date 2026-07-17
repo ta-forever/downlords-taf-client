@@ -39,9 +39,19 @@ public class MockWagerService implements WagerService {
   }
 
   @Override
+  public CompletableFuture<List<com.faforever.client.api.dto.WagerBotPnl>> getBotPnl() {
+    return CompletableFuture.completedFuture(List.of());
+  }
+
+  @Override
   public CompletableFuture<List<PricePoint>> getPriceHistory(long marketId, long outcomeId, double b,
                                                              boolean twoOutcome, int limit) {
     return CompletableFuture.completedFuture(List.of());
+  }
+
+  @Override
+  public CompletableFuture<java.util.Optional<ReplayPriceChart>> getWinningOutcomeHistory(int gameId) {
+    return CompletableFuture.completedFuture(java.util.Optional.empty());
   }
 
   @Override

@@ -5,6 +5,7 @@ import com.faforever.client.api.dto.WagerMarket;
 import javafx.collections.ObservableList;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -40,6 +41,10 @@ public interface WagerService {
   /** The current player's net positions (portfolio), from faf-api. */
   CompletableFuture<List<WagerPositionBean>> getMyPositions();
 
+  /** The house model-maker bot's realised P&amp;L per (season, board) — the "beat the model"
+   * scoreboard, from faf-api (aggregate only; the bot's live position is never exposed). */
+  CompletableFuture<List<com.faforever.client.api.dto.WagerBotPnl>> getBotPnl();
+
   /**
    * The selected outcome's price path over time for the chart (oldest-first), derived from
    * the WHOLE market's trade log — a 2-team outcome's price also moves when the other team is
@@ -51,6 +56,15 @@ public interface WagerService {
                                                       boolean twoOutcome, int limit);
 
   /**
+   * For the replay-vault detail dialog: the price path of the outcome that eventually WON a
+   * game's TEAM_WIN market (the "did the market see it coming?" line). Resolves the game's
+   * markets, finds the settled market's winning outcome, and returns that outcome's implied
+   * probability over the whole game. Empty when the game had no market, none settled with a
+   * decided winner, or the market had no trades.
+   */
+  CompletableFuture<Optional<ReplayPriceChart>> getWinningOutcomeHistory(int gameId);
+
+  /**
    * Register a listener notified (on the FX thread) when a market settles or voids — so the
    * UI can auto-refresh the portfolio and cue a win without a manual refresh. Pass null to
    * clear. The service also updates the live market beans (status + winning outcomes).
@@ -59,6 +73,11 @@ public interface WagerService {
 
   /** One point on an outcome's price chart: epoch seconds + implied probability [0,1]. */
   record PricePoint(double epochSeconds, double price) {
+  }
+
+  /** The winning outcome's price path for a finished game (replay-detail chart). {@code
+   * outcomeLabel} names the eventual winner (e.g. "Team 1"); {@code points} is oldest-first. */
+  record ReplayPriceChart(String outcomeLabel, List<PricePoint> points) {
   }
 
   /** A market resolution (WAGER_DESIGN.md §14). {@code payoutLp} is the current player's own

@@ -122,6 +122,10 @@ public interface FafApiAccessor {
    * (a 2-team outcome's price also moves when the OTHER team is traded). */
   List<com.faforever.client.api.dto.WagerTrade> getWagerTradesForMarket(long marketId, int count);
 
+  /** Realised P&amp;L of the house model-maker bot per (season, board) — the public
+   * "beat the model" scoreboard. Aggregate/lagging only (no live position is exposed). */
+  List<com.faforever.client.api.dto.WagerBotPnl> getBotPnl();
+
   /** Per-player combat metrics for a single game (replay detail #1). */
   List<GamePlayerMetrics> getGamePlayerMetrics(int gameId);
 

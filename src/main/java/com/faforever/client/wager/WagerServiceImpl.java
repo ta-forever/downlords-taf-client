@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -72,6 +73,11 @@ public class WagerServiceImpl implements WagerService {
   }
 
   @Override
+  public CompletableFuture<List<com.faforever.client.api.dto.WagerBotPnl>> getBotPnl() {
+    return CompletableFuture.supplyAsync(fafApiAccessor::getBotPnl, executorService);
+  }
+
+  @Override
   public ObservableList<WagerMarketBean> subscribeToGame(int gameId) {
     if (currentGameId != -1 && currentGameId != gameId) {
       fafServerAccessor.unsubscribeWager(currentGameId);
@@ -117,33 +123,66 @@ public class WagerServiceImpl implements WagerService {
   @Override
   public CompletableFuture<List<PricePoint>> getPriceHistory(long marketId, long outcomeId, double b,
                                                              boolean twoOutcome, int limit) {
+    return CompletableFuture.supplyAsync(() -> priceHistorySync(marketId, outcomeId, b, twoOutcome, limit),
+        executorService);
+  }
+
+  /** Synchronous core of {@link #getPriceHistory}: one outcome's price path from the market's
+   * trade log. Shared with {@link #getWinningOutcomeHistory} so it can chain off one async hop. */
+  private List<PricePoint> priceHistorySync(long marketId, long outcomeId, double b,
+                                            boolean twoOutcome, int limit) {
+    List<PricePoint> points = new ArrayList<>();
+    for (com.faforever.client.api.dto.WagerTrade t : fafApiAccessor.getWagerTradesForMarket(marketId, limit)) {
+      if (t.getCreatedAt() == null) {
+        continue;
+      }
+      double epoch = t.getCreatedAt().toEpochSecond();
+      // The trade log stores only price_AFTER, and only for the outcome that was traded.
+      // Reconstruct that outcome's pre-trade price from delta + b, then map both to the
+      // SELECTED outcome (same outcome -> as is; the other 2-team outcome -> 1 − p).
+      double postTraded = t.getPriceAfter();
+      double preTraded = WagerMath.priceBefore(postTraded, b, t.getDeltaShares());
+      double pre;
+      double post;
+      if (t.getOutcomeId() == outcomeId) {
+        pre = preTraded;
+        post = postTraded;
+      } else if (twoOutcome) {
+        pre = 1 - preTraded;
+        post = 1 - postTraded;
+      } else {
+        continue;                 // >2 outcomes: can't derive from another outcome's trade
+      }
+      points.add(new PricePoint(epoch - 1, pre));   // just before the trade
+      points.add(new PricePoint(epoch, post));       // after the trade
+    }
+    return points;
+  }
+
+  @Override
+  public CompletableFuture<Optional<WagerService.ReplayPriceChart>> getWinningOutcomeHistory(int gameId) {
     return CompletableFuture.supplyAsync(() -> {
-      List<PricePoint> points = new ArrayList<>();
-      for (com.faforever.client.api.dto.WagerTrade t : fafApiAccessor.getWagerTradesForMarket(marketId, limit)) {
-        if (t.getCreatedAt() == null) {
+      for (com.faforever.client.api.dto.WagerMarket market : fafApiAccessor.getWagerMarketsForGame(gameId)) {
+        if (!"TEAM_WIN".equals(market.getMarketType()) || market.getOutcomes() == null) {
           continue;
         }
-        double epoch = t.getCreatedAt().toEpochSecond();
-        // The trade log stores only price_AFTER, and only for the outcome that was traded.
-        // Reconstruct that outcome's pre-trade price from delta + b, then map both to the
-        // SELECTED outcome (same outcome -> as is; the other 2-team outcome -> 1 − p).
-        double postTraded = t.getPriceAfter();
-        double preTraded = WagerMath.priceBefore(postTraded, b, t.getDeltaShares());
-        double pre;
-        double post;
-        if (t.getOutcomeId() == outcomeId) {
-          pre = preTraded;
-          post = postTraded;
-        } else if (twoOutcome) {
-          pre = 1 - preTraded;
-          post = 1 - postTraded;
-        } else {
-          continue;                 // >2 outcomes: can't derive from another outcome's trade
+        com.faforever.client.api.dto.WagerOutcome winner = market.getOutcomes().stream()
+            .filter(o -> Boolean.TRUE.equals(o.getIsWinner()))
+            .findFirst()
+            .orElse(null);
+        if (winner == null) {
+          continue;                 // no decided winner (unsettled / voided) -> no line to draw
         }
-        points.add(new PricePoint(epoch - 1, pre));   // just before the trade
-        points.add(new PricePoint(epoch, post));       // after the trade
+        boolean twoOutcome = market.getOutcomes().size() == 2;
+        List<PricePoint> points = priceHistorySync(Long.parseLong(market.getId()),
+            Long.parseLong(winner.getId()), market.getLiquidity(), twoOutcome, 1000);
+        if (points.isEmpty()) {
+          continue;                 // market never traded -> nothing to chart
+        }
+        String label = WagerLabels.outcomeLabel(market.getMarketType(), winner.getOutcomeKey(), winner.getLabel());
+        return Optional.of(new WagerService.ReplayPriceChart(label, points));
       }
-      return points;
+      return Optional.<WagerService.ReplayPriceChart>empty();
     }, executorService);
   }
 

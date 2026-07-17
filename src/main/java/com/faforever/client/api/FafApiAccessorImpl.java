@@ -123,6 +123,7 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   private static final String WAGER_MARKET_ENDPOINT = "/data/wagerMarket";
   private static final String WAGER_POSITION_ENDPOINT = "/data/wagerPosition";
   private static final String WAGER_TRADE_ENDPOINT = "/data/wagerTrade";
+  private static final String WAGER_BOT_PNL_ENDPOINT = "/data/wagerBotPnl";
   private static final String REPORT_ENDPOINT = "/data/moderationReport";
   private static final String TOURNAMENT_ENDPOINT = "/data/tournament";
   private static final String REPLAY_INCLUDES = "featuredMod,playerStats,host,playerStats.player,playerStats.ratingChanges,reviews," +
@@ -410,6 +411,11 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
     return getPage(WAGER_TRADE_ENDPOINT, count, 1, java.util.Map.of(
         FILTER, rsql(qBuilder().string("market.id").eq(String.valueOf(marketId))),
         SORT, "createdAt"));
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.WagerBotPnl> getBotPnl() {
+    return getAll(WAGER_BOT_PNL_ENDPOINT, java.util.Map.of(SORT, "-pnlLp"));
   }
 
   @Override

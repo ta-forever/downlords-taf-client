@@ -165,6 +165,8 @@ compileTestJava {
   // Scoped to the single files so they don't pull in broken siblings in those packages.
   include '**/game/GameLogUploadMarkerTest.java'
   include '**/game/ManualTeamArrangementControllerTest.java'
+  // Self-contained "beat the model" scoreboard card (LIVE_PRICING_DESIGN.md §6) — FXML load + aggregation.
+  include '**/wager/WagerBotPnlControllerTest.java'
   // Self-contained team-card test (covers the friend/foe-icons-in-team-cards toggle).
   include '**/game/TeamCardControllerTest.java'
   include '**/game/ManageGameControllerTest.java'

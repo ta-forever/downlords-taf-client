@@ -199,6 +199,11 @@ public class MockFafApiAccessor implements FafApiAccessor {
   }
 
   @Override
+  public List<com.faforever.client.api.dto.WagerBotPnl> getBotPnl() {
+    return List.of();
+  }
+
+  @Override
   public Tuple<List<com.faforever.client.api.dto.LadderPoints>, java.util.Map<String, ?>> getLadderPointsWithMeta(int leagueId, int seasonId, int count, int page) {
     return new Tuple<>(List.of(), java.util.Map.of());
   }

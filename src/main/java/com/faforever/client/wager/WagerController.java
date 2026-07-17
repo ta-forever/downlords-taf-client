@@ -11,7 +11,9 @@ import com.faforever.client.galacticwar.GalacticWarService;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.ladder.LadderPointsService;
 import com.faforever.client.ladder.SeasonStanding;
+import com.faforever.client.leaderboard.LeaderboardService;
 import com.faforever.client.main.event.NavigateEvent;
+import com.faforever.client.main.event.ShowReplayEvent;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.player.PlayerService;
@@ -21,7 +23,9 @@ import com.faforever.client.rating.RatingService;
 import com.faforever.client.replay.ReplayService;
 import com.faforever.client.util.RatingUtil;
 import com.faforever.client.theme.UiService;
+import com.google.common.eventbus.EventBus;
 import javafx.beans.InvalidationListener;
+import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -33,6 +37,7 @@ import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.chart.LineChart;
+import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
@@ -48,6 +53,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.util.Callback;
+import javafx.util.StringConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -87,11 +93,14 @@ public class WagerController extends AbstractViewController<Node> {
   private final MapService mapService;
   private final AudioService audioService;
   private final ReplayService replayService;
+  private final LeaderboardService leaderboardService;
+  private final EventBus eventBus;
 
   public VBox wagerRoot;
   public ListView<GameRow> gamesList;
   public Button refreshButton;
   public ListView<BoardLp> myLpList;
+  public WagerBotPnlController botPnlController;   // injected from <fx:include fx:id="botPnl">
   public Label selectedGameLabel;
   public Label boardLabel;
   public Label marketStatusLabel;
@@ -124,6 +133,10 @@ public class WagerController extends AbstractViewController<Node> {
   private String selectedRatingType;
   private int selectedGameId = -1;
   private final Map<String, Integer> myLpByBoard = new HashMap<>();
+  /** Leaderboard technical name → human-readable display name, so the wager tab never surfaces a
+   * raw technical name. Populated once from {@link LeaderboardService}; falls back to the technical
+   * name only until it loads (or if a board is unknown). */
+  private final Map<String, String> boardDisplayNames = new HashMap<>();
   private final BooleanProperty submitting = new SimpleBooleanProperty(false);
 
   // When a portfolio row asks to open its market, the outcomes load asynchronously after the
@@ -211,7 +224,7 @@ public class WagerController extends AbstractViewController<Node> {
           setText(null);
           setStyle("");
         } else {
-          setText(i18n.get("wager.boardLp", item.displayName(), item.score()));
+          setText(i18n.get("wager.boardLp", boardDisplayName(item.technicalName()), item.score()));
           boolean highlight = item.technicalName().equals(selectedRatingType);
           setStyle(highlight ? "-fx-font-weight: bold; -fx-text-fill: -fx-accent;" : "");
         }
@@ -239,6 +252,20 @@ public class WagerController extends AbstractViewController<Node> {
           onSelectPosition(tableRow.getItem());
         }
       });
+      MenuItem openReplay = new MenuItem(i18n.get("wager.position.openReplay"));
+      openReplay.setOnAction(event -> {
+        WagerPositionBean pos = tableRow.getItem();
+        if (pos != null) {
+          openReplayInVault(pos.getGameId());
+        }
+      });
+      // A still-live game has no replay yet; disable the item for those (rows are reused, so react
+      // to the row's item changing as the table scrolls/refreshes).
+      tableRow.itemProperty().addListener((obs, old, pos) ->
+          openReplay.setDisable(pos == null || pos.isLive()));
+      ContextMenu contextMenu = new ContextMenu(openReplay);
+      tableRow.contextMenuProperty().bind(
+          Bindings.when(tableRow.emptyProperty()).then((ContextMenu) null).otherwise(contextMenu));
       return tableRow;
     });
     outcomesTable.getSelectionModel().selectedItemProperty().addListener((obs, old, outcome) -> {
@@ -268,15 +295,63 @@ public class WagerController extends AbstractViewController<Node> {
 
     priceChart.setAnimated(false);
     priceChart.setCreateSymbols(false);
+    // Mixed-unit game-time axis: raw x is seconds from kickoff; label it in seconds up to 5 min,
+    // then in m:ss (games run 10-30 min, where a bare second count is unreadable).
+    if (priceChart.getXAxis() instanceof NumberAxis xAxis) {
+      xAxis.setTickLabelFormatter(new StringConverter<>() {
+        @Override
+        public String toString(Number value) {
+          double s = value.doubleValue();
+          if (s < 300) {
+            return String.format("%.0fs", s);
+          }
+          int total = (int) Math.round(s);
+          return String.format("%d:%02d", total / 60, total % 60);
+        }
+
+        @Override
+        public Number fromString(String string) {
+          return 0;
+        }
+      });
+    }
 
     JavaFxUtil.addListener(preferencesService.getPreferences().displayMetricProperty(),
         new WeakChangeListener<>(displayMetricListener));
+
+    loadBoardDisplayNames();
+  }
+
+  /** Fetch the leaderboards once and cache technical name → display name, then refresh anything
+   * already rendered with a raw technical name. */
+  private void loadBoardDisplayNames() {
+    leaderboardService.getLeaderboards()
+        .thenAccept(leaderboards -> JavaFxUtil.runLater(() -> {
+          leaderboards.forEach(lb -> boardDisplayNames.put(lb.getTechnicalName(), i18n.get(lb.getNameKey())));
+          myLpList.refresh();
+          updateBoardLabel();
+        }))
+        .exceptionally(throwable -> {
+          log.warn("Could not load leaderboard display names for wager tab", throwable);
+          return null;
+        });
+  }
+
+  /** Human-readable board name for a technical name, never the raw technical name if we can help it. */
+  private String boardDisplayName(String technicalName) {
+    if (technicalName == null) {
+      return "";
+    }
+    return boardDisplayNames.getOrDefault(technicalName, technicalName);
   }
 
   @Override
   protected void onDisplay(NavigateEvent navigateEvent) {
     wagerService.setSettlementListener(this::onSettlement);
     reload();
+    if (botPnlController != null) {
+      botPnlController.refresh();   // re-navigating to the view picks up any P&L computed while away
+    }
   }
 
   @Override
@@ -295,6 +370,9 @@ public class WagerController extends AbstractViewController<Node> {
   private void onSettlement(WagerService.Settlement settlement) {
     reloadPortfolio();
     reloadMyLp();
+    if (botPnlController != null) {
+      botPnlController.refresh();   // a settled market updates the model-maker scoreboard + you-vs-model
+    }
     if (settlement.isWin()) {
       audioService.playAchievementUnlockedSound();
       tradeStatusLabel.setText(i18n.get("wager.youWon", settlement.payoutLp()));
@@ -383,7 +461,8 @@ public class WagerController extends AbstractViewController<Node> {
     List<BoardLp> rows = new ArrayList<>();
     for (SeasonStanding s : standings) {
       myLpByBoard.put(s.getLeaderboardTechnicalName(), s.getScore());
-      rows.add(new BoardLp(s.getLeaderboardTechnicalName(), s.getLeaderboardTechnicalName(), s.getScore()));
+      rows.add(new BoardLp(s.getLeaderboardTechnicalName(),
+          boardDisplayName(s.getLeaderboardTechnicalName()), s.getScore()));
     }
     myLpList.getItems().setAll(rows);
     updateBoardLabel();
@@ -412,7 +491,7 @@ public class WagerController extends AbstractViewController<Node> {
       return;
     }
     int lp = myLpByBoard.getOrDefault(selectedRatingType, 0);
-    boardLabel.setText(i18n.get("wager.boardAvailable", selectedRatingType, lp));
+    boardLabel.setText(i18n.get("wager.boardAvailable", boardDisplayName(selectedRatingType), lp));
   }
 
   private void buildTeamCards(int gameId) {
@@ -459,6 +538,13 @@ public class WagerController extends AbstractViewController<Node> {
   /** Jump to a portfolio position's market: select its game in the watchlist (loads the team
    * cards + market) then its outcome (drives the price chart). Only for still-live games whose
    * market is still on the watchlist; resolved/absent positions are left untouched. */
+  /** Right-click a portfolio row -> jump to the online Replay vault and open that game's replay
+   * there, following the app's standard replay-detail conventions (rather than spinning up a
+   * bespoke modal window). The vault handles the "not finished / not published yet" case. */
+  private void openReplayInVault(int gameId) {
+    eventBus.post(new ShowReplayEvent(gameId));
+  }
+
   private void onSelectPosition(WagerPositionBean pos) {
     if (!pos.isLive()) {
       return;
@@ -749,19 +835,43 @@ public class WagerController extends AbstractViewController<Node> {
     rebuildChart();
   }
 
-  /** Plot the selected outcome's price (0..100) over elapsed seconds. */
+  /** Game-start epoch (seconds) for the selected live game, or NaN if unknown — the x-axis
+   * anchor so a trade sits at its true game-time position (kickoff = 0), not at the first trade. */
+  private double chartAnchorEpoch() {
+    Game game = findGameQuietly(selectedGameId);
+    if (game != null && game.getStartTime() != null) {
+      return game.getStartTime().getEpochSecond();
+    }
+    return Double.NaN;
+  }
+
+  /** Plot the selected outcome's price (0..100) over game-time seconds (0 = kickoff). */
   private void rebuildChart() {
     if (chartPoints.isEmpty()) {
       priceChart.getData().clear();
       return;
     }
     List<double[]> points = new ArrayList<>(chartPoints);
-    // An untraded outcome has a single point — draw a flat line at its (opening) price so
-    // the chart isn't empty (a lone point renders nothing with symbols off).
-    if (points.size() == 1) {
-      points.add(0, new double[]{points.get(0)[0] - 60, points.get(0)[1]});
-    }
     points.sort(Comparator.comparingDouble(a -> a[0]));
+
+    // Leading flat segment from kickoff to the first observed price: the market is flat from open
+    // until the first trade, so without this a trade at game-time 11 min collapses onto t=0 and the
+    // whole trading burst looks like it happened in the first few seconds.
+    double anchor = chartAnchorEpoch();
+    double firstEpoch = points.get(0)[0];
+    if (!Double.isNaN(anchor) && anchor < firstEpoch) {
+      points.add(0, new double[]{anchor, points.get(0)[1]});
+    } else if (points.size() == 1) {
+      // no kickoff known and a lone (untraded) point — short flat stub so the line renders
+      points.add(0, new double[]{firstEpoch - 60, points.get(0)[1]});
+    }
+    // Trailing flat segment to "now" at the last price: the game is still live, so extend the line
+    // to the current game-time instead of stopping at the last trade.
+    double now = System.currentTimeMillis() / 1000.0;
+    double[] last = points.get(points.size() - 1);
+    if (now > last[0]) {
+      points.add(new double[]{now, last[1]});
+    }
     double t0 = points.get(0)[0];
 
     XYChart.Series<Number, Number> series = new XYChart.Series<>();

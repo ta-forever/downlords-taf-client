@@ -101,10 +101,16 @@ public class ReplayDetailController implements Controller<Node> {
   private final GalacticWarService galacticWarService;
   private final PreferencesService preferencesService;
   private final com.faforever.client.ladder.LadderPointsService ladderPointsService;
+  private final com.faforever.client.wager.WagerService wagerService;
   private final ArrayList<TeamCardController> teamCardControllers = new ArrayList<>();
   /** Re-renders the team cards (rating ⇄ ladder rank) when the global display-metric pill flips. */
   private ChangeListener<DisplayMetric> displayMetricListener;
   public javafx.scene.layout.VBox combatRewardsContainer;
+  /** Collapsible "Wager market" pane: charts the eventual winner's implied probability over the
+   * game. Always present; shows {@link #wagerChartPlaceholder} when the game had no priced market. */
+  public javafx.scene.control.TitledPane wagerChartPane;
+  public javafx.scene.chart.LineChart<Number, Number> wagerPriceChart;
+  public Label wagerChartPlaceholder;
   /** Root node of the included Season Ladder ⇄ Skill Rating pill; hidden for unranked (global /
    * hidden) boards, where neither metric is meaningful. Injected by the {@code fx:include}. */
   public Node displayMetricToggle;
@@ -141,12 +147,11 @@ public class ReplayDetailController implements Controller<Node> {
   public ToggleButton viewBattleReportButton;
   public Button reportButton;
   public Label notRatedReasonLabel;
-  /** "Show rating change" — reveals the legacy MMR delta per player in the team cards. Shown only
-   * for a rated replay on a non-hidden (ranked) board AND while the {@code showLegacyRating}
-   * cutover flag is on. */
-  public Button showRatingChangeButton;
   /** Whether this replay's board is hidden (global / just-for-fun) — no MMR delta is offered then. */
   private boolean ratingBoardHidden;
+  /** Whether the legacy MMR delta is meaningful for this replay (rated, on a non-hidden board, with
+   * the {@code showLegacyRating} cutover flag on) — revealed alongside the battle report by the toggle. */
+  private boolean ratingChangeAvailable;
   public Label ratingTypeLabel;
   public Label visibilityLabel;
   public Button unhideButton;
@@ -198,7 +203,6 @@ public class ReplayDetailController implements Controller<Node> {
     ratingTypeLabel.setTooltip(new Tooltip(i18n.get("leaderboard.displayName")));
     qualityLabel.setTooltip(new Tooltip(i18n.get("replay.qualityTooltip")));
     notRatedReasonLabel.managedProperty().bind(notRatedReasonLabel.visibleProperty());
-    showRatingChangeButton.managedProperty().bind(showRatingChangeButton.visibleProperty());
 
     // The team cards show a skill rating or a ladder rank depending on the global pill (one of which
     // is included in this dialog's header); rebuild them live when it flips.
@@ -335,19 +339,83 @@ public class ReplayDetailController implements Controller<Node> {
       // Game Options + Chat (moreInformationPane) stay hidden.
       teams = replay.getTeamPlayerStats();
       populateTeamsContainer();
-      // The battle report starts open for participants, closed for spectators; the toggle reveals it
-      // either way. Data loads regardless so toggling on always works.
-      viewBattleReportButton.setSelected(isCurrentPlayerParticipant());
+      // Battle report, wager market and per-player rating change all start hidden; the single toggle
+      // reveals all three. Data loads regardless so toggling on always works.
+      viewBattleReportButton.setSelected(false);
+      // Just-for-fun (unranked / hidden-board) games and games left unrated by some invalidity carry
+      // no combat rating, LP or medals, so there is nothing to report — disable the toggle.
+      boolean unratedInvalid = !replay.getValidity().equals(Validity.VALID);
+      viewBattleReportButton.setDisable(ratingBoardHidden || unratedInvalid);
       populateCombatRewards(replay.getId());
     } else {
       watchButton.setText(i18n.get("game.watch"));
-      showRatingChangeButton.setVisible(false);
       ratingSeparator.setVisible(false);
       reviewSeparator.setVisible(false);
       reviewsContainer.setVisible(false);
       teamsInfoBox.setVisible(false);
       replayService.enrich(replay, replay.getReplayFile());
     }
+
+    populateWagerChart(replay.getId());
+  }
+
+  /** Charts the eventual winner's implied probability over the game, if it had a priced market.
+   * The pane is always visible (collapsed); it shows a placeholder when there was no market. */
+  private void populateWagerChart(int gameId) {
+    if (wagerChartPane == null) {
+      return;
+    }
+    wagerPriceChart.getData().clear();
+    wagerPriceChart.setVisible(false);
+    wagerPriceChart.setManaged(false);
+    wagerChartPlaceholder.setText(i18n.get("replay.wagerChart.none"));
+    wagerChartPlaceholder.setVisible(true);
+    wagerChartPlaceholder.setManaged(true);
+    wagerService.getWinningOutcomeHistory(gameId)
+        .thenAccept(chart -> JavaFxUtil.runLater(() -> chart.ifPresent(this::renderWagerChart)))
+        .exceptionally(throwable -> {
+          log.warn("Could not load wager price history for game {}", gameId, throwable);
+          return null;
+        });
+  }
+
+  private void renderWagerChart(com.faforever.client.wager.WagerService.ReplayPriceChart chart) {
+    List<com.faforever.client.wager.WagerService.PricePoint> points = chart.points();
+    if (points.isEmpty()) {
+      return;
+    }
+    // Anchor X=0 at game start (kickoff), not at the first trade, so a trade sits at its true
+    // game-time minute (the market is flat from open until the first trade). Fall back to the first
+    // point if the start time is somehow missing.
+    double startEpoch = replay.getStartTime() != null
+        ? replay.getStartTime().toEpochSecond()
+        : points.get(0).epochSeconds();
+    javafx.scene.chart.XYChart.Series<Number, Number> series = new javafx.scene.chart.XYChart.Series<>();
+    series.setName(chart.outcomeLabel());
+
+    // Leading flat segment from kickoff to the first trade at the opening price.
+    double firstEpoch = points.get(0).epochSeconds();
+    if (startEpoch < firstEpoch) {
+      series.getData().add(new javafx.scene.chart.XYChart.Data<>(0.0, points.get(0).price()));
+    }
+    for (com.faforever.client.wager.WagerService.PricePoint p : points) {
+      // X in minutes from kickoff; Y is the winner's implied win probability [0,1].
+      series.getData().add(new javafx.scene.chart.XYChart.Data<>((p.epochSeconds() - startEpoch) / 60.0, p.price()));
+    }
+    // Trailing flat segment to game end at the last traded price (the market's final read on the
+    // winner before settlement), so the line spans the whole game rather than stopping at the last trade.
+    com.faforever.client.wager.WagerService.PricePoint lastPoint = points.get(points.size() - 1);
+    if (replay.getEndTime() != null) {
+      double endMin = (replay.getEndTime().toEpochSecond() - startEpoch) / 60.0;
+      if (endMin > (lastPoint.epochSeconds() - startEpoch) / 60.0) {
+        series.getData().add(new javafx.scene.chart.XYChart.Data<>(endMin, lastPoint.price()));
+      }
+    }
+    wagerPriceChart.getData().add(series);
+    wagerChartPlaceholder.setVisible(false);
+    wagerChartPlaceholder.setManaged(false);
+    wagerPriceChart.setVisible(true);
+    wagerPriceChart.setManaged(true);
   }
 
   @VisibleForTesting
@@ -406,22 +474,29 @@ public class ReplayDetailController implements Controller<Node> {
     }));
   }
 
-  /** Shows the battle report only when the toggle is on and there is data to show. The toggle is
-   * disabled entirely when the game has no battle report / awarded medals to reveal. */
+  /** Reveals/hides the three inline expandable sections together, driven by the single toggle:
+   * the battle report (Combat Score → LP + medals), the wager market pane and the per-player legacy
+   * MMR delta. The battle report is only shown when it has data; the wager pane shows its own
+   * "no market" placeholder when the game had none; the rating delta is only revealed when it is
+   * meaningful for this replay. */
   private void updateBattleReportVisibility() {
-    viewBattleReportButton.setDisable(!hasRewardData);
-    boolean show = viewBattleReportButton.isSelected() && hasRewardData;
-    combatRewardsContainer.setVisible(show);
-    combatRewardsContainer.setManaged(show);
-  }
+    boolean show = viewBattleReportButton.isSelected();
 
-  private boolean isCurrentPlayerParticipant() {
-    Optional<Player> currentPlayer = playerService.getCurrentPlayer();
-    if (currentPlayer.isEmpty() || teams == null) {
-      return false;
+    boolean showReport = show && hasRewardData;
+    combatRewardsContainer.setVisible(showReport);
+    combatRewardsContainer.setManaged(showReport);
+
+    if (wagerChartPane != null) {
+      wagerChartPane.setVisible(show);
+      wagerChartPane.setManaged(show);
+      wagerChartPane.setExpanded(show);
     }
-    int myId = currentPlayer.get().getId();
-    return teams.values().stream().flatMap(List::stream).anyMatch(stats -> stats.getPlayerId() == myId);
+
+    if (show && ratingChangeAvailable) {
+      teamCardControllers.forEach(controller -> controller.showRatingChange(teams));
+    } else {
+      teamCardControllers.forEach(TeamCardController::hideRatingChange);
+    }
   }
 
   private void populateTeamsContainer() {
@@ -507,31 +582,25 @@ public class ReplayDetailController implements Controller<Node> {
 
   private void configureRatingControls() {
     if (!replay.getValidity().equals(Validity.VALID)) {
-      showRatingChangeButton.setVisible(false);
+      ratingChangeAvailable = false;
       notRatedReasonLabel.setVisible(true);
       String reasonText = i18n.getWithDefault(replay.getValidity().toString(), "game.reasonNotValid", i18n.get(replay.getValidity().getI18nKey()));
       notRatedReasonLabel.setText(reasonText);
     } else if (!replayService.replayChangedRating(replay)) {
-      showRatingChangeButton.setVisible(false);
+      ratingChangeAvailable = false;
       notRatedReasonLabel.setVisible(true);
       notRatedReasonLabel.setText(i18n.get("game.notRatedYet"));
     } else {
       // Rated game: offer the legacy MMR delta — but only while the cutover flag keeps the legacy
       // rating visible (Ladder Points is the hero; the delta is the familiar companion until the
       // rating moves to the combat rating service, after which there is no live delta to show).
-      showRatingChangeButton.setVisible(clientProperties.isShowLegacyRating() && !ratingBoardHidden);
-      showRatingChangeButton.setDisable(false);
+      ratingChangeAvailable = clientProperties.isShowLegacyRating() && !ratingBoardHidden;
       notRatedReasonLabel.setVisible(false);
     }
   }
 
-  /** Reveal each player's legacy MMR change in the team cards (one-shot; then disables the button). */
-  public void showRatingChange() {
-    teamCardControllers.forEach(teamCardController -> teamCardController.showRatingChange(teams));
-    showRatingChangeButton.setDisable(true);
-  }
-
-  /** Toggles the Combat Score → Ladder Points + Medals Earned sections shown inline. */
+  /** Toggles the battle report (Combat Score → LP + Medals), the wager market pane and the
+   * per-player legacy MMR delta together, all driven by the single "View battle report" toggle. */
   public void onViewBattleReport() {
     updateBattleReportVisibility();
   }
