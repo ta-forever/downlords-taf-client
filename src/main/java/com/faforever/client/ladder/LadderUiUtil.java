@@ -108,6 +108,20 @@ public final class LadderUiUtil {
     return standing.getWins() + "-" + standing.getDraws() + "-" + standing.getLosses();
   }
 
+  /** Aggregate "wins-draws-losses" over the last-&lt;=10 results, for the Season Ladder W-D-L(10)
+   * column — same format as the Skill Rating table's recent-results column. The recent results are
+   * a char string of W/D/L (see {@link SeasonStanding#getRecentResults()}). */
+  public static String recentWinDrawLoss(SeasonStanding standing) {
+    String recent = standing.getRecentResults();
+    if (recent == null) {
+      return "0-0-0";
+    }
+    long wins = recent.chars().filter(c -> c == 'W').count();
+    long draws = recent.chars().filter(c -> c == 'D').count();
+    long losses = recent.chars().filter(c -> c == 'L').count();
+    return wins + "-" + draws + "-" + losses;
+  }
+
   /** Pick the standing whose board the player has played most this season (most games),
    * for the context-free inline badge (design §13.5). Null if the player has none. */
   public static SeasonStanding mostPlayed(List<SeasonStanding> standings) {

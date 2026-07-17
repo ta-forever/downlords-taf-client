@@ -224,7 +224,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     seasonWinRateColumn.setCellFactory(param -> new StringCell<>(number -> i18n.get("percentage", number.floatValue() * 100)));
     seasonWdlColumn.setCellValueFactory(param -> new SimpleStringProperty(LadderUiUtil.winDrawLoss(param.getValue())));
     seasonWdlColumn.setCellFactory(param -> new StringCell<>(s -> s));
-    seasonWdl10Column.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().getRecentResults()));
+    seasonWdl10Column.setCellValueFactory(param -> new SimpleStringProperty(LadderUiUtil.recentWinDrawLoss(param.getValue())));
     seasonWdl10Column.setCellFactory(param -> new StringCell<>(s -> s));
     seasonStreakColumn.setCellValueFactory(param -> new SimpleIntegerProperty(param.getValue().getCurrentStreak()));
     seasonStreakColumn.setCellFactory(param -> new StringCell<>(streak -> i18n.number(streak.intValue())));
