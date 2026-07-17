@@ -10,6 +10,10 @@ public enum MessageTarget {
   // these without parsing the body, so new commands can be added without
   // a server rebuild.
   TOURNAMENT("tournament"),
+  // Same generic-forward pattern for live-game wagering (WAGER_DESIGN.md §14): the lobby
+  // forwards these unparsed to wager_service, so adding/changing a wager command needs no
+  // lobby rebuild.
+  WAGER("wager"),
   CLIENT(null);
 
   private static final Map<String, MessageTarget> fromString;

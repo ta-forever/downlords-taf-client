@@ -44,6 +44,15 @@ public interface FafServerAccessor {
 
   CompletableFuture<WatchTicketMessage> requestWatchTicket(int gameId);
 
+  /** Subscribe to a live game's wager markets + price feed (WAGER_DESIGN.md §14). */
+  void subscribeWager(int gameId);
+
+  /** Stop receiving a game's wager price feed. */
+  void unsubscribeWager(int gameId);
+
+  /** Buy ({@code deltaShares > 0}) / sell ({@code < 0}) shares; {@code clientRef} correlates the ack. */
+  void sendWagerTrade(int gameId, long marketId, String outcomeKey, double deltaShares, String clientRef);
+
   void disconnect();
 
   void reconnect();

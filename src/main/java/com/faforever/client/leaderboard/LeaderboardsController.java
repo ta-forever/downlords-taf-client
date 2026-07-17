@@ -111,6 +111,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   public TableColumn<SeasonStanding, String> seasonWdl10Column;
   public TableColumn<SeasonStanding, Number> seasonStreakColumn;
   public TableColumn<SeasonStanding, Number> seasonBestStreakColumn;
+  public TableColumn<SeasonStanding, Number> seasonWagerColumn;
   public ComboBox<Leaderboard> leaderboardComboBox;
   public ComboBox<com.faforever.client.ladder.SeasonInfo> seasonComboBox;
   public ComboBox<String> modComboBox;
@@ -230,6 +231,13 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     seasonStreakColumn.setCellFactory(param -> new StringCell<>(streak -> i18n.number(streak.intValue())));
     seasonBestStreakColumn.setCellValueFactory(param -> new SimpleIntegerProperty(param.getValue().getBestStreak()));
     seasonBestStreakColumn.setCellFactory(param -> new StringCell<>(streak -> i18n.number(streak.intValue())));
+    // Wager P&L (V137, Option B): the gambling-portion breakdown of score. Signed; blank at 0
+    // so a non-gambler's row isn't cluttered with "0".
+    seasonWagerColumn.setCellValueFactory(param -> new SimpleIntegerProperty(param.getValue().getWagerNet()));
+    seasonWagerColumn.setCellFactory(param -> new StringCell<>(net -> {
+      int n = net.intValue();
+      return n == 0 ? "" : (n > 0 ? "+" : "") + i18n.number(n);
+    }));
 
     // Hall of fame: #1/#2/#3 podium tally across completed seasons. Rank is the row position.
     hofRankColumn.setCellValueFactory(param ->

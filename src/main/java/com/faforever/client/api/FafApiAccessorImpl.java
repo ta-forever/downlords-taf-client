@@ -120,6 +120,10 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   private static final String PLAYER_MEDAL_SUMMARY_ENDPOINT = "/data/playerMedalSummary";
   private static final String FEATURED_MEDAL_ENDPOINT = "/data/playerFeaturedMedal";
   private static final String LADDER_POINTS_INCLUDES = "player,league,league.leaderboard,season";
+  private static final String WAGER_MARKET_ENDPOINT = "/data/wagerMarket";
+  private static final String WAGER_POSITION_ENDPOINT = "/data/wagerPosition";
+  private static final String WAGER_TRADE_ENDPOINT = "/data/wagerTrade";
+  private static final String WAGER_BOT_PNL_ENDPOINT = "/data/wagerBotPnl";
   private static final String REPORT_ENDPOINT = "/data/moderationReport";
   private static final String TOURNAMENT_ENDPOINT = "/data/tournament";
   private static final String REPLAY_INCLUDES = "featuredMod,playerStats,host,playerStats.player,playerStats.ratingChanges,reviews," +
@@ -376,6 +380,42 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
         FILTER, rsql(qBuilder().intNum("player.id").eq(playerId).and().intNum("league.id").eq(leagueId)),
         SORT, "createTime",
         INCLUDE, "player,league"));
+  }
+
+  // --- live-game wagering (read-only; wager_service/WAGER_DESIGN.md §11) ---
+
+  @Override
+  public List<com.faforever.client.api.dto.WagerMarket> getOpenWagerMarkets() {
+    return getAll(WAGER_MARKET_ENDPOINT, java.util.Map.of(
+        FILTER, rsql(qBuilder().string("status").in("OPEN", "CLOSED")),
+        INCLUDE, "outcomes",
+        SORT, "-openedAt"));
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.WagerMarket> getWagerMarketsForGame(int gameId) {
+    return getAll(WAGER_MARKET_ENDPOINT, java.util.Map.of(
+        FILTER, rsql(qBuilder().intNum("gameId").eq(gameId)),
+        INCLUDE, "outcomes"));
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.WagerPosition> getWagerPositionsForPlayer(int playerId) {
+    return getAll(WAGER_POSITION_ENDPOINT, java.util.Map.of(
+        FILTER, rsql(qBuilder().intNum("userId").eq(playerId)),
+        INCLUDE, "outcome,outcome.market"));
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.WagerTrade> getWagerTradesForMarket(long marketId, int count) {
+    return getPage(WAGER_TRADE_ENDPOINT, count, 1, java.util.Map.of(
+        FILTER, rsql(qBuilder().string("market.id").eq(String.valueOf(marketId))),
+        SORT, "createdAt"));
+  }
+
+  @Override
+  public List<com.faforever.client.api.dto.WagerBotPnl> getBotPnl() {
+    return getAll(WAGER_BOT_PNL_ENDPOINT, java.util.Map.of(SORT, "-pnlLp"));
   }
 
   @Override

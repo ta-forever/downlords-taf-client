@@ -94,7 +94,7 @@ public class TeamCardController implements Controller<Node> {
    * @param ratingType the type of rating used for the game sent from the server
    * @param playerService the service to use to look up players by name
    */
-  static void createAndAdd(ObservableMap<? extends String, ? extends List<String>> teamsList, String ratingType,
+  public static void createAndAdd(ObservableMap<? extends String, ? extends List<String>> teamsList, String ratingType,
                            PlayerService playerService, UiService uiService, RatingService ratingService,
                            GalacticWarService galacticWarService,
                            Pane teamsPane, Boolean hidePlayerRatings, String galacticWarPlanetName) {
@@ -110,7 +110,7 @@ public class TeamCardController implements Controller<Node> {
    *     role 0..4); a requester gets a small "positions 2r+1/2r+2" badge. Pass an
    *     empty map for none.
    */
-  static void createAndAdd(ObservableMap<? extends String, ? extends List<String>> teamsList, String ratingType,
+  public static void createAndAdd(ObservableMap<? extends String, ? extends List<String>> teamsList, String ratingType,
                            PlayerService playerService, UiService uiService, RatingService ratingService,
                            GalacticWarService galacticWarService,
                            Pane teamsPane, Boolean hidePlayerRatings, String galacticWarPlanetName,

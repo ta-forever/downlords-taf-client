@@ -217,6 +217,18 @@ public class MockFafServerAccessor implements FafServerAccessor {
   }
 
   @Override
+  public void subscribeWager(int gameId) {
+  }
+
+  @Override
+  public void unsubscribeWager(int gameId) {
+  }
+
+  @Override
+  public void sendWagerTrade(int gameId, long marketId, String outcomeKey, double deltaShares, String clientRef) {
+  }
+
+  @Override
   public void disconnect() {
 
   }

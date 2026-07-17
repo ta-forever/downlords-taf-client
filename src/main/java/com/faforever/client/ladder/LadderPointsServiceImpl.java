@@ -58,6 +58,37 @@ public class LadderPointsServiceImpl implements LadderPointsService {
     return playerId + ":" + leagueId;
   }
 
+  /** Static-ish config caches: the league catalog (one league per rated board) and each league's
+   * season schedule change ~never, but leagueIdFor() runs on every team-card / tooltip render, so
+   * without this the roster surfaces re-pull /league (and /leagueSchedule) in bursts. */
+  private static final long CONFIG_TTL_MILLIS = 10 * 60 * 1000L;
+  private volatile List<com.faforever.client.api.dto.League> cachedLeagues;
+  private volatile long leaguesExpireAt;
+  private final java.util.Map<Integer, CachedSeasons> seasonsCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+  private record CachedSeasons(List<com.faforever.client.api.dto.LeagueSchedule> seasons, long expiresAt) {}
+
+  private List<com.faforever.client.api.dto.League> leagues() {
+    List<com.faforever.client.api.dto.League> cached = cachedLeagues;
+    if (cached != null && leaguesExpireAt > System.currentTimeMillis()) {
+      return cached;
+    }
+    List<com.faforever.client.api.dto.League> fresh = fafApiAccessor.getLpLeagues();
+    cachedLeagues = fresh;
+    leaguesExpireAt = System.currentTimeMillis() + CONFIG_TTL_MILLIS;
+    return fresh;
+  }
+
+  private List<com.faforever.client.api.dto.LeagueSchedule> seasonsFor(int leagueId) {
+    CachedSeasons cached = seasonsCache.get(leagueId);
+    if (cached != null && cached.expiresAt() > System.currentTimeMillis()) {
+      return cached.seasons();
+    }
+    List<com.faforever.client.api.dto.LeagueSchedule> fresh = fafApiAccessor.getLpSeasons(leagueId);
+    seasonsCache.put(leagueId, new CachedSeasons(fresh, System.currentTimeMillis() + CONFIG_TTL_MILLIS));
+    return fresh;
+  }
+
   @Override
   public CompletableFuture<List<SeasonStanding>> getStandingsForPlayer(int playerId) {
     return CompletableFuture.supplyAsync(() -> fafApiAccessor.getLadderPointsForPlayer(playerId).stream()
@@ -149,7 +180,7 @@ public class LadderPointsServiceImpl implements LadderPointsService {
       OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
       // getLpSeasons is sorted newest-first; keep only seasons that have already begun (current +
       // previous), so the picker never offers a season with no games yet.
-      return fafApiAccessor.getLpSeasons(leagueId.get()).stream()
+      return seasonsFor(leagueId.get()).stream()
           .filter(s -> s.getTimeframeFrom() != null && !now.isBefore(s.getTimeframeFrom()))
           .map(s -> new SeasonInfo(Integer.parseInt(s.getId()),
               s.getTimeframeFrom(), s.getTimeframeTo(), s.getDescription()))
@@ -227,7 +258,7 @@ public class LadderPointsServiceImpl implements LadderPointsService {
       OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
       java.util.Map<Integer, int[]> podiums = new HashMap<>();   // playerId -> [gold, silver, bronze]
       java.util.Map<Integer, String> logins = new HashMap<>();
-      for (var season : fafApiAccessor.getLpSeasons(leagueId.get())) {
+      for (var season : seasonsFor(leagueId.get())) {
         // Only completed seasons count toward the hall of fame; the live one is still being decided.
         if (season.getTimeframeTo() == null || !now.isAfter(season.getTimeframeTo())) {
           continue;
@@ -256,7 +287,7 @@ public class LadderPointsServiceImpl implements LadderPointsService {
 
   /** League id for a board's leaderboard technical name, if it has a league. */
   private Optional<Integer> leagueIdFor(String leaderboardTechnicalName) {
-    return fafApiAccessor.getLpLeagues().stream()
+    return leagues().stream()
         .filter(l -> l.getLeaderboard() != null
             && leaderboardTechnicalName.equals(l.getLeaderboard().getTechnicalName()))
         .findFirst()
@@ -414,7 +445,7 @@ public class LadderPointsServiceImpl implements LadderPointsService {
         player != null ? player.getLogin() : null,
         technicalName, leagueId, seasonId, lp.getScore(), lp.getGames(), rank,
         lp.getWins(), lp.getDraws(), lp.getLosses(), lp.getCurrentStreak(), lp.getBestStreak(),
-        lp.getRecentResults() != null ? lp.getRecentResults() : "");
+        lp.getRecentResults() != null ? lp.getRecentResults() : "", lp.getWagerNet());
   }
 
   private LpGameBreakdown toBreakdown(LadderPointsJournal j) {
