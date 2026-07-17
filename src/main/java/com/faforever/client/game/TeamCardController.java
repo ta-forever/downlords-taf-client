@@ -260,6 +260,11 @@ public class TeamCardController implements Controller<Node> {
             .setRatingChange(playerStats));
   }
 
+  /** Hide any revealed rating-change deltas again (toggle off). */
+  public void hideRatingChange() {
+    ratingChangeControllersByPlayerId.values().forEach(RatingChangeLabelController::hide);
+  }
+
   /** A team-coloured pin icon followed by the team number, shown for a
    *  host-pinned player (blue = Team 1, red = Team 2). */
   private Node buildPinBadge(int teamIndex) {

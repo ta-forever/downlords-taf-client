@@ -44,4 +44,8 @@ public class RatingChangeLabelController implements Controller<Node> {
 
     ratingChangeLabelRoot.setVisible(true);
   }
+
+  public void hide() {
+    ratingChangeLabelRoot.setVisible(false);
+  }
 }
