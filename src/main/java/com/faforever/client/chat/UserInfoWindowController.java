@@ -531,8 +531,8 @@ public class UserInfoWindowController implements Controller<Node> {
     boolean earned = count > 0;
     String name = com.faforever.client.ladder.LadderUiUtil.medalDisplayName(i18n, code);
 
-    ImageView icon = new ImageView(uiService.getThemeImage(
-        com.faforever.client.ladder.LadderUiUtil.medalIconPath(code)));
+    ImageView icon = new ImageView(uiService.getThemeImageOrDefault(
+        com.faforever.client.ladder.LadderUiUtil.medalIconPath(code), UiService.DEFAULT_MEDAL_IMAGE));
     icon.setFitWidth(64);
     icon.setFitHeight(64);
     icon.setPreserveRatio(true);
@@ -606,8 +606,8 @@ public class UserInfoWindowController implements Controller<Node> {
   private void updateFeaturedHeaderIcon() {
     boolean show = featuredMedalCode != null;
     if (show) {
-      featuredMedalImageView.setImage(uiService.getThemeImage(
-          com.faforever.client.ladder.LadderUiUtil.medalIconPath(featuredMedalCode)));
+      featuredMedalImageView.setImage(uiService.getThemeImageOrDefault(
+          com.faforever.client.ladder.LadderUiUtil.medalIconPath(featuredMedalCode), UiService.DEFAULT_MEDAL_IMAGE));
       Tooltip.install(featuredMedalImageView, new Tooltip(
           com.faforever.client.ladder.LadderUiUtil.medalDisplayName(i18n, featuredMedalCode)));
     }

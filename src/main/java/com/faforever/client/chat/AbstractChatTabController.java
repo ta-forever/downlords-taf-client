@@ -696,8 +696,9 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
       String avatarStyle;
       if (medalOptional.isPresent()) {
         com.faforever.client.ladder.FeaturedMedalDisplay medal = medalOptional.get();
-        avatarUrl = uiService.getThemeFileUrl(
-            com.faforever.client.ladder.LadderUiUtil.medalIconPath(medal.getCode())).toString();
+        avatarUrl = uiService.getThemeFileUrlOrDefault(
+            com.faforever.client.ladder.LadderUiUtil.medalIconPath(medal.getCode()),
+            UiService.DEFAULT_MEDAL_IMAGE).toString();
         avatarTitle = com.faforever.client.ladder.LadderUiUtil.medalAvatarTooltip(
             i18n, medal.getCode(), medal.getCount());
         avatarStyle = medalAvatarStyle(compact);
@@ -754,8 +755,9 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
       Optional<com.faforever.client.ladder.FeaturedMedalDisplay> medal =
           player.getId() > 0 ? ladderPointsService.peekFeaturedMedal(player.getId()) : Optional.empty();
       if (medal.isPresent()) {
-        avatarUrl = uiService.getThemeFileUrl(
-            com.faforever.client.ladder.LadderUiUtil.medalIconPath(medal.get().getCode())).toString();
+        avatarUrl = uiService.getThemeFileUrlOrDefault(
+            com.faforever.client.ladder.LadderUiUtil.medalIconPath(medal.get().getCode()),
+            UiService.DEFAULT_MEDAL_IMAGE).toString();
         avatarTitle = com.faforever.client.ladder.LadderUiUtil.medalAvatarTooltip(
             i18n, medal.get().getCode(), medal.get().getCount());
         // Medal art is square. Reserve the same avatar box a regular avatar uses (60x30 compact,

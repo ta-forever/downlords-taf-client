@@ -98,6 +98,10 @@ public class UiService implements InitializingBean, DisposableBean {
   public static final String STYLE_CSS = "theme/style.css";
   public static final String WEBVIEW_CSS_FILE = "theme/style-webview.css";
   public static final String DEFAULT_ACHIEVEMENT_IMAGE = "theme/images/default_achievement.png";
+  /** Fallback art for a medal whose dedicated icon this client build doesn't ship (a newer
+   * server may award medal codes this client predates). Reuses the long-shipped generic
+   * achievement badge so the surface renders instead of throwing on a missing resource. */
+  public static final String DEFAULT_MEDAL_IMAGE = DEFAULT_ACHIEVEMENT_IMAGE;
   public static final String MENTION_SOUND = "theme/sounds/mention.mp3";
   public static final String CSS_CLASS_ICON = "icon";
   public static final String LADDER_1V1_IMAGE = "theme/images/ranked1v1_notification.png";
@@ -324,6 +328,27 @@ public class UiService implements InitializingBean, DisposableBean {
       return noCatch(() -> new URL(themeFile));
     }
     return noCatch(() -> new ClassPathResource(getThemeFile(relativeFile)).getURL());
+  }
+
+  /** True if {@code relativeFile} resolves to an existing theme override or bundled classpath
+   * resource. Lets callers avoid {@link #getThemeFile} throwing on a resource this build doesn't
+   * ship (e.g. an icon for a medal code added by a newer server). */
+  public boolean themeFileExists(String relativeFile) {
+    String strippedRelativeFile = relativeFile.replace("theme/", "");
+    Path externalFile = getThemeDirectory(currentTheme.get()).resolve(strippedRelativeFile);
+    return Files.exists(externalFile) || getClass().getResource("/" + relativeFile) != null;
+  }
+
+  /** Like {@link #getThemeImage} but resolves to {@code defaultImage} when {@code relativeImage}
+   * is not shipped by this build, so an unknown resource degrades gracefully instead of throwing. */
+  public Image getThemeImageOrDefault(String relativeImage, String defaultImage) {
+    return getThemeImage(themeFileExists(relativeImage) ? relativeImage : defaultImage);
+  }
+
+  /** Like {@link #getThemeFileUrl} but resolves to {@code defaultFile} when {@code relativeFile}
+   * is not shipped by this build. */
+  public URL getThemeFileUrlOrDefault(String relativeFile, String defaultFile) {
+    return getThemeFileUrl(themeFileExists(relativeFile) ? relativeFile : defaultFile);
   }
 
 

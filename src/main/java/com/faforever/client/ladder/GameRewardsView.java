@@ -302,7 +302,8 @@ public final class GameRewardsView {
     HBox chip = new HBox();
     chip.getStyleClass().add("medal-chip");
     chip.setAlignment(Pos.CENTER_LEFT);
-    ImageView icon = new ImageView(uiService.getThemeImage(LadderUiUtil.medalIconPath(code)));
+    ImageView icon = new ImageView(uiService.getThemeImageOrDefault(
+        LadderUiUtil.medalIconPath(code), UiService.DEFAULT_MEDAL_IMAGE));
     icon.setFitWidth(18);
     icon.setFitHeight(18);
     icon.setPreserveRatio(true);

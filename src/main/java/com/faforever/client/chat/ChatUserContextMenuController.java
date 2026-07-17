@@ -150,8 +150,9 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
         AvatarBean::getDescription,
         avatarBean -> {
           if (avatarBean.getMedalCode() != null) {
-            ImageView medalView = new ImageView(uiService.getThemeImage(
-                com.faforever.client.ladder.LadderUiUtil.medalIconPath(avatarBean.getMedalCode())));
+            ImageView medalView = new ImageView(uiService.getThemeImageOrDefault(
+                com.faforever.client.ladder.LadderUiUtil.medalIconPath(avatarBean.getMedalCode()),
+                UiService.DEFAULT_MEDAL_IMAGE));
             // Square medal art scaled 1:1 to fit within a 120x60 box (-> ~60x60), then centred in a
             // reserved 120x60 slot so medal rows line up like a regular (120x60) avatar.
             medalView.setPreserveRatio(true);

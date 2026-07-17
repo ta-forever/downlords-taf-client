@@ -161,8 +161,9 @@ public class ChatUserService implements InitializingBean {
                 return;
               }
               if (medal.isPresent()) {
-                chatChannelUser.setAvatar(uiService.getThemeImage(
-                    com.faforever.client.ladder.LadderUiUtil.medalIconPath(medal.get().getCode())));
+                chatChannelUser.setAvatar(uiService.getThemeImageOrDefault(
+                    com.faforever.client.ladder.LadderUiUtil.medalIconPath(medal.get().getCode()),
+                    UiService.DEFAULT_MEDAL_IMAGE));
                 chatChannelUser.setAvatarTooltipText(com.faforever.client.ladder.LadderUiUtil
                     .medalAvatarTooltip(i18n, medal.get().getCode(), medal.get().getCount()));
               } else {
