@@ -53,6 +53,8 @@ public class PlayerServiceTest {
   private UserService userService;
   @Mock
   private EventBus eventBus;
+  @Mock
+  private org.springframework.beans.factory.ObjectProvider<com.faforever.client.game.GameService> gameServiceProvider;
 
   private PlayerService instance;
 
@@ -60,7 +62,7 @@ public class PlayerServiceTest {
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
 
-    instance = new PlayerService(fafService, userService, eventBus);
+    instance = new PlayerService(fafService, userService, eventBus, gameServiceProvider);
 
     when(fafService.connectionStateProperty()).thenReturn(new SimpleObjectProperty<>());
 

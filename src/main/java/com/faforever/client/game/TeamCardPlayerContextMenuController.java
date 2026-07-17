@@ -72,21 +72,43 @@ public class TeamCardPlayerContextMenuController implements Controller<ContextMe
     return !myGame.getReservedPlayers().contains(target.getUsername());
   }
 
-  static public boolean isMenuAvailable(Player user, Player target) {
+  /**
+   * Whether the host-only "kick from room" item should show for {@code target}.
+   *
+   * <p>Deliberately reads the game from {@link GameService#getCurrentGame()} and tests team
+   * membership by name — the same data the reserve-slot item uses — rather than
+   * {@link Player#getGame()}. The per-player {@code getGame()} association is set only while
+   * processing a GAME_INFO in which the player is already a known {@link Player}; a player whose
+   * PlayerInfo lands after that GAME_INFO renders a team-card row but keeps a null
+   * {@code getGame()} until the next GAME_INFO re-runs the loop. That gap used to make this item
+   * (and only this item) silently disappear even in a genuinely staging game.</p>
+   *
+   * <p>Still restricted to STAGING: once the game reaches BATTLEROOM, TA's own in-game kick
+   * takes over.</p>
+   */
+  private boolean isMenuAvailable(Player user, Player target) {
     if (user == null || target == null) {
       return false;
     }
-    Game targetPlayerGame = target.getGame();
-    Game userPlayerGame = user.getGame();
-    if (targetPlayerGame != null && userPlayerGame != null) {
-      final boolean isUserInSameGame = targetPlayerGame.getId() == userPlayerGame.getId();
-      final boolean isUserHost = targetPlayerGame.getHost().equals(user.getUsername());
-      final boolean isGameStaging = targetPlayerGame.getStatus() == GameStatus.STAGING;
-      final boolean isSamePlayer = user.getId() == target.getId();
-      return isUserInSameGame && isUserHost && isGameStaging && !isSamePlayer;
-    }
-    else {
+    Game myGame = gameService.getCurrentGame();
+    if (myGame == null) {
       return false;
+    }
+    boolean isUserHost = myGame.getHost() != null && myGame.getHost().equals(user.getUsername());
+    boolean isGameStaging = myGame.getStatus() == GameStatus.STAGING;
+    boolean isSamePlayer = user.getId() == target.getId();
+    boolean isTargetInGame = isPlayerInGameTeams(myGame, target.getUsername());
+    return isUserHost && isGameStaging && !isSamePlayer && isTargetInGame;
+  }
+
+  private static boolean isPlayerInGameTeams(Game game, String username) {
+    if (game == null || game.getTeams() == null || username == null) {
+      return false;
+    }
+    synchronized (game.getTeams()) {
+      return game.getTeams().values().stream()
+          .filter(java.util.Objects::nonNull)
+          .anyMatch(team -> team.contains(username));
     }
   }
 

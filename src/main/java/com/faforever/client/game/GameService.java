@@ -940,6 +940,15 @@ public class GameService implements InitializingBean {
     return game;
   }
 
+  /**
+   * Quiet {@link #getByUid(int)} that returns empty instead of logging when the game is unknown.
+   * Used by {@code PlayerService}'s association back-fill, where a miss is an expected transient
+   * (the player's game may simply not be in the client's game list) and must not spam the log.
+   */
+  public Optional<Game> findByUid(int uid) {
+    return Optional.ofNullable(uidToGameInfoBean.get(uid));
+  }
+
   public CompletableFuture<Void> startSearchMatchmaker(String modTechnical) {
     if (isGameRunning()) {
       log.debug("Game is running, ignoring matchmaking search request");

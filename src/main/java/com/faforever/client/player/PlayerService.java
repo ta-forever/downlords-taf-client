@@ -7,6 +7,7 @@ import com.faforever.client.chat.event.ChatUserCategoryChangeEvent;
 import com.faforever.client.chat.event.ChatUserGameChangeEvent;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.game.Game;
+import com.faforever.client.game.GameService;
 import com.faforever.client.game.GameAddedEvent;
 import com.faforever.client.game.GameRemovedEvent;
 import com.faforever.client.game.GameUpdatedEvent;
@@ -33,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -66,12 +68,17 @@ public class PlayerService implements InitializingBean {
   private final FafService fafService;
   private final UserService userService;
   private final EventBus eventBus;
+  // ObjectProvider breaks the PlayerService <-> GameService construction cycle (GameService injects
+  // PlayerService), same pattern ChatUserService uses. Only touched lazily during game association back-fill.
+  private final ObjectProvider<GameService> gameServiceProvider;
   private final HashMap<Integer, List<Player>> playersByGame;
 
-  public PlayerService(FafService fafService, UserService userService, EventBus eventBus) {
+  public PlayerService(FafService fafService, UserService userService, EventBus eventBus,
+                       ObjectProvider<GameService> gameServiceProvider) {
     this.fafService = fafService;
     this.userService = userService;
     this.eventBus = eventBus;
+    this.gameServiceProvider = gameServiceProvider;
 
     playersByName = FXCollections.observableMap(new ConcurrentHashMap<>());
     playersById = FXCollections.observableHashMap();
@@ -395,6 +402,7 @@ public class PlayerService implements InitializingBean {
       Player player = getCurrentPlayer().orElseThrow(() -> new IllegalStateException("Player has not been set"));
       player.updateFromDto(dto);
       player.setSocialStatus(SELF);
+      reconcilePlayerGame(player);
       eventBus.post(new CurrentPlayerInfo(player));
     } else {
       Player player = createAndGetPlayerForUsername(dto.getLogin());
@@ -412,11 +420,40 @@ public class PlayerService implements InitializingBean {
       // the id value changes, so it won't re-add the player after a reconnect where the same
       // Player object is reused (id unchanged) but was removed by onPlayerLeft().
       playersById.put(player.getId(), player);
+      reconcilePlayerGame(player);
 
       if (!wasAlreadyOnline && dto.getState() == PlayerStatus.IDLE) {
         eventBus.post(new PlayerOnlineEvent(player));
       }
     }
+  }
+
+  /**
+   * Back-fill a player's game association from the authoritative {@code currentGameUid} when it is
+   * missing. {@link #updateGameDataForPlayer} only sets {@link Player#getGame()} while processing a
+   * GAME_INFO in which the player is <em>already known</em>; a player whose PlayerInfo arrives after
+   * the GAME_INFO that placed them in that game's roster would otherwise keep a null {@code getGame()}
+   * until the next GAME_INFO for that game happens to re-run the loop. That gap makes a player render
+   * in UI (team cards, chat) with a null game, silently breaking every consumer of {@code getGame()}
+   * (kick/join menu items, live-replay watch, the user-info game panel, chat map previews, ...).
+   *
+   * <p>Both the PLAYERS message (driving this method) and GAME_INFO (populating the game map) are
+   * already pushed by the server, so this is a purely local reconciliation — it issues no requests.
+   * We route through {@link #updateGameDataForPlayer} so a back-filled player is book-kept exactly
+   * like a normally-associated one (added to {@code playersByGame}, chat status refreshed), and the
+   * resulting {@code gameProperty} change fires the reactive UI bindings that a lazy getter could not.
+   */
+  private void reconcilePlayerGame(Player player) {
+    if (player.getGame() != null || player.getCurrentGameUid() <= 0) {
+      return;
+    }
+    GameService gameService = gameServiceProvider.getIfAvailable();
+    if (gameService == null) {
+      return;
+    }
+    gameService.findByUid(player.getCurrentGameUid())
+        .filter(game -> game.getStatus() != GameStatus.ENDED)
+        .ifPresent(game -> updateGameDataForPlayer(game, player));
   }
 
   public boolean isFriend(Integer pid) {
