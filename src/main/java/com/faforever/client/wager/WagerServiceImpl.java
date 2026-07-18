@@ -47,6 +47,7 @@ public class WagerServiceImpl implements WagerService {
   private final AtomicLong clientRefSeq = new AtomicLong();
   private volatile int currentGameId = -1;
   private volatile java.util.function.Consumer<Settlement> settlementListener;
+  private volatile java.util.function.Consumer<SubscribeReject> subscribeRejectListener;
 
   public WagerServiceImpl(FafApiAccessor fafApiAccessor, FafServerAccessor fafServerAccessor,
                           PlayerService playerService, ExecutorService executorService) {
@@ -65,6 +66,11 @@ public class WagerServiceImpl implements WagerService {
   @Override
   public void setSettlementListener(java.util.function.Consumer<Settlement> listener) {
     this.settlementListener = listener;
+  }
+
+  @Override
+  public void setSubscribeRejectListener(java.util.function.Consumer<SubscribeReject> listener) {
+    this.subscribeRejectListener = listener;
   }
 
   @Override
@@ -283,10 +289,21 @@ public class WagerServiceImpl implements WagerService {
       CompletableFuture<WagerTradeResult> future = pendingTrades.remove(message.getClientRef());
       if (future != null) {
         future.completeExceptionally(new WagerTradeException(reason));
-        return;
+      } else {
+        // A trade reject whose pending future is already gone (e.g. it timed out) — nothing to
+        // fail, and not a subscribe reject, so don't surface it as one.
+        log.debug("Wager trade rejected with no pending future: {}", reason);
       }
+      return;
     }
-    // A reject with no client_ref (e.g. participant_blocked on subscribe) — nothing to fail.
-    log.debug("Wager request rejected: {}", reason);
+    // A reject with no client_ref is a subscribe-level reject (e.g. participant_blocked on
+    // subscribe, §8) — no pending trade to fail. Surface it against the currently-subscribed
+    // game so the UI can explain the empty outcomes instead of silently swallowing it.
+    log.debug("Wager subscribe rejected: {}", reason);
+    int gameId = currentGameId;
+    java.util.function.Consumer<SubscribeReject> listener = subscribeRejectListener;
+    if (gameId != -1 && listener != null) {
+      JavaFxUtil.runLater(() -> listener.accept(new SubscribeReject(gameId, reason)));
+    }
   }
 }

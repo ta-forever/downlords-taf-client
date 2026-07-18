@@ -57,4 +57,8 @@ public class MockWagerService implements WagerService {
   @Override
   public void setSettlementListener(java.util.function.Consumer<Settlement> listener) {
   }
+
+  @Override
+  public void setSubscribeRejectListener(java.util.function.Consumer<SubscribeReject> listener) {
+  }
 }

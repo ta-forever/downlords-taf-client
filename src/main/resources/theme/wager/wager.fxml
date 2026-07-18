@@ -103,7 +103,8 @@
 
                         <!-- price chart for the selected outcome -->
                         <LineChart fx:id="priceChart" VBox.vgrow="ALWAYS" minHeight="160.0" legendVisible="true"
-                                   createSymbols="false" animated="false">
+                                   createSymbols="false" animated="false" styleClass="price-chart"
+                                   horizontalGridLinesVisible="true">
                             <xAxis>
                                 <NumberAxis label="%wager.chart.time" forceZeroInRange="false"/>
                             </xAxis>

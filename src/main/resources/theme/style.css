@@ -832,6 +832,11 @@
   -fx-bar-fill: HIGHLIGHT_COLOR;
 }
 
+.price-chart .chart-horizontal-grid-lines {
+  -fx-stroke: -divider-color;
+  -fx-stroke-width: 1;
+}
+
 /***************** Hint *****************/
 
 .hint {

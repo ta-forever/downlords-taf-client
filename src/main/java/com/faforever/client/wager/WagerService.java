@@ -71,6 +71,19 @@ public interface WagerService {
    */
   void setSettlementListener(java.util.function.Consumer<Settlement> listener);
 
+  /**
+   * Register a listener notified (on the FX thread) when a subscribe is rejected — e.g.
+   * {@code participant_blocked} because you're playing in the game you tried to watch (§8).
+   * Such rejects carry no {@code client_ref}, so without this they'd be silently swallowed and
+   * the outcomes table would just stay empty with no explanation. Pass null to clear.
+   */
+  void setSubscribeRejectListener(java.util.function.Consumer<SubscribeReject> listener);
+
+  /** A rejected subscribe: the game it was for (the currently-subscribed game) + reject reason
+   * (see {@link WagerTradeException} reasons, e.g. {@code participant_blocked}). */
+  record SubscribeReject(int gameId, String reason) {
+  }
+
   /** One point on an outcome's price chart: epoch seconds + implied probability [0,1]. */
   record PricePoint(double epochSeconds, double price) {
   }

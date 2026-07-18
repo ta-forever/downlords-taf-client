@@ -398,9 +398,20 @@ public class ReplayDetailController implements Controller<Node> {
     if (startEpoch < firstEpoch) {
       series.getData().add(new javafx.scene.chart.XYChart.Data<>(0.0, points.get(0).price()));
     }
+    // Step (step-after) plot: the price holds flat between trades and jumps instantly at each trade,
+    // so only horizontal and vertical segments are drawn — never a diagonal implying continuous drift.
+    // For each price change, extend the previous price horizontally to the new trade time, then step
+    // vertically to the new price.
+    double prevPrice = Double.NaN;
     for (com.faforever.client.wager.WagerService.PricePoint p : points) {
       // X in minutes from kickoff; Y is the winner's implied win probability [0,1].
-      series.getData().add(new javafx.scene.chart.XYChart.Data<>((p.epochSeconds() - startEpoch) / 60.0, p.price()));
+      double time = (p.epochSeconds() - startEpoch) / 60.0;
+      double price = p.price();
+      if (!Double.isNaN(prevPrice) && price != prevPrice) {
+        series.getData().add(new javafx.scene.chart.XYChart.Data<>(time, prevPrice));
+      }
+      series.getData().add(new javafx.scene.chart.XYChart.Data<>(time, price));
+      prevPrice = price;
     }
     // Trailing flat segment to game end at the last traded price (the market's final read on the
     // winner before settlement), so the line spans the whole game rather than stopping at the last trade.
@@ -517,6 +528,9 @@ public class ReplayDetailController implements Controller<Node> {
       // Replay rosters often have no faction/GW icon and no country flag; fall back to a "playing"
       // status icon so the leading-icon column stays aligned instead of names sitting flush-left.
       controller.setShowPlayingStatusIconFallback(true);
+      // Widen the card here only: this dialog reveals per-player rating-change labels, which would
+      // otherwise overlap longer player names at the shared 200px default.
+      controller.setCardWidth(240.0);
       // Fix the LP-mode ladder rank to this game's board (all players share it), so a player with no
       // placement on it shows no rank rather than a most-played-elsewhere fallback — otherwise two
       // players' #1 ranks from different boards can both surface on the one card.

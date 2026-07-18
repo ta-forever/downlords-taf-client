@@ -348,6 +348,7 @@ public class WagerController extends AbstractViewController<Node> {
   @Override
   protected void onDisplay(NavigateEvent navigateEvent) {
     wagerService.setSettlementListener(this::onSettlement);
+    wagerService.setSubscribeRejectListener(this::onSubscribeReject);
     reload();
     if (botPnlController != null) {
       botPnlController.refresh();   // re-navigating to the view picks up any P&L computed while away
@@ -357,6 +358,7 @@ public class WagerController extends AbstractViewController<Node> {
   @Override
   public void onHide() {
     wagerService.setSettlementListener(null);
+    wagerService.setSubscribeRejectListener(null);
     wagerService.unsubscribe();
     if (currentMarkets != null) {
       currentMarkets.removeListener(marketsListener);
@@ -380,6 +382,19 @@ public class WagerController extends AbstractViewController<Node> {
     } else if ("VOIDED".equals(settlement.status()) && settlement.payoutLp() > 0) {
       tradeStatusLabel.setText(i18n.get("wager.refunded", settlement.payoutLp()));
     }
+  }
+
+  /** A subscribe was rejected (e.g. {@code participant_blocked} — you're in the game you tried to
+   * watch, §8). Explain the empty outcomes in the market-status label rather than leaving a blank
+   * table; ignore rejects for a game we've since navigated away from. */
+  private void onSubscribeReject(WagerService.SubscribeReject reject) {
+    if (reject.gameId() != selectedGameId) {
+      return;
+    }
+    outcomesTable.getItems().clear();
+    selectOutcomeForChart(null);
+    marketStatusLabel.setText(i18n.getWithDefault(reject.reason(), "wager.reason." + reject.reason()));
+    marketStatusLabel.setStyle("-fx-text-fill: #c9a227; -fx-font-weight: bold;");   // amber warning
   }
 
   private void reload() {
@@ -520,6 +535,9 @@ public class WagerController extends AbstractViewController<Node> {
   }
 
   private void onMarketsChanged() {
+    // Any real markets update clears a prior subscribe-reject warning (e.g. participant_blocked)
+    // and its styling — we're back in a normal state for the selected game.
+    marketStatusLabel.setStyle("");
     if (currentMarkets == null || currentMarkets.isEmpty()) {
       outcomesTable.getItems().clear();
       marketStatusLabel.setText("");
@@ -876,8 +894,19 @@ public class WagerController extends AbstractViewController<Node> {
 
     XYChart.Series<Number, Number> series = new XYChart.Series<>();
     series.setName(chartOutcome != null ? outcomeDisplay(chartOutcome) : "");
+    // Step (step-after) plot: the price is constant between trades and jumps instantly at each trade,
+    // so we only ever want horizontal and vertical segments — never a diagonal that implies the price
+    // drifted continuously. For each price change we first extend the previous price horizontally to
+    // the new trade time, then step vertically to the new price.
+    double prevPrice = Double.NaN;
     for (double[] pt : points) {
-      series.getData().add(new XYChart.Data<>(pt[0] - t0, pt[1] * 100));
+      double time = pt[0] - t0;
+      double price = pt[1] * 100;
+      if (!Double.isNaN(prevPrice) && price != prevPrice) {
+        series.getData().add(new XYChart.Data<>(time, prevPrice));
+      }
+      series.getData().add(new XYChart.Data<>(time, price));
+      prevPrice = price;
     }
     priceChart.getData().setAll(series);
   }
