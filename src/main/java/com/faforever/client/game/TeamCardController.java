@@ -49,6 +49,7 @@ public class TeamCardController implements Controller<Node> {
   private final PreferencesService preferencesService;
   private final LadderPointsService ladderPointsService;
   public Pane teamPaneRoot;
+  public VBox teamCardPane;
   public VBox teamPane;
   public Label teamNameLabel;
   /** Host's +autoteam pins (player id -> team index 0/1); pinned players get a badge. */
@@ -78,6 +79,14 @@ public class TeamCardController implements Controller<Node> {
    *  {@link #setPlayersInTeam}. */
   public void setShowPlayingStatusIconFallback(boolean enabled) {
     this.showPlayingStatusIconFallback = enabled;
+  }
+
+  /** Widen (or narrow) this card's fixed width. Default is the FXML's 200px; the replay detail
+   *  dialog opts into a wider card so per-player rating-change labels don't overlap long names.
+   *  Other usages leave it untouched. */
+  public void setCardWidth(double width) {
+    teamCardPane.setPrefWidth(width);
+    teamCardPane.setMinWidth(width);
   }
 
   /** Fix the game's rating type (leaderboard technical name) so LP-mode player rows show the ladder

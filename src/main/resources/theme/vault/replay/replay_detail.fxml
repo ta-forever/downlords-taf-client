@@ -172,7 +172,8 @@
                              <Label fx:id="wagerChartPlaceholder" styleClass="text-secondary"
                                     text="%replay.wagerChart.none" wrapText="true"/>
                              <LineChart fx:id="wagerPriceChart" animated="false" createSymbols="false"
-                                        legendVisible="true" managed="false" minHeight="180.0" visible="false">
+                                        legendVisible="true" managed="false" minHeight="180.0" visible="false"
+                                        styleClass="price-chart" horizontalGridLinesVisible="true">
                                <xAxis>
                                  <NumberAxis label="%replay.wagerChart.xAxis" side="BOTTOM"/>
                                </xAxis>
