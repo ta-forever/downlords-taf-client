@@ -11,8 +11,10 @@
 <GridPane xmlns:fx="http://javafx.com/fxml/1" fx:id="privateUserInfoRoot" hgap="20.0" minWidth="160.0" vgap="20.0"
           xmlns="http://javafx.com/javafx/8.0.111" fx:controller="com.faforever.client.chat.PrivateUserInfoController">
     <columnConstraints>
+        <!-- Names column absorbs any squeeze (its text wraps); values column is pinned to its
+             preferred width (minWidth=USE_PREF_SIZE) so 4-digit ratings never wrap. -->
         <ColumnConstraints hgrow="ALWAYS" minWidth="10.0"/>
-        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0"/>
+        <ColumnConstraints hgrow="NEVER" minWidth="-Infinity"/>
     </columnConstraints>
     <rowConstraints>
         <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
@@ -41,11 +43,21 @@
                            preserveRatio="true"/>
             </graphic>
         </Label>
-        <Label fx:id="ratingsLabels" GridPane.rowIndex="2" GridPane.vgrow="ALWAYS" wrapText="true"
-               text="&lt;rating names&gt;"/>
-        <Label fx:id="ratingsValues" GridPane.rowIndex="2" GridPane.columnIndex="1" GridPane.vgrow="ALWAYS"
-               wrapText="true"
-               styleClass="private-chat-user-info-data" text="&lt;rating values&gt;"/>
+        <!-- Ratings section: header + one grid row per board (built in the controller) so the value
+             always sits on the same baseline as its name, even when the name wraps. -->
+        <VBox fx:id="ratingsSection" spacing="6.0" GridPane.columnSpan="2147483647" GridPane.rowIndex="2"
+              GridPane.vgrow="ALWAYS">
+            <children>
+                <Label fx:id="ratingsHeaderLabel" styleClass="h3" text="%chat.privateMessage.ratings.header"/>
+                <GridPane fx:id="ratingsGrid" hgap="20.0" vgap="4.0">
+                    <columnConstraints>
+                        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0"/>
+                        <ColumnConstraints hgrow="NEVER" minWidth="-Infinity" halignment="RIGHT"/>
+                    </columnConstraints>
+                </GridPane>
+                <Separator/>
+            </children>
+        </VBox>
         <Label fx:id="gamesPlayedLabelLabel" minWidth="0.0" text="%chat.privateMessage.gamesPlayed" wrapText="true"
                GridPane.rowIndex="3"/>
         <Label fx:id="gamesPlayedLabel" minWidth="0.0" styleClass="private-chat-user-info-data"

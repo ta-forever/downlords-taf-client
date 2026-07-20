@@ -52,8 +52,9 @@ public class PrivateUserInfoController implements Controller<Node> {
   public Label usernameLabel;
   public ImageView countryImageView;
   public Label countryLabel;
-  public Label ratingsLabels;
-  public Label ratingsValues;
+  public javafx.scene.layout.VBox ratingsSection;
+  public Label ratingsHeaderLabel;
+  public javafx.scene.layout.GridPane ratingsGrid;
   public Label gamesPlayedLabel;
   public GameDetailController gameDetailController;
   public Pane gameDetailWrapper;
@@ -62,6 +63,9 @@ public class PrivateUserInfoController implements Controller<Node> {
   public Label gamesPlayedLabelLabel;
   public Label unlockedAchievementsLabelLabel;
   private ChatChannelUser chatUser;
+  /** Kept so the mode pill (Season Ladder ⇄ Skill Rating) can re-render the ratings section live. */
+  private Player displayedPlayer;
+  private ChangeListener<DisplayMetric> displayMetricListener;
 
   public PrivateUserInfoController(I18n i18n, AchievementService achievementService, LeaderboardService leaderboardService,
                                    com.faforever.client.leaderboard.RatingTierService ratingTierService,
@@ -89,11 +93,21 @@ public class PrivateUserInfoController implements Controller<Node> {
         countryLabel,
         gamesPlayedLabel,
         unlockedAchievementsLabel,
-        ratingsLabels,
-        ratingsValues,
+        ratingsSection,
         gamesPlayedLabelLabel,
         unlockedAchievementsLabelLabel
     );
+
+    // Follow the global mode pill (LADDER_POINTS_DESIGN §13.1): flipping it anywhere re-renders
+    // this section between absolute rating and #rank / LP without reopening the tab.
+    displayMetricListener = (obs, oldValue, newValue) -> {
+      if (displayedPlayer != null) {
+        loadReceiverRatingInformation(displayedPlayer);
+      }
+    };
+    JavaFxUtil.addListener(preferencesService.getPreferences().displayMetricProperty(),
+        new WeakChangeListener<>(displayMetricListener));
+
     onPlayerGameChanged(null);
   }
 
@@ -121,8 +135,7 @@ public class PrivateUserInfoController implements Controller<Node> {
   private void setPlayerInfoVisible(boolean visible) {
     userImageView.setVisible(visible);
     countryLabel.setVisible(visible);
-    ratingsLabels.setVisible(visible);
-    ratingsValues.setVisible(visible);
+    ratingsSection.setVisible(visible);
     gamesPlayedLabel.setVisible(visible);
     gamesPlayedLabelLabel.setVisible(visible);
     unlockedAchievementsLabel.setVisible(visible);
@@ -133,6 +146,7 @@ public class PrivateUserInfoController implements Controller<Node> {
   ChangeListener<ObservableMap<String,LeaderboardRating>> ratingChangeListener;
   private void displayPlayerInfo(Player player) {
     chatUserService.associatePlayerToChatUser(chatUser, player);
+    displayedPlayer = player;
     setPlayerInfoVisible(true);
 
     userImageView.setImage(IdenticonUtil.createIdenticon(player.getId()));
@@ -183,57 +197,75 @@ public class PrivateUserInfoController implements Controller<Node> {
     boolean lpMode = preferencesService.getPreferences().getDisplayMetric() != DisplayMetric.RATINGS;
     leaderboardService.getLeaderboards()
         .thenCombine(ladderPointsService.getStandingsForPlayer(player.getId()), (leaderboards, standings) -> {
-          StringBuilder ratingNames = new StringBuilder();
-          StringBuilder ratingNumbers = new StringBuilder();
-          if (lpMode) {
-            appendSeasonLadder(leaderboards, standings, ratingNames, ratingNumbers);
-          } else {
-            appendSkillRatings(player, leaderboards, ratingNames, ratingNumbers);
-          }
+          java.util.List<Map.Entry<String, String>> rows = lpMode
+              ? seasonLadderRows(leaderboards, standings)
+              : skillRatingRows(player, leaderboards);
           JavaFxUtil.runLater(() -> {
-            ratingsLabels.setText(ratingNames.toString());
-            ratingsValues.setText(ratingNumbers.toString());
+            ratingsHeaderLabel.setText(i18n.get(lpMode
+                ? "chat.privateMessage.ladderPoints.header" : "chat.privateMessage.ratings.header"));
+            renderRatingRows(rows);
           });
           return null;
         });
   }
 
+  /** One grid row per board: wrapping name in column 0, right-aligned value pinned to its own
+   * width in column 1, so the value can never wrap or drift off the name's baseline. */
+  private void renderRatingRows(java.util.List<Map.Entry<String, String>> rows) {
+    ratingsGrid.getChildren().clear();
+    int rowIndex = 0;
+    for (Map.Entry<String, String> row : rows) {
+      Label name = new Label(row.getKey());
+      name.setWrapText(true);
+      Label value = new Label(row.getValue());
+      value.setWrapText(false);
+      value.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
+      value.getStyleClass().add("private-chat-user-info-data");
+      javafx.scene.layout.GridPane.setValignment(name, javafx.geometry.VPos.TOP);
+      javafx.scene.layout.GridPane.setValignment(value, javafx.geometry.VPos.TOP);
+      ratingsGrid.add(name, 0, rowIndex);
+      ratingsGrid.add(value, 1, rowIndex);
+      rowIndex++;
+    }
+  }
+
   /** Season Ladder gauge (§13.3): each board's rank + LP, most-played first. Cold start (no
    * standings) shows a single "Unranked" line (§13.5) - never a fabricated value. */
-  private void appendSeasonLadder(java.util.List<Leaderboard> leaderboards,
-                                  java.util.List<com.faforever.client.ladder.SeasonStanding> standings,
-                                  StringBuilder ratingNames, StringBuilder ratingNumbers) {
+  private java.util.List<Map.Entry<String, String>> seasonLadderRows(
+      java.util.List<Leaderboard> leaderboards,
+      java.util.List<com.faforever.client.ladder.SeasonStanding> standings) {
+    java.util.List<Map.Entry<String, String>> rows = new java.util.ArrayList<>();
     if (standings.isEmpty()) {
-      ratingNames.append(i18n.get("leaderboard.toggle.lp.label")).append("\n\n");
-      ratingNumbers.append(i18n.get("lp.badge.unranked")).append("\n\n");
-      return;
+      rows.add(Map.entry(i18n.get("leaderboard.toggle.lp.label"), i18n.get("lp.badge.unranked")));
+      return rows;
     }
     Map<String, String> boardNames = leaderboards.stream()
         .collect(Collectors.toMap(Leaderboard::getTechnicalName, lb -> i18n.get(lb.getNameKey()), (a, b) -> a));
     standings.stream()
         .sorted(Comparator.comparingInt(com.faforever.client.ladder.SeasonStanding::getGames).reversed())
-        .forEach(standing -> {
-          ratingNames.append(boardNames.getOrDefault(standing.getLeaderboardTechnicalName(),
-              standing.getLeaderboardTechnicalName())).append("\n\n");
-          ratingNumbers.append(com.faforever.client.ladder.LadderUiUtil.standingDisplay(i18n, standing))
-              .append("\n\n");
-        });
+        .forEach(standing -> rows.add(Map.entry(
+            boardNames.getOrDefault(standing.getLeaderboardTechnicalName(),
+                standing.getLeaderboardTechnicalName()),
+            com.faforever.client.ladder.LadderUiUtil.standingDisplay(i18n, standing))));
+    return rows;
   }
 
   /** Skill Rating gauge (§13.2): absolute rating per board, rounded to nearest 100 so it reads as
-   * a stable skill tier rather than game-to-game movement. */
-  private void appendSkillRatings(Player player, java.util.List<Leaderboard> leaderboards,
-                                  StringBuilder ratingNames, StringBuilder ratingNumbers) {
+   * a stable skill tier rather than game-to-game movement. The board name carries no " Rating"
+   * suffix - the section header already says so. */
+  private java.util.List<Map.Entry<String, String>> skillRatingRows(Player player,
+                                                                    java.util.List<Leaderboard> leaderboards) {
+    java.util.List<Map.Entry<String, String>> rows = new java.util.ArrayList<>();
     leaderboards.forEach(leaderboard -> {
       LeaderboardRating leaderboardRating = player.getLeaderboardRatings().get(leaderboard.getTechnicalName());
       if (leaderboardRating != null) {
-        ratingNames.append(i18n.get("leaderboard.rating", i18n.get(leaderboard.getNameKey()))).append("\n\n");
         // Hysteresis-stabilised tier (§13.2.3) so the number reads as a steady skill tier.
         int tier = ratingTierService.displayTier(player.getId(), leaderboard.getTechnicalName(),
             RatingUtil.getLeaderboardRating(player, leaderboard));
-        ratingNumbers.append(i18n.number(tier)).append("\n\n");
+        rows.add(Map.entry(i18n.get(leaderboard.getNameKey()), i18n.number(tier)));
       }
     });
+    return rows;
   }
 }
 
