@@ -22,7 +22,6 @@ import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.replay.ReplayService;
 import com.faforever.client.reporting.ReportDialogController;
-import com.faforever.client.teammatchmaking.TeamMatchmakingService;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.alert.Alert;
 import com.faforever.client.ui.alert.animation.AlertAnimation;
@@ -75,7 +74,7 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
   private final AvatarService avatarService;
   private final UiService uiService;
   private final ModeratorService moderatorService;
-  private final TeamMatchmakingService teamMatchmakingService;
+  private final ChatGameInviteService chatGameInviteService;
   private final GameService gameService;
   private final com.faforever.client.ladder.LadderPointsService ladderPointsService;
   public MenuItem reserveSlotItem;
@@ -118,7 +117,7 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
                                        PlayerService playerService, ReplayService replayService,
                                        NotificationService notificationService, I18n i18n, EventBus eventBus,
                                        JoinGameHelper joinGameHelper, AvatarService avatarService, UiService uiService,
-                                       ModeratorService moderatorService, TeamMatchmakingService teamMatchmakingService,
+                                       ModeratorService moderatorService, ChatGameInviteService chatGameInviteService,
                                        GameService gameService,
                                        com.faforever.client.ladder.LadderPointsService ladderPointsService) {
     this.preferencesService = preferencesService;
@@ -131,7 +130,7 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
     this.avatarService = avatarService;
     this.uiService = uiService;
     this.moderatorService = moderatorService;
-    this.teamMatchmakingService = teamMatchmakingService;
+    this.chatGameInviteService = chatGameInviteService;
     this.gameService = gameService;
     this.ladderPointsService = ladderPointsService;
   }
@@ -214,6 +213,9 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
 
     playerChangeListener = (observable, oldValue, newValue) -> {
       if (newValue == null) {
+        inviteItem.visibleProperty().unbind();
+        inviteItem.setVisible(false);
+        inviteItem.setDisable(true);
         return;
       }
 
@@ -244,11 +246,8 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
               }, newValue.gameProperty())
           ));
       watchGameItem.visibleProperty().bind(newValue.statusProperty().isEqualTo(PlayerStatus.PLAYING));
-      inviteItem.visibleProperty().bind(Bindings.createBooleanBinding(() -> false));
-      // TODO invite player to stealth game:
-//              newValue.socialStatusProperty().get() != SELF &&
-//              newValue.statusProperty().get() == PlayerStatus.IDLE,
-//          newValue.statusProperty()));
+      inviteItem.visibleProperty().bind(Bindings.createBooleanBinding(() -> isGameInviteVisible(newValue),
+          newValue.socialStatusProperty(), gameService.getCurrentGameProperty(), gameService.getCurrentGameStatusProperty()));
 
       // "Reserve a slot for this player" — visible only when:
       //   - target is not me
@@ -264,6 +263,7 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
         return !myGame.getReservedPlayers().contains(newValue.getUsername());
       }, newValue.socialStatusProperty(), gameService.getCurrentGameStatusProperty()));
 
+      refreshInviteItemState();
     };
     JavaFxUtil.addListener(chatUser.playerProperty(), new WeakChangeListener<>(playerChangeListener));
     playerChangeListener.changed(chatUser.playerProperty(), null, chatUser.getPlayer().orElse(null));
@@ -280,9 +280,37 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
    * dialog) is reflected instead of the stale selection captured when the menu was first built.
    */
   public void refreshAvatarSelection() {
+    refreshInviteItemState();
     chatUser.getPlayer()
         .filter(player -> player.getSocialStatus() == SELF)
         .ifPresent(this::loadAvailableAvatars);
+  }
+
+  private void refreshInviteItemState() {
+    if (chatUser == null || inviteItem == null) {
+      return;
+    }
+
+    Player player = chatUser.getPlayer().orElse(null);
+    Game game = gameService.getCurrentGame();
+    inviteItem.setDisable(player == null
+        || !isGameInviteVisible(player)
+        || !chatGameInviteService.canInvite(player.getUsername(), game));
+  }
+
+  private boolean isGameInviteVisible(Player targetPlayer) {
+    if (targetPlayer == null || targetPlayer.getSocialStatus() == SELF) {
+      return false;
+    }
+
+    Game myGame = gameService.getCurrentGame();
+    Player currentPlayer = playerService.getCurrentPlayer().orElse(null);
+    return myGame != null
+        && myGame.getStatus() != null
+        && myGame.getStatus().isOpen()
+        && myGame.getGameType() != GameType.MATCHMAKER
+        && currentPlayer != null
+        && currentPlayer.getUsername().equals(myGame.getHost());
   }
 
   private void setModeratorOptions(Set<String> permissions, Player newValue) {
@@ -447,7 +475,14 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
 
   public void onInviteToGameSelected() {
     Player player = getPlayer();
-    teamMatchmakingService.invitePlayer(player.getUsername());
+    Game myGame = gameService.getCurrentGame();
+    if (!isGameInviteVisible(player) || !chatGameInviteService.canInvite(player.getUsername(), myGame)) {
+      refreshInviteItemState();
+      return;
+    }
+
+    chatGameInviteService.inviteToGame(player.getUsername(), myGame);
+    refreshInviteItemState();
   }
 
   public void onBan(ActionEvent actionEvent) {
