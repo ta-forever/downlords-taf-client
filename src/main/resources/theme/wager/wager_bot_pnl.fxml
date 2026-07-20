@@ -8,7 +8,6 @@
 <VBox xmlns:fx="http://javafx.com/fxml/1" fx:id="botPnlRoot" spacing="4.0"
       xmlns="http://javafx.com/javafx/8.0.111"
       fx:controller="com.faforever.client.wager.WagerBotPnlController">
-  <Label styleClass="h2" text="%wager.bot.title"/>
   <Label styleClass="text-secondary" text="%wager.bot.blurb" wrapText="true"
          maxWidth="1.7976931348623157E308"/>
   <TableView fx:id="botPnlTable" prefHeight="150.0">

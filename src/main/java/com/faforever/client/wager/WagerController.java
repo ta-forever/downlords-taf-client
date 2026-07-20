@@ -101,7 +101,6 @@ public class WagerController extends AbstractViewController<Node> {
   public Button refreshButton;
   public ListView<BoardLp> myLpList;
   public WagerBotPnlController botPnlController;   // injected from <fx:include fx:id="botPnl">
-  public Label selectedGameLabel;
   public Label boardLabel;
   public Label marketStatusLabel;
   public ImageView mapImageView;
@@ -486,7 +485,6 @@ public class WagerController extends AbstractViewController<Node> {
   private void onSelectGame(GameRow row) {
     selectedGameId = row.gameId();
     selectedRatingType = row.ratingType();
-    selectedGameLabel.setText(row.label());
     updateBoardLabel();
     myLpList.refresh();
 
