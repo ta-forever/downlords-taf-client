@@ -1,5 +1,7 @@
 package com.faforever.client.remote.domain;
 
+import com.faforever.client.remote.gson.LenientBooleanTypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -42,6 +44,8 @@ public class WagerMarketsMessage extends FafServerMessage {
     private String label;
     private double price;
     private double qShares;
+    /** Server sends this as a MySQL {@code TINYINT} (0/1), hence the lenient adapter. */
+    @JsonAdapter(LenientBooleanTypeAdapter.class)
     private Boolean isWinner;
   }
 }
