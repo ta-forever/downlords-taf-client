@@ -107,7 +107,14 @@ public class JoinGameHelper {
   }
 
   public void join(int gameId) {
-    join(gameService.getByUid(gameId));
+    Game game = gameService.getByUid(gameId);
+    if (game == null) {
+      log.warn("Could not join game {} because it is not in the local game list", gameId);
+      notificationService.addImmediateWarnNotification("game.couldNotJoin", gameId);
+      return;
+    }
+
+    join(game);
   }
 
   @EventListener

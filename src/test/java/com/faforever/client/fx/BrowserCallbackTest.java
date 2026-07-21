@@ -4,6 +4,7 @@ import com.faforever.client.chat.UrlPreviewResolver;
 import com.faforever.client.clan.ClanService;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.config.ClientProperties.Vault;
+import com.faforever.client.game.JoinGameHelper;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.ShowReplayEvent;
 import com.faforever.client.notification.NotificationService;
@@ -40,6 +41,8 @@ public class BrowserCallbackTest extends AbstractPlainJavaFxTest {
   private I18n i18n;
   @Mock
   private NotificationService notificationService;
+  @Mock
+  private JoinGameHelper joinGameHelper;
 
   @Before
   public void setUp() throws Exception {
@@ -47,7 +50,8 @@ public class BrowserCallbackTest extends AbstractPlainJavaFxTest {
     Vault vault = new Vault();
     vault.setReplayDownloadUrlFormat("replayId=%s");
     clientProperties.setVault(vault);
-    instance = new BrowserCallback(platformService, clientProperties, urlPreviewResolver, eventBus, clanService, uiService);
+    clientProperties.getWebsite().setBaseUrl("https://www.taforever.com");
+    instance = new BrowserCallback(platformService, clientProperties, urlPreviewResolver, eventBus, clanService, uiService, joinGameHelper);
   }
 
   @Test
@@ -55,5 +59,12 @@ public class BrowserCallbackTest extends AbstractPlainJavaFxTest {
     instance.openUrl("replayId=12");
     WaitForAsyncUtils.waitForFxEvents();
     verify(eventBus).post(any(ShowReplayEvent.class));
+  }
+
+  @Test
+  public void testOpenJoinGameUrl() {
+    instance.openUrl("https://www.taforever.com/play/join/12");
+
+    verify(joinGameHelper).join(12);
   }
 }

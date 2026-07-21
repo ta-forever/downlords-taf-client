@@ -5,6 +5,8 @@ import com.faforever.client.chat.UrlPreviewResolver;
 import com.faforever.client.clan.ClanService;
 import com.faforever.client.clan.ClanTooltipController;
 import com.faforever.client.config.ClientProperties;
+import com.faforever.client.game.GameInviteUrl;
+import com.faforever.client.game.JoinGameHelper;
 import com.faforever.client.main.event.JoinChannelEvent;
 import com.faforever.client.main.event.OpenTadaPageEvent;
 import com.faforever.client.main.event.ShowReplayEvent;
@@ -47,6 +49,7 @@ public class BrowserCallback {
   private final ClanService clanService;
   private final UiService uiService;
   private final ClientProperties clientProperties;
+  private final JoinGameHelper joinGameHelper;
   final private List<UrlDispatcher> urlDispatchers;
   @VisibleForTesting
   Popup clanInfoPopup;
@@ -56,16 +59,18 @@ public class BrowserCallback {
 
   BrowserCallback(PlatformService platformService, ClientProperties clientProperties,
                   UrlPreviewResolver urlPreviewResolver, EventBus eventBus,
-                  ClanService clanService, UiService uiService) {
+                  ClanService clanService, UiService uiService, JoinGameHelper joinGameHelper) {
     this.platformService = platformService;
     this.urlPreviewResolver = urlPreviewResolver;
     this.eventBus = eventBus;
     this.clanService = clanService;
     this.uiService = uiService;
+    this.joinGameHelper = joinGameHelper;
     this.urlDispatchers = new ArrayList<>();
     this.clientProperties = clientProperties;
 
     addShowTafReplayDispatcher();
+    addJoinGameDispatcher();
   }
 
   public void addShowTadaReplayDispatcher() {
@@ -78,6 +83,11 @@ public class BrowserCallback {
     String[] splitFormat = urlFormat.split("%s");
     Pattern tafReplayUrlPattern = Pattern.compile(Pattern.quote(splitFormat[0]) + "(\\d+)" + Pattern.compile(splitFormat.length == 2 ? splitFormat[1] : ""));
     this.addDispatcher(tafReplayUrlPattern, (url, matcher) -> eventBus.post(new ShowReplayEvent(Integer.parseInt(matcher.group(1)))));
+  }
+
+  public void addJoinGameDispatcher() {
+    Pattern joinGameUrlPattern = GameInviteUrl.pattern(clientProperties.getWebsite().getBaseUrl());
+    this.addDispatcher(joinGameUrlPattern, (url, matcher) -> joinGameHelper.join(Integer.parseInt(matcher.group(1))));
   }
 
   public void addOpenTadaPageDispatcher() {
