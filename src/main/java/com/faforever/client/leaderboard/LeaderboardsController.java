@@ -55,6 +55,7 @@ import org.springframework.stereotype.Component;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -126,6 +127,8 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   public Pane connectionProgressPane;
   public Pane contentPane;
   public CheckBox friendsOnlyCheckBox;
+  /** Season Ladder only: subtract wager P&amp;L from LP and re-rank on the game-earned portion. */
+  public CheckBox excludeWagerCheckBox;
   /** Re-rendered when the global displayMetric pref flips (e.g. via the top-bar pill). Held as a
    * field so the weak listener isn't collected. */
   private javafx.beans.value.ChangeListener<com.faforever.client.preferences.DisplayMetric> displayMetricListener;
@@ -137,6 +140,9 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   private Map<String, String> leaderboardToModTech = new HashMap<>();
   /** player id -> medals earned in the selected season, for the Season Ladder medal column. */
   private Map<Integer, Long> seasonMedalCounts = Map.of();
+  /** The loaded ladder rows in the server's (raw-score) order, kept so toggling the wager exclusion
+   * can re-sort without re-fetching — and can restore the server order when switched back off. */
+  private List<SeasonStanding> seasonLadderRows = List.of();
   /** Remembers the season the user last picked per board for this session — so navigating away and
    * back keeps the selection, while a fresh app start still defaults to the current season. */
   private final Map<String, Integer> selectedSeasonByBoard = new HashMap<>();
@@ -148,6 +154,8 @@ public class LeaderboardsController extends AbstractViewController<Node> {
   public void initialize() {
     super.initialize();
     friendsOnlyCheckBox.setSelected(preferencesService.getPreferences().getLastLeaderboardFriendsOnlySelection());
+    excludeWagerCheckBox.setSelected(preferencesService.getPreferences().getLastLeaderboardExcludeWagerSelection());
+    excludeWagerCheckBox.managedProperty().bind(excludeWagerCheckBox.visibleProperty());
 
     leaderboardService.getLeaderboards()
         .thenCombine(modService.getFeaturedMods(), (leaderboards, featuredMods) -> {
@@ -213,7 +221,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     seasonRankColumn.setCellFactory(param -> new StringCell<>(rank -> i18n.number(rank.intValue())));
     seasonNameColumn.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().getPlayerLogin()));
     seasonNameColumn.setCellFactory(param -> new StringCell<>(name -> name));
-    seasonPointsColumn.setCellValueFactory(param -> new SimpleIntegerProperty(param.getValue().getScore()));
+    seasonPointsColumn.setCellValueFactory(param -> new SimpleIntegerProperty(displayScore(param.getValue())));
     seasonPointsColumn.setCellFactory(param -> new StringCell<>(lp -> i18n.number(lp.intValue())));
     seasonGamesColumn.setCellValueFactory(param -> new SimpleIntegerProperty(param.getValue().getGames()));
     seasonGamesColumn.setCellFactory(param -> new StringCell<>(count -> i18n.number(count.intValue())));
@@ -284,6 +292,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     boolean lpMode = isLadderPointsMode();
     seasonLadderTable.setVisible(lpMode);
     ratingTable.setVisible(!lpMode);
+    excludeWagerCheckBox.setVisible(lpMode);
     if (!lpMode) {
       seasonComboBox.setVisible(false);       // the season picker + hall of fame belong to the
       hallOfFameTitledPane.setVisible(false); // Season Ladder only
@@ -293,6 +302,33 @@ public class LeaderboardsController extends AbstractViewController<Node> {
 
   private boolean isLadderPointsMode() {
     return preferencesService.getPreferences().getDisplayMetric() != DisplayMetric.RATINGS;
+  }
+
+  /** The LP figure to show + rank on: the stored score, or — when "exclude wager P&amp;L" is on — only
+   * the game-earned portion, since {@code score} already has {@code wagerNet} folded in (V137). */
+  private int displayScore(SeasonStanding standing) {
+    return excludeWagerCheckBox.isSelected() ? standing.getScore() - standing.getWagerNet() : standing.getScore();
+  }
+
+  /** Order rows the way the table should present them. The server ranks by raw score; when the wager
+   * portion is excluded the ordering has to be recomputed client-side, else rank wouldn't match the
+   * LP column. Sort is stable, so equal scores keep the server's tie-break. */
+  private List<SeasonStanding> sortForDisplay(List<SeasonStanding> rows) {
+    if (!excludeWagerCheckBox.isSelected()) {
+      return rows;
+    }
+    return rows.stream()
+        .sorted(Comparator.comparingInt(this::displayScore).reversed())
+        .collect(Collectors.toList());
+  }
+
+  /** Toggling the wager exclusion only changes presentation — re-sort and repaint the rows already
+   * loaded rather than re-fetching the ladder. */
+  public void onExcludeWagerToggled() {
+    preferencesService.getPreferences().setLastLeaderboardExcludeWagerSelection(excludeWagerCheckBox.isSelected());
+    preferencesService.storeInBackground();
+    seasonLadderTable.setItems(observableList(sortForDisplay(seasonLadderRows)));
+    seasonLadderTable.refresh();
   }
 
   private void scrollToSearch(String newValue) {
@@ -509,6 +545,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
             seasonComboBox.setVisible(false);
             seasonTitleLabel.setVisible(false);
             seasonComboBox.getItems().clear();
+            seasonLadderRows = List.of();
             seasonLadderTable.setItems(observableList(List.of()));
             contentPane.setVisible(true);
             return;
@@ -628,7 +665,8 @@ public class LeaderboardsController extends AbstractViewController<Node> {
         if (current) {
           ladderSocialService.detectPasses(technicalName, boardDisplayName, standings);
         }
-        seasonLadderTable.setItems(observableList(rows));
+        seasonLadderRows = rows;
+        seasonLadderTable.setItems(observableList(sortForDisplay(rows)));
         usernamesAutoCompletion = TextFields.bindAutoCompletion(searchTextField,
             rows.stream().map(SeasonStanding::getPlayerLogin).filter(Objects::nonNull).collect(Collectors.toList()));
         usernamesAutoCompletion.setDelay(0);

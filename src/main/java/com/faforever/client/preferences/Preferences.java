@@ -92,6 +92,7 @@ public class Preferences {
   private final ObjectProperty<DisplayMetric> displayMetric = new SimpleObjectProperty<>(DisplayMetric.LADDER_POINTS);
   private final StringProperty lastLeaderboardSelection = new SimpleStringProperty("global");
   private final BooleanProperty lastLeaderboardFriendsOnlySelection = new SimpleBooleanProperty(false);
+  private final BooleanProperty lastLeaderboardExcludeWagerSelection = new SimpleBooleanProperty(false);
   private final StringProperty lastLeaderboardModSelection = new SimpleStringProperty();
   private final ListProperty<String> LeaderBoardsSelectionFilter = new SimpleListProperty<>(observableArrayList());
   private final BooleanProperty gameRoomPopout = new SimpleBooleanProperty(true);
@@ -587,6 +588,14 @@ public class Preferences {
   public void setLastLeaderboardFriendsOnlySelection(boolean selected) { this.lastLeaderboardFriendsOnlySelection.set(selected); }
 
   public BooleanProperty lastLeaderboardFriendsOnlySelection() { return lastLeaderboardFriendsOnlySelection; }
+
+  public Boolean getLastLeaderboardExcludeWagerSelection() {
+    return lastLeaderboardExcludeWagerSelection.get();
+  }
+
+  public void setLastLeaderboardExcludeWagerSelection(boolean selected) { this.lastLeaderboardExcludeWagerSelection.set(selected); }
+
+  public BooleanProperty lastLeaderboardExcludeWagerSelection() { return lastLeaderboardExcludeWagerSelection; }
 
   public String getLastLeaderboardModSelection() {
     return lastLeaderboardModSelection.get();

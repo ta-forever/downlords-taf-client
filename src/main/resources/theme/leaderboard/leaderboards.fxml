@@ -9,6 +9,7 @@
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
@@ -26,6 +27,12 @@
         <ComboBox fx:id="seasonComboBox" onAction="#onSeasonSelected" styleClass="query-filter"
                   visible="false" managed="false"/>
         <CheckBox fx:id="friendsOnlyCheckBox" text="%leaderboard.friendsOnlyOption" onAction="#onLeaderboardSelected"/>
+        <CheckBox fx:id="excludeWagerCheckBox" text="%leaderboard.excludeWagerOption" onAction="#onExcludeWagerToggled"
+                  visible="false" managed="false">
+            <tooltip>
+                <Tooltip text="%leaderboard.excludeWagerOption.tooltip"/>
+            </tooltip>
+        </CheckBox>
         <Button text="%refresh" onAction="#onLeaderboardSelected"/>
         <Label contentDisplay="RIGHT" graphicTextGap="10.0" maxWidth="1.7976931348623157E308">
             <graphic>
