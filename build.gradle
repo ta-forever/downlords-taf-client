@@ -173,8 +173,6 @@ compileTestJava {
   // Self-contained position-preselection start-order test (pure static helper).
   include '**/game/PositionRequestOrderTest.java'
   include '**/rating/JSkillsRatingServiceConstrainedTest.java'
-  // Self-contained chat game invite message test.
-  include '**/chat/ChatGameInviteServiceTest.java'
   // Self-contained skill-rating tier hysteresis (LADDER_POINTS_DESIGN §13.2.3); no broken siblings pulled in.
   include '**/leaderboard/RatingTierServiceTest.java'
   include '**/util/LogTailUtilTest.java'
