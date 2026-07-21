@@ -3,7 +3,6 @@ package com.faforever.client.chat;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.game.Game;
 import com.faforever.client.game.GameInviteUrl;
-import com.faforever.client.i18n.I18n;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.util.ConcurrentUtil;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +25,6 @@ public class ChatGameInviteService {
 
   private final ChatService chatService;
   private final ClientProperties clientProperties;
-  private final I18n i18n;
   private final NotificationService notificationService;
   private final Map<String, Instant> lastInviteTimes = new ConcurrentHashMap<>();
 
@@ -43,12 +41,16 @@ public class ChatGameInviteService {
     lastInviteTimes.put(cooldownKey, Instant.now());
 
     String inviteUrl = GameInviteUrl.build(clientProperties.getWebsite().getBaseUrl(), game.getId());
-    String message = i18n.get("chat.gameInvite.message",
-        valueOrFallback(game.getTitle(), "Untitled game"),
-        valueOrFallback(game.getMapName(), "Unknown map"),
-        game.getNumPlayers(),
-        game.getMaxPlayers(),
-        inviteUrl);
+    String message = "Join my game \""
+        + valueOrFallback(game.getTitle(), "Untitled game")
+        + "\" on "
+        + valueOrFallback(game.getMapName(), "Unknown map")
+        + " ("
+        + game.getNumPlayers()
+        + "/"
+        + game.getMaxPlayers()
+        + " players): "
+        + inviteUrl;
 
     return chatService.sendMessageInBackground(username, message)
         .exceptionally(throwable -> {
