@@ -44,14 +44,14 @@ public class MockWagerService implements WagerService {
   }
 
   @Override
-  public CompletableFuture<List<PricePoint>> getPriceHistory(long marketId, long outcomeId, double b,
-                                                             boolean twoOutcome, int limit) {
-    return CompletableFuture.completedFuture(List.of());
+  public CompletableFuture<PriceHistory> getPriceHistory(long marketId, long outcomeId, double b,
+                                                         boolean twoOutcome, int limit) {
+    return CompletableFuture.completedFuture(new PriceHistory(List.of(), List.of()));
   }
 
   @Override
-  public CompletableFuture<java.util.Optional<ReplayPriceChart>> getWinningOutcomeHistory(int gameId) {
-    return CompletableFuture.completedFuture(java.util.Optional.empty());
+  public CompletableFuture<ReplayWagerSummary> getReplayWagerSummary(int gameId) {
+    return CompletableFuture.completedFuture(new ReplayWagerSummary(java.util.Optional.empty(), List.of()));
   }
 
   @Override

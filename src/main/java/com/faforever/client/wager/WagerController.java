@@ -118,6 +118,7 @@ public class WagerController extends AbstractViewController<Node> {
   public Button sellButton;
   public Label tradeStatusLabel;
   public LineChart<Number, Number> priceChart;
+  public javafx.scene.layout.FlowPane tradeLegend;   // per-trader colour legend under the chart
   public TableView<WagerPositionBean> portfolioTable;
   public TableColumn<WagerPositionBean, String> posGameColumn;
   public TableColumn<WagerPositionBean, WagerPositionBean> posStatusColumn;
@@ -146,6 +147,15 @@ public class WagerController extends AbstractViewController<Node> {
   private WagerOutcomeBean chartOutcome;
   private ChangeListener<Number> chartPriceListener;
   private final List<double[]> chartPoints = new ArrayList<>();   // [epochSeconds, price 0..1]
+  // Human-trade markers on the chart (from the trade log; the bot is filtered service-side).
+  private final List<WagerService.TradeMarker> chartMarkers = new ArrayList<>();
+  // Trader → colour, assigned on first sight and kept for the session so a trader keeps their
+  // colour across outcome switches and games.
+  private final Map<Integer, javafx.scene.paint.Color> traderColors = new HashMap<>();
+  /** Live price ticks are anonymous (the WS deliberately never says WHO traded — bot masking),
+   * so new-trade markers only exist in the trade log; re-fetch it on ticks, at most this often. */
+  private static final long MARKER_REFRESH_MS = 10_000;
+  private long lastHistoryFetchMs;
 
   // Rebuild the team cards when the global Season-Ladder / Skill-Rating pill flips (the card
   // bakes the metric at build time; held strongly so the weak listener isn't collected).
@@ -816,8 +826,10 @@ public class WagerController extends AbstractViewController<Node> {
     }
     chartOutcome = outcome;
     chartPoints.clear();
+    chartMarkers.clear();
     if (outcome == null) {
       priceChart.getData().clear();
+      updateTradeLegend();
       return;
     }
     double now = System.currentTimeMillis() / 1000.0;
@@ -827,28 +839,46 @@ public class WagerController extends AbstractViewController<Node> {
       rebuildChart();
       return;
     }
-    boolean twoOutcome = market.getOutcomes().size() == 2;
-
-    // Derive this outcome's whole price path from the market's trade log (incl. the other
-    // team's trades + reconstructed pre-trade prices) — done in the service.
-    wagerService.getPriceHistory(market.getMarketId(), outcome.getOutcomeId(), market.getLiquidity(), twoOutcome, 500)
-        .thenAccept(points -> JavaFxUtil.runLater(() -> {
-          if (chartOutcome != outcome) {
-            return;                    // selection moved on while we were loading
-          }
-          for (WagerService.PricePoint pt : points) {
-            chartPoints.add(new double[]{pt.epochSeconds(), pt.price()});
-          }
-          rebuildChart();
-        }))
-        .exceptionally(t -> null);
+    loadChartHistory(outcome, market);
 
     chartPriceListener = (obs, oldV, newV) -> JavaFxUtil.runLater(() -> {
       chartPoints.add(new double[]{System.currentTimeMillis() / 1000.0, newV.doubleValue()});
       rebuildChart();
+      // The tick doesn't say who traded; refresh the trade-log-derived markers (debounced) so
+      // the new trade grows a marker once the log has it.
+      WagerMarketBean m = currentMarkets == null || currentMarkets.isEmpty() ? null : currentMarkets.get(0);
+      if (m != null && System.currentTimeMillis() - lastHistoryFetchMs > MARKER_REFRESH_MS) {
+        loadChartHistory(outcome, m);
+      }
     });
     outcome.priceProperty().addListener(chartPriceListener);
     rebuildChart();
+  }
+
+  /** (Re)load the selected outcome's whole price path + human-trade markers from the market's
+   * trade log (incl. the other team's trades + reconstructed pre-trade prices — done in the
+   * service), replacing the accumulated chart state on arrival. */
+  private void loadChartHistory(WagerOutcomeBean outcome, WagerMarketBean market) {
+    lastHistoryFetchMs = System.currentTimeMillis();
+    boolean twoOutcome = market.getOutcomes().size() == 2;
+    wagerService.getPriceHistory(market.getMarketId(), outcome.getOutcomeId(), market.getLiquidity(), twoOutcome, 500)
+        .thenAccept(history -> JavaFxUtil.runLater(() -> {
+          if (chartOutcome != outcome) {
+            return;                    // selection moved on while we were loading
+          }
+          chartPoints.clear();
+          for (WagerService.PricePoint pt : history.points()) {
+            chartPoints.add(new double[]{pt.epochSeconds(), pt.price()});
+          }
+          if (chartPoints.isEmpty()) {
+            // untraded market — keep a current-price point so the flat line still renders
+            chartPoints.add(new double[]{System.currentTimeMillis() / 1000.0, outcome.getPrice()});
+          }
+          chartMarkers.clear();
+          chartMarkers.addAll(history.markers());
+          rebuildChart();
+        }))
+        .exceptionally(t -> null);
   }
 
   /** Game-start epoch (seconds) for the selected live game, or NaN if unknown — the x-axis
@@ -906,7 +936,35 @@ public class WagerController extends AbstractViewController<Node> {
       series.getData().add(new XYChart.Data<>(time, price));
       prevPrice = price;
     }
+    // Human-trade markers: a coloured ▲/▼ per trade, riding on its (already plotted) post-trade
+    // point — a duplicate data point carrying only the symbol node, so the line is unchanged.
+    for (WagerService.TradeMarker marker : chartMarkers) {
+      double time = marker.epochSeconds() - t0;
+      if (time < 0) {
+        continue;
+      }
+      XYChart.Data<Number, Number> data = new XYChart.Data<>(time, marker.price() * 100);
+      data.setNode(WagerChartMarkers.markerNode(marker,
+          WagerChartMarkers.colorFor(traderColors, marker.userId()), markerTooltip(marker)));
+      series.getData().add(data);
+    }
     priceChart.getData().setAll(series);
+    updateTradeLegend();
+  }
+
+  /** Tooltip for one trade marker: who, buy/sell (relative to the displayed outcome), how many
+   * shares, and the price it left the displayed outcome at (0..100). */
+  private String markerTooltip(WagerService.TradeMarker marker) {
+    return i18n.get(marker.up() ? "wager.marker.bought" : "wager.marker.sold",
+        WagerChartMarkers.displayName(marker),
+        String.format("%.2f", marker.shares()),
+        String.format("%.1f", marker.price() * 100));
+  }
+
+  private void updateTradeLegend() {
+    if (tradeLegend != null) {
+      WagerChartMarkers.populateLegend(tradeLegend, chartMarkers, traderColors);
+    }
   }
 
   private void teardownChart() {
@@ -916,9 +974,11 @@ public class WagerController extends AbstractViewController<Node> {
     chartOutcome = null;
     chartPriceListener = null;
     chartPoints.clear();
+    chartMarkers.clear();
     if (priceChart != null) {
       priceChart.getData().clear();
     }
+    updateTradeLegend();
   }
 
   /** A watchlist row: one live game, its board (rating_type), and a display label. */

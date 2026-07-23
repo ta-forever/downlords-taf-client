@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -41,20 +42,26 @@ public class WagerServiceImpl implements WagerService {
   private final FafServerAccessor fafServerAccessor;
   private final PlayerService playerService;
   private final ExecutorService executorService;
+  private final com.faforever.client.config.ClientProperties clientProperties;
 
   private final ObservableList<WagerMarketBean> currentMarkets = FXCollections.observableArrayList();
   private final ConcurrentHashMap<String, CompletableFuture<WagerTradeResult>> pendingTrades = new ConcurrentHashMap<>();
   private final AtomicLong clientRefSeq = new AtomicLong();
+  /** userId → login for trade markers; trades are append-only and names change rarely, so a
+   * session-lifetime cache spares one API roundtrip per chart (re)load. */
+  private final ConcurrentHashMap<Integer, String> traderNames = new ConcurrentHashMap<>();
   private volatile int currentGameId = -1;
   private volatile java.util.function.Consumer<Settlement> settlementListener;
   private volatile java.util.function.Consumer<SubscribeReject> subscribeRejectListener;
 
   public WagerServiceImpl(FafApiAccessor fafApiAccessor, FafServerAccessor fafServerAccessor,
-                          PlayerService playerService, ExecutorService executorService) {
+                          PlayerService playerService, ExecutorService executorService,
+                          com.faforever.client.config.ClientProperties clientProperties) {
     this.fafApiAccessor = fafApiAccessor;
     this.fafServerAccessor = fafServerAccessor;
     this.playerService = playerService;
     this.executorService = executorService;
+    this.clientProperties = clientProperties;
 
     fafServerAccessor.addOnMessageListener(WagerMarketsMessage.class, this::onMarkets);
     fafServerAccessor.addOnMessageListener(WagerPriceMessage.class, this::onPrice);
@@ -127,17 +134,21 @@ public class WagerServiceImpl implements WagerService {
   }
 
   @Override
-  public CompletableFuture<List<PricePoint>> getPriceHistory(long marketId, long outcomeId, double b,
-                                                             boolean twoOutcome, int limit) {
+  public CompletableFuture<PriceHistory> getPriceHistory(long marketId, long outcomeId, double b,
+                                                         boolean twoOutcome, int limit) {
     return CompletableFuture.supplyAsync(() -> priceHistorySync(marketId, outcomeId, b, twoOutcome, limit),
         executorService);
   }
 
   /** Synchronous core of {@link #getPriceHistory}: one outcome's price path from the market's
-   * trade log. Shared with {@link #getWinningOutcomeHistory} so it can chain off one async hop. */
-  private List<PricePoint> priceHistorySync(long marketId, long outcomeId, double b,
-                                            boolean twoOutcome, int limit) {
+   * trade log, plus a {@link TradeMarker} per human trade (the model-maker bot's trades move the
+   * line but are anonymous by design — no marker). Shared with {@link #getReplayWagerSummary}
+   * so it can chain off one async hop. */
+  private PriceHistory priceHistorySync(long marketId, long outcomeId, double b,
+                                        boolean twoOutcome, int limit) {
+    int botUserId = clientProperties.getWager().getBotUserId();
     List<PricePoint> points = new ArrayList<>();
+    List<TradeMarker> markers = new ArrayList<>();
     for (com.faforever.client.api.dto.WagerTrade t : fafApiAccessor.getWagerTradesForMarket(marketId, limit)) {
       if (t.getCreatedAt() == null) {
         continue;
@@ -161,35 +172,135 @@ public class WagerServiceImpl implements WagerService {
       }
       points.add(new PricePoint(epoch - 1, pre));   // just before the trade
       points.add(new PricePoint(epoch, post));       // after the trade
+      if (botUserId == 0 || t.getUserId() != botUserId) {
+        // Tick direction relative to the DISPLAYED outcome: buying the other 2-team outcome is
+        // a down-tick on this line. post == pre (deadband-rounded no-op) keeps the buy/sell sense
+        // of the trade itself.
+        boolean up = post != pre ? post > pre : (t.getDeltaShares() > 0) == (t.getOutcomeId() == outcomeId);
+        markers.add(new TradeMarker(epoch, post, t.getUserId(), null, up, Math.abs(t.getDeltaShares())));
+      }
     }
-    return points;
+    return new PriceHistory(points, resolveTraderNames(markers));
+  }
+
+  /** Fill in {@link TradeMarker#userName()} for all markers in one batched player lookup
+   * (session-cached). A user whose lookup fails keeps a null name (UI falls back to "#id"). */
+  private List<TradeMarker> resolveTraderNames(List<TradeMarker> markers) {
+    Map<Integer, String> names = resolveNames(markers.stream().map(TradeMarker::userId).toList());
+    return markers.stream()
+        .map(m -> new TradeMarker(m.epochSeconds(), m.price(), m.userId(),
+            names.get(m.userId()), m.up(), m.shares()))
+        .collect(Collectors.toList());
+  }
+
+  /** userId → login for the given ids, via the session cache with one batched API lookup for
+   * the misses. Ids whose lookup fails are simply absent from the returned map. */
+  private Map<Integer, String> resolveNames(java.util.Collection<Integer> userIds) {
+    List<Integer> unknown = userIds.stream()
+        .distinct()
+        .filter(id -> !traderNames.containsKey(id))
+        .toList();
+    if (!unknown.isEmpty()) {
+      try {
+        for (com.faforever.client.api.dto.Player player : fafApiAccessor.getPlayersByIds(unknown)) {
+          if (player.getId() != null && player.getLogin() != null) {
+            traderNames.put(Integer.parseInt(player.getId()), player.getLogin());
+          }
+        }
+      } catch (Exception e) {
+        log.warn("Could not resolve wager trader names", e);
+      }
+    }
+    return traderNames;
   }
 
   @Override
-  public CompletableFuture<Optional<WagerService.ReplayPriceChart>> getWinningOutcomeHistory(int gameId) {
+  public CompletableFuture<ReplayWagerSummary> getReplayWagerSummary(int gameId) {
     return CompletableFuture.supplyAsync(() -> {
-      for (com.faforever.client.api.dto.WagerMarket market : fafApiAccessor.getWagerMarketsForGame(gameId)) {
-        if (!"TEAM_WIN".equals(market.getMarketType()) || market.getOutcomes() == null) {
+      List<com.faforever.client.api.dto.WagerMarket> markets = fafApiAccessor.getWagerMarketsForGame(gameId);
+      return new ReplayWagerSummary(winningOutcomeChart(markets), traderPnls(markets));
+    }, executorService);
+  }
+
+  /** The eventual winner's price path over the game's TEAM_WIN market (replay-detail chart),
+   * or empty when there's no settled winner or the market never traded. */
+  private Optional<WagerService.ReplayPriceChart> winningOutcomeChart(
+      List<com.faforever.client.api.dto.WagerMarket> markets) {
+    for (com.faforever.client.api.dto.WagerMarket market : markets) {
+      if (!"TEAM_WIN".equals(market.getMarketType()) || market.getOutcomes() == null) {
+        continue;
+      }
+      com.faforever.client.api.dto.WagerOutcome winner = market.getOutcomes().stream()
+          .filter(o -> Boolean.TRUE.equals(o.getIsWinner()))
+          .findFirst()
+          .orElse(null);
+      if (winner == null) {
+        continue;                 // no decided winner (unsettled / voided) -> no line to draw
+      }
+      boolean twoOutcome = market.getOutcomes().size() == 2;
+      PriceHistory history = priceHistorySync(Long.parseLong(market.getId()),
+          Long.parseLong(winner.getId()), market.getLiquidity(), twoOutcome, 1000);
+      if (history.points().isEmpty()) {
+        continue;                 // market never traded -> nothing to chart
+      }
+      String label = WagerLabels.outcomeLabel(market.getMarketType(), winner.getOutcomeKey(), winner.getLabel());
+      return Optional.of(new WagerService.ReplayPriceChart(label, history.points(), history.markers()));
+    }
+    return Optional.empty();
+  }
+
+  /** Every human trader's realised LP P&amp;L over a game's RESOLVED markets, best-first,
+   * replayed from the trade log with the server's settlement math (markets.py): a settled
+   * market pays {@code round(finalShares × payout)} per winning outcome (positive payouts
+   * only) against everything paid in (cost + fees); a voided market refunds the cost basis,
+   * leaving −fees. Open/closed (unresolved) markets and the bot are skipped. */
+  private List<TraderPnl> traderPnls(List<com.faforever.client.api.dto.WagerMarket> markets) {
+    int botUserId = clientProperties.getWager().getBotUserId();
+    Map<Integer, Long> pnlByUser = new java.util.LinkedHashMap<>();
+    for (com.faforever.client.api.dto.WagerMarket market : markets) {
+      boolean settled = "SETTLED".equals(market.getStatus());
+      boolean voided = "VOIDED".equals(market.getStatus());
+      if (!settled && !voided) {
+        continue;
+      }
+      java.util.Set<Long> winningOutcomeIds = !settled || market.getOutcomes() == null ? java.util.Set.of()
+          : market.getOutcomes().stream()
+              .filter(o -> Boolean.TRUE.equals(o.getIsWinner()))
+              .map(o -> Long.parseLong(o.getId()))
+              .collect(Collectors.toSet());
+      // Per user: LP paid in (cost + fees), cost basis (cost only), final shares per outcome.
+      Map<Integer, long[]> paidAndCost = new java.util.LinkedHashMap<>();          // [paid, cost]
+      Map<Integer, Map<Long, Double>> sharesByOutcome = new java.util.HashMap<>();
+      for (com.faforever.client.api.dto.WagerTrade t
+          : fafApiAccessor.getWagerTradesForMarket(Long.parseLong(market.getId()), 1000)) {
+        if (botUserId != 0 && t.getUserId() == botUserId) {
           continue;
         }
-        com.faforever.client.api.dto.WagerOutcome winner = market.getOutcomes().stream()
-            .filter(o -> Boolean.TRUE.equals(o.getIsWinner()))
-            .findFirst()
-            .orElse(null);
-        if (winner == null) {
-          continue;                 // no decided winner (unsettled / voided) -> no line to draw
-        }
-        boolean twoOutcome = market.getOutcomes().size() == 2;
-        List<PricePoint> points = priceHistorySync(Long.parseLong(market.getId()),
-            Long.parseLong(winner.getId()), market.getLiquidity(), twoOutcome, 1000);
-        if (points.isEmpty()) {
-          continue;                 // market never traded -> nothing to chart
-        }
-        String label = WagerLabels.outcomeLabel(market.getMarketType(), winner.getOutcomeKey(), winner.getLabel());
-        return Optional.of(new WagerService.ReplayPriceChart(label, points));
+        long[] acc = paidAndCost.computeIfAbsent(t.getUserId(), id -> new long[2]);
+        acc[0] += t.getCostLp() + t.getFeeLp();
+        acc[1] += t.getCostLp();
+        sharesByOutcome.computeIfAbsent(t.getUserId(), id -> new java.util.HashMap<>())
+            .merge(t.getOutcomeId(), t.getDeltaShares(), Double::sum);
       }
-      return Optional.<WagerService.ReplayPriceChart>empty();
-    }, executorService);
+      paidAndCost.forEach((userId, acc) -> {
+        long pnl;
+        if (voided) {
+          pnl = acc[1] - acc[0];    // refund-at-cost: all that's lost is the fees
+        } else {
+          long payout = sharesByOutcome.getOrDefault(userId, Map.of()).entrySet().stream()
+              .filter(e -> winningOutcomeIds.contains(e.getKey()))
+              .mapToLong(e -> Math.max(0, Math.round(e.getValue() * SHARE_PAYOUT_LP)))
+              .sum();
+          pnl = payout - acc[0];
+        }
+        pnlByUser.merge(userId, pnl, Long::sum);
+      });
+    }
+    Map<Integer, String> names = resolveNames(pnlByUser.keySet());
+    return pnlByUser.entrySet().stream()
+        .map(e -> new TraderPnl(e.getKey(), names.get(e.getKey()), e.getValue()))
+        .sorted(java.util.Comparator.comparingLong(TraderPnl::pnlLp).reversed())
+        .collect(Collectors.toList());
   }
 
   private WagerPositionBean toPositionBean(WagerPosition p) {

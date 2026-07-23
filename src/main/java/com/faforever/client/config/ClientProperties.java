@@ -40,6 +40,7 @@ public class ClientProperties {
   private boolean showLegacyRating = true;
   private Map<String, String> links = new HashMap<>();
   private GalacticWar galacticWar = new GalacticWar();
+  private Wager wager = new Wager();
 
   @Data
   public static class News {
@@ -193,5 +194,16 @@ public class ClientProperties {
      * URL to fetch the latest GW state from
      */
     private String url;
+  }
+
+  @Data
+  public static class Wager {
+    /**
+     * User id of the house model-maker bot (the server's WAGER_BOT_USER_ID / the DB's
+     * wager_config.bot_user_id, not exposed via the API). Its trades shape the price line but
+     * are excluded from the per-trade "who traded" markers on the price charts. 0 disables the
+     * filter (every trade gets a marker).
+     */
+    private int botUserId = 522;
   }
 }

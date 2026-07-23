@@ -111,6 +111,10 @@ public class ReplayDetailController implements Controller<Node> {
   public javafx.scene.control.TitledPane wagerChartPane;
   public javafx.scene.chart.LineChart<Number, Number> wagerPriceChart;
   public Label wagerChartPlaceholder;
+  /** Per-trader colour legend for the trade markers on {@link #wagerPriceChart}. */
+  public javafx.scene.layout.FlowPane wagerChartLegend;
+  /** Per-trader realised P&amp;L over the game's resolved markets (header + one row each). */
+  public javafx.scene.layout.VBox wagerPnlBox;
   /** Root node of the included Season Ladder ⇄ Skill Rating pill; hidden for unranked (global /
    * hidden) boards, where neither metric is meaningful. Injected by the {@code fx:include}. */
   public Node displayMetricToggle;
@@ -359,8 +363,9 @@ public class ReplayDetailController implements Controller<Node> {
     populateWagerChart(replay.getId());
   }
 
-  /** Charts the eventual winner's implied probability over the game, if it had a priced market.
-   * The pane is always visible (collapsed); it shows a placeholder when there was no market. */
+  /** Charts the eventual winner's implied probability over the game (with per-trade markers),
+   * plus each trader's realised P&amp;L over the game's markets, if it had any. The pane is
+   * always visible (collapsed); it shows a placeholder when there was no market. */
   private void populateWagerChart(int gameId) {
     if (wagerChartPane == null) {
       return;
@@ -368,11 +373,24 @@ public class ReplayDetailController implements Controller<Node> {
     wagerPriceChart.getData().clear();
     wagerPriceChart.setVisible(false);
     wagerPriceChart.setManaged(false);
+    if (wagerChartLegend != null) {
+      wagerChartLegend.getChildren().clear();
+      wagerChartLegend.setVisible(false);
+      wagerChartLegend.setManaged(false);
+    }
+    if (wagerPnlBox != null) {
+      wagerPnlBox.getChildren().clear();
+      wagerPnlBox.setVisible(false);
+      wagerPnlBox.setManaged(false);
+    }
     wagerChartPlaceholder.setText(i18n.get("replay.wagerChart.none"));
     wagerChartPlaceholder.setVisible(true);
     wagerChartPlaceholder.setManaged(true);
-    wagerService.getWinningOutcomeHistory(gameId)
-        .thenAccept(chart -> JavaFxUtil.runLater(() -> chart.ifPresent(this::renderWagerChart)))
+    wagerService.getReplayWagerSummary(gameId)
+        .thenAccept(summary -> JavaFxUtil.runLater(() -> {
+          summary.chart().ifPresent(this::renderWagerChart);
+          renderWagerPnl(summary.traderPnls());
+        }))
         .exceptionally(throwable -> {
           log.warn("Could not load wager price history for game {}", gameId, throwable);
           return null;
@@ -422,11 +440,55 @@ public class ReplayDetailController implements Controller<Node> {
         series.getData().add(new javafx.scene.chart.XYChart.Data<>(endMin, lastPoint.price()));
       }
     }
+    // Human-trade markers: a coloured ▲/▼ per trade riding on its (already plotted) post-trade
+    // point — a duplicate data point carrying only the symbol node, so the line is unchanged.
+    Map<Integer, javafx.scene.paint.Color> traderColors = new java.util.HashMap<>();
+    for (com.faforever.client.wager.WagerService.TradeMarker marker : chart.markers()) {
+      double time = (marker.epochSeconds() - startEpoch) / 60.0;
+      String tooltip = i18n.get(marker.up() ? "wager.marker.bought" : "wager.marker.sold",
+          com.faforever.client.wager.WagerChartMarkers.displayName(marker),
+          String.format("%.2f", marker.shares()),
+          String.format("%.1f", marker.price() * 100));
+      javafx.scene.chart.XYChart.Data<Number, Number> data =
+          new javafx.scene.chart.XYChart.Data<>(time, marker.price());
+      data.setNode(com.faforever.client.wager.WagerChartMarkers.markerNode(marker,
+          com.faforever.client.wager.WagerChartMarkers.colorFor(traderColors, marker.userId()), tooltip));
+      series.getData().add(data);
+    }
     wagerPriceChart.getData().add(series);
+    if (wagerChartLegend != null) {
+      com.faforever.client.wager.WagerChartMarkers.populateLegend(wagerChartLegend, chart.markers(), traderColors);
+    }
     wagerChartPlaceholder.setVisible(false);
     wagerChartPlaceholder.setManaged(false);
     wagerPriceChart.setVisible(true);
     wagerPriceChart.setManaged(true);
+  }
+
+  /** One row per trader: their realised LP over all of this game's resolved markets, best-first,
+   * profit green / loss red (portfolio colour conventions). Nothing resolved → box stays hidden. */
+  private void renderWagerPnl(List<com.faforever.client.wager.WagerService.TraderPnl> pnls) {
+    if (wagerPnlBox == null || pnls.isEmpty()) {
+      return;
+    }
+    wagerPnlBox.getChildren().clear();
+    Label header = new Label(i18n.get("replay.wagerPnl.title"));
+    header.setStyle("-fx-font-weight: bold;");
+    wagerPnlBox.getChildren().add(header);
+    for (com.faforever.client.wager.WagerService.TraderPnl pnl : pnls) {
+      Label name = new Label(pnl.userName() != null ? pnl.userName() : "#" + pnl.userId());
+      Pane spacer = new Pane();
+      javafx.scene.layout.HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
+      Label value = new Label(i18n.get("replay.wagerPnl.lp", String.format("%+d", pnl.pnlLp())));
+      value.setStyle("-fx-font-weight: bold; -fx-text-fill: "
+          + (pnl.pnlLp() >= 0 ? "#26a65b" : "#cb4b16") + ";");
+      wagerPnlBox.getChildren().add(new javafx.scene.layout.HBox(8, name, spacer, value));
+    }
+    wagerPnlBox.setVisible(true);
+    wagerPnlBox.setManaged(true);
+    // There was market activity to show, even if the winner's line itself isn't chartable.
+    wagerChartPlaceholder.setVisible(false);
+    wagerChartPlaceholder.setManaged(false);
   }
 
   @VisibleForTesting

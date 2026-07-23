@@ -15,6 +15,7 @@
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.RowConstraints?>
@@ -182,6 +183,12 @@
                                              lowerBound="0.0" upperBound="1.0" tickUnit="0.25" side="LEFT"/>
                                </yAxis>
                              </LineChart>
+                             <!-- per-trader colour legend for the ▲/▼ trade markers on the chart -->
+                             <FlowPane fx:id="wagerChartLegend" hgap="12.0" vgap="4.0" alignment="CENTER"
+                                       visible="false" managed="false"/>
+                             <!-- per-trader realised P&L over the game's resolved markets -->
+                             <VBox fx:id="wagerPnlBox" spacing="2.0" maxWidth="360.0"
+                                   visible="false" managed="false"/>
                            </VBox>
                          </TitledPane>
                          <HBox alignment="CENTER_RIGHT">
