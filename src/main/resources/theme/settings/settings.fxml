@@ -159,27 +159,6 @@
                                                         onAction="#onReinstallLatest" GridPane.columnIndex="1"/>
                                             </children>
                                         </GridPane>
-                                        <GridPane styleClass="setting-container">
-                                            <columnConstraints>
-                                                <ColumnConstraints hgrow="ALWAYS" minWidth="10.0"/>
-                                                <ColumnConstraints minWidth="10.0"/>
-                                            </columnConstraints>
-                                            <rowConstraints>
-                                                <RowConstraints minHeight="10.0" valignment="TOP" vgrow="SOMETIMES"/>
-                                                <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
-                                            </rowConstraints>
-                                            <children>
-                                                <Label styleClass="setting-title"
-                                                       text="%settings.general.testDownloads" wrapText="true"/>
-                                                <Label styleClass="setting-description"
-                                                       text="%settings.general.testDownloads.description"
-                                                       GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS"
-                                                       GridPane.rowIndex="1"/>
-                                                <Button fx:id="testDownloadsButton"
-                                                        text="%settings.general.testDownloads.button"
-                                                        onAction="#onTestDownloads" GridPane.columnIndex="1"/>
-                                            </children>
-                                        </GridPane>
                                     </children>
                                 </VBox>
                             </content>
@@ -1434,6 +1413,73 @@
                                 <VBox prefWidth="200.0" rotate="90.0">
                                     <children>
                                         <Label styleClass="tab-label" text="%settings.data"/>
+                                    </children>
+                                </VBox>
+                            </children>
+                        </Group>
+                    </graphic>
+                </Tab>
+                <!-- Debugging: developer tools, only shown on snapshot (non-release) builds —
+                     SettingsController removes this tab at runtime otherwise -->
+                <Tab fx:id="debuggingTab">
+                    <content>
+                        <ScrollPane fitToWidth="true" maxHeight="1.7976931348623157E308"
+                                    maxWidth="1.7976931348623157E308">
+                            <content>
+                                <VBox styleClass="view-content">
+                                    <children>
+                                        <GridPane styleClass="setting-container">
+                                            <columnConstraints>
+                                                <ColumnConstraints hgrow="ALWAYS" minWidth="10.0"/>
+                                                <ColumnConstraints minWidth="10.0"/>
+                                            </columnConstraints>
+                                            <rowConstraints>
+                                                <RowConstraints minHeight="10.0" valignment="TOP" vgrow="SOMETIMES"/>
+                                                <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
+                                            </rowConstraints>
+                                            <children>
+                                                <Label styleClass="setting-title"
+                                                       text="%settings.general.testDownloads" wrapText="true"/>
+                                                <Label styleClass="setting-description"
+                                                       text="%settings.general.testDownloads.description"
+                                                       GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS"
+                                                       GridPane.rowIndex="1"/>
+                                                <Button fx:id="testDownloadsButton"
+                                                        text="%settings.general.testDownloads.button"
+                                                        onAction="#onTestDownloads" GridPane.columnIndex="1"/>
+                                            </children>
+                                        </GridPane>
+                                        <GridPane styleClass="setting-container">
+                                            <columnConstraints>
+                                                <ColumnConstraints hgrow="ALWAYS" minWidth="10.0"/>
+                                                <ColumnConstraints minWidth="10.0"/>
+                                            </columnConstraints>
+                                            <rowConstraints>
+                                                <RowConstraints minHeight="10.0" valignment="TOP" vgrow="SOMETIMES"/>
+                                                <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
+                                            </rowConstraints>
+                                            <children>
+                                                <Label styleClass="setting-title"
+                                                       text="%settings.debugging.gwSplash" wrapText="true"/>
+                                                <Label styleClass="setting-description"
+                                                       text="%settings.debugging.gwSplash.description"
+                                                       GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS"
+                                                       GridPane.rowIndex="1"/>
+                                                <Button text="%settings.debugging.gwSplash.button"
+                                                        onAction="#onTestGwVictorySplash" GridPane.columnIndex="1"/>
+                                            </children>
+                                        </GridPane>
+                                    </children>
+                                </VBox>
+                            </content>
+                        </ScrollPane>
+                    </content>
+                    <graphic>
+                        <Group>
+                            <children>
+                                <VBox prefWidth="200.0" rotate="90.0">
+                                    <children>
+                                        <Label styleClass="tab-label" text="%settings.debugging"/>
                                     </children>
                                 </VBox>
                             </children>

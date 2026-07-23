@@ -98,7 +98,11 @@ public class GalacticWarService implements InitializingBean {
             Scenario scenario = Scenario.fromFile(targetPath);
             scenarios.put(scenario.getTechnicalName(), scenario);
             if (scenario.getLastGalaxyWinner() != null) {
-              eventBus.post(new GalacticWarWinnerChangedEvent(scenario.getLastGalaxyWinner()));
+              eventBus.post(new GalacticWarWinnerChangedEvent(
+                  scenario.getTechnicalName(),
+                  scenario.getDisplayName(),
+                  scenario.getLastGalaxyWinner(),
+                  scenario.getIteration() != null ? scenario.getIteration() : 1));
             }
             return scenario;
           } catch (Exception e) {
@@ -114,6 +118,20 @@ public class GalacticWarService implements InitializingBean {
               idsToFetch.add(key);
               return new SimpleStringProperty("Loading...");
             });
+          }
+          // Also resolve past wars' top contributors so the Hall of Victors and the
+          // victory splash honours panel can show names
+          if (scenario.getHistory() != null) {
+            scenario.getHistory().stream()
+                .filter(entry -> entry.getTopContributors() != null)
+                .flatMap(entry -> entry.getTopContributors().values().stream())
+                .flatMap(java.util.List::stream)
+                .map(Scenario.Contributor::getPlayerId)
+                .filter(java.util.Objects::nonNull)
+                .forEach(id -> playerNames.computeIfAbsent(id, key -> {
+                  idsToFetch.add(key);
+                  return new SimpleStringProperty("Loading...");
+                }));
           }
           if (idsToFetch.isEmpty()) {
             return CompletableFuture.completedFuture(scenario);
@@ -141,6 +159,18 @@ public class GalacticWarService implements InitializingBean {
 
   Scenario getScenario(String galaxyTechnicalName) {
     return scenarios.getOrDefault(galaxyTechnicalName, null);
+  }
+
+  /** One-shot request (snapshot-build debugging) for the GW view to preview the victory splash. */
+  private final java.util.concurrent.atomic.AtomicReference<com.faforever.client.game.Faction>
+      debugVictorySplashRequest = new java.util.concurrent.atomic.AtomicReference<>();
+
+  public void requestDebugVictorySplash(com.faforever.client.game.Faction faction) {
+    debugVictorySplashRequest.set(faction);
+  }
+
+  public Optional<com.faforever.client.game.Faction> consumeDebugVictorySplashRequest() {
+    return Optional.ofNullable(debugVictorySplashRequest.getAndSet(null));
   }
 
   /** Returns a map of galaxy technical name → display name for all loaded scenarios. */

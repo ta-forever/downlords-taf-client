@@ -10,7 +10,9 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.layout.Region?>
+<?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.ProgressIndicator?>
+<?import javafx.scene.image.ImageView?>
 <StackPane xmlns:fx="http://javafx.com/fxml/1"
            xmlns="http://javafx.com/javafx/8.0.141"
            fx:id="rootPane"
@@ -32,6 +34,9 @@
             <!-- LEFT: Leaderboard -->
             <VBox spacing="6" minWidth="48" maxWidth="400" prefWidth="280" VBox.vgrow="ALWAYS" maxHeight="Infinity">
                 <Label fx:id="leaderboardTitle" text="%leaderboard.displayName" styleClass="h1"/>
+                <CheckBox fx:id="leaderboardWarXpToggle"
+                          text="%galacticWar.leaderboard.thisWar"
+                          onAction="#onLeaderboardXpModeToggled"/>
                 <ScrollPane fitToWidth="true"
                             fitToHeight="true"
                             VBox.vgrow="ALWAYS">
@@ -52,6 +57,8 @@
 
                     <javafx.scene.layout.HBox spacing="6" StackPane.alignment="TOP_RIGHT"
                                               pickOnBounds="false" maxWidth="-Infinity">
+                        <Button text="%galacticWar.hallOfVictors"
+                                onAction="#onHallOfVictorsButtonPressed"/>
                         <Button text="%galacticWar.guide"
                                 onAction="#onGuideButtonPressed"/>
                         <Button text="%galacticWar.settings"
@@ -79,4 +86,30 @@
             <ProgressIndicator maxWidth="80" maxHeight="80"/>
         </graphic>
     </Label>
+
+    <!-- Victory splash overlay: shown once per galaxy iteration when the war has been won.
+         Backdrop art is chosen per winning faction by the controller; the translucent
+         Region keeps title text readable over the art. -->
+    <StackPane fx:id="victoryOverlay"
+               visible="false"
+               style="-fx-background-color: black;">
+        <ImageView fx:id="victoryBackgroundImage"/>
+        <Region style="-fx-background-color: rgba(0,0,0,0.35);"/>
+        <VBox alignment="CENTER" spacing="18" maxWidth="700">
+            <ImageView fx:id="victoryFactionImage" fitWidth="200" preserveRatio="true"/>
+            <Label fx:id="victoryTitle"
+                   wrapText="true" textAlignment="CENTER"
+                   style="-fx-font-size: 2.4em; -fx-font-weight: bold; -fx-text-fill: white;"/>
+            <Label fx:id="victorySubtitle"
+                   wrapText="true" textAlignment="CENTER"
+                   style="-fx-font-size: 1.2em; -fx-text-fill: #cccccc;"/>
+            <Label fx:id="victoryMvps"
+                   wrapText="true" textAlignment="CENTER"
+                   style="-fx-text-fill: #cccccc;"/>
+            <!-- Per-faction top-5 placements with medal markers; populated in code -->
+            <javafx.scene.layout.HBox fx:id="victoryHonours" alignment="CENTER" spacing="56"/>
+            <Button text="%galacticWar.victory.dismiss"
+                    onAction="#onVictoryDismissed"/>
+        </VBox>
+    </StackPane>
 </StackPane>

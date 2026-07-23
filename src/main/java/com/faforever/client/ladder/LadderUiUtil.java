@@ -57,6 +57,14 @@ public final class LadderUiUtil {
       .concat(SNIPER_MEDAL_CODES.stream(), java.util.stream.Stream.of(MASS_PRODUCER, ACE))
       .collect(java.util.stream.Collectors.toUnmodifiableList());
 
+  /** Galactic War end-of-war medals, granted by the lobby server at scenario rollover (db V141):
+   * gw_conqueror for the winning faction's top contributors, gw_last_stand for the top
+   * contributors of each defeated faction. (The gw_ prefix keeps gw_last_stand distinct from
+   * the per-game last_stand LP medal.) */
+  public static final String GW_CONQUEROR = "gw_conqueror";
+  public static final String GW_LAST_STAND = "gw_last_stand";
+  public static final List<String> GW_MEDAL_CODES = List.of(GW_CONQUEROR, GW_LAST_STAND);
+
   /** A cabinet display tier: a localized header key + the medal codes in it. The Medal Cabinet
    * lays the still-to-earn medals out under these labelled tiers (earned medals are shown first,
    * in their own section). */
@@ -69,7 +77,8 @@ public final class LadderUiUtil {
       new MedalClass("medal.class.achievement", ACHIEVEMENT_MEDAL_CODES),
       new MedalClass("medal.class.podium", List.of(SEASON_GOLD, SEASON_SILVER, SEASON_BRONZE)),
       new MedalClass("medal.class.percentile", List.of(SEASON_TOP10, SEASON_TOP33)),
-      new MedalClass("medal.class.tournament", TOURNAMENT_MEDAL_CODES));
+      new MedalClass("medal.class.tournament", TOURNAMENT_MEDAL_CODES),
+      new MedalClass("medal.class.galacticWar", GW_MEDAL_CODES));
 
   /** Theme-relative path to a medal's icon. Every medal now has dedicated art under
    * theme/images/medals/&lt;code&gt;.png (the SVG + Krea-2 badge set, tools/medals/). Podium

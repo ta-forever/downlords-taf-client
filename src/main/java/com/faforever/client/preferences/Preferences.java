@@ -97,6 +97,12 @@ public class Preferences {
   private final ListProperty<String> LeaderBoardsSelectionFilter = new SimpleListProperty<>(observableArrayList());
   private final BooleanProperty gameRoomPopout = new SimpleBooleanProperty(true);
   private final StringProperty galacticWarInitialGalaxy = new SimpleStringProperty("");
+  /** Per galaxy technical name: latest scenario iteration for which a victory notification was already shown. */
+  private final MapProperty<String, Integer> galacticWarNotifiedIterations = new SimpleMapProperty<>(FXCollections.observableHashMap());
+  /** Per galaxy technical name: latest scenario iteration for which the in-tab victory splash was dismissed. */
+  private final MapProperty<String, Integer> galacticWarCelebratedIterations = new SimpleMapProperty<>(FXCollections.observableHashMap());
+  /** GW leaderboard mode: false = career XP (default), true = XP earned in the current war only. */
+  private final BooleanProperty galacticWarLeaderboardThisWar = new SimpleBooleanProperty(false);
 
   private Preferences() {
     // Only for Gson
@@ -632,4 +638,11 @@ public class Preferences {
   public String getGalacticWarInitialGalaxy() { return galacticWarInitialGalaxy.get(); }
   public void setGalacticWarInitialGalaxy(String galacticWarInitialGalaxy) { this.galacticWarInitialGalaxy.set(galacticWarInitialGalaxy); }
   public StringProperty galacticWarInitialGalaxyProperty() { return galacticWarInitialGalaxy; }
+
+  public ObservableMap<String, Integer> getGalacticWarNotifiedIterations() { return galacticWarNotifiedIterations.get(); }
+  public ObservableMap<String, Integer> getGalacticWarCelebratedIterations() { return galacticWarCelebratedIterations.get(); }
+
+  public boolean isGalacticWarLeaderboardThisWar() { return galacticWarLeaderboardThisWar.get(); }
+  public void setGalacticWarLeaderboardThisWar(boolean thisWar) { this.galacticWarLeaderboardThisWar.set(thisWar); }
+  public BooleanProperty galacticWarLeaderboardThisWarProperty() { return galacticWarLeaderboardThisWar; }
 }

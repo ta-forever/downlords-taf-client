@@ -29,6 +29,39 @@ public class Scenario {
   @SerializedName("players")
   Map<Integer, Map<String, GwPlayerScore>> players;
 
+  /**
+   * Career totals as of the START of this galaxy (only refreshed at rollover). The
+   * `players` entries are pre-seeded from these career totals when a player first fights
+   * in a galaxy, so XP earned in the current war = players − lifetimePlayers baseline.
+   */
+  @SerializedName("lifetime_players")
+  Map<Integer, Map<String, GwPlayerScore>> lifetimePlayers;
+
+  /** XP/W/L earned in the current war only: `players` entry minus the start-of-war baseline. */
+  public GwPlayerScore getCurrentWarScore(Integer playerId, String factionName, GwPlayerScore careerScore) {
+    if (careerScore == null) {
+      return GwPlayerScore.EMPTY_SCORE;
+    }
+    GwPlayerScore baseline = lifetimePlayers == null ? null
+        : lifetimePlayers.getOrDefault(playerId, Map.of()).get(factionName);
+    if (baseline == null) {
+      return careerScore;
+    }
+    return new GwPlayerScore(
+        nz(careerScore.getWins()) - nz(baseline.getWins()),
+        nz(careerScore.getCumWinningScores()) - nz(baseline.getCumWinningScores()),
+        nz(careerScore.getLosses()) - nz(baseline.getLosses()),
+        nz(careerScore.getCumLosingScores()) - nz(baseline.getCumLosingScores()));
+  }
+
+  private static int nz(Integer value) {
+    return value != null ? value : 0;
+  }
+
+  private static float nz(Float value) {
+    return value != null ? value : 0.0f;
+  }
+
   @SerializedName("technical_name")
   String technicalName = "galaxy";
 
@@ -76,6 +109,57 @@ public class Scenario {
 
   @SerializedName("planet_adj_min_max")
   List<Double> planetAdjMinMax;
+
+  /** Past wars in this galaxy, oldest first. Appended by the server at each scenario rollover. */
+  @SerializedName("history")
+  List<HistoryEntry> history;
+
+  @Getter
+  @NoArgsConstructor
+  public static class HistoryEntry {
+    @SerializedName("iteration")
+    Integer iteration;
+
+    @SerializedName("label")
+    String label;
+
+    /** Winning faction name (lowercase, e.g. "arm"), or null if the war ended without a victor. */
+    @SerializedName("winner")
+    String winner;
+
+    @SerializedName("started_at")
+    String startedAt;
+
+    @SerializedName("ended_at")
+    String endedAt;
+
+    /** Top contributors per faction (best first, up to 10), keyed by faction name. */
+    @SerializedName("top_contributors")
+    Map<String, List<Contributor>> topContributors;
+
+    /** Medal cutoffs in force at rollover, keyed by medal code (gw_conqueror, gw_last_stand). */
+    @SerializedName("medal_counts")
+    Map<String, Integer> medalCounts;
+
+    /** Number of contributing players per faction, keyed by faction name. */
+    @SerializedName("participants")
+    Map<String, Integer> participants;
+  }
+
+  @Getter
+  @NoArgsConstructor
+  public static class Contributor {
+    @SerializedName("player_id")
+    Integer playerId;
+
+    @SerializedName("score")
+    Float score;
+
+    public Contributor(Integer playerId, Float score) {
+      this.playerId = playerId;
+      this.score = score;
+    }
+  }
 
   static public Scenario fromFile(Path path) throws IOException {
     return new Gson().fromJson(Files.newBufferedReader(path), Scenario.class);

@@ -63,6 +63,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Spinner;
+import javafx.scene.control.Tab;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
@@ -116,6 +117,7 @@ public class SettingsController implements Controller<Node> {
   private final ClientUpdateService clientUpdateService;
   private final ModService modService;
   private final UpdateDiagnosticsService updateDiagnosticsService;
+  private final com.faforever.client.galacticwar.GalacticWarService galacticWarService;
 
   public TextField executableDecoratorField;
   public TextField executionDirectoryField;
@@ -202,6 +204,7 @@ public class SettingsController implements Controller<Node> {
   public CheckBox debugLogToggle;
   public Button reinstallLatestButton;
   public Button testDownloadsButton;
+  public Tab debuggingTab;
 
   private final InvalidationListener availableLanguagesListener;
   public CheckBox colorBlindFriendlyToggle;
@@ -227,7 +230,8 @@ public class SettingsController implements Controller<Node> {
                             I18n i18n, EventBus eventBus, NotificationService notificationService,
                             PlatformService platformService, ClientProperties clientProperties,
                             ClientUpdateService clientUpdateService, ModService modService,
-                            UpdateDiagnosticsService updateDiagnosticsService) {
+                            UpdateDiagnosticsService updateDiagnosticsService,
+                            com.faforever.client.galacticwar.GalacticWarService galacticWarService) {
     this.userService = userService;
     this.preferencesService = preferencesService;
     this.uiService = uiService;
@@ -239,6 +243,7 @@ public class SettingsController implements Controller<Node> {
     this.clientUpdateService = clientUpdateService;
     this.modService = modService;
     this.updateDiagnosticsService = updateDiagnosticsService;
+    this.galacticWarService = galacticWarService;
 
     availableLanguagesListener = observable -> {
       LocalizationPrefs localization = preferencesService.getPreferences().getLocalization();
@@ -287,6 +292,12 @@ public class SettingsController implements Controller<Node> {
 
   public void initialize() {
     eventBus.register(this);
+
+    // Developer tools are only offered on snapshot (non-release) builds
+    if (!com.faforever.client.update.Version.isSnapshotBuild()) {
+      debuggingTab.getTabPane().getTabs().remove(debuggingTab);
+    }
+
     themeComboBox.setButtonCell(new StringListCell<>(Theme::getDisplayName));
     themeComboBox.setCellFactory(param -> new StringListCell<>(Theme::getDisplayName));
 
@@ -800,6 +811,22 @@ public class SettingsController implements Controller<Node> {
         clientUpdateService.downloadAndInstallInBackground(updateInfo);
       }));
     });
+  }
+
+  private boolean testGwSplashAsCore;
+
+  /**
+   * Debugging tool: preview the Galactic War end-of-war victory splash with a fake winner,
+   * alternating Arm/Core per press so both backdrops can be checked. Bypasses (and does not
+   * touch) the real once-per-iteration dismissal tracking.
+   */
+  public void onTestGwVictorySplash() {
+    com.faforever.client.game.Faction faction = testGwSplashAsCore
+        ? com.faforever.client.game.Faction.CORE
+        : com.faforever.client.game.Faction.ARM;
+    testGwSplashAsCore = !testGwSplashAsCore;
+    galacticWarService.requestDebugVictorySplash(faction);
+    eventBus.post(new com.faforever.client.main.event.OpenGalacticWarEvent());
   }
 
   /**

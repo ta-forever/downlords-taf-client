@@ -66,6 +66,7 @@ public class GalaxyViewController extends AbstractViewController<Node> {
   private final EventBus eventBus;
   final private I18n i18n;
   final private com.faforever.client.fx.PlatformService platformService;
+  final private com.faforever.client.preferences.PreferencesService preferencesService;
 
   public StackPane rootPane;
   public Label loadingIndicator;
@@ -74,6 +75,14 @@ public class GalaxyViewController extends AbstractViewController<Node> {
   public VBox planetDetailContainer;
   public VBox leaderboardContainer;
   public Label leaderboardTitle;
+  public javafx.scene.control.CheckBox leaderboardWarXpToggle;
+  public StackPane victoryOverlay;
+  public javafx.scene.image.ImageView victoryBackgroundImage;
+  public javafx.scene.image.ImageView victoryFactionImage;
+  public Label victoryTitle;
+  public Label victorySubtitle;
+  public Label victoryMvps;
+  public javafx.scene.layout.HBox victoryHonours;
 
   final private SimpleStringProperty technicalName = new SimpleStringProperty("<galaxy>");
   final private SimpleStringProperty displayName = new SimpleStringProperty("<galaxy>");
@@ -100,6 +109,20 @@ public class GalaxyViewController extends AbstractViewController<Node> {
     planetDetailController = uiService.loadFxml("theme/galactic_war/planet_detail.fxml");
     planetDetailContainer.getChildren().add(planetDetailController.getRoot());
     fafService.addOnMessageListener(GalacticWarUpdateMessage.class, this::onGalacticWarUpdate);
+    victoryBackgroundImage.fitWidthProperty().bind(victoryOverlay.widthProperty());
+    victoryBackgroundImage.fitHeightProperty().bind(victoryOverlay.heightProperty());
+    victoryBackgroundImage.setPreserveRatio(false);
+    leaderboardWarXpToggle.setSelected(
+        preferencesService.getPreferences().isGalacticWarLeaderboardThisWar());
+  }
+
+  public void onLeaderboardXpModeToggled(ActionEvent actionEvent) {
+    preferencesService.getPreferences()
+        .setGalacticWarLeaderboardThisWar(leaderboardWarXpToggle.isSelected());
+    preferencesService.storeInBackground();
+    if (currentScenario != null) {
+      populateLeaderboard(currentScenario);
+    }
   }
 
   public void setEndpointUrl(String url) {
@@ -179,6 +202,9 @@ public class GalaxyViewController extends AbstractViewController<Node> {
           );
 
           populateLeaderboard(scenario);
+          galacticWarService.consumeDebugVictorySplashRequest().ifPresentOrElse(
+              faction -> showVictorySplash(scenario, faction, faction.name().toLowerCase(), true),
+              () -> maybeShowVictorySplash(scenario));
           galacticMapView.setMousePressedConsumer(optional -> optional.ifPresent(planet -> {
             galacticMapView.setSelected(planet);
             planetDetailController.setPlanet(planet);
@@ -213,6 +239,314 @@ public class GalaxyViewController extends AbstractViewController<Node> {
 
   public void resetView(ActionEvent actionEvent) {
     this.galacticMapView.resetView();
+  }
+
+  private javafx.scene.image.Image getFactionImage(Faction faction) {
+    if (faction == Faction.ARM) {
+      return uiService.getThemeImage(UiService.ARM_ICON_IMAGE_LARGE);
+    }
+    if (faction == Faction.CORE) {
+      return uiService.getThemeImage(UiService.CORE_ICON_IMAGE_LARGE);
+    }
+    return uiService.getThemeImage(UiService.GOK_ICON_IMAGE_LARGE);
+  }
+
+  /**
+   * Show the full-view victory splash if this galaxy's war has just been won and the user
+   * hasn't dismissed the splash for this iteration yet. Runs on the FX thread.
+   */
+  private void maybeShowVictorySplash(Scenario scenario) {
+    if (scenario.getLastGalaxyWinner() == null) {
+      return;
+    }
+    int iteration = scenario.getIteration() != null ? scenario.getIteration() : 1;
+    Integer celebrated = preferencesService.getPreferences()
+        .getGalacticWarCelebratedIterations()
+        .get(scenario.getTechnicalName());
+    if (celebrated != null && celebrated >= iteration) {
+      return;
+    }
+
+    Faction faction = Faction.fromString(scenario.getLastGalaxyWinner());
+    showVictorySplash(scenario, faction, scenario.getLastGalaxyWinner(), false);
+  }
+
+  private boolean victorySplashIsDebugPreview;
+
+  /**
+   * @param winnerName the winner's faction key as stored in scenario data (lowercase, e.g. "arm");
+   *                   used for the MVP lookup and as display fallback when {@code faction} is null
+   * @param debugPreview when true (snapshot-build settings tool) the dismissal is not persisted
+   */
+  private void showVictorySplash(Scenario scenario, Faction faction, String winnerName, boolean debugPreview) {
+    victorySplashIsDebugPreview = debugPreview;
+    int iteration = scenario.getIteration() != null ? scenario.getIteration() : 1;
+    String factionDisplayName = faction != null ? faction.getString() : winnerName;
+
+    // Per-faction backdrop: burning-planet aftermath for an ARM win, galaxy-over-battlefield
+    // for CORE (and anyone else); the winner's emblem is stamped on top via victoryFactionImage.
+    // A theme that doesn't ship the art degrades to the overlay's plain black background.
+    String backdrop = faction == Faction.ARM
+        ? "theme/images/galactic_war/victory_splash_arm.png"
+        : "theme/images/galactic_war/victory_splash_core.png";
+    victoryBackgroundImage.setImage(
+        uiService.themeFileExists(backdrop) ? uiService.getThemeImage(backdrop) : null);
+    victoryFactionImage.setImage(getFactionImage(faction));
+    victoryTitle.setText(i18n.get("galacticWar.victory.title",
+        factionDisplayName, scenario.getDisplayName()).toUpperCase());
+    victorySubtitle.setText(i18n.get("galacticWar.victory.subtitle", iteration));
+
+    victoryMvps.textProperty().unbind();
+    victoryMvps.setText("");
+    Scenario.HistoryEntry lastWar = (scenario.getHistory() != null && !scenario.getHistory().isEmpty())
+        ? scenario.getHistory().get(scenario.getHistory().size() - 1) : null;
+
+    Map<String, java.util.List<Scenario.Contributor>> honours = null;
+    Map<String, Integer> medalCounts = null;
+    if (lastWar != null && lastWar.getTopContributors() != null && !lastWar.getTopContributors().isEmpty()) {
+      honours = lastWar.getTopContributors();
+      medalCounts = lastWar.getMedalCounts();
+    } else if (debugPreview) {
+      // No concluded war on this server yet — fake the honours from the live leaderboard so
+      // the debugging preview still exercises the panel.
+      honours = computeHonoursFromScenario(scenario);
+    }
+
+    if (honours != null && winnerName != null) {
+      java.util.List<Scenario.Contributor> winners = honours.get(winnerName);
+      if (winners != null && !winners.isEmpty() && winners.get(0).getPlayerId() != null) {
+        Scenario.Contributor hero = winners.get(0);
+        StringProperty heroName = galacticWarService.getPlayerNameProperty(hero.getPlayerId());
+        long heroScore = hero.getScore() != null ? Math.round(hero.getScore()) : 0;
+        victoryMvps.textProperty().bind(javafx.beans.binding.Bindings.createStringBinding(
+            () -> i18n.get("galacticWar.victory.hero", heroName.get(), heroScore), heroName));
+      }
+    }
+
+    populateVictoryHonours(honours, winnerName, medalCounts);
+    victoryOverlay.setVisible(true);
+  }
+
+  /** How many placements per faction to list on the victory splash. */
+  private static final int VICTORY_HONOURS_PLACEMENTS = 5;
+
+  /** Fallback for the debug preview: rank this scenario's players per faction by XP. */
+  private Map<String, java.util.List<Scenario.Contributor>> computeHonoursFromScenario(Scenario scenario) {
+    Map<String, java.util.List<Scenario.Contributor>> byFaction = new java.util.HashMap<>();
+    if (scenario.getPlayers() == null) {
+      return byFaction;
+    }
+    scenario.getPlayers().forEach((playerId, factionScores) -> factionScores.forEach((factionName, score) -> {
+      if (score != null && score.getCumWinningScores() > 0) {
+        byFaction.computeIfAbsent(factionName, key -> new java.util.ArrayList<>())
+            .add(new Scenario.Contributor(playerId, score.getCumWinningScores()));
+      }
+    }));
+    byFaction.values().forEach(contributors ->
+        contributors.sort((a, b) -> Float.compare(b.getScore(), a.getScore())));
+    return byFaction;
+  }
+
+  /**
+   * Fill the splash honours panel: one column per faction (winner first), top placements
+   * with the GW medal icon marking players who actually received an end-of-war medal.
+   */
+  private void populateVictoryHonours(Map<String, java.util.List<Scenario.Contributor>> honours,
+                                      String winnerName, Map<String, Integer> medalCounts) {
+    victoryHonours.getChildren().clear();
+    if (honours != null && winnerName != null) {
+      victoryHonours.getChildren().addAll(buildHonoursColumns(honours, winnerName, medalCounts, null,
+          "-fx-text-fill: white; -fx-font-weight: bold;", "-fx-text-fill: #dddddd;"));
+    }
+    victoryHonours.setVisible(!victoryHonours.getChildren().isEmpty());
+  }
+
+  /**
+   * Build one column per faction (winner first, then alphabetical): a header, optionally a
+   * fighters count (when {@code participants} is given), and the top placements as
+   * "1. Name — 1,234 XP" rows. The GW medal icon marks players who actually received an
+   * end-of-war medal — gw_conqueror for the winning faction, gw_last_stand for defeated
+   * factions — per the recorded {@code medalCounts} cutoffs. A war without a victor
+   * ({@code winnerName} null) awarded no medals, so no icons are shown.
+   */
+  private java.util.List<javafx.scene.layout.VBox> buildHonoursColumns(
+      Map<String, java.util.List<Scenario.Contributor>> honours,
+      String winnerName,
+      Map<String, Integer> medalCounts,
+      Map<String, Integer> participants,
+      String headerStyle,
+      String rowStyle) {
+    java.util.List<javafx.scene.layout.VBox> columns = new java.util.ArrayList<>();
+    if (honours == null || honours.isEmpty()) {
+      return columns;
+    }
+    int conquerorCutoff = medalCounts != null
+        ? medalCounts.getOrDefault(com.faforever.client.ladder.LadderUiUtil.GW_CONQUEROR, 10) : 10;
+    int lastStandCutoff = medalCounts != null
+        ? medalCounts.getOrDefault(com.faforever.client.ladder.LadderUiUtil.GW_LAST_STAND, 3) : 3;
+
+    java.util.List<String> factionOrder = new java.util.ArrayList<>(honours.keySet());
+    factionOrder.sort(java.util.Comparator.comparing((String name) -> !name.equals(winnerName))
+        .thenComparing(java.util.Comparator.naturalOrder()));
+
+    for (String factionName : factionOrder) {
+      java.util.List<Scenario.Contributor> contributors = honours.get(factionName);
+      if (contributors == null || contributors.isEmpty()) {
+        continue;
+      }
+      boolean isWinner = factionName.equals(winnerName);
+      Faction faction = Faction.fromString(factionName);
+      String factionDisplayName = faction != null ? faction.getString() : factionName;
+
+      javafx.scene.layout.VBox panel = new javafx.scene.layout.VBox(4);
+      panel.setAlignment(javafx.geometry.Pos.TOP_LEFT);
+
+      String headerText = winnerName == null
+          ? factionDisplayName
+          : i18n.get(isWinner ? "galacticWar.victory.honours.winner" : "galacticWar.victory.honours.loser",
+              factionDisplayName);
+      Label header = new Label(headerText.toUpperCase());
+      header.setStyle(headerStyle);
+      panel.getChildren().add(header);
+
+      if (participants != null && participants.getOrDefault(factionName, 0) > 0) {
+        Label fighters = new Label(i18n.get("galacticWar.hallOfVictors.fighters",
+            participants.get(factionName)));
+        fighters.setStyle(rowStyle + " -fx-opacity: 0.7; -fx-font-size: 0.9em;");
+        panel.getChildren().add(fighters);
+      }
+
+      String medalCode = isWinner
+          ? com.faforever.client.ladder.LadderUiUtil.GW_CONQUEROR
+          : com.faforever.client.ladder.LadderUiUtil.GW_LAST_STAND;
+      String medalIconPath = com.faforever.client.ladder.LadderUiUtil.medalIconPath(medalCode);
+      javafx.scene.image.Image medalImage = uiService.themeFileExists(medalIconPath)
+          ? uiService.getThemeImage(medalIconPath) : null;
+      // a war with no victor awarded no medals at all
+      int medalCutoff = winnerName == null ? 0 : (isWinner ? conquerorCutoff : lastStandCutoff);
+
+      for (int i = 0; i < Math.min(contributors.size(), VICTORY_HONOURS_PLACEMENTS); i++) {
+        Scenario.Contributor contributor = contributors.get(i);
+        if (contributor.getPlayerId() == null) {
+          continue;
+        }
+        int placement = i + 1;
+        long score = contributor.getScore() != null ? Math.round(contributor.getScore()) : 0;
+        StringProperty nameProperty = galacticWarService.getPlayerNameProperty(contributor.getPlayerId());
+        Label row = new Label();
+        row.setStyle(rowStyle);
+        row.textProperty().bind(javafx.beans.binding.Bindings.createStringBinding(
+            () -> i18n.get("galacticWar.victory.honours.row", placement, nameProperty.get(), score),
+            nameProperty));
+        if (medalImage != null && placement <= medalCutoff) {
+          javafx.scene.image.ImageView medalIcon = new javafx.scene.image.ImageView(medalImage);
+          medalIcon.setFitWidth(16);
+          medalIcon.setFitHeight(16);
+          medalIcon.setPreserveRatio(true);
+          row.setGraphic(medalIcon);
+          Tooltip.install(row, new Tooltip(
+              com.faforever.client.ladder.LadderUiUtil.medalDisplayName(i18n, medalCode)));
+        }
+        panel.getChildren().add(row);
+      }
+      columns.add(panel);
+    }
+    return columns;
+  }
+
+  public void onVictoryDismissed(ActionEvent actionEvent) {
+    victoryOverlay.setVisible(false);
+    if (victorySplashIsDebugPreview) {
+      victorySplashIsDebugPreview = false;
+      return;
+    }
+    Scenario scenario = currentScenario;
+    if (scenario == null) {
+      return;
+    }
+    int iteration = scenario.getIteration() != null ? scenario.getIteration() : 1;
+    preferencesService.getPreferences()
+        .getGalacticWarCelebratedIterations()
+        .put(scenario.getTechnicalName(), iteration);
+    preferencesService.storeInBackground();
+  }
+
+  public void onHallOfVictorsButtonPressed(ActionEvent actionEvent) {
+    Scenario scenario = currentScenario;
+    if (scenario == null) {
+      return;
+    }
+
+    javafx.scene.layout.VBox root = new javafx.scene.layout.VBox(10);
+    root.setPadding(new javafx.geometry.Insets(6));
+
+    java.util.List<Scenario.HistoryEntry> history = scenario.getHistory();
+    if (history == null || history.isEmpty()) {
+      javafx.scene.control.Label empty = new javafx.scene.control.Label(
+          i18n.get("galacticWar.hallOfVictors.empty"));
+      empty.setWrapText(true);
+      root.getChildren().add(empty);
+    } else {
+      // newest war first
+      for (int i = history.size() - 1; i >= 0; i--) {
+        root.getChildren().add(buildHallOfVictorsCard(history.get(i)));
+      }
+    }
+
+    javafx.scene.control.ScrollPane scroll = new javafx.scene.control.ScrollPane(root);
+    scroll.setFitToWidth(true);
+    scroll.setPrefHeight(500);
+    scroll.setPrefWidth(550);
+    uiService.showInDialog(rootPane, scroll,
+        i18n.get("galacticWar.hallOfVictors.title", scenario.getDisplayName()));
+  }
+
+  private Node buildHallOfVictorsCard(Scenario.HistoryEntry entry) {
+    String cardStyle = "-fx-background-color: -fx-control-inner-background; "
+        + "-fx-background-radius: 6; -fx-padding: 10; "
+        + "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.15), 4, 0, 0, 1);";
+
+    javafx.scene.layout.VBox card = new javafx.scene.layout.VBox(4);
+    card.setStyle(cardStyle);
+
+    Faction winner = entry.getWinner() != null ? Faction.fromString(entry.getWinner()) : null;
+    String outcome = winner != null
+        ? i18n.get("galacticWar.hallOfVictors.winner", winner.getString())
+        : i18n.get("galacticWar.hallOfVictors.noWinner");
+
+    javafx.scene.layout.HBox header = new javafx.scene.layout.HBox(8);
+    header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+    if (winner != null) {
+      javafx.scene.image.ImageView icon = new javafx.scene.image.ImageView(getFactionImage(winner));
+      icon.setFitWidth(24);
+      icon.setPreserveRatio(true);
+      header.getChildren().add(icon);
+    }
+    javafx.scene.control.Label title = new javafx.scene.control.Label(
+        i18n.get("galacticWar.hallOfVictors.war",
+            entry.getIteration() != null ? entry.getIteration() : 0, outcome));
+    title.setStyle("-fx-font-weight: bold; -fx-font-size: 1.1em;");
+    header.getChildren().add(title);
+    card.getChildren().add(header);
+
+    if (entry.getStartedAt() != null && entry.getEndedAt() != null) {
+      javafx.scene.control.Label dates = new javafx.scene.control.Label(
+          i18n.get("galacticWar.hallOfVictors.dates", entry.getStartedAt(), entry.getEndedAt()));
+      dates.setStyle("-fx-opacity: 0.7; -fx-font-size: 0.9em;");
+      card.getChildren().add(dates);
+    }
+
+    java.util.List<javafx.scene.layout.VBox> columns = buildHonoursColumns(
+        entry.getTopContributors(), entry.getWinner(), entry.getMedalCounts(),
+        entry.getParticipants(), "-fx-font-weight: bold;", "");
+    if (!columns.isEmpty()) {
+      javafx.scene.layout.HBox honoursRow = new javafx.scene.layout.HBox(32);
+      honoursRow.setPadding(new javafx.geometry.Insets(6, 0, 0, 0));
+      honoursRow.getChildren().addAll(columns);
+      card.getChildren().add(honoursRow);
+    }
+
+    return card;
   }
 
   public void onGuideButtonPressed(ActionEvent actionEvent) {
@@ -416,14 +750,6 @@ public class GalaxyViewController extends AbstractViewController<Node> {
     return cron;
   }
 
-  private float totalScore(Map<String, GwPlayerScore> scores) {
-    return scores.values().stream()
-        .map(s -> s != null ? s : GwPlayerScore.EMPTY_SCORE)
-        .map(GwPlayerScore::getCumWinningScores)
-        .max(Float::compare)
-        .orElse(0.0f);
-  }
-
   private <T> void setColumnWidthOptions(TableColumn<?, T> column, double width) {
     column.setMinWidth(width/2);
     column.setPrefWidth(width);
@@ -514,11 +840,29 @@ public class GalaxyViewController extends AbstractViewController<Node> {
 
     leaderboardContainer.getChildren().add(table);
 
+    // Career mode (default) shows/orders by all-time XP; "this war" mode shows/orders by the
+    // XP delta earned in the current galaxy. Faction identity and the rank medal stay
+    // career-based in both modes — ranks are for careers, the toggle only changes the numbers.
+    boolean thisWarOnly = leaderboardWarXpToggle != null && leaderboardWarXpToggle.isSelected();
+
+    java.util.function.BiFunction<Integer, Map<String, GwPlayerScore>, Float> sortScore =
+        (playerId, scores) -> scores.entrySet().stream()
+            .map(e -> {
+              GwPlayerScore s = e.getValue() != null ? e.getValue() : GwPlayerScore.EMPTY_SCORE;
+              if (thisWarOnly) {
+                s = scenario.getCurrentWarScore(playerId, e.getKey(), s);
+              }
+              return s.getCumWinningScores() != null ? s.getCumWinningScores() : 0.0f;
+            })
+            .max(Float::compare)
+            .orElse(0.0f);
+
     ObservableList<GwLeaderboardRow> rows = FXCollections.observableArrayList();
     AtomicInteger rankCounter = new AtomicInteger(1);
 
     scenario.getPlayers().entrySet().stream().sorted(
-        (a, b) -> Float.compare(totalScore(b.getValue()), totalScore(a.getValue())))
+        (a, b) -> Float.compare(sortScore.apply(b.getKey(), b.getValue()),
+            sortScore.apply(a.getKey(), a.getValue())))
         .forEachOrdered(entry -> {
           Integer playerId = entry.getKey();
           Optional<FactionScoreRank> fsr = scenario.getFactionScoreRank(entry.getValue());
@@ -537,16 +881,24 @@ public class GalaxyViewController extends AbstractViewController<Node> {
 
           String factionName = topEntry.get().getKey();
           Faction faction = Faction.fromString(factionName);
-          GwPlayerScore score = topEntry.get().getValue();
-          GwRank gwRank = scenario.rankForPlayerScore(score);
+          GwPlayerScore careerScore = topEntry.get().getValue();
+          GwRank gwRank = scenario.rankForPlayerScore(careerScore);
+
+          GwPlayerScore displayed = thisWarOnly
+              ? scenario.getCurrentWarScore(playerId, factionName, careerScore)
+              : careerScore;
+          if (thisWarOnly && displayed.getWins() == 0 && displayed.getLosses() == 0) {
+            // pre-seeded veterans who haven't fought this war yet
+            return;
+          }
 
           rows.add(new GwLeaderboardRow(
               rankCounter.getAndIncrement(),
               galacticWarService.getPlayerNameProperty(playerId),
-              score.getWins(),
-              Math.round(score.getCumWinningScores()),
-              score.getLosses(),
-              Math.round(score.getCumLosingScores()),
+              displayed.getWins(),
+              Math.round(displayed.getCumWinningScores()),
+              displayed.getLosses(),
+              Math.round(displayed.getCumLosingScores()),
               galacticWarService.getMedalIcon(scenario, factionName, gwRank),
               faction
           ));
