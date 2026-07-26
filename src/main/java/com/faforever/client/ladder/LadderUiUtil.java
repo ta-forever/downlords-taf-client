@@ -106,6 +106,16 @@ public final class LadderUiUtil {
     return i18n.getWithDefault(medalCode, "medal." + medalCode + ".name");
   }
 
+  /** Qualitative "how to earn it" description for a medal, from {@code medal.<code>.desc} with a
+   * fallback to the older {@code medal.<code>.description}; empty string when neither exists. */
+  public static String medalDescription(I18n i18n, String medalCode) {
+    String desc = i18n.getWithDefault("", "medal." + medalCode + ".desc");
+    if (desc.isEmpty()) {
+      desc = i18n.getWithDefault("", "medal." + medalCode + ".description");
+    }
+    return desc;
+  }
+
   /** Tooltip for a medal shown as a player's avatar: name + how many they hold (the multiplicity),
    * e.g. "Season Champion x3". */
   public static String medalAvatarTooltip(I18n i18n, String medalCode, long count) {

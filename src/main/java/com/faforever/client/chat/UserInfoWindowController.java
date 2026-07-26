@@ -567,10 +567,7 @@ public class UserInfoWindowController implements Controller<Node> {
     }
     // Append the qualitative "how to earn it" hint (flavour, not exact thresholds), so the
     // cabinet doubles as a guide to what's there to win. Falls back to the older .description.
-    String desc = i18n.getWithDefault("", "medal." + code + ".desc");
-    if (desc.isEmpty()) {
-      desc = i18n.getWithDefault("", "medal." + code + ".description");
-    }
+    String desc = com.faforever.client.ladder.LadderUiUtil.medalDescription(i18n, code);
     if (!desc.isEmpty()) {
       tip = tip + "\n" + desc;
     }

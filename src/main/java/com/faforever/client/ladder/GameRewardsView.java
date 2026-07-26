@@ -310,7 +310,9 @@ public final class GameRewardsView {
     Label name = new Label(LadderUiUtil.medalDisplayName(i18n, code));
     name.getStyleClass().add("medal-chip-label");
     chip.getChildren().addAll(icon, name);
-    Tooltip.install(chip, new Tooltip(LadderUiUtil.medalDisplayName(i18n, code)));
+    String desc = LadderUiUtil.medalDescription(i18n, code);
+    Tooltip.install(chip, new Tooltip(
+        desc.isEmpty() ? LadderUiUtil.medalDisplayName(i18n, code) : desc));
     return chip;
   }
 }
