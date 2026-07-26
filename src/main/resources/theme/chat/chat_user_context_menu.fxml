@@ -51,6 +51,8 @@
                 text="%chat.userContext.joinGame"/>
       <MenuItem fx:id="watchGameItem" mnemonicParsing="false" onAction="#onWatchGameSelected"
                 text="%chat.userContext.viewLiveReplay"/>
+      <MenuItem fx:id="watchGameInBrowserItem" mnemonicParsing="false" onAction="#onWatchGameInBrowserSelected"
+                text="%chat.userContext.viewLiveReplayBrowser"/>
       <MenuItem fx:id="viewReplaysItem" mnemonicParsing="false" onAction="#onViewReplaysSelected"
                 text="%chat.userContext.viewReplays"/>
     <SeparatorMenuItem fx:id="moderatorActionSeparator" mnemonicParsing="false" />

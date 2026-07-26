@@ -67,6 +67,7 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
   private final PreferencesService preferencesService;
   private final PlayerService playerService;
   private final ReplayService replayService;
+  private final com.faforever.client.replay.BrowserWatchService browserWatchService;
   private final NotificationService notificationService;
   private final I18n i18n;
   private final EventBus eventBus;
@@ -102,6 +103,7 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
   private ChatChannelUser chatUser;
   public MenuItem kickGameItem;
   public MenuItem kickLobbyItem;
+  public MenuItem watchGameInBrowserItem;
 
   @SuppressWarnings("FieldCanBeLocal")
   private ChangeListener<Player> playerChangeListener;
@@ -115,6 +117,7 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
 
   public ChatUserContextMenuController(PreferencesService preferencesService,
                                        PlayerService playerService, ReplayService replayService,
+                                       com.faforever.client.replay.BrowserWatchService browserWatchService,
                                        NotificationService notificationService, I18n i18n, EventBus eventBus,
                                        JoinGameHelper joinGameHelper, AvatarService avatarService, UiService uiService,
                                        ModeratorService moderatorService, ChatGameInviteService chatGameInviteService,
@@ -123,6 +126,7 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
     this.preferencesService = preferencesService;
     this.playerService = playerService;
     this.replayService = replayService;
+    this.browserWatchService = browserWatchService;
     this.notificationService = notificationService;
     this.i18n = i18n;
     this.eventBus = eventBus;
@@ -246,6 +250,8 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
               }, newValue.gameProperty())
           ));
       watchGameItem.visibleProperty().bind(newValue.statusProperty().isEqualTo(PlayerStatus.PLAYING));
+      watchGameInBrowserItem.visibleProperty().bind(newValue.statusProperty().isEqualTo(PlayerStatus.PLAYING)
+          .and(Bindings.createBooleanBinding(browserWatchService::isAvailable)));
       inviteItem.visibleProperty().bind(Bindings.createBooleanBinding(() -> isGameInviteVisible(newValue),
           newValue.socialStatusProperty(), gameService.getCurrentGameProperty(), gameService.getCurrentGameStatusProperty()));
 
@@ -465,6 +471,16 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
     } catch (Exception e) {
       log.error("Cannot display live replay", e.getCause());
       notificationService.addImmediateErrorNotification(e, "replays.live.loadFailure.message");
+    }
+  }
+
+  public void onWatchGameInBrowserSelected() {
+    Player player = getPlayer();
+    try {
+      browserWatchService.watchInBrowser(player.getGame());
+    } catch (Exception e) {
+      log.error("Cannot open browser live viewer", e.getCause());
+      notificationService.addImmediateErrorNotification(e, "game.watch.browserFailed");
     }
   }
 

@@ -46,7 +46,10 @@ import javafx.collections.ObservableMap;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.geometry.Side;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
@@ -89,6 +92,7 @@ public class ReplayDetailController implements Controller<Node> {
 
   private final TimeService timeService;
   private final I18n i18n;
+  private final BrowserWatchService browserWatchService;
   private final UiService uiService;
   private final ReplayService replayService;
   private final RatingService ratingService;
@@ -708,8 +712,21 @@ public class ReplayDetailController implements Controller<Node> {
     event.consume();
   }
 
+  private ContextMenu watchMenu;
+
   public void onWatchButtonClicked() {
-    replayService.runDownloadReplay(replay);
+    if (!browserWatchService.isAvailable()) {
+      replayService.runDownloadReplay(replay);
+      return;
+    }
+    if (watchMenu == null) {
+      MenuItem inGame = new MenuItem(i18n.get("game.watch.inGame"));
+      inGame.setOnAction(event -> replayService.runDownloadReplay(replay));
+      MenuItem inBrowser = new MenuItem(i18n.get("game.watch.inBrowser"));
+      inBrowser.setOnAction(event -> browserWatchService.watchReplayInBrowser(replay));
+      watchMenu = new ContextMenu(inGame, inBrowser);
+    }
+    watchMenu.show(watchButton, Side.BOTTOM, 0, 0);
   }
 
   public void onTadaUploadButtonClicked() { replayService.uploadReplayToTada(replay.getId()); }

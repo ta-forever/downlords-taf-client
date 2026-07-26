@@ -26,9 +26,12 @@ import javafx.collections.ObservableList;
 import javafx.scene.control.ContentDisplay;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
+import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
@@ -50,6 +53,7 @@ import static com.faforever.client.leaderboard.LeaderboardService.DEFAULT_RATING
 public class ReplayCardController implements Controller<Node> {
 
   private final ReplayService replayService;
+  private final BrowserWatchService browserWatchService;
   private final TimeService timeService;
   private final MapService mapService;
   private final RatingService ratingService;
@@ -243,8 +247,21 @@ public class ReplayCardController implements Controller<Node> {
     onOpenDetailListener.accept(replay);
   }
 
+  private ContextMenu watchMenu;
+
   public void onWatchButtonClicked() {
-    replayService.runDownloadReplay(replay);
+    if (!browserWatchService.isAvailable()) {
+      replayService.runDownloadReplay(replay);
+      return;
+    }
+    if (watchMenu == null) {
+      MenuItem inGame = new MenuItem(i18n.get("game.watch.inGame"));
+      inGame.setOnAction(event -> replayService.runDownloadReplay(replay));
+      MenuItem inBrowser = new MenuItem(i18n.get("game.watch.inBrowser"));
+      inBrowser.setOnAction(event -> browserWatchService.watchReplayInBrowser(replay));
+      watchMenu = new ContextMenu(inGame, inBrowser);
+    }
+    watchMenu.show(watchButton, Side.BOTTOM, 0, 0);
   }
 
   public void onTadaUploadButtonClicked() { replayService.uploadReplayToTada(replay.getId()); }
