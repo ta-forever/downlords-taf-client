@@ -53,6 +53,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.MultipleSelectionModel;
@@ -117,7 +118,10 @@ public class CreateGameController implements Controller<Pane> {
   public static final String STYLE_CLASS_DUAL_LIST_CELL = "create-game-dual-list-cell";
   public static final PseudoClass PSEUDO_CLASS_INVALID = PseudoClass.getPseudoClass("invalid");
   private static final int MAX_RATING_LENGTH = 4;
+  private static final double SHORT_COMBO_BOX_POPUP_CELL_HEIGHT = 32;
+  private static final double SHORT_COMBO_BOX_POPUP_EXTRA_HEIGHT = 2;
   private static final double WIND_SPEED_DISPLAY_SCALE = 166.6;
+  private static final int MAX_WIND_SPEED = 30;
   private final MapService mapService;
   private final ModService modService;
   private final GameService gameService;
@@ -155,6 +159,7 @@ public class CreateGameController implements Controller<Pane> {
   public Label hpiArchiveLabel;
   public ComboBox<PreviewType> mapPreviewTypeComboBox;
   public ComboBox<PreviewOverlayType> mapPreviewOverlayComboBox;
+  public ComboBox<Integer> mapPreviewPlayersComboBox;
   public ComboBox<Integer> maxPlayersComboBox;
   public CheckBox onlyForFriendsCheckBox;
   public CheckBox reservedSlotsCheckBox;
@@ -357,6 +362,7 @@ public class CreateGameController implements Controller<Pane> {
         throw new UnsupportedOperationException("Not supported");
       }
     });
+    configureShortComboBoxPopup(liveReplayOptionComboBox);
 
     mapPreviewTypeComboBox.getItems().setAll(PreviewType.values());
     mapPreviewTypeComboBox.getSelectionModel().select(0);
@@ -370,9 +376,10 @@ public class CreateGameController implements Controller<Pane> {
         throw new UnsupportedOperationException("Not supported");
       }
     });
+    configureShortComboBoxPopup(mapPreviewTypeComboBox);
     mapPreviewTypeComboBox.getSelectionModel().selectedItemProperty().addListener(
         (observable, oldValue, newValue) -> setSelectedMap(mapListView.getSelectionModel().getSelectedItem(), newValue,
-            mapPreviewOverlayComboBox.getSelectionModel().getSelectedItem(), maxPlayersComboBox.getSelectionModel().getSelectedItem()));
+            mapPreviewOverlayComboBox.getSelectionModel().getSelectedItem(), getPreviewPlayers()));
 
     mapPreviewOverlayComboBox.getItems().setAll(PreviewOverlayType.values());
     mapPreviewOverlayComboBox.getSelectionModel().select(PreviewOverlayType.NONE);
@@ -386,16 +393,12 @@ public class CreateGameController implements Controller<Pane> {
         throw new UnsupportedOperationException("Not supported");
       }
     });
+    configureShortComboBoxPopup(mapPreviewOverlayComboBox);
     mapPreviewOverlayComboBox.getSelectionModel().selectedItemProperty().addListener(
         (observable, oldValue, newValue) -> setSelectedMap(mapListView.getSelectionModel().getSelectedItem(),
-            mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(), newValue, maxPlayersComboBox.getSelectionModel().getSelectedItem()));
+            mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(), newValue, getPreviewPlayers()));
 
-    maxPlayersComboBox.getItems().setAll(
-        IntStream.rangeClosed(2, 10)
-            .map(i -> 12 - i) // Maps (2 -> 10), (3 -> 9), ..., (10 -> 2)
-            .boxed()
-            .collect(Collectors.toList())
-    );
+    maxPlayersComboBox.getItems().setAll(getPlayerCountOptions());
 
     maxPlayersComboBox.getSelectionModel().select(Integer.valueOf(preferencesService.getPreferences().getLastGame().getMaxPlayers()));
     maxPlayersComboBox.setConverter(new StringConverter<>() {
@@ -408,9 +411,24 @@ public class CreateGameController implements Controller<Pane> {
         throw new UnsupportedOperationException("Not supported");
       }
     });
-    maxPlayersComboBox.getSelectionModel().selectedItemProperty().addListener(
+    configureShortComboBoxPopup(maxPlayersComboBox);
+
+    mapPreviewPlayersComboBox.getItems().setAll(getPlayerCountOptions());
+    mapPreviewPlayersComboBox.getSelectionModel().select(Integer.valueOf(2));
+    mapPreviewPlayersComboBox.setConverter(new StringConverter<>() {
+      @Override
+      public String toString(Integer players) {
+        return String.valueOf(players);
+      }
+      @Override
+      public Integer fromString(String string) {
+        throw new UnsupportedOperationException("Not supported");
+      }
+    });
+    configureShortComboBoxPopup(mapPreviewPlayersComboBox);
+    mapPreviewPlayersComboBox.getSelectionModel().selectedItemProperty().addListener(
         (observable, oldValue, newValue) -> setSelectedMap(mapListView.getSelectionModel().getSelectedItem(),
-            mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(), mapPreviewOverlayComboBox.getSelectionModel().getSelectedItem(), newValue));
+            mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(), mapPreviewOverlayComboBox.getSelectionModel().getSelectedItem(), getPreviewPlayers()));
 
     mapSearchTextField.textProperty().addListener(
         (observable, oldValue, newValue) -> setFilteredMapBeansPredicate(newValue));
@@ -750,14 +768,53 @@ public class CreateGameController implements Controller<Pane> {
     });
   }
 
+  private List<Integer> getPlayerCountOptions() {
+    return IntStream.rangeClosed(2, 10)
+        .map(i -> 12 - i) // Maps (2 -> 10), (3 -> 9), ..., (10 -> 2)
+        .boxed()
+        .collect(Collectors.toList());
+  }
+
+  private <T> void configureShortComboBoxPopup(ComboBox<T> comboBox) {
+    int visibleRows = comboBox.getItems().size();
+    double popupHeight = visibleRows * SHORT_COMBO_BOX_POPUP_CELL_HEIGHT + SHORT_COMBO_BOX_POPUP_EXTRA_HEIGHT;
+    comboBox.setVisibleRowCount(visibleRows);
+    comboBox.setCellFactory(listView -> {
+      listView.setFixedCellSize(SHORT_COMBO_BOX_POPUP_CELL_HEIGHT);
+      listView.setMinHeight(popupHeight);
+      listView.setPrefHeight(popupHeight);
+      listView.setMaxHeight(popupHeight);
+      listView.minWidthProperty().bind(comboBox.widthProperty());
+      listView.prefWidthProperty().bind(comboBox.widthProperty());
+      listView.maxWidthProperty().bind(comboBox.widthProperty());
+      return new ListCell<>() {
+        @Override
+        protected void updateItem(T item, boolean empty) {
+          super.updateItem(item, empty);
+          StringConverter<T> converter = comboBox.getConverter();
+          setText(empty || item == null ? null : converter == null ? String.valueOf(item) : converter.toString(item));
+        }
+      };
+    });
+  }
+
+  private int getPreviewPlayers() {
+    Integer previewPlayers = mapPreviewPlayersComboBox.getSelectionModel().getSelectedItem();
+    if (previewPlayers != null) {
+      return previewPlayers;
+    }
+
+    Integer maxPlayers = maxPlayersComboBox.getSelectionModel().getSelectedItem();
+    return maxPlayers != null ? maxPlayers : 10;
+  }
+
   protected void initMapSelection(String modTechnical) {
     setAvailableMaps(modTechnical);
     mapListView.setCellFactory(param -> new StringListCell<>(MapBean::getMapName));
     ChangeListener<MapBean> selectedMapChangeListener = (observable, oldValue, newValue) -> JavaFxUtil.runLater(() -> {
       PreviewType previewType = mapPreviewTypeComboBox.getSelectionModel().getSelectedItem();
       PreviewOverlayType previewOverlayType = mapPreviewOverlayComboBox.getSelectionModel().getSelectedItem();
-      Integer maxPlayers = maxPlayersComboBox.getSelectionModel().getSelectedItem();
-      setSelectedMap(newValue, previewType, previewOverlayType, maxPlayers);
+      setSelectedMap(newValue, previewType, previewOverlayType, getPreviewPlayers());
     });
     mapListView.getSelectionModel().selectedItemProperty().addListener(selectedMapChangeListener);
     selectedMapChangeListener.changed(null, null, mapListView.getSelectionModel().selectedItemProperty().getValue());
@@ -974,7 +1031,7 @@ public class CreateGameController implements Controller<Pane> {
   private String formatWindSpeed(String value) {
     try {
       double wind = Double.parseDouble(value.trim().replace("+", "")) / WIND_SPEED_DISPLAY_SCALE;
-      return Long.toString(Math.round(wind));
+      return Long.toString(Math.min(MAX_WIND_SPEED, Math.round(wind)));
     } catch (NumberFormatException e) {
       return "";
     }
@@ -1104,7 +1161,7 @@ public class CreateGameController implements Controller<Pane> {
     }
 
     if (mapListView.getItems().isEmpty()) {
-      setSelectedMap(null, null, null, 10);
+      setSelectedMap(null, null, null, getPreviewPlayers());
     }
     else {
       mapListView.getSelectionModel().selectFirst();
@@ -1378,7 +1435,7 @@ public class CreateGameController implements Controller<Pane> {
           mapListView.getSelectionModel().getSelectedItem(),
           mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(),
           mapPreviewOverlayComboBox.getSelectionModel().getSelectedItem(),
-          maxPlayersComboBox.getSelectionModel().getSelectedItem());
+          getPreviewPlayers());
     });
     contextMenu.getItems().add(menuItem);
 
@@ -1400,7 +1457,7 @@ public class CreateGameController implements Controller<Pane> {
               mapListView.getSelectionModel().getSelectedItem(),
               mapPreviewTypeComboBox.getSelectionModel().getSelectedItem(),
               mapPreviewOverlayComboBox.getSelectionModel().getSelectedItem(),
-              maxPlayersComboBox.getSelectionModel().getSelectedItem()));
+              getPreviewPlayers()));
         });
   }
 

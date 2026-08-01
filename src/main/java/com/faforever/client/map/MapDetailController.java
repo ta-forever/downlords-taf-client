@@ -53,6 +53,7 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class MapDetailController implements Controller<Node> {
   private static final double WIND_SPEED_DISPLAY_SCALE = 166.6;
+  private static final int MAX_WIND_SPEED = 30;
 
   private final MapService mapService;
   private final NotificationService notificationService;
@@ -300,7 +301,7 @@ public class MapDetailController implements Controller<Node> {
   private String formatWindSpeed(String value) {
     try {
       double wind = Double.parseDouble(value.trim().replace("+", "")) / WIND_SPEED_DISPLAY_SCALE;
-      return Long.toString(Math.round(wind));
+      return Long.toString(Math.min(MAX_WIND_SPEED, Math.round(wind)));
     } catch (NumberFormatException e) {
       return "";
     }
