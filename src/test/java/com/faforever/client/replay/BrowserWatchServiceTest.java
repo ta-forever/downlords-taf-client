@@ -2,24 +2,35 @@ package com.faforever.client.replay;
 
 import com.faforever.client.assetserver.LocalAssetServerService;
 import com.faforever.client.config.ClientProperties;
+import com.faforever.client.fa.DemoFileInfo;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.game.Game;
 import com.faforever.client.map.MapService;
+import com.faforever.client.mod.FeaturedMod;
+import com.faforever.client.mod.FeaturedModVersion;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.NotificationService;
+import com.faforever.client.patch.GameUpdater;
+import com.faforever.client.preferences.PreferencesService;
+import javafx.collections.FXCollections;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -41,7 +52,15 @@ public class BrowserWatchServiceTest {
   @Mock
   private NotificationService notificationService;
   @Mock
+  private ModService modService;
+  @Mock
+  private GameUpdater gameUpdater;
+  @Mock
+  private PreferencesService preferencesService;
+  @Mock
   private Game game;
+  @Mock
+  private FeaturedMod taccMod;
 
   @Before
   public void setUp() {
@@ -54,8 +73,16 @@ public class BrowserWatchServiceTest {
         .thenReturn(completedFuture(null));
     when(localAssetServerService.ensureRunning()).thenReturn("http://127.0.0.1:53211/AbCtoken");
 
-    instance = new BrowserWatchService(clientProperties, replayService, mapService,
-        localAssetServerService, platformService, notificationService);
+    // installed and up to date by default; individual tests override
+    when(preferencesService.isGameExeValid(anyString())).thenReturn(true);
+    when(taccMod.getTechnicalName()).thenReturn("tacc");
+    when(taccMod.getGitBranch()).thenReturn("main");
+    when(modService.getFeaturedMod("tacc")).thenReturn(completedFuture(taccMod));
+    when(gameUpdater.update(any(), any())).thenReturn(completedFuture("main"));
+
+    instance = new BrowserWatchService(clientProperties, replayService, mapService, modService,
+        gameUpdater, preferencesService, localAssetServerService, platformService,
+        notificationService);
   }
 
   @Test
@@ -155,5 +182,186 @@ public class BrowserWatchServiceTest {
     instance.watchInBrowser(game).join();
 
     verify(mapService).optionalEnsureMap("tacc", "SHERWOOD", "deadbeef", "sherwood.ufo", null, null);
+  }
+
+  // ── mod version check / auto-update ──────────────────────────────────────────────────────
+  // The viewer resolves every unit from the LOCAL install and matches the demo's unit table
+  // against it by CRC, so a stale mod misses the fingerprint outright. The browser path used
+  // to ensure the map and nothing else.
+
+  @Test
+  public void liveGameUpdatesModBeforeEnsuringMapAndOpening() {
+    when(replayService.fetchWatchTicket(game)).thenReturn(completedFuture(Optional.empty()));
+    when(game.getFeaturedModVersion()).thenReturn("abc123");
+
+    instance.watchInBrowser(game).join();
+
+    // the game's OWN recorded mod version wins over the mod's default branch
+    verify(gameUpdater).update(taccMod, "abc123");
+    // …and it happens first: an update can bring map archives with it
+    InOrder order = inOrder(gameUpdater, mapService, platformService);
+    order.verify(gameUpdater).update(any(), anyString());
+    order.verify(mapService).optionalEnsureMap(any(), any(), any(), any(), any(), any());
+    order.verify(platformService).showDocument(anyString());
+  }
+
+  @Test
+  public void liveGameWithoutRecordedVersionFallsBackToModBranch() {
+    when(replayService.fetchWatchTicket(game)).thenReturn(completedFuture(Optional.empty()));
+    when(game.getFeaturedModVersion()).thenReturn(null);
+
+    instance.watchInBrowser(game).join();
+
+    verify(gameUpdater).update(taccMod, "main");
+  }
+
+  @Test
+  public void vodReplayWithoutDemoMetaFallsBackToModBranch() {
+    Replay replay = org.mockito.Mockito.mock(Replay.class);
+    when(replay.getId()).thenReturn(314);
+    when(replay.getFeaturedMod()).thenReturn(taccMod);
+    when(replay.getMap()).thenReturn(null);
+    when(replay.getDemoFileInfo()).thenReturn(null);   // replay predates replayMeta
+
+    instance.watchReplayInBrowser(replay).join();
+
+    verify(gameUpdater).update(taccMod, "main");
+    verify(platformService).showDocument(anyString());
+  }
+
+  /**
+   * The one that matters: an OLD replay must get the build it was played on, not the branch
+   * head. Checking out the latest shifts every unit-type rank and the viewer renders the wrong
+   * models — observed as "demo 530 unit types vs a 552-unit install, 183/530 crc-matched".
+   */
+  @Test
+  public void vodReplayPinsTheVersionItsUnitsHashNames() {
+    Replay replay = org.mockito.Mockito.mock(Replay.class);
+    DemoFileInfo demoInfo = new DemoFileInfo(null, "[V] Urban Contention", "mapHash",
+        "unitsHash530", 3, 1);
+    FeaturedMod pinned = org.mockito.Mockito.mock(FeaturedMod.class);
+    FeaturedModVersion playedOn = org.mockito.Mockito.mock(FeaturedModVersion.class);
+    when(playedOn.getGitBranch()).thenReturn("v10.0-530units");
+    when(pinned.getVersions()).thenReturn(FXCollections.observableArrayList(playedOn));
+    when(modService.findFeaturedModByTaDemoFileInfo(demoInfo)).thenReturn(completedFuture(pinned));
+
+    when(replay.getId()).thenReturn(314);
+    when(replay.getFeaturedMod()).thenReturn(taccMod);
+    when(replay.getMap()).thenReturn(null);
+    when(replay.getDemoFileInfo()).thenReturn(demoInfo);
+
+    instance.watchReplayInBrowser(replay).join();
+
+    verify(gameUpdater).update(taccMod, "v10.0-530units");
+  }
+
+  @Test
+  public void vodReplayWithUnknownUnitsHashFallsBackToBranch() {
+    Replay replay = org.mockito.Mockito.mock(Replay.class);
+    DemoFileInfo demoInfo = new DemoFileInfo(null, "map", "mapHash", "hashNobodyKnows", 3, 1);
+    when(modService.findFeaturedModByTaDemoFileInfo(demoInfo)).thenReturn(completedFuture(null));
+
+    when(replay.getId()).thenReturn(314);
+    when(replay.getFeaturedMod()).thenReturn(taccMod);
+    when(replay.getMap()).thenReturn(null);
+    when(replay.getDemoFileInfo()).thenReturn(demoInfo);
+
+    instance.watchReplayInBrowser(replay).join();
+
+    verify(gameUpdater).update(taccMod, "main");
+    verify(platformService).showDocument(anyString());
+  }
+
+  @Test
+  public void uninstalledModIsNotUpdatedButStillOpens() {
+    when(preferencesService.isGameExeValid("tacc")).thenReturn(false);
+    when(replayService.fetchWatchTicket(game)).thenReturn(completedFuture(Optional.empty()));
+
+    instance.watchInBrowser(game).join();
+
+    // updating would mean a full clone off the back of a "watch" click
+    verify(gameUpdater, never()).update(any(), any());
+    verify(platformService).showDocument(anyString());
+  }
+
+  @Test
+  public void failedModUpdateStillOpensTheViewer() {
+    when(replayService.fetchWatchTicket(game)).thenReturn(completedFuture(Optional.empty()));
+    CompletableFuture<String> failed = new CompletableFuture<>();
+    failed.completeExceptionally(new RuntimeException("git exploded"));
+    when(gameUpdater.update(any(), any())).thenReturn(failed);
+
+    instance.watchInBrowser(game).join();
+
+    // a mod that won't update is a degraded view, not a reason to refuse to open
+    verify(platformService).showDocument(anyString());
+  }
+
+  /**
+   * The asset server streams the archives the update is about to replace, and Java holds
+   * Windows files without FILE_SHARE_DELETE — a stale viewer tab's in-flight read fails the
+   * checkout ("Could not rename ._T2ESC.ufo….tmp to T2ESC.ufo") and half-updates the mod.
+   */
+  @Test
+  public void drainsTheAssetServerBeforeRewritingTheInstall() {
+    when(replayService.fetchWatchTicket(game)).thenReturn(completedFuture(Optional.empty()));
+
+    instance.watchInBrowser(game).join();
+
+    InOrder order = inOrder(localAssetServerService, gameUpdater);
+    order.verify(localAssetServerService).stop(anyInt());   // …with a real drain, not stop(0)
+    order.verify(gameUpdater).update(any(), any());
+    order.verify(localAssetServerService).ensureRunning();  // restarted for the new tab
+  }
+
+  @Test
+  public void doesNotDrainWhenThereIsNothingToUpdate() {
+    when(preferencesService.isGameExeValid("tacc")).thenReturn(false);
+    when(replayService.fetchWatchTicket(game)).thenReturn(completedFuture(Optional.empty()));
+
+    instance.watchInBrowser(game).join();
+
+    verify(localAssetServerService, never()).stop(anyInt());
+  }
+
+  /**
+   * maptool.exe opens every archive under --gamepath, so an enumeration overlapping the
+   * checkout fails its rename. MapService's deferral is a shared COUNTER and our own
+   * optionalEnsureMap takes/releases one too — releasing it mid-flow drops the count to zero
+   * and fires the queued enumeration while the checkout is still running. Hold one across the
+   * whole flow so the nested release can never reach zero early.
+   */
+  @Test
+  public void mapEnumerationIsDeferredAcrossTheWholeFlow() {
+    when(replayService.fetchWatchTicket(game)).thenReturn(completedFuture(Optional.empty()));
+
+    instance.watchInBrowser(game).join();
+
+    InOrder order = inOrder(mapService, gameUpdater, platformService);
+    order.verify(mapService).addInstalledMapsUpdateDeferal();
+    order.verify(gameUpdater).update(any(), any());
+    order.verify(mapService).optionalEnsureMap(any(), any(), any(), any(), any(), any());
+    order.verify(platformService).showDocument(anyString());
+    order.verify(mapService).releaseInstalledMapsUpdateDeferal();
+  }
+
+  @Test
+  public void mapEnumerationDeferralIsReleasedEvenWhenTheFlowFails() {
+    when(replayService.fetchWatchTicket(game))
+        .thenThrow(new IllegalStateException("lobby exploded"));
+
+    instance.watchInBrowser(game).join();
+
+    verify(mapService).addInstalledMapsUpdateDeferal();
+    verify(mapService).releaseInstalledMapsUpdateDeferal();
+  }
+
+  @Test
+  public void tadaReplayDoesNotUpdateAnyMod() {
+    instance.watchTadaReplayInBrowser("k1", "abc123", "my game.tad").join();
+
+    // the mod isn't known until livescene decodes the demo header
+    verify(gameUpdater, never()).update(any(), any());
+    verify(platformService).showDocument(anyString());
   }
 }

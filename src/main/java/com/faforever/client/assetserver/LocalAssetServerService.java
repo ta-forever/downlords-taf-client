@@ -81,10 +81,28 @@ public class LocalAssetServerService implements DisposableBean {
   }
 
   public synchronized void stop() {
+    stop(0);
+  }
+
+  /**
+   * Stop the server, waiting up to {@code drainSeconds} for in-flight exchanges to finish.
+   *
+   * THE DRAIN IS THE POINT, and it exists for one reason: this server streams the game's own
+   * archives straight off disk, and a featured-mod update REPLACES those files. Java opens
+   * files on Windows without FILE_SHARE_DELETE, so a single in-flight range read of, say,
+   * T2ESC.ufo makes jgit's checkout fail with "Could not rename …tmp to T2ESC.ufo" and leaves
+   * the install half-updated. A stale viewer tab left open from an earlier watch is enough to
+   * do it — and it reads a LOT: the unit index alone pulls every FBI in the mod.
+   *
+   * stop(0) closes the listening socket but does NOT wait for handlers already inside
+   * serveFile(), so it does not release the file handles that matter. Callers about to touch
+   * the install must pass a real delay.
+   */
+  public synchronized void stop(int drainSeconds) {
     if (server != null) {
-      server.stop(0);
+      server.stop(drainSeconds);
       server = null;
-      log.info("Local asset server stopped");
+      log.info("Local asset server stopped (drained up to {}s)", drainSeconds);
     }
   }
 }

@@ -69,6 +69,10 @@ public class GitCheckoutTask extends CompletableTask<Void> implements ProgressMo
     Objects.requireNonNull(branchName, "branch has not been set");
 
     logger.info("Checking out {}", branchName);
+    // Terminal marker below. Without one, a SUCCESSFUL checkout leaves no completion line in
+    // the log (TaskService only logs failures), so there is no way to tell whether a caller
+    // that awaits this task actually waited for it.
+    long startedAt = System.currentTimeMillis();
     if (git == null) {
       git = Git.open(local);
     }
@@ -115,6 +119,7 @@ public class GitCheckoutTask extends CompletableTask<Void> implements ProgressMo
           .call();
     }
 
+    logger.info("Checked out {} in {} ms", branchName, System.currentTimeMillis() - startedAt);
     return null;
   }
 
