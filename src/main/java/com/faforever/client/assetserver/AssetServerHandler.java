@@ -231,7 +231,52 @@ class AssetServerHandler implements HttpHandler {
       exchange.sendResponseHeaders(404, -1);
       return;
     }
-    serveFile(exchange, installDir.resolve(relPath.replace('\\', '/')), installDir);
+    serveFile(exchange, resolveIgnoringCase(installDir, relPath.replace('\\', '/')), installDir);
+  }
+
+  /**
+   * Resolve a relative path under {@code base}, falling back to a case-INSENSITIVE match per
+   * component when the exact path does not exist.
+   *
+   * TA is case-blind about file names — it is a DOS-era game and HPI lookups ignore case,
+   * which is why the viewer's VFS lower-cases every path it handles. On Windows the filesystem
+   * happens to agree, so a lower-cased request for a real `Icon/AIR.PCX` just works. On Linux
+   * it does not: EVERY loose file whose real name is not already lower-case 404s. The visible
+   * symptom was strategic icons falling back to plain circles for every unit on a Linux ProTA
+   * install — the pack is a loose `Icon/` directory holding `iconcfg.ini` and files like
+   * `AIR.PCX` and `ARM.pcx`, and none of them could be fetched.
+   *
+   * Costs nothing where the name already matches (the exact hit returns immediately), so the
+   * directory listing only happens on the path that was previously a hard failure.
+   */
+  private static Path resolveIgnoringCase(Path base, String relPath) {
+    Path exact = base.resolve(relPath);
+    if (Files.exists(exact)) {
+      return exact;
+    }
+    Path current = base;
+    for (String part : relPath.split("/")) {
+      if (part.isEmpty() || ".".equals(part)) {
+        continue;
+      }
+      Path next = current.resolve(part);
+      if (Files.exists(next)) {
+        current = next;
+        continue;
+      }
+      Path match = null;
+      try (Stream<Path> children = Files.list(current)) {
+        match = children.filter(p -> p.getFileName().toString().equalsIgnoreCase(part))
+            .findFirst().orElse(null);
+      } catch (IOException e) {
+        return exact;   // unreadable directory — let serveFile answer 404
+      }
+      if (match == null) {
+        return exact;   // genuinely absent, whatever the case
+      }
+      current = match;
+    }
+    return current;
   }
 
   private void serveFile(HttpExchange exchange, Path file, Path mustBeUnder) throws IOException {

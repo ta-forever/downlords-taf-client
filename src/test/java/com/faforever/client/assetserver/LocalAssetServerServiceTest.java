@@ -124,6 +124,45 @@ public class LocalAssetServerServiceTest {
     }
   }
 
+  /**
+   * The viewer's VFS lower-cases every path it handles, because TA itself is case-blind and
+   * HPI lookups ignore case. Windows agrees by accident (NTFS is case-insensitive); Linux does
+   * not, and a real ProTA install there has 909 of its 932 loose files carrying upper-case
+   * somewhere in the path — including the whole strategic-icon pack (`Icon/AIR.PCX`,
+   * `Icon/ARM.pcx`, `Icon/iconcfg.ini`). Every one of them 404'd, so every unit fell back to a
+   * plain circle. Serving loose files case-insensitively is what makes the two platforms agree.
+   *
+   * Note this test passes trivially on Windows either way — the filesystem does the work
+   * there. It earns its keep on Linux.
+   */
+  @Test
+  public void looseFileIsServedRegardlessOfCase() throws IOException {
+    Path installDir = temp.getRoot().toPath();
+    Files.createDirectories(installDir.resolve("Icon"));
+    Files.write(installDir.resolve("Icon").resolve("AIR.PCX"), new byte[] {42, 43, 44});
+    Files.write(installDir.resolve("Icon").resolve("iconcfg.ini"), new byte[] {50});
+
+    // exactly what the viewer asks for: every component lower-cased
+    HttpURLConnection connection = get("/file/icon/air.pcx?mod=tacc");
+    assertThat(connection.getResponseCode(), is(200));
+    assertThat(connection.getInputStream().readAllBytes(), is(new byte[] {42, 43, 44}));
+
+    // a mixed-case directory with an already-lower-case file inside it
+    HttpURLConnection ini = get("/file/icon/iconcfg.ini?mod=tacc");
+    assertThat(ini.getResponseCode(), is(200));
+    assertThat(ini.getInputStream().readAllBytes(), is(new byte[] {50}));
+
+    // and the exact on-disk spelling still works
+    HttpURLConnection exact = get("/file/Icon/AIR.PCX?mod=tacc");
+    assertThat(exact.getResponseCode(), is(200));
+  }
+
+  @Test
+  public void missingLooseFileStill404sWhateverTheCase() throws IOException {
+    assertThat(get("/file/icon/nosuchfile.pcx?mod=tacc").getResponseCode(), is(404));
+    assertThat(get("/file/nosuchdir/nosuchfile.pcx?mod=tacc").getResponseCode(), is(404));
+  }
+
   @Test
   public void corsPinnedToWebsiteOrigin() throws IOException {
     HttpURLConnection connection = get("/manifest?mod=tacc");
