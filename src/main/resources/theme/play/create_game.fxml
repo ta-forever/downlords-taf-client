@@ -25,7 +25,7 @@
     <columnConstraints>
         <ColumnConstraints hgrow="NEVER" minWidth="10.0" prefWidth="200.0"/>
         <ColumnConstraints hgrow="NEVER" minWidth="10.0" prefWidth="200.0"/>
-        <ColumnConstraints hgrow="NEVER" minWidth="10.0" prefWidth="400.0"/>
+        <ColumnConstraints hgrow="NEVER" maxWidth="505.0" minWidth="505.0" prefWidth="505.0"/>
     </columnConstraints>
     <rowConstraints>
         <RowConstraints minHeight="80.0" vgrow="NEVER"/>
@@ -42,7 +42,7 @@
 
         <GridPane GridPane.rowIndex="1" GridPane.columnIndex="0" GridPane.columnSpan="2147483647" hgap="10.0" styleClass="create-game-root" vgap="10.0">
             <columnConstraints>
-                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="120.0"/>
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="125.0"/>
                 <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="200.0"/>
                 <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="140.0"/>
                 <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="140.0"/>
@@ -69,10 +69,14 @@
                            maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS"/>
                 </HBox>
                 <Label text="%game.create.liveReplay" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-                <ComboBox fx:id="liveReplayOptionComboBox" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                <ComboBox fx:id="liveReplayOptionComboBox" maxHeight="40.0" maxWidth="165.0"
+                          minHeight="40.0" minWidth="165.0" prefHeight="40.0" prefWidth="165.0"
+                          GridPane.columnIndex="1" GridPane.rowIndex="1"/>
                 <Label maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="%games.create.maxPlayers" wrapText="true"
                        GridPane.columnIndex="2" GridPane.rowIndex="0"/>
-                <ComboBox fx:id="maxPlayersComboBox" maxWidth="1.7976931348623157E308" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+                <ComboBox fx:id="maxPlayersComboBox" maxHeight="40.0" maxWidth="130.0"
+                          minHeight="40.0" minWidth="130.0" prefHeight="40.0" prefWidth="130.0"
+                          GridPane.columnIndex="2" GridPane.rowIndex="1"/>
                 <HBox fx:id="enforceRankingContainer" maxWidth="1.7976931348623157E308" spacing="10.0" GridPane.columnIndex="4" GridPane.rowIndex="0">
                     <children>
                         <Label text="%games.create.enforceRating" GridPane.columnIndex="3" GridPane.rowIndex="0"/>
@@ -150,21 +154,27 @@
         </VBox>
 
         <!-- Map Preview -->
-        <HBox alignment="CENTER_LEFT" spacing="10.0" GridPane.rowIndex="3" GridPane.columnIndex="2">
+        <HBox alignment="CENTER_LEFT" maxHeight="40.0" minHeight="40.0" prefHeight="40.0" spacing="8.0"
+              GridPane.rowIndex="3" GridPane.columnIndex="2">
             <Label minWidth="-Infinity" text="%game.create.preview"/>
-            <GridPane hgap="10.0" HBox.hgrow="ALWAYS">
+            <GridPane hgap="8.0">
                 <columnConstraints>
-                    <ColumnConstraints hgrow="ALWAYS" percentWidth="50.0"/>
-                    <ColumnConstraints hgrow="ALWAYS" percentWidth="50.0"/>
+                    <ColumnConstraints hgrow="NEVER" maxWidth="160.0" minWidth="160.0" prefWidth="160.0"/>
+                    <ColumnConstraints hgrow="NEVER" maxWidth="160.0" minWidth="160.0" prefWidth="160.0"/>
                 </columnConstraints>
-                <ComboBox fx:id="mapPreviewTypeComboBox" maxWidth="1.7976931348623157E308"
-                          GridPane.columnIndex="0" GridPane.hgrow="ALWAYS"/>
-                <ComboBox fx:id="mapPreviewOverlayComboBox" maxWidth="1.7976931348623157E308"
-                          GridPane.columnIndex="1" GridPane.hgrow="ALWAYS"/>
+                <ComboBox fx:id="mapPreviewTypeComboBox" maxHeight="40.0" maxWidth="160.0" minHeight="40.0" minWidth="160.0"
+                          prefHeight="40.0" prefWidth="160.0"
+                          GridPane.columnIndex="0"/>
+                <ComboBox fx:id="mapPreviewOverlayComboBox" maxHeight="40.0" maxWidth="160.0" minHeight="40.0" minWidth="160.0"
+                          prefHeight="40.0" prefWidth="160.0"
+                          GridPane.columnIndex="1"/>
             </GridPane>
+            <Label minWidth="-Infinity" text="%game.players"/>
+            <ComboBox fx:id="mapPreviewPlayersComboBox" maxHeight="40.0" maxWidth="75.0" minHeight="40.0" minWidth="75.0"
+                      prefHeight="40.0" prefWidth="75.0"/>
         </HBox>
-        <VBox fx:id="mapPreview" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" GridPane.columnIndex="2"
-              GridPane.columnSpan="2" GridPane.rowIndex="4" GridPane.rowSpan="2" GridPane.vgrow="ALWAYS">
+        <VBox fx:id="mapPreview" maxHeight="1.7976931348623157E308" maxWidth="505.0" prefWidth="505.0" GridPane.columnIndex="2"
+              GridPane.rowIndex="4" GridPane.rowSpan="2" GridPane.vgrow="ALWAYS">
 
             <Separator GridPane.columnSpan="2147483647" GridPane.hgrow="ALWAYS"/>
             <StackPane>
@@ -179,9 +189,9 @@
                 </AnchorPane>
             </StackPane>
             <VBox alignment="CENTER" maxWidth="1.7976931348623157E308" spacing="0.0">
-                <Label fx:id="mapNameLabel" alignment="CENTER" maxWidth="1.7976931348623157E308" text="&lt;Map name&gt;"/>
-                <Label fx:id="hpiArchiveLabel" alignment="CENTER" maxWidth="1.7976931348623157E308"
-                       styleClass="secondary" text="&lt;archive.ufo&gt;">
+                <Label fx:id="mapNameLabel" alignment="CENTER" maxWidth="1.7976931348623157E308" minWidth="0.0" text="&lt;Map name&gt;" textOverrun="ELLIPSIS"/>
+                <Label fx:id="hpiArchiveLabel" alignment="CENTER" maxWidth="1.7976931348623157E308" minWidth="0.0"
+                        styleClass="secondary" text="&lt;archive.ufo&gt;">
                     <VBox.margin>
                         <Insets bottom="2.0"/>
                     </VBox.margin>
@@ -207,12 +217,12 @@
                     <Insets bottom="3.0" top="5.0"/>
                 </VBox.margin>
             </Separator>
-            <ScrollPane maxWidth="360" fitToWidth="true" maxHeight="1.7976931348623157E308" VBox.vgrow="ALWAYS">
+            <ScrollPane fitToWidth="true" hbarPolicy="NEVER" maxHeight="1.7976931348623157E308" maxWidth="505.0" prefWidth="505.0" VBox.vgrow="ALWAYS">
                 <VBox.margin>
                     <Insets bottom="12.0"/>
                 </VBox.margin>
                 <Label fx:id="mapDescriptionLabel" alignment="TOP_LEFT" maxHeight="1.7976931348623157E308"
-                       maxWidth="360" text="&lt;Description&gt;" wrapText="true"/>
+                       maxWidth="505.0" minWidth="0.0" prefWidth="505.0" text="&lt;Description&gt;" wrapText="true"/>
             </ScrollPane>
         </VBox>
 
