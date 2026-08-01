@@ -99,6 +99,7 @@ public class WagerController extends AbstractViewController<Node> {
   private final MapService mapService;
   private final AudioService audioService;
   private final ReplayService replayService;
+  private final com.faforever.client.replay.BrowserWatchService browserWatchService;
   private final LeaderboardService leaderboardService;
   private final EventBus eventBus;
 
@@ -982,6 +983,18 @@ public class WagerController extends AbstractViewController<Node> {
       }
     });
     menu.getItems().add(watch);
+    if (browserWatchService.isAvailable()) {
+      MenuItem watchInBrowser = new MenuItem(i18n.get("wager.watchLiveBrowser"));
+      watchInBrowser.setOnAction(event -> {
+        if (cell.getItem() != null) {
+          Game game = findGameQuietly(cell.getItem().gameId());
+          if (game != null) {
+            browserWatchService.watchInBrowser(game);
+          }
+        }
+      });
+      menu.getItems().add(watchInBrowser);
+    }
     cell.emptyProperty().addListener((obs, was, isEmpty) -> cell.setContextMenu(isEmpty ? null : menu));
     return cell;
   }

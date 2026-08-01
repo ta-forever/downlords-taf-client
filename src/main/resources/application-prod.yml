@@ -18,6 +18,9 @@ faf-client:
   website:
     base-url: https://www.taforever.com
 
+  live-viewer:
+    url-format: https://www.taforever.com/live/%d
+
   api:
     base-url: https://api.taforever.com
     client-id: 3bc8282c-7730-11e5-8bcf-feff819cdc9f

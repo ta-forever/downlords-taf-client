@@ -265,22 +265,36 @@ public class ReplayService implements InitializingBean {
     // Obtain a signed watch ticket from the lobby so the watch session is
     // attributed server-side and participants are blocked from watching their
     // own game. The ticket rides the taflive:// URI to the replay server.
-    fafService.requestWatchTicket(game.getId())
+    fetchWatchTicket(game).thenAccept(ticket -> {
+      if (ticket != null) {
+        startLiveReplay(game, ticket.orElse(null));
+      }
+    });
+  }
+
+  /**
+   * Requests a signed watch ticket from the lobby for a live game. Shared by the in-game watch
+   * path (taflive:// URI to replayer.exe) and the browser watch path (viewer page URL fragment).
+   *
+   * @return completes with {@code Optional.of(ticket)} on success, {@code Optional.empty()} when
+   *     the lobby round-trip failed or timed out (caller should proceed ticketless — the replay
+   *     server still serves such requests while enforcement is in soft-rollout mode), or
+   *     {@code null} when the lobby denied the ticket (the player is a participant; the lobby has
+   *     already notified the user, so the caller must not start any watch session).
+   */
+  public CompletableFuture<Optional<String>> fetchWatchTicket(Game game) {
+    return fafService.requestWatchTicket(game.getId())
         .orTimeout(WATCH_TICKET_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        .whenComplete((ticketMessage, throwable) -> {
+        .handle((ticketMessage, throwable) -> {
           if (throwable != null) {
-            // Old/unconfigured server or a slow round-trip: fall back to a
-            // ticketless subscribe, which the replay server still serves while
-            // ticket enforcement is in soft-rollout mode.
-            log.info("No watch ticket for game {} ({}); starting live replay without one",
+            log.info("No watch ticket for game {} ({}); proceeding without one",
                 game.getId(), throwable.toString());
-            startLiveReplay(game, null);
+            return Optional.empty();
           } else if (ticketMessage.isDenied() || ticketMessage.getTicket() == null) {
-            // Lobby refused (the player is a participant). The lobby has already
-            // shown the user a notice; do not start the replay.
             log.info("Watch ticket denied for game {}", game.getId());
+            return null;
           } else {
-            startLiveReplay(game, ticketMessage.getTicket());
+            return Optional.of(ticketMessage.getTicket());
           }
         });
   }
@@ -409,6 +423,25 @@ public class ReplayService implements InitializingBean {
 
   @Subscribe
   public void startReplay(ShowTadaReplayEvent event) throws MalformedURLException, UnsupportedEncodingException {
+    // Remote TADA replays can also be watched in the browser viewer. Local .tad files can't (the
+    // livescene service has no way to reach the user's disk), so those always play in game.
+    // BrowserWatchService is resolved via the context rather than the constructor because it
+    // depends on this service (fetchWatchTicket) — constructor injection would be a cycle.
+    boolean isRemoteReplay = event.getKey() != null && event.getTadaReplayId() != null;
+    BrowserWatchService browserWatchService = applicationContext.getBean(BrowserWatchService.class);
+    if (isRemoteReplay && browserWatchService.isAvailable()) {
+      notificationService.addNotification(new ImmediateNotification(
+          i18n.get("game.watch"), i18n.get("tada.watchChoice.text"), Severity.INFO, List.of(
+          new Action(i18n.get("game.watch.inGame"), a -> noCatch(() -> runTadaReplayInGame(event))),
+          new Action(i18n.get("game.watch.inBrowser"),
+              a -> browserWatchService.watchTadaReplayInBrowser(event.getKey(), event.getTadaReplayId(), event.getFilename())),
+          new DismissAction(i18n))));
+      return;
+    }
+    runTadaReplayInGame(event);
+  }
+
+  private void runTadaReplayInGame(ShowTadaReplayEvent event) throws MalformedURLException, UnsupportedEncodingException {
 
     Path downloadPath = preferencesService.getCacheDirectory().resolve("replays").resolve(event.getFilename());
 

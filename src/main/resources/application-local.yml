@@ -18,6 +18,9 @@ faf-client:
   website:
     base-url: http://192.168.0.100:8020
 
+  live-viewer:
+    url-format: http://192.168.0.100:8020/live/%d
+
   api:
     base-url: http://192.168.0.100:8010
     client-id: 3bc8282c-7730-11e5-8bcf-feff819cdc9f

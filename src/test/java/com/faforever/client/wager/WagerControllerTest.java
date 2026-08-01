@@ -19,6 +19,7 @@ import com.faforever.client.preferences.Preferences;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.rating.RatingService;
 import com.faforever.client.remote.domain.GameStatus;
+import com.faforever.client.replay.BrowserWatchService;
 import com.faforever.client.replay.ReplayService;
 import com.faforever.client.test.AbstractPlainJavaFxTest;
 import com.faforever.client.theme.UiService;
@@ -100,6 +101,8 @@ public class WagerControllerTest extends AbstractPlainJavaFxTest {
   @Mock
   private ReplayService replayService;
   @Mock
+  private BrowserWatchService browserWatchService;
+  @Mock
   private LeaderboardService leaderboardService;
   @Mock
   private EventBus eventBus;
@@ -150,7 +153,7 @@ public class WagerControllerTest extends AbstractPlainJavaFxTest {
 
     instance = new WagerController(wagerService, i18n, gameService, ladderPointsService, playerService,
         uiService, ratingService, galacticWarService, preferencesService, mapService, audioService,
-        replayService, leaderboardService, eventBus);
+        replayService, browserWatchService, leaderboardService, eventBus);
     loadFxml("theme/wager/wager.fxml", clazz -> clazz == WagerBotPnlController.class ? botPnl : instance);
     runOnFxThreadAndWait(() -> {});
   }

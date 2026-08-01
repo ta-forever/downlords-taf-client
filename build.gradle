@@ -181,6 +181,10 @@ compileTestJava {
   include '**/util/LogTailUtilTest.java'
   // Self-contained Ed25519 update-signature verifier test (no broken siblings in update/).
   include '**/update/UpdateSignatureVerifierTest.java'
+  // Watch-in-browser live viewer: watch menu, viewer URL composition, local asset server (Contract A).
+  include '**/vault/replay/WatchButtonControllerTest.java'
+  include '**/replay/BrowserWatchServiceTest.java'
+  include '**/assetserver/**'
   // Test base classes / shared utilities — required by tests in the
   // included packages above. Don't include broken siblings of these.
   include '**/test/AbstractPlainJavaFxTest.java'

@@ -41,6 +41,7 @@ public class ClientProperties {
   private Map<String, String> links = new HashMap<>();
   private GalacticWar galacticWar = new GalacticWar();
   private Wager wager = new Wager();
+  private LiveViewer liveViewer = new LiveViewer();
 
   @Data
   public static class News {
@@ -113,6 +114,17 @@ public class ClientProperties {
     public int getReplayServerPort() {  // the replay server plays back the .tad file recorded by the demo compiler
       return remotePort +1;
     }
+  }
+
+  @Data
+  public static class LiveViewer {
+    /** Page that hosts the browser-based 3D live viewer; %d is the game id. The ticket and
+     * local asset-server URL are passed in the fragment (never the query) so they stay out of
+     * server access logs. Empty/null disables the "Watch in browser" menu item. */
+    private String urlFormat;
+    /** Port for the local asset HTTP server the viewer page fetches game assets from.
+     * 0 (default) picks an ephemeral port. */
+    private int assetServerPort = 0;
   }
 
   @Data

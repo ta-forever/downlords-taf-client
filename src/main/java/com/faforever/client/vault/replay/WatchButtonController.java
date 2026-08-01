@@ -4,13 +4,17 @@ import com.faforever.client.config.ClientProperties;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.game.Game;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.replay.BrowserWatchService;
 import com.faforever.client.replay.ReplayService;
 import com.faforever.client.util.TimeService;
 import com.google.common.annotations.VisibleForTesting;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.util.Duration;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
@@ -23,6 +27,7 @@ import java.time.Instant;
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class WatchButtonController implements Controller<Node> {
   private final ReplayService replayService;
+  private final BrowserWatchService browserWatchService;
   private final ClientProperties clientProperties;
   private final TimeService timeService;
 
@@ -30,9 +35,12 @@ public class WatchButtonController implements Controller<Node> {
   private Game game;
   private final I18n i18n;
   private Timeline delayTimeline;
+  private ContextMenu watchMenu;
 
-  public WatchButtonController(ReplayService replayService, ClientProperties clientProperties, TimeService timeService, I18n i18n) {
+  public WatchButtonController(ReplayService replayService, BrowserWatchService browserWatchService,
+                               ClientProperties clientProperties, TimeService timeService, I18n i18n) {
     this.replayService = replayService;
+    this.browserWatchService = browserWatchService;
     this.clientProperties = clientProperties;
     this.timeService = timeService;
     this.i18n = i18n;
@@ -45,8 +53,20 @@ public class WatchButtonController implements Controller<Node> {
     );
     delayTimeline.setCycleCount(Timeline.INDEFINITE);
 
+    // The delay countdown gates the whole menu: while the button is disabled neither
+    // watch flavour is reachable, matching the escrow on the replay server side.
+    watchMenu = new ContextMenu();
+    MenuItem watchInGameItem = new MenuItem(i18n.get("game.watch.inGame"));
+    watchInGameItem.setOnAction(event -> replayService.runLiveReplay(game));
+    watchMenu.getItems().add(watchInGameItem);
+    if (browserWatchService.isAvailable()) {
+      MenuItem watchInBrowserItem = new MenuItem(i18n.get("game.watch.inBrowser"));
+      watchInBrowserItem.setOnAction(event -> browserWatchService.watchInBrowser(game));
+      watchMenu.getItems().add(watchInBrowserItem);
+    }
+
     watchButton.setDisable(true);
-    watchButton.setOnAction(event -> replayService.runLiveReplay(game));
+    watchButton.setOnAction(event -> watchMenu.show(watchButton, Side.BOTTOM, 0, 0));
   }
 
   public void setGame(Game game) {
@@ -101,6 +121,11 @@ public class WatchButtonController implements Controller<Node> {
   @VisibleForTesting
   public Timeline getDelayTimeline() {
     return delayTimeline;
+  }
+
+  @VisibleForTesting
+  public ContextMenu getWatchMenu() {
+    return watchMenu;
   }
 
   @Override
