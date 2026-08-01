@@ -93,15 +93,17 @@ public interface WagerService {
   }
 
   /**
-   * One human (non-bot) trade, positioned on the DISPLAYED outcome's price path: {@code price} is
-   * that outcome's implied probability just after the trade, and {@code up} is whether the trade
-   * pushed it up — equivalently, whether the trade was a buy of the displayed outcome (buying the
-   * other 2-team outcome shows as a down-tick here, since that's its effect on this line).
-   * {@code shares} is the unsigned share count traded; {@code userName} may be null if the
+   * One human (non-bot) trade, positioned on the DISPLAYED outcome's price path.
+   * {@code priceBefore} / {@code priceAfter} are that outcome's implied probability either side of
+   * the trade — charts draw the marker at {@code priceBefore}, where the move STARTS, so the arrow
+   * points along the jump it caused rather than sitting at its destination. {@code up} is whether
+   * the trade pushed the price up — equivalently, whether it was a buy of the displayed outcome
+   * (buying the other 2-team outcome shows as a down-tick here, since that's its effect on this
+   * line). {@code shares} is the unsigned share count traded; {@code userName} may be null if the
    * name lookup failed (fall back to "#userId").
    */
-  record TradeMarker(double epochSeconds, double price, int userId, String userName,
-                     boolean up, double shares) {
+  record TradeMarker(double epochSeconds, double priceBefore, double priceAfter, int userId,
+                     String userName, boolean up, double shares) {
   }
 
   /** An outcome's charted history: the price path plus the human-trade markers on it. */

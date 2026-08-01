@@ -167,6 +167,9 @@ compileTestJava {
   include '**/game/ManualTeamArrangementControllerTest.java'
   // Self-contained "beat the model" scoreboard card (LIVE_PRICING_DESIGN.md §6) — FXML load + aggregation.
   include '**/wager/WagerBotPnlControllerTest.java'
+  // Live wagering tab: FXML wiring, share-count buy preview, game-over/settlement indication,
+  // and selection surviving navigation.
+  include '**/wager/WagerControllerTest.java'
   // Self-contained team-card test (covers the friend/foe-icons-in-team-cards toggle).
   include '**/game/TeamCardControllerTest.java'
   include '**/game/ManageGameControllerTest.java'

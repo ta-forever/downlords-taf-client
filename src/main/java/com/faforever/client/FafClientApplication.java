@@ -121,14 +121,13 @@ public class FafClientApplication extends Application {
   public void start(Stage stage) {
     StartupProfiler.mark("start: begin");
 
-    // Pre-flight auto-login: if credentials are stored, kick off the
-    // network handshake (TCP connect → session → login) NOW, in parallel
-    // with FXML/UI loading. The 3.5s connect+login latency otherwise sits
-    // idle while the user stares at the splash. UserService.login is
-    // guarded against duplicate concurrent calls — the LoginController's
-    // later auto-login attempt joins the in-flight future instead of
-    // starting a second connection.
-    maybePreflightAutoLogin();
+    // NOTE: do NOT kick off auto-login here. A startup "pre-flight" login used to
+    // run at this point to overlap the ~3.5s connect+login handshake with UI
+    // loading, but it bypassed the minimum-client-version gate in
+    // LoginController: the gate would correctly refuse to *start* a login and show
+    // the "client too old" pane, while the pre-flight login it never knew about
+    // completed regardless, leaving the user logged in behind the notice. Any
+    // future reinstatement must not log in before that gate has been evaluated.
 
     StageHolder.setStage(stage);
     FxStage fxStage = FxStage.configure(stage)
@@ -145,25 +144,6 @@ public class FafClientApplication extends Application {
       applicationContext.getBean(WindowsTaskbarProgressUpdater.class).initTaskBar();
     }
     StartupProfiler.mark("start: end");
-  }
-
-  private void maybePreflightAutoLogin() {
-    try {
-      PreferencesService prefs = applicationContext.getBean(PreferencesService.class);
-      com.faforever.client.preferences.LoginPrefs login = prefs.getPreferences().getLogin();
-      if (!login.getAutoLogin()) return;
-      String user = login.getUsername();
-      String pass = login.getPassword();
-      if (user == null || user.isEmpty() || pass == null || pass.isEmpty()) return;
-      com.faforever.client.user.UserService userService =
-          applicationContext.getBean(com.faforever.client.user.UserService.class);
-      StartupProfiler.mark("auto-login pre-flight kicked off");
-      // Fire-and-forget. The exceptionally branch on the LoginController
-      // path will surface any failure to the user via the login screen.
-      userService.login(user, pass, true);
-    } catch (Exception e) {
-      log.warn("Auto-login pre-flight failed (will retry from login screen)", e);
-    }
   }
 
   @Bean

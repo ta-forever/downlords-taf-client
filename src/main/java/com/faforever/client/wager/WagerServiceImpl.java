@@ -177,7 +177,8 @@ public class WagerServiceImpl implements WagerService {
         // a down-tick on this line. post == pre (deadband-rounded no-op) keeps the buy/sell sense
         // of the trade itself.
         boolean up = post != pre ? post > pre : (t.getDeltaShares() > 0) == (t.getOutcomeId() == outcomeId);
-        markers.add(new TradeMarker(epoch, post, t.getUserId(), null, up, Math.abs(t.getDeltaShares())));
+        markers.add(new TradeMarker(epoch, pre, post, t.getUserId(), null, up,
+            Math.abs(t.getDeltaShares())));
       }
     }
     return new PriceHistory(points, resolveTraderNames(markers));
@@ -188,7 +189,7 @@ public class WagerServiceImpl implements WagerService {
   private List<TradeMarker> resolveTraderNames(List<TradeMarker> markers) {
     Map<Integer, String> names = resolveNames(markers.stream().map(TradeMarker::userId).toList());
     return markers.stream()
-        .map(m -> new TradeMarker(m.epochSeconds(), m.price(), m.userId(),
+        .map(m -> new TradeMarker(m.epochSeconds(), m.priceBefore(), m.priceAfter(), m.userId(),
             names.get(m.userId()), m.up(), m.shares()))
         .collect(Collectors.toList());
   }

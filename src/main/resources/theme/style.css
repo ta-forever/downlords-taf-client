@@ -837,6 +837,15 @@
   -fx-stroke-width: 1;
 }
 
+/* The wager price chart draws its series name (top-left) and trade-tick key (bottom-left) INSIDE
+   the plot area instead of in a legend strip, so they cost no vertical space. A translucent panel
+   keeps them readable wherever the price line happens to run underneath. */
+.chart-overlay-label {
+  -fx-background-color: #00000059;
+  -fx-background-radius: 3;
+  -fx-padding: 0.15em 0.5em 0.15em 0.5em;
+}
+
 /***************** Hint *****************/
 
 .hint {

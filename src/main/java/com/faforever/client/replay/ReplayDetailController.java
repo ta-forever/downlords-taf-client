@@ -440,17 +440,18 @@ public class ReplayDetailController implements Controller<Node> {
         series.getData().add(new javafx.scene.chart.XYChart.Data<>(endMin, lastPoint.price()));
       }
     }
-    // Human-trade markers: a coloured ▲/▼ per trade riding on its (already plotted) post-trade
-    // point — a duplicate data point carrying only the symbol node, so the line is unchanged.
+    // Human-trade markers: a coloured ▲/▼ per trade riding on its (already plotted) PRE-trade
+    // point — the foot of the step it caused, so the arrow marks where the move starts and points
+    // along it. A duplicate data point carrying only the symbol node, so the line is unchanged.
     Map<Integer, javafx.scene.paint.Color> traderColors = new java.util.HashMap<>();
     for (com.faforever.client.wager.WagerService.TradeMarker marker : chart.markers()) {
       double time = (marker.epochSeconds() - startEpoch) / 60.0;
       String tooltip = i18n.get(marker.up() ? "wager.marker.bought" : "wager.marker.sold",
           com.faforever.client.wager.WagerChartMarkers.displayName(marker),
           String.format("%.2f", marker.shares()),
-          String.format("%.1f", marker.price() * 100));
+          String.format("%.1f", marker.priceAfter() * 100));
       javafx.scene.chart.XYChart.Data<Number, Number> data =
-          new javafx.scene.chart.XYChart.Data<>(time, marker.price());
+          new javafx.scene.chart.XYChart.Data<>(time, marker.priceBefore());
       data.setNode(com.faforever.client.wager.WagerChartMarkers.markerNode(marker,
           com.faforever.client.wager.WagerChartMarkers.colorFor(traderColors, marker.userId()), tooltip));
       series.getData().add(data);

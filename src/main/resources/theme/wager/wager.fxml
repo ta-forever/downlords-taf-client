@@ -14,8 +14,10 @@
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
 <VBox xmlns:fx="http://javafx.com/fxml/1" fx:id="wagerRoot" maxHeight="1.7976931348623157E308"
@@ -31,44 +33,43 @@
         <Label styleClass="h1" text="%wager.title" style="-fx-padding: 0;" minWidth="-Infinity"/>
         <Label styleClass="text-secondary" text="%wager.subtitle" wrapText="true"
                HBox.hgrow="ALWAYS" maxWidth="1.7976931348623157E308"/>
+        <!-- Reloads the watchlist, my LP AND my positions, so it belongs to the page rather than
+             to the live-games section — which gets that whole row back for its list. -->
+        <Button fx:id="refreshButton" text="%refresh" minWidth="-Infinity"/>
     </HBox>
     <Separator/>
 
     <!-- Resizable: left column (watchlist + my LP + my positions) | right column (selected game detail) -->
     <SplitPane orientation="HORIZONTAL" dividerPositions="0.28" VBox.vgrow="ALWAYS" styleClass="resizable-split">
         <items>
-            <!-- Left column: independent collapsible sections (no resize handles between them) -->
+            <!-- Left column: independent collapsible sections (no resize handles between them).
+                 growWhenExpanded() in the controller unbounds each pane's max height AND ties its
+                 VBox.vgrow to `expanded`, so collapsing a section hands ALL of its room to the ones
+                 still open. Without that a TitledPane caps itself at its PREFERRED height, and the
+                 space freed by collapsing just sat dead at the bottom of the column. The
+                 prefHeights below are only the baseline share — deliberately small so the column is
+                 never over-constrained and there is always slack to hand out. -->
             <VBox spacing="6.0" minWidth="200.0">
                 <padding>
                     <Insets right="6.0"/>
                 </padding>
 
-                <TitledPane text="%wager.liveGames" expanded="true" VBox.vgrow="ALWAYS" collapsible="true">
-                    <VBox spacing="6.0">
-                        <HBox alignment="CENTER_RIGHT">
-                            <Button fx:id="refreshButton" text="%refresh"/>
-                        </HBox>
-                        <ListView fx:id="gamesList" VBox.vgrow="ALWAYS" prefHeight="200.0"/>
-                    </VBox>
+                <TitledPane fx:id="liveGamesPane" text="%wager.liveGames" expanded="true" collapsible="true" animated="false">
+                    <ListView fx:id="gamesList" prefHeight="120.0" minHeight="60.0"/>
                 </TitledPane>
 
-                <Separator/>
-
-                <TitledPane text="%wager.myLadderPoints" expanded="true" collapsible="true">
-                    <ListView fx:id="myLpList" prefHeight="160.0"/>
+                <TitledPane fx:id="myLpPane" text="%wager.myLadderPoints" expanded="true" collapsible="true" animated="false">
+                    <ListView fx:id="myLpList" prefHeight="90.0" minHeight="50.0"/>
                 </TitledPane>
 
-                <Separator/>
-
-                <TitledPane text="%wager.bot.title" expanded="false" collapsible="true">
+                <TitledPane fx:id="botTitledPane" text="%wager.bot.title" expanded="false"
+                            collapsible="true" animated="false">
                     <fx:include fx:id="botPnl" source="wager_bot_pnl.fxml"/>
                 </TitledPane>
 
-                <Separator/>
-
                 <!-- My positions (portfolio) — kept in the left column so the right column gets full height -->
-                <TitledPane text="%wager.portfolio" expanded="true" VBox.vgrow="ALWAYS" collapsible="true">
-                    <TableView fx:id="portfolioTable" prefHeight="160.0">
+                <TitledPane fx:id="portfolioPane" text="%wager.portfolio" expanded="true" collapsible="true" animated="false">
+                    <TableView fx:id="portfolioTable" prefHeight="140.0" minHeight="60.0">
                         <columns>
                             <TableColumn fx:id="posGameColumn" text="%wager.column.game"/>
                             <TableColumn fx:id="posStatusColumn" text="%wager.column.status"/>
@@ -90,73 +91,109 @@
                 <padding>
                     <Insets left="6.0"/>
                 </padding>
-                <Label fx:id="boardLabel" styleClass="text-secondary"/>
-                <Label fx:id="marketStatusLabel" styleClass="text-secondary"/>
+                <!-- Board (left) and market status (right) share one line to save vertical space -->
+                <HBox alignment="CENTER_LEFT" spacing="10.0">
+                    <Label fx:id="boardLabel" styleClass="text-secondary" HBox.hgrow="ALWAYS"
+                           maxWidth="1.7976931348623157E308"/>
+                    <Label fx:id="marketStatusLabel" styleClass="text-secondary" minWidth="-Infinity"/>
+                </HBox>
 
                 <Separator/>
 
-                <!-- Map thumbnail + team cards -->
+                <!-- Map thumbnail + team cards | outcome picker, side by side so the chart gets the height -->
                 <HBox spacing="10.0" alignment="TOP_LEFT" minHeight="145.0">
                     <VBox alignment="TOP_CENTER" spacing="4.0" minWidth="110.0">
                         <ImageView fx:id="mapImageView" fitWidth="100.0" fitHeight="100.0" preserveRatio="true"/>
                         <Label fx:id="mapNameLabel" styleClass="text-secondary" wrapText="true"
                                maxWidth="110.0" alignment="CENTER"/>
                     </VBox>
+                    <!-- No hgrow: the team cards take only the width they need, so all the slack
+                         goes to the outcomes table. When the row IS over-constrained HBox shrinks
+                         every child toward its min regardless of hgrow, so this scrolls and the
+                         table stops at its minWidth. -->
                     <ScrollPane fitToHeight="true" hbarPolicy="AS_NEEDED" vbarPolicy="NEVER" minHeight="145.0"
-                                styleClass="no-border" HBox.hgrow="ALWAYS">
+                                styleClass="no-border">
                         <HBox fx:id="teamCardsPane" spacing="10.0"/>
                     </ScrollPane>
+                    <!-- Divider and the whole outcomes column are hidden until a game is picked -->
+                    <Separator fx:id="outcomesSeparator" orientation="VERTICAL"/>
+                    <!-- Outcome picker with its trade controls directly beneath it, filling out to
+                         the right edge. Sharing a column is what aligns the Buy controls with the
+                         table's left edge — they trade the outcome selected right above them. -->
+                    <VBox fx:id="outcomesColumn" spacing="6.0" prefWidth="320.0" minWidth="220.0"
+                          HBox.hgrow="ALWAYS">
+                        <TableView fx:id="outcomesTable" VBox.vgrow="ALWAYS" prefHeight="145.0"
+                                   minHeight="115.0" maxWidth="1.7976931348623157E308">
+                            <columns>
+                                <TableColumn fx:id="outcomeColumn" text="%wager.column.outcome"/>
+                                <TableColumn fx:id="priceColumn" text="%wager.column.price"/>
+                            </columns>
+                            <columnResizePolicy>
+                                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                            </columnResizePolicy>
+                        </TableView>
+                        <!-- Buy (left) and sell (right) on one line; both are entered as a share
+                             count, with the LP cost / proceeds (fee included) previewed as you type. -->
+                        <HBox alignment="CENTER_LEFT" spacing="8.0">
+                            <Label text="%wager.buyLabel" minWidth="-Infinity"/>
+                            <TextField fx:id="buySharesField" prefWidth="90.0" promptText="%wager.shares"/>
+                            <Label text="%wager.sharesUnit"/>
+                            <Button fx:id="buyButton" styleClass="primary-button" text="%wager.buy"/>
+                            <Label fx:id="buyPreviewLabel" styleClass="text-secondary"/>
+                            <Region HBox.hgrow="ALWAYS" minWidth="10.0"/>
+                            <Label fx:id="sellPreviewLabel" styleClass="text-secondary"/>
+                            <Label text="%wager.sellLabel" minWidth="-Infinity"/>
+                            <TextField fx:id="sharesField" prefWidth="90.0" promptText="%wager.shares"/>
+                            <Label text="%wager.sharesUnit"/>
+                            <Button fx:id="maxButton" text="%wager.max"/>
+                            <Button fx:id="sellButton" text="%wager.sell"/>
+                        </HBox>
+                    </VBox>
                 </HBox>
 
-                <Separator/>
-
-                <!-- Outcome picker (drives which team you trade) -->
-                <TableView fx:id="outcomesTable" prefHeight="145.0" minHeight="115.0">
-                    <columns>
-                        <TableColumn fx:id="outcomeColumn" text="%wager.column.outcome"/>
-                        <TableColumn fx:id="priceColumn" text="%wager.column.price"/>
-                    </columns>
-                    <columnResizePolicy>
-                        <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
-                    </columnResizePolicy>
-                </TableView>
-
-                <Separator/>
-
-                <!-- Buy by amount (LP to spend, fee incl.) -> shares -->
-                <HBox alignment="CENTER_LEFT" spacing="8.0">
-                    <Label text="%wager.buyFor" minWidth="55.0"/>
-                    <TextField fx:id="lpField" prefWidth="90.0" promptText="%wager.lp"/>
-                    <Label text="%wager.lp"/>
-                    <Button fx:id="buyButton" styleClass="primary-button" text="%wager.buy"/>
-                    <Label fx:id="buyPreviewLabel" styleClass="text-secondary"/>
-                </HBox>
-                <!-- Sell by share count -> LP received (fee deducted) -->
-                <HBox alignment="CENTER_LEFT" spacing="8.0">
-                    <Label text="%wager.sellLabel" minWidth="55.0"/>
-                    <TextField fx:id="sharesField" prefWidth="90.0" promptText="%wager.shares"/>
-                    <Button fx:id="maxButton" text="%wager.max"/>
-                    <Button fx:id="sellButton" text="%wager.sell"/>
-                    <Label fx:id="sellPreviewLabel" styleClass="text-secondary"/>
-                </HBox>
                 <Label fx:id="tradeStatusLabel" styleClass="text-secondary"/>
 
                 <Separator/>
 
-                <!-- price chart for the selected outcome -->
-                <LineChart fx:id="priceChart" VBox.vgrow="ALWAYS" minHeight="160.0" legendVisible="true"
-                           createSymbols="false" animated="false" styleClass="price-chart"
-                           horizontalGridLinesVisible="true">
-                    <xAxis>
-                        <NumberAxis label="%wager.chart.time" forceZeroInRange="false"/>
-                    </xAxis>
-                    <yAxis>
-                        <NumberAxis label="%wager.chart.price" lowerBound="0" upperBound="100"
-                                    autoRanging="false" tickUnit="20"/>
-                    </yAxis>
-                </LineChart>
-                <!-- per-trader colour legend for the ▲/▼ trade markers on the chart -->
-                <FlowPane fx:id="tradeLegend" hgap="12.0" vgap="4.0" visible="false" managed="false"/>
+                <!-- Price chart for the selected outcome. It keeps a minimum height and the whole
+                     block scrolls when the window is too short to honour it. The chart's own
+                     legend is off: the series name and the trade-tick key are overlaid INSIDE the
+                     plot area (top-left / bottom-left) so they cost no vertical space at all.
+                     The overlay's padding is bound to the axis sizes in the controller. -->
+                <ScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED"
+                            styleClass="no-border" minHeight="0.0" prefHeight="240.0" VBox.vgrow="ALWAYS">
+                    <StackPane minHeight="220.0">
+                        <LineChart fx:id="priceChart" minHeight="200.0" legendVisible="false"
+                                   createSymbols="false" animated="false" styleClass="price-chart"
+                                   horizontalGridLinesVisible="true">
+                            <xAxis>
+                                <NumberAxis label="%wager.chart.time" forceZeroInRange="false"/>
+                            </xAxis>
+                            <yAxis>
+                                <NumberAxis label="%wager.chart.price" lowerBound="0" upperBound="100"
+                                            autoRanging="false" tickUnit="20"/>
+                            </yAxis>
+                        </LineChart>
+                        <!-- Absolutely positioned by the controller (see positionChartOverlay): a
+                             plain Pane leaves layoutX/layoutY alone and only autosizes its
+                             children, which is exactly what anchoring to the axes needs. -->
+                        <Pane fx:id="chartOverlay" mouseTransparent="true" pickOnBounds="false">
+                            <!-- series name, parked just above the opening price so it reads as
+                                 belonging to the line -->
+                            <Label fx:id="chartSeriesLabel" styleClass="chart-overlay-label"
+                                   visible="false" managed="false"/>
+                            <!-- two-category (mine / others) colour key for the ▲/▼ trade markers -->
+                            <HBox fx:id="tradeLegend" styleClass="chart-overlay-label" spacing="12.0"
+                                  visible="false" managed="false"/>
+                        </Pane>
+                        <!-- Shown only once the game is over: the natural next step from a market
+                             you can no longer trade. Outside the mouse-transparent overlay above
+                             so it is actually clickable; StackPane centres it on the chart. -->
+                        <Button fx:id="openReplayButton" styleClass="primary-button"
+                                text="%wager.chart.openReplay" visible="false"
+                                StackPane.alignment="CENTER"/>
+                    </StackPane>
+                </ScrollPane>
             </VBox>
         </items>
     </SplitPane>
