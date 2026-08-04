@@ -56,17 +56,33 @@ public class WatchButtonController implements Controller<Node> {
     // The delay countdown gates the whole menu: while the button is disabled neither
     // watch flavour is reachable, matching the escrow on the replay server side.
     watchMenu = new ContextMenu();
-    MenuItem watchInGameItem = new MenuItem(i18n.get("game.watch.inGame"));
-    watchInGameItem.setOnAction(event -> replayService.runLiveReplay(game));
-    watchMenu.getItems().add(watchInGameItem);
+
+    watchButton.setDisable(true);
+    watchButton.setOnAction(event -> {
+      populateWatchMenu();
+      watchMenu.show(watchButton, Side.BOTTOM, 0, 0);
+    });
+  }
+
+  /**
+   * Rebuilt on every click rather than once at initialize(): which flavours are on offer depends
+   * on live state. A player sitting in a staging room can't launch the in-game replayer at all
+   * (a second TA won't start), so they get the browser item only — see
+   * {@link BrowserWatchService#isBrowserOnly()}.
+   */
+  @VisibleForTesting
+  void populateWatchMenu() {
+    watchMenu.getItems().clear();
+    if (!browserWatchService.isBrowserOnly()) {
+      MenuItem watchInGameItem = new MenuItem(i18n.get("game.watch.inGame"));
+      watchInGameItem.setOnAction(event -> replayService.runLiveReplay(game));
+      watchMenu.getItems().add(watchInGameItem);
+    }
     if (browserWatchService.isAvailable()) {
       MenuItem watchInBrowserItem = new MenuItem(i18n.get("game.watch.inBrowser"));
       watchInBrowserItem.setOnAction(event -> browserWatchService.watchInBrowser(game));
       watchMenu.getItems().add(watchInBrowserItem);
     }
-
-    watchButton.setDisable(true);
-    watchButton.setOnAction(event -> watchMenu.show(watchButton, Side.BOTTOM, 0, 0));
   }
 
   public void setGame(Game game) {

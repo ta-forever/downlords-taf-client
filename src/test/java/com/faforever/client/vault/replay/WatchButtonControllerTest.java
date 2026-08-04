@@ -59,10 +59,16 @@ public class WatchButtonControllerTest extends AbstractPlainJavaFxTest {
     runOnFxThreadAndWait(() -> instance.initialize());
   }
 
+  /** The menu is built on click, not at initialize(), because its contents depend on live state. */
+  private void openMenu() {
+    runOnFxThreadAndWait(() -> instance.populateWatchMenu());
+  }
+
   @Test
   public void menuContainsBothItemsWhenBrowserViewerConfigured() {
     when(browserWatchService.isAvailable()).thenReturn(true);
     initialize();
+    openMenu();
 
     assertThat(instance.getWatchMenu().getItems(), hasSize(2));
   }
@@ -71,6 +77,7 @@ public class WatchButtonControllerTest extends AbstractPlainJavaFxTest {
   public void menuOmitsBrowserItemWhenViewerNotConfigured() {
     when(browserWatchService.isAvailable()).thenReturn(false);
     initialize();
+    openMenu();
 
     assertThat(instance.getWatchMenu().getItems(), hasSize(1));
   }
@@ -80,6 +87,7 @@ public class WatchButtonControllerTest extends AbstractPlainJavaFxTest {
     when(browserWatchService.isAvailable()).thenReturn(true);
     initialize();
     runOnFxThreadAndWait(() -> instance.setGame(game));
+    openMenu();
 
     instance.getWatchMenu().getItems().get(0).getOnAction().handle(new ActionEvent());
 
@@ -91,9 +99,29 @@ public class WatchButtonControllerTest extends AbstractPlainJavaFxTest {
     when(browserWatchService.isAvailable()).thenReturn(true);
     initialize();
     runOnFxThreadAndWait(() -> instance.setGame(game));
+    openMenu();
 
     instance.getWatchMenu().getItems().get(1).getOnAction().handle(new ActionEvent());
 
+    verify(browserWatchService).watchInBrowser(game);
+  }
+
+  /**
+   * A player waiting in a staging room can't launch a second TA, so the in-game flavour is not
+   * offered at all — the browser one is the whole menu.
+   */
+  @Test
+  public void menuOmitsInGameItemWhileStagingRoomOpen() {
+    when(browserWatchService.isAvailable()).thenReturn(true);
+    when(browserWatchService.isBrowserOnly()).thenReturn(true);
+    initialize();
+    runOnFxThreadAndWait(() -> instance.setGame(game));
+    openMenu();
+
+    assertThat(instance.getWatchMenu().getItems(), hasSize(1));
+    assertThat(instance.getWatchMenu().getItems().get(0).getText(), is("Watch in browser"));
+
+    instance.getWatchMenu().getItems().get(0).getOnAction().handle(new ActionEvent());
     verify(browserWatchService).watchInBrowser(game);
   }
 

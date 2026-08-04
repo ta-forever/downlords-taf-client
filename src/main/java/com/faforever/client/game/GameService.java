@@ -1031,6 +1031,25 @@ public class GameService implements InitializingBean {
     return process != null && process.isAlive();
   }
 
+  /**
+   * True while the local player is parked in a staging room that has not been launched yet.
+   *
+   * TotalA.exe is not up in this state — only the launcher/lobby process is (see
+   * {@link GameStatus#STAGING}: "chat room has been opened but game hasn't been launched"), so the
+   * screen is the client's, not the game's. That is what makes watching another game IN THE
+   * BROWSER reasonable here even though {@code canStartReplay()} still (correctly) refuses to
+   * launch a second TA for the in-game replayer. Callers pair this with
+   * {@code BrowserWatchService.isBrowserOnly()}.
+   *
+   * BATTLEROOM is deliberately excluded: by then TA owns the display and the game is a keypress
+   * from starting.
+   */
+  public boolean isInStagingRoom() {
+    Game currentGame = getCurrentGame();
+    return (isGameRunning() || getRunningGameUid() != 0)
+        && currentGame != null && currentGame.getStatus() == GameStatus.STAGING;
+  }
+
   private CompletableFuture<String> updateGameIfNecessary(FeaturedMod featuredMod, @Nullable String version) {
     return gameUpdater.update(featuredMod, version);
   }

@@ -16,6 +16,7 @@ import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.event.CurrentPlayerInfo;
 import com.faforever.client.remote.domain.GameStatus;
+import com.faforever.client.replay.BrowserWatchService;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.vault.replay.WatchButtonController;
 import com.google.common.base.Joiner;
@@ -72,6 +73,7 @@ public class GameTileController implements Controller<Node> {
   private final EventBus eventBus;
   private final UiService uiService;
   private final LeaderboardService leaderboardService;
+  private final BrowserWatchService browserWatchService;
   public Node lockIconLabel;
   public Label gameTypeLabel;
   public Node gameCardRoot;
@@ -133,7 +135,10 @@ public class GameTileController implements Controller<Node> {
     startButton.managedProperty().bind(autoJoinButton.visibleProperty().not());
     joinButton.managedProperty().bind(autoJoinButton.visibleProperty().not());
     autoJoinButton.managedProperty().bind(autoJoinButton.visibleProperty());
-    watchButton.managedProperty().bind(autoJoinButton.visibleProperty());
+    // Not tied to autoJoin's visibility any more: the two used to appear under identical
+    // conditions, but watching now survives into a staging room (browser only) while autojoin
+    // does not, and a visible-but-unmanaged button is never laid out.
+    watchButton.managedProperty().bind(watchButton.visibleProperty());
 
     // getStyle.contains doesn't work.  so we'll use this user data to track whether "activated" style has been applied
     autoJoinButton.setUserData(Boolean.FALSE);
@@ -205,7 +210,11 @@ public class GameTileController implements Controller<Node> {
     autoJoinButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && !isStagingRoomOpen && !isBattleRoomOpen);
     leaveButton.setVisible(isGameProcessRunning && isCurrentGame);
     startButton.setVisible(isGameProcessRunning && isCurrentGame && (isPlayerHosting && isStagingRoomOpen || isPlayerJoining && isBattleRoomOpen));
-    watchButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && !isStagingRoomOpen && !isBattleRoomOpen && game.getReplayDelaySeconds() >= 0);
+    // Watching is normally for idle players only, but a player waiting in a staging room can still
+    // watch in the browser (BrowserWatchService#isBrowserOnly) — the button stays up for them and
+    // its menu drops the "in game" option.
+    boolean canWatchNow = (!isGameProcessRunning && isPlayerIdle) || browserWatchService.isBrowserOnly();
+    watchButton.setVisible(!isOwnGame && canWatchNow && !isStagingRoomOpen && !isBattleRoomOpen && game.getReplayDelaySeconds() >= 0);
 
     final String activatedStyleClass = "autojoin-game-button-active";
     if (autoJoinPrototype != null && this.game != null && autoJoinPrototype.getId() == this.game.getId()) {

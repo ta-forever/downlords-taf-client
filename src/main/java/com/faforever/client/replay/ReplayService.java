@@ -429,6 +429,11 @@ public class ReplayService implements InitializingBean {
     // depends on this service (fetchWatchTicket) — constructor injection would be a cycle.
     boolean isRemoteReplay = event.getKey() != null && event.getTadaReplayId() != null;
     BrowserWatchService browserWatchService = applicationContext.getBean(BrowserWatchService.class);
+    if (isRemoteReplay && browserWatchService.isBrowserOnly()) {
+      // Staging room open: no second TA can be launched, so there is no choice left to offer.
+      browserWatchService.watchTadaReplayInBrowser(event.getKey(), event.getTadaReplayId(), event.getFilename());
+      return;
+    }
     if (isRemoteReplay && browserWatchService.isAvailable()) {
       notificationService.addNotification(new ImmediateNotification(
           i18n.get("game.watch"), i18n.get("tada.watchChoice.text"), Severity.INFO, List.of(

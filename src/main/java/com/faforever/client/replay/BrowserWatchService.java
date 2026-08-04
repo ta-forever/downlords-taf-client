@@ -5,6 +5,7 @@ import com.faforever.client.config.ClientProperties;
 import com.faforever.client.fa.DemoFileInfo;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.game.Game;
+import com.faforever.client.game.GameService;
 import com.faforever.client.map.MapService;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.mod.ModService;
@@ -19,8 +20,10 @@ import org.springframework.stereotype.Service;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 /**
@@ -43,8 +46,16 @@ public class BrowserWatchService {
   /** How long to let in-flight asset reads finish before rewriting the install. */
   private static final int ASSET_SERVER_DRAIN_SECONDS = 5;
 
+  /**
+   * Featured mod → the version this session last successfully checked out for a browser
+   * watch. Lets a repeat click skip the drain-and-update cycle entirely; see
+   * {@link #ensureModUpToDate}. Concurrent because watch clicks land on pool threads.
+   */
+  private final Map<String, String> checkedOutVersions = new ConcurrentHashMap<>();
+
   private final ClientProperties clientProperties;
   private final ReplayService replayService;
+  private final GameService gameService;
   private final MapService mapService;
   private final ModService modService;
   private final GameUpdater gameUpdater;
@@ -161,6 +172,32 @@ public class BrowserWatchService {
       log.info("Not updating {} for browser watch: no valid local installation", modTechnical);
       return CompletableFuture.completedFuture(null);
     }
+    if (gameService.isInStagingRoom()) {
+      // NEVER rewrite the install out from under a staging room. The version the game will launch
+      // on was checked out once, at host/join time (GameService.hostGame/joinGame ->
+      // updateGameIfNecessary); startBattleRoom() does NOT re-run the updater, so a checkout
+      // triggered here — a different mod version, or the branch head when the staging game is
+      // pinned to an older one — is what would actually be running when the host hits start.
+      // Watching costs a possible unit-set mismatch in the viewer, which it already warns about;
+      // the alternative costs the player the game they are about to play.
+      log.info("Not updating {} for browser watch: staging room open, install must not change", modTechnical);
+      return CompletableFuture.completedFuture(null);
+    }
+    // ALREADY DONE THIS, THIS SESSION. Every watch click used to drain and restart the asset
+    // server and re-run the updater even when the answer could only be "nothing to do" —
+    // clicking watch twice on the same replay produced a 5 s drain and a second checkout of a
+    // version already checked out (visible in a user's log as "SETTLED after 1 ms,
+    // failed=false"). The restart is not free: it cuts every in-flight read from viewer tabs
+    // that are still loading, which on a slow install is all of them. Remembering what we
+    // checked out is enough, and it is deliberately per-session and per-version — anything
+    // that changes the install outside this method (the classic replayer, hosting a game)
+    // does so via its own updater run, and a different version misses this check anyway.
+    String resolvedVersion = modVersion;
+    if (resolvedVersion != null && resolvedVersion.equals(checkedOutVersions.get(modTechnical))) {
+      log.info("Not updating {} for browser watch: already checked out {} this session",
+          modTechnical, resolvedVersion);
+      return CompletableFuture.completedFuture(null);
+    }
     // STOP SERVING THE INSTALL BEFORE REWRITING IT. The update replaces the very archives this
     // server streams, and Java holds Windows files without FILE_SHARE_DELETE — one in-flight
     // range read from a viewer tab left open by an earlier watch is enough to fail the checkout
@@ -189,6 +226,10 @@ public class BrowserWatchService {
           if (throwable != null) {
             log.warn("Mod update failed for {} before browser watch; opening anyway",
                 modTechnical, throwable);
+          } else if (resolvedVersion != null) {
+            // only on success: a failed update leaves the install at an unknown version, and
+            // recording it would skip the retry the next click deserves
+            checkedOutVersions.put(modTechnical, resolvedVersion);
           }
           return null;
         });
@@ -196,6 +237,23 @@ public class BrowserWatchService {
 
   public boolean isAvailable() {
     return !Strings.isNullOrEmpty(clientProperties.getLiveViewer().getUrlFormat());
+  }
+
+  /**
+   * True when watching is possible right now but ONLY in the browser: the player is sitting in a
+   * staging room they haven't launched yet.
+   *
+   * The in-game replayer can't run then — {@code GameService.canStartReplay()} refuses to start a
+   * second TA while a game process is up — but a browser tab costs the staging room nothing, so
+   * rather than hide watching entirely (which is what the UI used to do) the watch surfaces stay
+   * up and drop the "watch in game" option. Every watch surface asks this one question so they
+   * can't drift apart.
+   *
+   * Returns false when the viewer isn't configured at all, which leaves those surfaces exactly as
+   * they were before this existed.
+   */
+  public boolean isBrowserOnly() {
+    return isAvailable() && gameService.isInStagingRoom();
   }
 
   /**

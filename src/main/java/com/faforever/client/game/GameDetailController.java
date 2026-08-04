@@ -20,6 +20,7 @@ import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.player.event.CurrentPlayerInfo;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.replay.BrowserWatchService;
 import com.faforever.client.rating.RatingService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.domain.GameStatus;
@@ -100,6 +101,7 @@ public class GameDetailController implements Controller<Pane> {
   private final JoinGameHelper joinGameHelper;
   private final NotificationService notificationService;
   private final FafService fafService;
+  private final BrowserWatchService browserWatchService;
   private final EventBus eventBus;
 
   public Pane gameDetailRoot;
@@ -233,7 +235,7 @@ public class GameDetailController implements Controller<Pane> {
                               GalacticWarService galacticWarService,
                               PreferencesService preferencesService, JoinGameHelper joinGameHelper,
                               NotificationService notificationService, FafService fafService,
-                              EventBus eventBus) {
+                              BrowserWatchService browserWatchService, EventBus eventBus) {
     this.i18n = i18n;
     this.mapService = mapService;
     this.modService = modService;
@@ -248,6 +250,7 @@ public class GameDetailController implements Controller<Pane> {
     this.joinGameHelper = joinGameHelper;
     this.notificationService = notificationService;
     this.fafService = fafService;
+    this.browserWatchService = browserWatchService;
     this.eventBus = eventBus;
 
     game = new ReadOnlyObjectWrapper<>();
@@ -429,7 +432,11 @@ public class GameDetailController implements Controller<Pane> {
     startButton.setVisible(isGameProcessRunning && isCurrentGame && (isPlayerHosting && isStagingRoomOpen || isPlayerJoining && isBattleRoomOpen));
     // Host-only: manage teams (+autoteam) and reserved slots while the lobby/battleroom is open.
     manageGameButton.setVisible(isGameProcessRunning && isCurrentGame && isOwnGame && (isStagingRoomOpen || isBattleRoomOpen));
-    watchButton.setVisible(!isOwnGame && !isGameProcessRunning && isPlayerIdle && isLive && thisGame.getReplayDelaySeconds() >= 0);
+    // Watching is normally for idle players only, but a player waiting in a staging room can still
+    // watch in the browser (BrowserWatchService#isBrowserOnly) — the button stays up for them and
+    // its menu drops the "in game" option.
+    boolean canWatchNow = (!isGameProcessRunning && isPlayerIdle) || browserWatchService.isBrowserOnly();
+    watchButton.setVisible(!isOwnGame && canWatchNow && isLive && thisGame.getReplayDelaySeconds() >= 0);
 
     updatePositionPicker();
 

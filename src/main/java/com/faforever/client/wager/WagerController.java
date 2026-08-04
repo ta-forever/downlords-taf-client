@@ -983,6 +983,9 @@ public class WagerController extends AbstractViewController<Node> {
       }
     });
     menu.getItems().add(watch);
+    // Re-evaluated each time the menu opens: while we're in a staging room the in-game replayer can't
+    // start at all, so that entry drops out and only the browser one remains.
+    menu.setOnShowing(event -> watch.setVisible(!browserWatchService.isBrowserOnly()));
     if (browserWatchService.isAvailable()) {
       MenuItem watchInBrowser = new MenuItem(i18n.get("wager.watchLiveBrowser"));
       watchInBrowser.setOnAction(event -> {

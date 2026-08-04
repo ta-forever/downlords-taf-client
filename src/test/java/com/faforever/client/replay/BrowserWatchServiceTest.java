@@ -5,6 +5,7 @@ import com.faforever.client.config.ClientProperties;
 import com.faforever.client.fa.DemoFileInfo;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.game.Game;
+import com.faforever.client.game.GameService;
 import com.faforever.client.map.MapService;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.mod.FeaturedModVersion;
@@ -32,6 +33,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -43,6 +45,8 @@ public class BrowserWatchServiceTest {
 
   @Mock
   private ReplayService replayService;
+  @Mock
+  private GameService gameService;
   @Mock
   private MapService mapService;
   @Mock
@@ -80,7 +84,7 @@ public class BrowserWatchServiceTest {
     when(modService.getFeaturedMod("tacc")).thenReturn(completedFuture(taccMod));
     when(gameUpdater.update(any(), any())).thenReturn(completedFuture("main"));
 
-    instance = new BrowserWatchService(clientProperties, replayService, mapService, modService,
+    instance = new BrowserWatchService(clientProperties, replayService, gameService, mapService, modService,
         gameUpdater, preferencesService, localAssetServerService, platformService,
         notificationService);
   }
@@ -255,6 +259,38 @@ public class BrowserWatchServiceTest {
     verify(gameUpdater).update(taccMod, "v10.0-530units");
   }
 
+  /**
+   * Clicking watch twice on the same replay used to drain the asset server for 5 s and run a
+   * second checkout of a version already checked out — cutting every in-flight read from the
+   * tab the first click opened, which on a slow install is the whole boot. A user's log showed
+   * exactly that: two clicks 65 s apart, "SETTLED after 1 ms, failed=false", and the server
+   * restarted in between.
+   */
+  @Test
+  public void repeatWatchOfThePinnedVersionDoesNotTouchTheInstallAgain() {
+    Replay replay = org.mockito.Mockito.mock(Replay.class);
+    DemoFileInfo demoInfo = new DemoFileInfo(null, "[V] Urban Contention", "mapHash",
+        "unitsHash530", 3, 1);
+    FeaturedMod pinned = org.mockito.Mockito.mock(FeaturedMod.class);
+    FeaturedModVersion playedOn = org.mockito.Mockito.mock(FeaturedModVersion.class);
+    when(playedOn.getGitBranch()).thenReturn("v10.0-530units");
+    when(pinned.getVersions()).thenReturn(FXCollections.observableArrayList(playedOn));
+    when(modService.findFeaturedModByTaDemoFileInfo(demoInfo)).thenReturn(completedFuture(pinned));
+
+    when(replay.getId()).thenReturn(314);
+    when(replay.getFeaturedMod()).thenReturn(taccMod);
+    when(replay.getMap()).thenReturn(null);
+    when(replay.getDemoFileInfo()).thenReturn(demoInfo);
+
+    instance.watchReplayInBrowser(replay).join();
+    instance.watchReplayInBrowser(replay).join();
+
+    verify(gameUpdater, times(1)).update(taccMod, "v10.0-530units");
+    verify(localAssetServerService, times(1)).stop(anyInt());
+    // …but the viewer still opens both times, on a server that kept its port and token
+    verify(platformService, times(2)).showDocument(anyString());
+  }
+
   @Test
   public void vodReplayWithUnknownUnitsHashFallsBackToBranch() {
     Replay replay = org.mockito.Mockito.mock(Replay.class);
@@ -354,6 +390,43 @@ public class BrowserWatchServiceTest {
 
     verify(mapService).addInstalledMapsUpdateDeferal();
     verify(mapService).releaseInstalledMapsUpdateDeferal();
+  }
+
+  /**
+   * A staging room's install was checked out once, at host/join time; startBattleRoom() does not
+   * re-run the updater. So a checkout triggered by a watch click is what would actually launch
+   * when the host hits start — never do it.
+   */
+  @Test
+  public void doesNotRewriteTheInstallWhileAStagingRoomIsOpen() {
+    when(gameService.isInStagingRoom()).thenReturn(true);
+    when(replayService.fetchWatchTicket(game)).thenReturn(completedFuture(Optional.empty()));
+
+    instance.watchInBrowser(game).join();
+
+    verify(gameUpdater, never()).update(any(), any());
+    verify(localAssetServerService, never()).stop(anyInt());
+    // the viewer still opens; only the update is skipped
+    verify(platformService).showDocument(anyString());
+  }
+
+  @Test
+  public void browserOnlyWhileStagingRoomOpen() {
+    when(gameService.isInStagingRoom()).thenReturn(true);
+    assertThat(instance.isBrowserOnly(), is(true));
+  }
+
+  @Test
+  public void notBrowserOnlyWhenIdle() {
+    when(gameService.isInStagingRoom()).thenReturn(false);
+    assertThat(instance.isBrowserOnly(), is(false));
+  }
+
+  @Test
+  public void notBrowserOnlyWhenViewerNotConfigured() {
+    clientProperties.getLiveViewer().setUrlFormat(null);
+    when(gameService.isInStagingRoom()).thenReturn(true);
+    assertThat(instance.isBrowserOnly(), is(false));
   }
 
   @Test

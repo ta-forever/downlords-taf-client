@@ -720,13 +720,18 @@ public class ReplayDetailController implements Controller<Node> {
       replayService.runDownloadReplay(replay);
       return;
     }
-    if (watchMenu == null) {
-      MenuItem inGame = new MenuItem(i18n.get("game.watch.inGame"));
-      inGame.setOnAction(event -> replayService.runDownloadReplay(replay));
-      MenuItem inBrowser = new MenuItem(i18n.get("game.watch.inBrowser"));
-      inBrowser.setOnAction(event -> browserWatchService.watchReplayInBrowser(replay));
-      watchMenu = new ContextMenu(inGame, inBrowser);
+    if (browserWatchService.isBrowserOnly()) {
+      // Staging room open: the local replayer can't start (no second TA), so don't offer it —
+      // just open the browser viewer. See BrowserWatchService#isBrowserOnly.
+      browserWatchService.watchReplayInBrowser(replay);
+      return;
     }
+    // Rebuilt per click rather than cached: whether the in-game item belongs depends on live state.
+    MenuItem inGame = new MenuItem(i18n.get("game.watch.inGame"));
+    inGame.setOnAction(event -> replayService.runDownloadReplay(replay));
+    MenuItem inBrowser = new MenuItem(i18n.get("game.watch.inBrowser"));
+    inBrowser.setOnAction(event -> browserWatchService.watchReplayInBrowser(replay));
+    watchMenu = new ContextMenu(inGame, inBrowser);
     watchMenu.show(watchButton, Side.BOTTOM, 0, 0);
   }
 

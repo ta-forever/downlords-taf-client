@@ -249,7 +249,11 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
                     && newValue.getGame().getGameType() != GameType.MATCHMAKER;
               }, newValue.gameProperty())
           ));
-      watchGameItem.visibleProperty().bind(newValue.statusProperty().isEqualTo(PlayerStatus.PLAYING));
+      // "Watch in game" disappears while we're sitting in a staging room — a second TA can't be
+      // launched from there, so only the browser flavour below stays on offer.
+      watchGameItem.visibleProperty().bind(newValue.statusProperty().isEqualTo(PlayerStatus.PLAYING)
+          .and(Bindings.createBooleanBinding(() -> !browserWatchService.isBrowserOnly(),
+              gameService.getCurrentGameProperty(), gameService.getCurrentGameStatusProperty())));
       watchGameInBrowserItem.visibleProperty().bind(newValue.statusProperty().isEqualTo(PlayerStatus.PLAYING)
           .and(Bindings.createBooleanBinding(browserWatchService::isAvailable)));
       inviteItem.visibleProperty().bind(Bindings.createBooleanBinding(() -> isGameInviteVisible(newValue),
