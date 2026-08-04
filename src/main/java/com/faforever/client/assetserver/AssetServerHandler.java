@@ -21,6 +21,8 @@ import java.security.MessageDigest;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -42,6 +44,15 @@ class AssetServerHandler implements HttpHandler {
   private static final String[] ARCHIVE_EXTENSIONS_ASCENDING = {".hpi", ".ufo", ".ccx", ".gp3"};
   private static final Pattern RANGE_PATTERN = Pattern.compile("bytes=(\\d*)-(\\d*)");
   private static final ObjectMapper JSON = new ObjectMapper();
+
+  /** How long a built manifest may be reused; see {@link #handleManifest}. */
+  private static final long MANIFEST_TTL_NANOS = TimeUnit.SECONDS.toNanos(10);
+
+  /** A built manifest and when it was built, for the TTL check. */
+  private record ManifestCacheEntry(ObjectNode json, long builtAtNanos) {}
+
+  /** mod → last built manifest. Concurrent because handler threads share this instance. */
+  private final Map<String, ManifestCacheEntry> manifestCache = new ConcurrentHashMap<>();
 
   private final byte[] tokenBytes;
   private final String allowedOrigin;
@@ -139,6 +150,25 @@ class AssetServerHandler implements HttpHandler {
       return;
     }
 
+    // THE MANIFEST IS THE MOST EXPENSIVE THING THIS SERVER DOES, and it was recomputed from
+    // scratch on every request: a full recursive walk of the install with two stat calls per
+    // file (up to 20k of them). Files.walk also descends into the featured mod's own .git —
+    // the filter drops those entries, but only AFTER the traversal has enumerated them. On a
+    // big install behind an on-access antivirus scanner that is seconds to minutes, it is the
+    // first thing the viewer asks for, and a viewer that reloads or a second tab pays it
+    // again while holding one of the few handler threads.
+    //
+    // A short TTL is enough to collapse that: reloads and extra tabs are seconds apart, while
+    // anything that actually changes the install (a featured-mod update) stops this server
+    // first, which drops the cache with it. Deliberately NOT longer — the manifest signature
+    // is the cache key for everything the viewer stores in IndexedDB, so serving a stale one
+    // would have it reuse files from before a change.
+    ManifestCacheEntry cached = manifestCache.get(mod);
+    if (cached != null && System.nanoTime() - cached.builtAtNanos() < MANIFEST_TTL_NANOS) {
+      sendJson(exchange, 200, cached.json());
+      return;
+    }
+
     ObjectNode root = JSON.createObjectNode();
     root.put("mod", mod);
     ArrayNode archives = root.putArray("archives");
@@ -193,6 +223,7 @@ class AssetServerHandler implements HttpHandler {
             }
           });
     }
+    manifestCache.put(mod, new ManifestCacheEntry(root, System.nanoTime()));
     sendJson(exchange, 200, root);
   }
 
