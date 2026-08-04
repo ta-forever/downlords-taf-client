@@ -10,6 +10,7 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -36,8 +37,29 @@ public class LocalAssetServerService implements DisposableBean {
   private final ClientProperties clientProperties;
   private final PreferencesService preferencesService;
 
+  /**
+   * Handler threads. The JDK's {@link HttpServer} occupies one for a whole exchange, body
+   * included, so this is the number of requests that can be IN FLIGHT — not the number the
+   * server can hold open. It used to be 4, which the viewer overruns trivially: it opens
+   * every archive in the install concurrently and each directory parse is dozens of ranged
+   * reads. Worse, a thread stays blocked writing to a socket whose browser tab has gone
+   * away until TCP gives up, so a couple of crashed tabs could wedge the whole server and
+   * the next request would sit in the accept queue with no response at all — which the
+   * viewer, having no timeout, waited on forever.
+   */
+  private static final int HANDLER_THREADS = 16;
+
   private HttpServer server;
   private String token;
+  /**
+   * Port and token are REMEMBERED ACROSS RESTARTS, and that is the point of holding them
+   * here rather than minting them per start. The viewer's base URL contains both, and it is
+   * baked into a browser tab we have already opened; a mod update stops this server and
+   * starts it again a moment later, so minting fresh ones silently invalidated every tab
+   * the user still had open. Re-binding the same port with the same token turns that restart
+   * into a blip the viewer's retry rides straight over.
+   */
+  private int lastPort;
 
   /**
    * Starts the server if it isn't running yet.
@@ -48,23 +70,48 @@ public class LocalAssetServerService implements DisposableBean {
   @SneakyThrows
   public synchronized String ensureRunning() {
     if (server == null) {
-      byte[] tokenBytes = new byte[16];
-      new SecureRandom().nextBytes(tokenBytes);
-      token = Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes);
+      if (token == null) {
+        byte[] tokenBytes = new byte[16];
+        new SecureRandom().nextBytes(tokenBytes);
+        token = Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes);
+      }
 
-      HttpServer newServer = HttpServer.create(
-          new InetSocketAddress(InetAddress.getLoopbackAddress(), clientProperties.getLiveViewer().getAssetServerPort()), 0);
+      HttpServer newServer = bind(preferredPort());
+      if (newServer == null) {
+        // Something else took the port while we were stopped. Any tab holding the old URL is
+        // lost either way, so fall back to a fresh ephemeral one rather than refusing to run.
+        log.info("Local asset server could not re-bind port {}, taking a new one", lastPort);
+        newServer = bind(clientProperties.getLiveViewer().getAssetServerPort());
+        if (newServer == null) {
+          throw new IOException("could not bind the local asset server to the loopback address");
+        }
+      }
       newServer.createContext("/", new AssetServerHandler(token, allowedOrigin(), preferencesService));
-      newServer.setExecutor(Executors.newFixedThreadPool(4, runnable -> {
+      newServer.setExecutor(Executors.newFixedThreadPool(HANDLER_THREADS, runnable -> {
         Thread thread = new Thread(runnable, "local-asset-server");
         thread.setDaemon(true);
         return thread;
       }));
       newServer.start();
       server = newServer;
+      lastPort = server.getAddress().getPort();
       log.info("Local asset server listening on 127.0.0.1:{}", server.getAddress().getPort());
     }
     return "http://127.0.0.1:" + server.getAddress().getPort() + "/" + token;
+  }
+
+  /** The port a restart should try to reclaim: the one we were last listening on. */
+  private int preferredPort() {
+    return lastPort != 0 ? lastPort : clientProperties.getLiveViewer().getAssetServerPort();
+  }
+
+  /** Bind the loopback address, or null when the port is taken. */
+  private HttpServer bind(int port) {
+    try {
+      return HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), port), 0);
+    } catch (IOException e) {
+      return null;
+    }
   }
 
   /** The origin (scheme://host[:port]) of the website hosting the viewer page. */
