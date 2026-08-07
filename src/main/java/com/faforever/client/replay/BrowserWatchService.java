@@ -3,6 +3,7 @@ package com.faforever.client.replay;
 import com.faforever.client.assetserver.LocalAssetServerService;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.fa.DemoFileInfo;
+import com.faforever.client.fx.BrowserLauncher;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.game.Game;
 import com.faforever.client.game.GameService;
@@ -62,6 +63,7 @@ public class BrowserWatchService {
   private final PreferencesService preferencesService;
   private final LocalAssetServerService localAssetServerService;
   private final PlatformService platformService;
+  private final BrowserLauncher browserLauncher;
   private final NotificationService notificationService;
 
   /**
@@ -360,7 +362,10 @@ public class BrowserWatchService {
     }
 
     log.info("Opening browser viewer: game {} source {} (ticket: {})", gameId, source, ticket != null);
-    platformService.showDocument(url.toString());
+    // Through BrowserLauncher, not straight to the OS: the viewer is the one page whose choice of
+    // browser matters (Chrome crashes for some users, Firefox doesn't), so this flow honours the
+    // user's preference and asks the first time. Every other link in the client is unaffected.
+    browserLauncher.open(url.toString());
   }
 
   private static String urlEncode(String value) {

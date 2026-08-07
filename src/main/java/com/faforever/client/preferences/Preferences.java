@@ -74,6 +74,10 @@ public class Preferences {
   private final ListProperty<Pair<String, SortType>> gameListSorting = new SimpleListProperty<>(observableArrayList());
   private final ObjectProperty<TilesSortingOrder> gameTileSortingOrder = new SimpleObjectProperty<>(TilesSortingOrder.PLAYER_DES);
   private final ObjectProperty<UnitDataBaseType> unitDataBaseType = new SimpleObjectProperty<>(UnitDataBaseType.SPOOKY);
+  // Which browser opens the 3D web viewer. ASK = prompt each time until the user ticks
+  // "remember my choice" (see BrowserLauncher) — Chrome crashes for some users and Firefox
+  // does not, and we have no way to know which camp a given user is in.
+  private final ObjectProperty<BrowserOption> browserForWatch = new SimpleObjectProperty<>(BrowserOption.ASK);
   private final MapProperty<URI, ArrayList<HttpCookie>> storedCookies = new SimpleMapProperty<>(FXCollections.observableHashMap());
 
   private final BooleanProperty disallowJoinsViaDiscord = new SimpleBooleanProperty(false);
@@ -373,6 +377,18 @@ public class Preferences {
 
   public ObjectProperty<UnitDataBaseType> unitDataBaseTypeProperty() {
     return unitDataBaseType;
+  }
+
+  public BrowserOption getBrowserForWatch() {
+    return browserForWatch.get();
+  }
+
+  public void setBrowserForWatch(BrowserOption browserForWatch) {
+    this.browserForWatch.set(browserForWatch);
+  }
+
+  public ObjectProperty<BrowserOption> browserForWatchProperty() {
+    return browserForWatch;
   }
 
   public ObservableMap<URI, ArrayList<HttpCookie>> getStoredCookies() {

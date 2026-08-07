@@ -26,6 +26,7 @@ import com.faforever.client.preferences.Preferences;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TadaIntegrationOption;
 import com.faforever.client.preferences.AskAlwaysOrNever;
+import com.faforever.client.preferences.BrowserOption;
 import com.faforever.client.preferences.TimeInfo;
 import com.faforever.client.preferences.ToastPosition;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
@@ -186,6 +187,7 @@ public class SettingsController implements Controller<Node> {
   public CheckBox prereleaseToggle;
   public Region settingsHeader;
   public ComboBox<TadaIntegrationOption> tadaIntegrationComboBox;
+  public ComboBox<BrowserOption> browserForWatchComboBox;
   public ComboBox<AskAlwaysOrNever> featuredModRevertOptionComboBox;
   public ComboBox<AutoUploadLogsOption> autoUploadLogsOptionComboBox;
   public Label notifyAtMentionTitle;
@@ -366,6 +368,7 @@ public class SettingsController implements Controller<Node> {
     configureToastScreen(preferences);
     configureTadaIntegration(preferences);
     configureFeaturedModRevertOption(preferences);
+    configureBrowserForWatch(preferences);
     configureAutoUploadLogs(preferences);
     configureMaxPacketSizeOption(preferences);
 
@@ -588,6 +591,32 @@ public class SettingsController implements Controller<Node> {
 
   public void onTadaIntegrationSelected(ActionEvent actionEvent) {
     this.preferencesService.getPreferences().tadaIntegrationOptionProperty().setValue(tadaIntegrationComboBox.getValue());
+    preferencesService.storeInBackground();
+  }
+
+  /**
+   * Which browser opens the 3D web viewer. ASK prompts each time (with a "remember my choice"
+   * box), so a user who picked "just this once" in the dialog still lands back here.
+   */
+  private void configureBrowserForWatch(Preferences preferences) {
+    browserForWatchComboBox.setItems(FXCollections.observableArrayList(BrowserOption.values()));
+    browserForWatchComboBox.setConverter(new StringConverter<>() {
+      @Override
+      public String toString(BrowserOption option) {
+        return i18n.get(option.getI18nKey());
+      }
+
+      @Override
+      public BrowserOption fromString(String s) {
+        throw new UnsupportedOperationException("Not needed");
+      }
+    });
+    browserForWatchComboBox.setValue(preferences.getBrowserForWatch());
+    preferences.browserForWatchProperty().bindBidirectional(browserForWatchComboBox.valueProperty());
+  }
+
+  public void onBrowserForWatchSelected(ActionEvent actionEvent) {
+    this.preferencesService.getPreferences().browserForWatchProperty().setValue(browserForWatchComboBox.getValue());
     preferencesService.storeInBackground();
   }
 

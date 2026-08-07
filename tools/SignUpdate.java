@@ -15,8 +15,8 @@ import java.util.Base64;
  * (no {@code -rawin} support). Output is byte-identical to the openssl path.
  *
  * Usage (JDK 11+ single-file source launch):
- *   java tools/SignUpdate.java update-signing.key tdraw-full.zip
- * Writes tdraw-full.zip.sig next to the input and echoes the base64 signature.
+ *   java tools/SignUpdate.java update-signing.key tdraw-prota.zip
+ * Writes tdraw-prota.zip.sig next to the input and echoes the base64 signature.
  *
  * The key file is the Ed25519 private key in PKCS#8 PEM (the default output of
  * {@code openssl genpkey -algorithm ed25519 -out update-signing.key}); raw PKCS#8 DER also works.
