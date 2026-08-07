@@ -400,7 +400,8 @@ gpgnetPlatforms.each { platform ->
 
   tasks.register(downloadTaskName, Download) {
     group = "native dependencies"
-    src "https://github.com/ta-forever/gpgnet4ta/releases/download/${gpgnet4ta_version}/gpgnet4ta-${platform}.${ext}"
+    // src "https://github.com/ta-forever/gpgnet4ta/releases/download/${gpgnet4ta_version}/gpgnet4ta-${platform}.${ext}"
+    src "https://content.taforever.com/gpgnet4ta/${gpgnet4ta_version}/gpgnet4ta-${platform}.${ext}"
     dest file(archivePath)
     onlyIfNewer true
   }

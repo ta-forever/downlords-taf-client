@@ -163,6 +163,9 @@ public class TotalAnnihilationService {
         "--logfile", logFile.toString(),
         "--launchserverport", String.valueOf(launchServerPort),
         "--democompilerurl", demoCompilerUrl,
+        "--democompilertls", String.valueOf(clientProperties.getReplay().isCompilerTls()),
+        // if TLS won't connect, gpgnet4ta falls back to the plaintext port
+        "--democompilerplainport", String.valueOf(clientProperties.getReplay().getCompilerPlaintextFallbackPort()),
         "--maxpacketsize", String.valueOf(maxPacketSize),
         "--hashendpoint", clientProperties.getApi().getBaseUrl() + "/game/launch_codes",
         "--hashtoken", fafService.getApiAccessToken()

@@ -107,8 +107,23 @@ public class ClientProperties {
     // TODO this should acutally be reported by the server
     private int watchDelaySeconds = 300;
 
+    // Demo compiler TLS. The plaintext (remotePort) and TLS (compilerTlsPort) endpoints run
+    // in parallel during migration, so this is a config-only switch. The TLS endpoint is
+    // terminated by traefik, which matches on SNI - so remoteHost must stay a hostname.
+    private boolean compilerTls = false;
+    private int compilerTlsPort = 15443;
+    private boolean compilerPlaintextFallback = true;
+
     public int getCompilerPort() {  // the demo compiler gathers game data from each player to compile a .tad file
-      return remotePort;
+      return compilerTls ? compilerTlsPort : remotePort;
+    }
+
+    // Plaintext port gpgnet4ta falls back to if TLS won't connect, so a broken TLS path
+    // never costs us a demo. 0 when TLS is off (we are already on the plaintext port) or
+    // when the fallback is disabled. Closing the port server-side is what actually retires
+    // plaintext; this client-side preference cannot enforce that and does not try to.
+    public int getCompilerPlaintextFallbackPort() {
+      return compilerTls && compilerPlaintextFallback ? remotePort : 0;
     }
 
     public int getReplayServerPort() {  // the replay server plays back the .tad file recorded by the demo compiler
