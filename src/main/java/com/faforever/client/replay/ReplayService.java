@@ -112,6 +112,7 @@ public class ReplayService implements InitializingBean {
   private final PreferencesService preferencesService;
   private final UserService userService;
   private final ReplayFileReader replayFileReader;
+  private final LocalDemoSealService localDemoSealService;
   private final NotificationService notificationService;
   private final DownloadService downloadService;
   private final GameService gameService;
@@ -231,6 +232,12 @@ public class ReplayService implements InitializingBean {
         return new Replay(replayInfo, replayFile, featuredModFuture.join(), mapBean.orElse(null));
       });
     } catch (Exception e) {
+      if (localDemoSealService.isEncrypted(replayFile)) {
+        // Sealed, not corrupt. Moving it to the corrupt folder would hide a demo that is
+        // perfectly recoverable once its game has ended.
+        logger.info("Replay file '{}' is still sealed - leaving it in place", replayFile);
+        return CompletableFuture.completedFuture(null);
+      }
       logger.warn("Could not read replay file '{}'", replayFile, e);
       moveCorruptedReplayFile(replayFile);
       return CompletableFuture.completedFuture(null);
@@ -475,9 +482,21 @@ public class ReplayService implements InitializingBean {
     }
 
     downloadedReplayPathFuture
+        // A demo the recorder could not decrypt at game end (TotalA.exe crashed) is still sealed.
+        // Recover it here, BEFORE replayer.exe is asked to parse it - otherwise it just sees
+        // random bytes. A demo that is not sealed passes straight through.
+        .thenApply(localDemoSealService::ensureDecrypted)
         .thenApply(replayFile -> DemoFile.sneakyGetInfo(replayFile.toString()))
         .thenCompose(this.gameService::runWithReplay)
         .exceptionally(throwable -> {
+          Throwable cause = throwable.getCause() == null ? throwable : throwable.getCause();
+          if (cause instanceof LocalDemoSealService.DemoStillSealedException) {
+            // Expected outcome, not a fault: the game may still be running, or the recovery
+            // delay may not have elapsed. Say so plainly instead of "replay could not be started".
+            log.info("demo is still sealed: {}", cause.getMessage());
+            notificationService.addImmediateWarnNotification("replay.stillSealed", cause.getMessage());
+            return null;
+          }
           if (throwable.getCause() instanceof FileNotFoundException) {
             log.warn("Replay not available on server yet", throwable);
             notificationService.addImmediateWarnNotification("replayNotAvailable", event.getTadaReplayId());

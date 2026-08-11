@@ -497,6 +497,14 @@ public class MockFafApiAccessor implements FafApiAccessor {
   }
 
   @Override
+  public String unsealDemo(String sealBase64, String dpidHex) {
+    // No server in the offline profile, so a sealed demo simply cannot be recovered. Throwing
+    // (rather than returning a bogus key) keeps the caller on its "still sealed" path, which
+    // already explains the situation to the user.
+    throw new UnsupportedOperationException("demo seal recovery needs a server connection");
+  }
+
+  @Override
   public Tuple<List<MapVersion>, java.util.Map<String, ?>> getOwnedMapsWithMeta(int playerId, int loadMoreCount, int page) {
     return new Tuple<>(List.of(), Collections.emptyMap());
   }

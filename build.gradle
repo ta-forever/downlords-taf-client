@@ -183,6 +183,9 @@ compileTestJava {
   include '**/update/UpdateSignatureVerifierTest.java'
   // Watch-in-browser live viewer: watch menu, viewer URL composition, local asset server (Contract A).
   include '**/vault/replay/WatchButtonControllerTest.java'
+  // Encrypted local demo recovery: decrypts a fixture produced by the Delphi recorder itself,
+  // so the ChaCha20 port, the 326-byte preamble layout and the body-relative offset are all covered.
+  include '**/replay/LocalDemoSealServiceTest.java'
   include '**/replay/BrowserWatchServiceTest.java'
   include '**/assetserver/**'
   // Test base classes / shared utilities — required by tests in the

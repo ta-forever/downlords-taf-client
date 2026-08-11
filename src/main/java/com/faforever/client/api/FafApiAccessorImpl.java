@@ -1045,6 +1045,20 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
     return form;
   }
 
+  @Override
+  public String unsealDemo(String sealBase64, String dpidHex) {
+    java.util.Map<String, String> body = java.util.Map.of("seal", sealBase64, "dpid", dpidHex);
+    // The API answers 404/409/429 with an explanatory body when the demo is not (yet)
+    // recoverable; RestTemplate turns those into HttpStatusCodeException, which the caller
+    // surfaces to the user rather than treating as a fault.
+    java.util.Map<?, ?> response = post("/demo-seal", body, java.util.Map.class);
+    Object key = response == null ? null : response.get("key");
+    if (key == null) {
+      throw new IllegalStateException("the server did not return a key");
+    }
+    return key.toString();
+  }
+
   @SneakyThrows
   private void post(String endpointPath, Object request, boolean bufferRequestBody) {
     authorizedLatch.await();

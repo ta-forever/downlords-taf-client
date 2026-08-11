@@ -267,6 +267,15 @@ public interface FafApiAccessor {
 
   void postModerationReport(com.faforever.client.reporting.ModerationReport report);
 
+  /**
+   * Recovers the key of a local demo that the recorder left sealed after a crash.
+   *
+   * @param sealBase64 the 256-byte seal from the demo preamble
+   * @param dpidHex    the 8-character hex DirectPlay id the seal is bound to
+   * @return the base64 ChaCha20 key
+   */
+  String unsealDemo(String sealBase64, String dpidHex);
+
   Tuple<List<MapVersion>, java.util.Map<String, ?>> getOwnedMapsWithMeta(int playerId, int loadMoreCount, int page);
 
   void updateMapVersion(String id, MapVersion mapVersion);

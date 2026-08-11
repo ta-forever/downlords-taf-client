@@ -54,6 +54,8 @@ public class BrowserWatchServiceTest {
   @Mock
   private PlatformService platformService;
   @Mock
+  private com.faforever.client.fx.BrowserLauncher browserLauncher;
+  @Mock
   private NotificationService notificationService;
   @Mock
   private ModService modService;
@@ -85,7 +87,7 @@ public class BrowserWatchServiceTest {
     when(gameUpdater.update(any(), any())).thenReturn(completedFuture("main"));
 
     instance = new BrowserWatchService(clientProperties, replayService, gameService, mapService, modService,
-        gameUpdater, preferencesService, localAssetServerService, platformService,
+        gameUpdater, preferencesService, localAssetServerService, platformService, browserLauncher,
         notificationService);
   }
 
