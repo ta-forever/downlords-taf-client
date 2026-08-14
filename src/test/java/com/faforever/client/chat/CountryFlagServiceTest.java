@@ -77,4 +77,23 @@ public class CountryFlagServiceTest {
     //Assert
     assertThat(result, hasItems("DK", "DE", "GB", "AU", "BE")); //just a list of countries to match for
   }
+
+  @Test
+  public void shouldHaveFlagForEveryKnownCountry() {
+    for (String country : service.getCountries(null)) {
+      assertThat("no flag image for country " + country,
+          service.getCountryFlagUrl(country).isPresent(), is(true));
+    }
+  }
+
+  @Test
+  public void shouldKnowKosovo() {
+    // the server's GeoIP database reports Kosovo as the user-assigned code XK, which
+    // Locale.getISOCountries() does not list
+    when(i18n.getCountryNameLocalized("XK")).thenReturn("Kosovo");
+
+    assertThat(service.getCountries(null), hasItem("XK"));
+    assertThat(service.getCountries("Kos"), hasItem("XK"));
+    assertThat(service.getCountryFlagUrl("XK").isPresent(), is(true));
+  }
 }

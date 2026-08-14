@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.faforever.client.config.CacheNames.COUNTRY_FLAGS;
 import static com.faforever.client.config.CacheNames.COUNTRY_NAMES;
@@ -31,6 +32,11 @@ public class CountryFlagService {
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   private static final Collection<String> NON_COUNTRY_CODES = Arrays.asList("A1", "A2", "");
+  /**
+   * User-assigned ISO 3166-1 codes that the server's GeoIP database reports but that {@link
+   * Locale#getISOCountries()} does not list, so they have to be added by hand.
+   */
+  private static final Collection<String> USER_ASSIGNED_COUNTRY_CODES = List.of("XK"); // Kosovo
   private final I18n i18n;
 
   @Cacheable(value = COUNTRY_FLAGS, sync = true)
@@ -46,13 +52,17 @@ public class CountryFlagService {
   @Cacheable(value = COUNTRY_NAMES, sync = true)
   public List<String> getCountries(String startsWith) {
     if (startsWith == null) {
-      return Arrays.stream(Locale.getISOCountries()).collect(Collectors.toList());
+      return knownCountries().collect(Collectors.toList());
     }
 
     final String startsWithLowered = startsWith.toLowerCase();
-    return Arrays.stream(Locale.getISOCountries())
+    return knownCountries()
         .filter(country -> matchCountry(country, startsWithLowered))
         .collect(Collectors.toList());
+  }
+
+  private Stream<String> knownCountries() {
+    return Stream.concat(Arrays.stream(Locale.getISOCountries()), USER_ASSIGNED_COUNTRY_CODES.stream());
   }
 
   private boolean matchCountry(String countryCode, String startsWithLowered) {

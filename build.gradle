@@ -187,6 +187,9 @@ compileTestJava {
   // so the ChaCha20 port, the 326-byte preamble layout and the body-relative offset are all covered.
   include '**/replay/LocalDemoSealServiceTest.java'
   include '**/replay/BrowserWatchServiceTest.java'
+  // Country flags: guards that every country we offer actually has a flag image
+  // (Kosovo/XK is GeoIP-only, so Locale.getISOCountries() misses it).
+  include '**/chat/CountryFlagServiceTest.java'
   include '**/assetserver/**'
   // Test base classes / shared utilities — required by tests in the
   // included packages above. Don't include broken siblings of these.
