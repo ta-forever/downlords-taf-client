@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
@@ -19,7 +20,9 @@
            fx:controller="com.faforever.client.galacticwar.GalaxyViewController">
     <GridPane>
         <columnConstraints>
-            <ColumnConstraints hgrow="ALWAYS"/>
+            <!-- minWidth 0: everything left of the planet detail must be able to shrink away, so that
+                 narrowing the window never pushes the fixed-width detail column off the right edge. -->
+            <ColumnConstraints hgrow="ALWAYS" minWidth="0"/>
             <ColumnConstraints minWidth="240" prefWidth="240" maxWidth="240"/>
         </columnConstraints>
 
@@ -28,6 +31,7 @@
         </rowConstraints>
 
         <SplitPane dividerPositions="0.25"
+                   minWidth="0"
                    GridPane.columnIndex="0"
                    GridPane.rowIndex="0">
 
@@ -48,15 +52,29 @@
             </VBox>
 
             <!-- RIGHT: Map + Reset button -->
-            <StackPane>
+            <StackPane minWidth="0">
                 <Region styleClass="galactic-war-background"/>
-                <StackPane>
+                <StackPane minWidth="0">
                     <ScrollPane fx:id="galacticWarGraphContainer"
                                 fitToWidth="true"
-                                fitToHeight="true"/>
+                                fitToHeight="true"
+                                minWidth="0"/>
 
-                    <javafx.scene.layout.HBox spacing="6" StackPane.alignment="TOP_RIGHT"
-                                              pickOnBounds="false" maxWidth="-Infinity">
+                    <!-- FlowPane rather than HBox: it is stretched to the full width of the map area
+                         (maxWidth=Infinity) and wraps, so when the window is too narrow for one row the
+                         buttons stack into further rows - down to one per row, i.e. vertically - instead
+                         of overflowing past the right hand edge. minWidth=0 keeps the button row from
+                         setting a floor on the width of the whole view. -->
+                    <javafx.scene.layout.FlowPane fx:id="galaxyToolbar"
+                                                  orientation="HORIZONTAL"
+                                                  hgap="6" vgap="6"
+                                                  alignment="TOP_RIGHT"
+                                                  StackPane.alignment="TOP_RIGHT"
+                                                  pickOnBounds="false"
+                                                  minWidth="0" maxWidth="Infinity" maxHeight="-Infinity">
+                        <padding>
+                            <Insets top="4.0" right="4.0" bottom="4.0" left="4.0"/>
+                        </padding>
                         <Button text="%galacticWar.hallOfVictors"
                                 onAction="#onHallOfVictorsButtonPressed"/>
                         <Button text="%galacticWar.guide"
@@ -66,7 +84,7 @@
                         <Button text="%galactic_war.view.reset"
                                 onAction="#resetView"
                                 styleClass="reset-view-button"/>
-                    </javafx.scene.layout.HBox>
+                    </javafx.scene.layout.FlowPane>
                 </StackPane>
             </StackPane>
         </SplitPane>
@@ -90,8 +108,16 @@
     <!-- Victory splash overlay: shown once per galaxy iteration when the war has been won.
          Backdrop art is chosen per winning faction by the controller; the translucent
          Region keeps title text readable over the art. -->
+    <!-- minWidth/minHeight 0 is load-bearing, not cosmetic: the controller binds
+         victoryBackgroundImage's fitWidth/fitHeight to this pane's own width/height, and an ImageView
+         is not resizable, so its *minimum* size is whatever fit size it currently has. Without these
+         overrides the overlay's minimum ratchets up to the largest size the window has ever had, that
+         minimum propagates to rootPane and out through the tab content region, and the whole view can
+         then never shrink again - un-maximising pushed the planet detail and the toolbar off the
+         right hand edge. The overlay is purely decorative, so it must never drive the layout minimum. -->
     <StackPane fx:id="victoryOverlay"
                visible="false"
+               minWidth="0" minHeight="0"
                style="-fx-background-color: black;">
         <ImageView fx:id="victoryBackgroundImage"/>
         <Region style="-fx-background-color: rgba(0,0,0,0.35);"/>

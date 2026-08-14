@@ -31,9 +31,11 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -62,8 +64,18 @@ public class GalacticMapView {
   private final UiService uiService;
   private final com.brunomnsilva.smartgraph.graph.Graph<Planet, String> theGraph;
   private double zoomFactor;
+  /**
+   * The zoom factor at which planets are drawn at their nominal {@link #PLANET_RADIUS} /
+   * {@link #CAPITAL_PLANET_RADIUS}. It is pinned to the "fit the whole galaxy" zoom computed by
+   * {@link #resetView()}, so planet sizes only ever change in proportion to how far the user has
+   * zoomed away from that reference view. Without this, planet radii were multiplied by the
+   * absolute zoom factor, which made them jump to an arbitrary size on the very first scroll.
+   */
+  private double referenceZoomFactor = 1.0;
   private double xOffset;
   private double yOffset;
+  /** Overlay nodes (capital faction icons, contested markers) that must scale with the planets. */
+  private final List<Node> zoomScaledOverlays = new ArrayList<>();
   private Map<Vertex<Planet>, SmartGraphVertexNode<Planet>> vertexNodes;
   SmartGraphPanel<Planet, String> smartGraphPanel;
 
@@ -99,7 +111,15 @@ public class GalacticMapView {
           @Override
           public void run() {
             JavaFxUtil.runLater(() -> {
-              smartGraphPanel.init();
+              try {
+                smartGraphPanel.init();
+              } catch (IllegalStateException e) {
+                log.warn("[GalacticMapView] SmartGraphPanel.init() failed: {}", e.getMessage());
+              }
+              // init() re-applies the SmartGraphProperties default radius to every vertex, so our
+              // zoom-relative sizes have to be restored afterwards - otherwise the galaxy loads with
+              // uniform default-sized planets and only snaps to the correct sizes on the first zoom.
+              setPlanetSizes();
               setPlanetPositions();
             });
           }
@@ -237,6 +257,9 @@ public class GalacticMapView {
     double yZoom = getRoot().getHeight() / (span.getSecond() + 2.0*CAPITAL_PLANET_RADIUS);
     if (xZoom > 0.0 && yZoom > 0.0) {
       this.zoomFactor = Math.min(xZoom, yZoom);
+      // The fitted view is the reference: planets are drawn at their nominal radius here and scale
+      // strictly in proportion as the user zooms in or out from it.
+      this.referenceZoomFactor = this.zoomFactor;
       this.xOffset = 0.0;
       this.yOffset = 0.0;
       this.setPlanetSizes();
@@ -349,6 +372,7 @@ public class GalacticMapView {
         });
         smartGraphPanel.getStylableVertex(v).addStyleClass(String.format("%sCapitalVertex", faction.toString().toLowerCase()));
         smartGraphPanel.getChildren().add(imv);
+        zoomScaledOverlays.add(imv);
       }
     }
   }
@@ -397,6 +421,7 @@ public class GalacticMapView {
           });
           label.setMouseTransparent(true);
           smartGraphPanel.getChildren().add(label);
+          zoomScaledOverlays.add(label);
         }
       }
     }
@@ -459,10 +484,15 @@ public class GalacticMapView {
   }
 
   private void setPlanetSizes() {
+    double relativeZoom = referenceZoomFactor > 0.0 ? zoomFactor / referenceZoomFactor : 1.0;
     for (Vertex<Planet> v: theGraph.vertices()) {
       vertexNodes.get(v).setRadius(v.element().getCapitalOf() != null
-          ? CAPITAL_PLANET_RADIUS * zoomFactor
-          : PLANET_RADIUS * zoomFactor);
+          ? CAPITAL_PLANET_RADIUS * relativeZoom
+          : PLANET_RADIUS * relativeZoom);
+    }
+    for (Node overlay : zoomScaledOverlays) {
+      overlay.setScaleX(relativeZoom);
+      overlay.setScaleY(relativeZoom);
     }
   }
 

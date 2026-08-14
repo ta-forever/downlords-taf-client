@@ -83,6 +83,7 @@ public class GalaxyViewController extends AbstractViewController<Node> {
   public Label victorySubtitle;
   public Label victoryMvps;
   public javafx.scene.layout.HBox victoryHonours;
+  public javafx.scene.layout.FlowPane galaxyToolbar;
 
   final private SimpleStringProperty technicalName = new SimpleStringProperty("<galaxy>");
   final private SimpleStringProperty displayName = new SimpleStringProperty("<galaxy>");
@@ -114,6 +115,24 @@ public class GalaxyViewController extends AbstractViewController<Node> {
     victoryBackgroundImage.setPreserveRatio(false);
     leaderboardWarXpToggle.setSelected(
         preferencesService.getPreferences().isGalacticWarLeaderboardThisWar());
+    constrainToolbarButtons();
+  }
+
+  /**
+   * The toolbar {@link javafx.scene.layout.FlowPane} wraps its buttons onto further rows as the map
+   * area narrows, but a single button that is wider than the whole map area would still spill out
+   * past its edge. Capping each button at the toolbar's own width makes it ellipsize instead, so the
+   * buttons stay inside the map area at any window size. The full label is kept as a tooltip.
+   */
+  private void constrainToolbarButtons() {
+    for (Node node : galaxyToolbar.getChildren()) {
+      if (node instanceof javafx.scene.control.Button button) {
+        button.maxWidthProperty().bind(
+            galaxyToolbar.widthProperty()
+                .subtract(galaxyToolbar.getPadding().getLeft() + galaxyToolbar.getPadding().getRight()));
+        button.setTooltip(new Tooltip(button.getText()));
+      }
+    }
   }
 
   public void onLeaderboardXpModeToggled(ActionEvent actionEvent) {
@@ -238,7 +257,10 @@ public class GalaxyViewController extends AbstractViewController<Node> {
   }
 
   public void resetView(ActionEvent actionEvent) {
-    this.galacticMapView.resetView();
+    // The button is always on screen, including while the scenario is still being fetched.
+    if (this.galacticMapView != null) {
+      this.galacticMapView.resetView();
+    }
   }
 
   private javafx.scene.image.Image getFactionImage(Faction faction) {
