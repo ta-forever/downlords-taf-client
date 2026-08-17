@@ -3,6 +3,7 @@ package com.faforever.client.wager;
 import com.faforever.client.wager.WagerService.TradeMarker;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.chart.XYChart;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
@@ -145,6 +146,44 @@ public final class WagerChartMarkers {
       legend.getChildren().add(legendEntry(OTHERS_COLOR, othersText));
     }
     showIfAny(legend);
+  }
+
+  /**
+   * Put a marker on a step line at the PRE-trade price — the foot of the step it caused, so the
+   * arrow marks where the move starts and points along it — without bending the line.
+   *
+   * <p>The marker is carried by a duplicate data point, and the chart draws its line through
+   * <em>every</em> point (sorting by x, stably). So the duplicate must be an exact copy of a line
+   * point <em>and</em> sit immediately next to it: appending it to the end of the series instead
+   * puts it after the step's head, which drags the line back down to the pre-trade price and then
+   * runs it diagonally up to the next price move. This inserts it right after the foot, giving the
+   * drawn order foot → foot(marker) → head, which is the same line.
+   *
+   * <p>When no step starts at {@code x} (a trade whose timestamp falls between plotted samples,
+   * or one that did not move the price) the marker goes on the flat segment it lands on, where the
+   * pre- and post-trade prices are the same anyway.
+   *
+   * @param line the line's points, x-ascending; the marker point is inserted into this list
+   * @return false, having done nothing, if {@code x} precedes the whole line (undrawable)
+   */
+  public static boolean insertStepFootMarker(List<XYChart.Data<Number, Number>> line, double x, Node node) {
+    int head = -1;
+    for (int i = 0; i < line.size(); i++) {
+      if (line.get(i).getXValue().doubleValue() > x) {
+        break;
+      }
+      head = i;
+    }
+    if (head < 0) {
+      return false;
+    }
+    // A step starting at x is a foot/head pair sharing that x; ride the foot when there is one.
+    boolean onStep = head > 0 && line.get(head - 1).getXValue().doubleValue() == x;
+    int at = onStep ? head : head + 1;
+    XYChart.Data<Number, Number> data = new XYChart.Data<>(x, line.get(at - 1).getYValue());
+    data.setNode(node);
+    line.add(at, data);
+    return true;
   }
 
   /** ▲ for a trade that pushed the displayed price up, ▼ for down. */

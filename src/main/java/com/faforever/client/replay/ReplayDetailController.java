@@ -415,10 +415,11 @@ public class ReplayDetailController implements Controller<Node> {
     javafx.scene.chart.XYChart.Series<Number, Number> series = new javafx.scene.chart.XYChart.Series<>();
     series.setName(chart.outcomeLabel());
 
+    List<javafx.scene.chart.XYChart.Data<Number, Number>> line = new java.util.ArrayList<>();
     // Leading flat segment from kickoff to the first trade at the opening price.
     double firstEpoch = points.get(0).epochSeconds();
     if (startEpoch < firstEpoch) {
-      series.getData().add(new javafx.scene.chart.XYChart.Data<>(0.0, points.get(0).price()));
+      line.add(new javafx.scene.chart.XYChart.Data<>(0.0, points.get(0).price()));
     }
     // Step (step-after) plot: the price holds flat between trades and jumps instantly at each trade,
     // so only horizontal and vertical segments are drawn — never a diagonal implying continuous drift.
@@ -430,9 +431,9 @@ public class ReplayDetailController implements Controller<Node> {
       double time = (p.epochSeconds() - startEpoch) / 60.0;
       double price = p.price();
       if (!Double.isNaN(prevPrice) && price != prevPrice) {
-        series.getData().add(new javafx.scene.chart.XYChart.Data<>(time, prevPrice));
+        line.add(new javafx.scene.chart.XYChart.Data<>(time, prevPrice));
       }
-      series.getData().add(new javafx.scene.chart.XYChart.Data<>(time, price));
+      line.add(new javafx.scene.chart.XYChart.Data<>(time, price));
       prevPrice = price;
     }
     // Trailing flat segment to game end at the last traded price (the market's final read on the
@@ -441,12 +442,13 @@ public class ReplayDetailController implements Controller<Node> {
     if (replay.getEndTime() != null) {
       double endMin = (replay.getEndTime().toEpochSecond() - startEpoch) / 60.0;
       if (endMin > (lastPoint.epochSeconds() - startEpoch) / 60.0) {
-        series.getData().add(new javafx.scene.chart.XYChart.Data<>(endMin, lastPoint.price()));
+        line.add(new javafx.scene.chart.XYChart.Data<>(endMin, lastPoint.price()));
       }
     }
     // Human-trade markers: a coloured ▲/▼ per trade riding on its (already plotted) PRE-trade
     // point — the foot of the step it caused, so the arrow marks where the move starts and points
-    // along it. A duplicate data point carrying only the symbol node, so the line is unchanged.
+    // along it. The symbol rides a duplicate data point inserted alongside that foot, which leaves
+    // the line itself unchanged (see insertStepFootMarker).
     Map<Integer, javafx.scene.paint.Color> traderColors = new java.util.HashMap<>();
     for (com.faforever.client.wager.WagerService.TradeMarker marker : chart.markers()) {
       double time = (marker.epochSeconds() - startEpoch) / 60.0;
@@ -454,12 +456,11 @@ public class ReplayDetailController implements Controller<Node> {
           com.faforever.client.wager.WagerChartMarkers.displayName(marker),
           String.format("%.2f", marker.shares()),
           String.format("%.1f", marker.priceAfter() * 100));
-      javafx.scene.chart.XYChart.Data<Number, Number> data =
-          new javafx.scene.chart.XYChart.Data<>(time, marker.priceBefore());
-      data.setNode(com.faforever.client.wager.WagerChartMarkers.markerNode(marker,
-          com.faforever.client.wager.WagerChartMarkers.colorFor(traderColors, marker.userId()), tooltip));
-      series.getData().add(data);
+      com.faforever.client.wager.WagerChartMarkers.insertStepFootMarker(line, time,
+          com.faforever.client.wager.WagerChartMarkers.markerNode(marker,
+              com.faforever.client.wager.WagerChartMarkers.colorFor(traderColors, marker.userId()), tooltip));
     }
+    series.getData().setAll(line);
     wagerPriceChart.getData().add(series);
     if (wagerChartLegend != null) {
       com.faforever.client.wager.WagerChartMarkers.populateLegend(wagerChartLegend, chart.markers(), traderColors);

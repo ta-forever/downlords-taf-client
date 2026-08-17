@@ -1146,19 +1146,21 @@ public class WagerController extends AbstractViewController<Node> {
     // so we only ever want horizontal and vertical segments — never a diagonal that implies the price
     // drifted continuously. For each price change we first extend the previous price horizontally to
     // the new trade time, then step vertically to the new price.
+    List<XYChart.Data<Number, Number>> line = new ArrayList<>();
     double prevPrice = Double.NaN;
     for (double[] pt : points) {
       double time = pt[0] - t0;
       double price = pt[1] * 100;
       if (!Double.isNaN(prevPrice) && price != prevPrice) {
-        series.getData().add(new XYChart.Data<>(time, prevPrice));
+        line.add(new XYChart.Data<>(time, prevPrice));
       }
-      series.getData().add(new XYChart.Data<>(time, price));
+      line.add(new XYChart.Data<>(time, price));
       prevPrice = price;
     }
     // Human-trade markers: a coloured ▲/▼ per trade, riding on its (already plotted) PRE-trade
     // point — the foot of the step it caused, so the arrow marks where the move starts and points
-    // along it. A duplicate data point carrying only the symbol node, so the line is unchanged.
+    // along it. The symbol rides a duplicate data point inserted alongside that foot, which leaves
+    // the line itself unchanged (see insertStepFootMarker).
     // On the LIVE chart the traders are anonymised down to two categories (mine / everyone
     // else's), so an open market never leaks who is on the other side of a price move.
     int me = currentUserId();
@@ -1168,20 +1170,19 @@ public class WagerController extends AbstractViewController<Node> {
         continue;
       }
       boolean mine = marker.userId() == me;
-      XYChart.Data<Number, Number> data = new XYChart.Data<>(time, marker.priceBefore() * 100);
-      data.setNode(WagerChartMarkers.markerNode(marker,
+      WagerChartMarkers.insertStepFootMarker(line, time, WagerChartMarkers.markerNode(marker,
           WagerChartMarkers.anonymousColor(mine), markerTooltip(marker, mine)));
-      series.getData().add(data);
     }
-    addVerdictMarker(series, points, t0);
+    addVerdictMarker(line, points, t0);
+    series.getData().setAll(line);
     priceChart.getData().setAll(series);
     updateTradeLegend();
   }
 
   /** Once the market has settled, stamp the verdict on the end of the charted line: a green tick
-   * if the charted outcome won, a red X if it lost. (The chart sorts its data by x, so appending
-   * this duplicate of the final point leaves the line itself untouched.) */
-  private void addVerdictMarker(XYChart.Series<Number, Number> series, List<double[]> points, double t0) {
+   * if the charted outcome won, a red X if it lost. (Appended as a duplicate of the final point,
+   * so the line itself is untouched.) */
+  private void addVerdictMarker(List<XYChart.Data<Number, Number>> line, List<double[]> points, double t0) {
     WagerMarketBean market = currentMarket();
     if (chartOutcome == null || market == null || !"SETTLED".equals(market.getStatus())
         || chartOutcome.getWinner() == null) {
@@ -1194,7 +1195,7 @@ public class WagerController extends AbstractViewController<Node> {
         chartOutcome.getLabel());
     verdict.setNode(WagerChartMarkers.verdictNode(won,
         i18n.get(won ? "wager.chart.won" : "wager.chart.lost", outcomeName)));
-    series.getData().add(verdict);
+    line.add(verdict);
   }
 
   /** Tooltip for one trade marker on the live chart: buy/sell (relative to the displayed outcome),
