@@ -13,7 +13,9 @@
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.ToggleButton?>
 <?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.Region?>
@@ -48,8 +50,16 @@
                  still open. Without that a TitledPane caps itself at its PREFERRED height, and the
                  space freed by collapsing just sat dead at the bottom of the column. The
                  prefHeights below are only the baseline share — deliberately small so the column is
-                 never over-constrained and there is always slack to hand out. -->
-            <VBox spacing="6.0" minWidth="200.0">
+                 never over-constrained and there is always slack to hand out.
+
+                 minWidth is 10, not the width this column actually reads at: a SplitPane divider
+                 stops at its item's minWidth, and a floor of 200 meant someone who only wants the
+                 selected game (the chart and the trade controls) could not push the watchlist out
+                 of the way. At 10 it collapses to a sliver you can drag back out. The sections keep
+                 their own (wider) minimums and simply overflow the column, which is harmless: the
+                 SplitPane clips each item to its content area, so nothing spills across the
+                 divider. -->
+            <VBox fx:id="leftColumn" spacing="6.0" minWidth="10.0">
                 <padding>
                     <Insets right="6.0"/>
                 </padding>
@@ -86,8 +96,11 @@
                 </TitledPane>
             </VBox>
 
-            <!-- Right column: selected game detail (full height) -->
-            <VBox spacing="8.0" minWidth="360.0">
+            <!-- Right column: selected game detail (full height). No explicit minWidth — an
+                 explicit one OVERRIDES the computed max-of-children, and at 360 it was narrower
+                 than the trade row's own minimum, so the buttons were free to spill out of the
+                 column. Letting it compute makes the column's floor the honest one. -->
+            <VBox spacing="8.0">
                 <padding>
                     <Insets left="6.0"/>
                 </padding>
@@ -102,25 +115,38 @@
 
                 <!-- Map thumbnail + team cards | outcome picker, side by side so the chart gets the height -->
                 <HBox spacing="10.0" alignment="TOP_LEFT" minHeight="145.0">
-                    <VBox alignment="TOP_CENTER" spacing="4.0" minWidth="110.0">
+                    <!-- minWidth well under the thumbnail's own width: the map is the most
+                         expendable thing on this row, so it is the first to give ground when the
+                         trade controls need the space (it crops rather than pushing them off). -->
+                    <VBox fx:id="mapColumn" alignment="TOP_CENTER" spacing="4.0" prefWidth="110.0"
+                          minWidth="40.0">
+                        <!-- fitWidth is bound to this column in the controller. An ImageView is not
+                             resizable, so its min width is whatever fitWidth currently is: left at a
+                             fixed 100 it ignores the column shrinking and simply hangs out over the
+                             team cards, which looks like the column never gave any ground at all. -->
                         <ImageView fx:id="mapImageView" fitWidth="100.0" fitHeight="100.0" preserveRatio="true"/>
                         <Label fx:id="mapNameLabel" styleClass="text-secondary" wrapText="true"
-                               maxWidth="110.0" alignment="CENTER"/>
+                               maxWidth="110.0" minWidth="0.0" alignment="CENTER"/>
                     </VBox>
                     <!-- No hgrow: the team cards take only the width they need, so all the slack
                          goes to the outcomes table. When the row IS over-constrained HBox shrinks
-                         every child toward its min regardless of hgrow, so this scrolls and the
-                         table stops at its minWidth. -->
+                         every child toward its min regardless of hgrow, so this scrolls (that is
+                         what the small minWidth buys) and the trade controls keep their room. -->
                     <ScrollPane fitToHeight="true" hbarPolicy="AS_NEEDED" vbarPolicy="NEVER" minHeight="145.0"
-                                styleClass="no-border">
+                                minWidth="40.0" styleClass="no-border">
                         <HBox fx:id="teamCardsPane" spacing="10.0"/>
                     </ScrollPane>
                     <!-- Divider and the whole outcomes column are hidden until a game is picked -->
                     <Separator fx:id="outcomesSeparator" orientation="VERTICAL"/>
                     <!-- Outcome picker with its trade controls directly beneath it, filling out to
                          the right edge. Sharing a column is what aligns the Buy controls with the
-                         table's left edge — they trade the outcome selected right above them. -->
-                    <VBox fx:id="outcomesColumn" spacing="6.0" prefWidth="320.0" minWidth="220.0"
+                         table's left edge — they trade the outcome selected right above them.
+                         No explicit prefWidth: it computes from the children, which means the trade
+                         row's full single-line width, so this column asks the HBox for the room the
+                         controls actually need instead of a flat 320. minWidth is low: the trade row
+                         wraps (down to one control per line if it has to), so the column does not
+                         need to be wide enough for any whole group. -->
+                    <VBox fx:id="outcomesColumn" spacing="6.0" minWidth="140.0"
                           HBox.hgrow="ALWAYS">
                         <TableView fx:id="outcomesTable" VBox.vgrow="ALWAYS" prefHeight="145.0"
                                    minHeight="115.0" maxWidth="1.7976931348623157E308">
@@ -132,22 +158,62 @@
                                 <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
                             </columnResizePolicy>
                         </TableView>
-                        <!-- Buy (left) and sell (right) on one line; both are entered as a share
-                             count, with the LP cost / proceeds (fee included) previewed as you type. -->
-                        <HBox alignment="CENTER_LEFT" spacing="8.0">
+                        <!-- Buy, the unit pill, and sell, with the other side of the trade previewed
+                             as you type. The pill picks the unit BOTH sides are entered in: a share
+                             count (preview = LP, fee included), or an LP amount incl. fee (preview =
+                             shares). The unit labels and both prompts follow the pill (see
+                             applyTradeUnit).
+
+                             A FlowPane, NOT an HBox: an HBox that runs out of room hands every
+                             child its minimum and then just overflows past the right edge of the
+                             window, taking the Buy/Sell buttons with it. The FlowPane wraps instead,
+                             one control at a time, so there is no width at which anything here can
+                             leave the window. (Grouping buy and sell into nested FlowPanes to wrap
+                             only at group boundaries does NOT work: a horizontal FlowPane's
+                             preferred width is its prefWrapLength, not its content, so each group
+                             asks for the full wrap length and the outer row wraps immediately.)
+
+                             minWidth="-Infinity" (= USE_PREF_SIZE) on every control that carries a
+                             WORD pins it at its preferred width, so a narrow window can never shrink
+                             it into an ellipsis: an unreadable "..." on the button you are about to
+                             click is worse than a wrapped row. What squeezing there is falls on the
+                             preview labels (throwaway text) and then the two entry fields, which
+                             keep a small minWidth of their own so they narrow rather than vanish. -->
+                        <!-- prefWrapLength is the width the FlowPane ASKS for (it wraps on its
+                             ACTUAL width, so this only sets the request): roughly one line's worth,
+                             so the column asks the HBox above for the room the controls need and
+                             the shortfall comes out of the map and team cards first — they shrink
+                             from a generous pref toward a small min. minWidth="0" then lets the row
+                             wrap once those have given all they can, instead of pushing the buttons
+                             off the window. -->
+                        <FlowPane fx:id="tradeRow" hgap="8.0" vgap="6.0" rowValignment="CENTER"
+                                  prefWrapLength="600.0" minWidth="0.0"
+                                  maxWidth="1.7976931348623157E308">
                             <Label text="%wager.buyLabel" minWidth="-Infinity"/>
-                            <TextField fx:id="buySharesField" prefWidth="90.0" promptText="%wager.shares"/>
-                            <Label text="%wager.sharesUnit"/>
-                            <Button fx:id="buyButton" styleClass="primary-button" text="%wager.buy"/>
-                            <Label fx:id="buyPreviewLabel" styleClass="text-secondary"/>
-                            <Region HBox.hgrow="ALWAYS" minWidth="10.0"/>
-                            <Label fx:id="sellPreviewLabel" styleClass="text-secondary"/>
+                            <TextField fx:id="buySharesField" prefWidth="90.0" minWidth="44.0"
+                                       promptText="%wager.shares"/>
+                            <Label fx:id="buyUnitLabel" text="%wager.sharesUnit" minWidth="-Infinity"/>
+                            <Button fx:id="buyButton" styleClass="primary-button" text="%wager.buy"
+                                    minWidth="-Infinity"/>
+                            <Label fx:id="buyPreviewLabel" styleClass="text-secondary" minWidth="-Infinity"/>
+                            <!-- The pill is the one group kept together: its halves are a joined
+                                 segmented control and must never wrap apart. -->
+                            <HBox alignment="CENTER" minWidth="-Infinity" styleClass="display-metric-toggle">
+                                <ToggleButton fx:id="sharesModeToggle" mnemonicParsing="false"
+                                              styleClass="left-pill" text="%wager.shares"
+                                              minWidth="-Infinity"/>
+                                <ToggleButton fx:id="lpModeToggle" mnemonicParsing="false"
+                                              styleClass="right-pill" text="%wager.lpUnit"
+                                              minWidth="-Infinity"/>
+                            </HBox>
+                            <Label fx:id="sellPreviewLabel" styleClass="text-secondary" minWidth="-Infinity"/>
                             <Label text="%wager.sellLabel" minWidth="-Infinity"/>
-                            <TextField fx:id="sharesField" prefWidth="90.0" promptText="%wager.shares"/>
-                            <Label text="%wager.sharesUnit"/>
-                            <Button fx:id="maxButton" text="%wager.max"/>
-                            <Button fx:id="sellButton" text="%wager.sell"/>
-                        </HBox>
+                            <TextField fx:id="sharesField" prefWidth="90.0" minWidth="44.0"
+                                       promptText="%wager.shares"/>
+                            <Label fx:id="sellUnitLabel" text="%wager.sharesUnit" minWidth="-Infinity"/>
+                            <Button fx:id="maxButton" text="%wager.max" minWidth="-Infinity"/>
+                            <Button fx:id="sellButton" text="%wager.sell" minWidth="-Infinity"/>
+                        </FlowPane>
                     </VBox>
                 </HBox>
 

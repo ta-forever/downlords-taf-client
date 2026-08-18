@@ -29,6 +29,8 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Bounds;
 import javafx.scene.chart.NumberAxis;
+import javafx.scene.control.Labeled;
+import javafx.scene.control.SplitPane;
 import javafx.scene.chart.XYChart;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -38,6 +40,7 @@ import javafx.scene.shape.Polygon;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
@@ -48,6 +51,10 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.closeTo;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -58,6 +65,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -132,6 +140,9 @@ public class WagerControllerTest extends AbstractPlainJavaFxTest {
     when(wagerService.getWatchlist()).thenReturn(CompletableFuture.completedFuture(List.of(apiMarket())));
     when(wagerService.getPriceHistory(anyLong(), anyLong(), anyDouble(), anyBoolean(), anyInt()))
         .thenReturn(new CompletableFuture<>());   // never completes: no chart history in these tests
+    when(wagerService.trade(anyInt(), anyLong(), anyString(), anyDouble()))
+        .thenReturn(CompletableFuture.completedFuture(
+            new WagerTradeResult(7L, "1", 0, 0, 0, 0.5, 0, 0)));
 
     // Mirror the real service: each subscribe replaces the list with FRESH market beans (the WS
     // snapshot rebuilds them), and unsubscribing empties it.
@@ -190,12 +201,25 @@ public class WagerControllerTest extends AbstractPlainJavaFxTest {
   /** Give the tab a real size and lay it out, so geometry assertions have something to measure
    * (the shared test scene is 1x1, where nothing is ever laid out). */
   private void layOutTab() {
+    layOutTab(900);
+  }
+
+  /**
+   * Pin the tab to an exact width and lay it out. min/pref/max are all set, not just resize():
+   * the test scene lays its root's children out again on the next pulse and would otherwise size
+   * the tab to its PREFERRED width, silently measuring a window far wider than the one asked for.
+   */
+  private void layOutTab(double width) {
     runOnFxThreadAndWait(() -> {
       VBox wagerRoot = instance.wagerRoot;
       getRoot().getChildren().setAll(wagerRoot);
-      wagerRoot.resize(900, 700);
+      wagerRoot.setMinSize(width, 700);
+      wagerRoot.setPrefSize(width, 700);
+      wagerRoot.setMaxSize(width, 700);
+      wagerRoot.resize(width, 700);
       wagerRoot.applyCss();
       wagerRoot.layout();
+      wagerRoot.layout();   // settle: the real app gets a pulse per frame, not a single pass
     });
   }
 
@@ -311,16 +335,20 @@ public class WagerControllerTest extends AbstractPlainJavaFxTest {
     layOutTab();
 
     Bounds table = instance.outcomesTable.getBoundsInParent();
-    Bounds buy = instance.buySharesField.getParent().getBoundsInParent();   // the buy/sell row
-    assertThat("trade row was not laid out", buy.getWidth() > 0, is(true));
-    assertThat(buy.getMinY() >= table.getMaxY(), is(true));                 // beneath the table
-    assertThat(buy.getMinX(), closeTo(table.getMinX(), 1.0));               // same left edge
+    Bounds row = instance.tradeRow.getBoundsInParent();
+    assertThat("trade row was not laid out", row.getWidth() > 0, is(true));
+    assertThat(row.getMinY() >= table.getMaxY(), is(true));                 // beneath the table
+    assertThat(row.getMinX(), closeTo(table.getMinX(), 1.0));               // same left edge
 
-    // Buy on the left of that row, Sell hard against its right edge.
-    Bounds buyButton = instance.buyButton.getBoundsInParent();
-    Bounds sellButton = instance.sellButton.getBoundsInParent();
-    assertThat(buyButton.getMaxX() < sellButton.getMinX(), is(true));
-    assertThat(sellButton.getMaxX(), closeTo(buy.getWidth(), 1.0));
+    // Buy, then the unit pill, then sell — in that order in READING order, since the row wraps.
+    assertThat(readingOrder(instance.buyButton) < readingOrder(instance.sharesModeToggle), is(true));
+    assertThat(readingOrder(instance.sharesModeToggle) < readingOrder(instance.sellButton), is(true));
+  }
+
+  /** Position of a control along the (possibly wrapped) trade row: later line first, then x. */
+  private double readingOrder(javafx.scene.Node control) {
+    Bounds inRow = instance.tradeRow.sceneToLocal(control.localToScene(control.getBoundsInLocal()));
+    return inRow.getMinY() * 10_000 + inRow.getMinX();
   }
 
   /** The overlaid name is anchored to the line: right of the y-axis, just above the opening price. */
@@ -479,5 +507,214 @@ public class WagerControllerTest extends AbstractPlainJavaFxTest {
     navigateTo();
     assertThat(instance.gamesList.getSelectionModel().getSelectedItem().gameId(), is(GAME_ID));
     assertThat(instance.outcomesTable.getSelectionModel().getSelectedItem().getOutcomeKey(), is("2"));
+  }
+
+  // ---- trade-unit pill (shares <-> LP) ----------------------------------------------------
+
+  /** Flip the pill to LP mode (the toggles are in one group, so this deselects the shares half). */
+  private void selectLpMode() {
+    runOnFxThreadAndWait(() -> instance.lpModeToggle.setSelected(true));
+  }
+
+  /** The signed share count that reached the service (the trade itself is stubbed in setUp). */
+  private double capturedTradeShares() {
+    ArgumentCaptor<Double> shares = ArgumentCaptor.forClass(Double.class);
+    verify(wagerService).trade(anyInt(), anyLong(), anyString(), shares.capture());
+    return shares.getValue();
+  }
+
+  /** The pill starts on shares, and the labels either side of the fields follow it. */
+  @Test
+  public void unitPillStartsOnSharesAndRelabelsTheFields() {
+    assertThat(instance.sharesModeToggle.isSelected(), is(true));
+    assertThat(instance.buyUnitLabel.getText(), is("wager.sharesUnit"));
+    assertThat(instance.sellUnitLabel.getText(), is("wager.sharesUnit"));
+
+    selectLpMode();
+
+    assertThat(instance.sharesModeToggle.isSelected(), is(false));
+    assertThat(instance.buyUnitLabel.getText(), is("wager.lpUnit"));
+    assertThat(instance.sellUnitLabel.getText(), is("wager.lpUnit"));
+    assertThat(instance.buySharesField.getPromptText(), is("wager.lpUnit"));
+  }
+
+  /** The chosen unit is a standing preference, so picking LP writes it through to settings. */
+  @Test
+  public void unitPillChoiceIsRemembered() {
+    selectLpMode();
+    verify(preferences).setWagerTradeInLp(true);
+    verify(preferencesService).storeInBackground();
+
+    runOnFxThreadAndWait(() -> instance.sharesModeToggle.setSelected(true));
+    verify(preferences).setWagerTradeInLp(false);
+  }
+
+  /** …and the tab opens in it next time, without that looking like a mode change (which would
+   * convert, and so clear, whatever is in the fields). */
+  @Test
+  public void unitPillOpensInTheRememberedMode() throws IOException {
+    when(preferences.isWagerTradeInLp()).thenReturn(true);
+    setUp();   // rebuild the controller + reload the FXML, as a fresh session would
+
+    assertThat(instance.lpModeToggle.isSelected(), is(true));
+    assertThat(instance.sharesModeToggle.isSelected(), is(false));
+    assertThat(instance.buyUnitLabel.getText(), is("wager.lpUnit"));
+    assertThat(instance.buySharesField.getPromptText(), is("wager.lpUnit"));
+    verify(preferences, never()).setWagerTradeInLp(anyBoolean());
+  }
+
+  /** A mode switch must not be undoable into "no mode at all" by clicking the selected half. */
+  @Test
+  public void unitPillCannotBeDeselected() {
+    runOnFxThreadAndWait(() -> instance.sharesModeToggle.setSelected(false));
+
+    assertThat(instance.sharesModeToggle.isSelected(), is(true));
+    assertThat(instance.lpModeToggle.isSelected(), is(false));
+  }
+
+  /** Shares mode previews the LP the trade moves; LP mode previews the share count it buys. */
+  @Test
+  public void previewIsQuotedInWhicheverUnitIsNotBeingTyped() {
+    navigateToAndPickGame();
+
+    runOnFxThreadAndWait(() -> instance.buySharesField.setText("10"));
+    assertThat(instance.buyPreviewLabel.getText(), is("wager.buyPreview"));
+
+    selectLpMode();
+    runOnFxThreadAndWait(() -> instance.buySharesField.setText("500"));
+    assertThat(instance.buyPreviewLabel.getText(), is("wager.previewShares"));
+    runOnFxThreadAndWait(() -> instance.sharesField.setText("500"));
+    assertThat(instance.sellPreviewLabel.getText(), is("wager.previewShares"));
+  }
+
+  /**
+   * The point of LP mode: an LP budget is converted to the share count that costs it. The
+   * conversion is verified by putting the shares that were actually traded back through the
+   * forward quote — it must come out at the LP typed, and never above it.
+   */
+  @Test
+  public void lpModeBuysTheShareCountThatCostsTheTypedLp() {
+    navigateToAndPickGame();
+    selectLpMode();
+    runOnFxThreadAndWait(() -> instance.buySharesField.setText("500"));
+
+    runOnFxThreadAndWait(() -> instance.buyButton.fire());
+
+    double shares = capturedTradeShares();
+    assertThat(shares > 0, is(true));
+    // cost + 2% fee (the market's feeBps), i.e. what the server will bill for those shares
+    double cost = WagerMath.costLp(0.5, market.getLiquidity(), shares, WagerService.SHARE_PAYOUT_LP);
+    double billed = cost * (1 + market.getFeeBps() / 10000.0);
+    assertThat(billed, closeTo(500, 1));
+    assertThat(billed <= 500, is(true));
+  }
+
+  /** And the sell side: an LP amount to receive becomes the share count that fetches it. */
+  @Test
+  public void lpModeSellsTheShareCountThatFetchesTheTypedLp() {
+    navigateToAndPickGame();
+    selectLpMode();
+    runOnFxThreadAndWait(() -> instance.sharesField.setText("300"));
+
+    runOnFxThreadAndWait(() -> instance.sellButton.fire());
+
+    double shares = capturedTradeShares();
+    assertThat(shares < 0, is(true));   // a sell is submitted as a negative delta
+    double gross = -WagerMath.costLp(0.5, market.getLiquidity(), shares, WagerService.SHARE_PAYOUT_LP);
+    double net = gross * (1 - market.getFeeBps() / 10000.0);
+    assertThat(net, closeTo(300, 1));
+  }
+
+  /**
+   * A narrow window must never squeeze the trade controls into an ellipsis — "..." on the button
+   * you are about to click is worse than a cramped row. Labelled controls are pinned to their
+   * preferred width, so the squeeze lands on the spacers, the preview text and the entry fields.
+   */
+  @Test
+  public void tradeControlsNeverTruncateInANarrowWindow() {
+    navigateToAndPickGame();
+    layOutTab(420);   // far narrower than the tab is ever really used at
+
+    for (Labeled control : List.of(instance.buyButton, instance.sellButton, instance.maxButton,
+        instance.sharesModeToggle, instance.lpModeToggle, instance.buyUnitLabel, instance.sellUnitLabel)) {
+      assertThat(control.getText() + " was squeezed below its preferred width",
+          control.getWidth(), greaterThanOrEqualTo(control.prefWidth(-1) - 0.5));
+    }
+  }
+
+  /** Rightmost edge any trade control reaches, in the tab's own coordinates. */
+  private double tradeControlsRightEdge() {
+    return instance.tradeRow.getChildrenUnmodifiable().stream()
+        .mapToDouble(group -> instance.wagerRoot.sceneToLocal(group.localToScene(group.getBoundsInLocal()))
+            .getMaxX())
+        .max().orElse(0);
+  }
+
+  /**
+   * The trade controls must stay inside the window at every width. Wide, they sit on one line and
+   * the map/team cards keep their room; narrow, the map and team cards give ground first; narrower
+   * still, the row wraps. What must never happen at any width is the Buy/Sell buttons sliding off
+   * the right-hand edge.
+   */
+  @Test
+  public void tradeControlsStayInsideTheWindowAtEveryWidth() {
+    navigateToAndPickGame();
+
+    for (double width : List.of(1400d, 1100d, 900d, 760d, 620d, 520d, 440d, 360d, 300d)) {
+      layOutTab(width);
+      assertThat("trade controls ran off the right edge at " + width + "px",
+          tradeControlsRightEdge(), lessThanOrEqualTo(width + 0.5));
+    }
+  }
+
+  /** Squeezed, the map gives up width before the trade controls do; squeezed further, they wrap. */
+  @Test
+  public void mapIsSqueezedBeforeTheTradeControlsWrap() {
+    navigateToAndPickGame();
+    layOutTab(1400);
+    double mapWide = instance.mapImageView.getParent().getBoundsInParent().getWidth();
+    double oneLine = instance.tradeRow.getHeight();
+
+    layOutTab(760);
+    assertThat("the map should have given ground first",
+        instance.mapImageView.getParent().getBoundsInParent().getWidth(), lessThan(mapWide));
+
+    layOutTab(520);
+    assertThat("the trade row should have wrapped onto a second line",
+        instance.tradeRow.getHeight(), greaterThan(oneLine));
+  }
+
+  /** The watchlist column can be pushed out of the way entirely — down to a 10px sliver — for
+   * someone who only wants the selected game's chart and trade controls. */
+  @Test
+  public void leftColumnCollapsesToASliver() {
+    navigateToAndPickGame();
+    layOutTab(900);
+    SplitPane split = (SplitPane) instance.leftColumn.getParent().getParent();
+
+    runOnFxThreadAndWait(() -> {
+      split.setDividerPosition(0, 0);
+      instance.wagerRoot.layout();
+    });
+
+    assertThat(instance.leftColumn.getWidth(), closeTo(10, 1));
+    // The sections keep their own wider minimums and overflow the column; that is only safe
+    // because the SplitPane clips each item to its content area.
+    assertThat(instance.leftColumn.getParent().getClip().getLayoutBounds().getWidth(), closeTo(10, 1));
+  }
+
+  /** Flipping the pill re-expresses what is already typed instead of dropping it (and back again
+   * lands where it started), so the trade you were setting up survives the switch. */
+  @Test
+  public void switchingUnitCarriesTheTypedTradeOver() {
+    navigateToAndPickGame();
+    runOnFxThreadAndWait(() -> instance.buySharesField.setText("10"));
+
+    selectLpMode();
+    double lp = Double.parseDouble(instance.buySharesField.getText());
+    assertThat(lp > 0, is(true));
+
+    runOnFxThreadAndWait(() -> instance.sharesModeToggle.setSelected(true));
+    assertThat(Double.parseDouble(instance.buySharesField.getText()), closeTo(10, 0.1));
   }
 }

@@ -97,6 +97,9 @@ public class Preferences {
   private final StringProperty lastLeaderboardSelection = new SimpleStringProperty("global");
   private final BooleanProperty lastLeaderboardFriendsOnlySelection = new SimpleBooleanProperty(false);
   private final BooleanProperty lastLeaderboardExcludeWagerSelection = new SimpleBooleanProperty(false);
+  /** Wager tab: enter trades as an LP amount (fee included) rather than as a share count. A
+   * standing preference in how you think about a bet, so it outlives the session. */
+  private final BooleanProperty wagerTradeInLp = new SimpleBooleanProperty(false);
   private final StringProperty lastLeaderboardModSelection = new SimpleStringProperty();
   private final ListProperty<String> LeaderBoardsSelectionFilter = new SimpleListProperty<>(observableArrayList());
   private final BooleanProperty gameRoomPopout = new SimpleBooleanProperty(true);
@@ -618,6 +621,14 @@ public class Preferences {
   public void setLastLeaderboardExcludeWagerSelection(boolean selected) { this.lastLeaderboardExcludeWagerSelection.set(selected); }
 
   public BooleanProperty lastLeaderboardExcludeWagerSelection() { return lastLeaderboardExcludeWagerSelection; }
+
+  public boolean isWagerTradeInLp() {
+    return wagerTradeInLp.get();
+  }
+
+  public void setWagerTradeInLp(boolean tradeInLp) { this.wagerTradeInLp.set(tradeInLp); }
+
+  public BooleanProperty wagerTradeInLpProperty() { return wagerTradeInLp; }
 
   public String getLastLeaderboardModSelection() {
     return lastLeaderboardModSelection.get();

@@ -53,7 +53,11 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
@@ -104,6 +108,7 @@ public class WagerController extends AbstractViewController<Node> {
   private final EventBus eventBus;
 
   public VBox wagerRoot;
+  public VBox leftColumn;            // watchlist + my LP + portfolio; collapsible to a sliver
   public TitledPane liveGamesPane;
   public TitledPane myLpPane;
   public TitledPane botTitledPane;
@@ -114,6 +119,7 @@ public class WagerController extends AbstractViewController<Node> {
   public WagerBotPnlController botPnlController;   // injected from <fx:include fx:id="botPnl">
   public Label boardLabel;
   public Label marketStatusLabel;
+  public VBox mapColumn;             // map thumbnail + name; first to give ground when squeezed
   public ImageView mapImageView;
   public Label mapNameLabel;
   public HBox teamCardsPane;
@@ -122,12 +128,17 @@ public class WagerController extends AbstractViewController<Node> {
   public TableView<WagerOutcomeBean> outcomesTable;
   public TableColumn<WagerOutcomeBean, String> outcomeColumn;
   public TableColumn<WagerOutcomeBean, Number> priceColumn;
-  public TextField buySharesField;   // buy: shares to buy
-  public Label buyPreviewLabel;      // "≈ N LP"
+  public FlowPane tradeRow;          // buy | unit pill | sell; wraps rather than overflowing
+  public ToggleButton sharesModeToggle;  // trade-unit pill: type share counts…
+  public ToggleButton lpModeToggle;      // …or LP amounts, fee included
+  public TextField buySharesField;   // buy: shares to buy (LP to spend in LP mode)
+  public Label buyUnitLabel;         // unit next to the buy field; follows the pill
+  public Label buyPreviewLabel;      // the other unit: "≈ N LP" / "≈ N shares"
   public Button buyButton;
-  public TextField sharesField;      // sell: shares to sell
+  public TextField sharesField;      // sell: shares to sell (LP to receive in LP mode)
+  public Label sellUnitLabel;        // unit next to the sell field; follows the pill
   public Button maxButton;
-  public Label sellPreviewLabel;     // "≈ N LP"
+  public Label sellPreviewLabel;     // the other unit: "≈ N LP" / "≈ N shares"
   public Button sellButton;
   public Label tradeStatusLabel;
   public LineChart<Number, Number> priceChart;
@@ -154,6 +165,14 @@ public class WagerController extends AbstractViewController<Node> {
    * name only until it loads (or if a board is unknown). */
   private final Map<String, String> boardDisplayNames = new HashMap<>();
   private final BooleanProperty submitting = new SimpleBooleanProperty(false);
+  /** True when the trade fields are typed in LP (fee included) rather than in shares — the state
+   * of the trade-unit pill. Both sides of the panel always share one unit. */
+  private final BooleanProperty lpMode = new SimpleBooleanProperty(false);
+  /** An LP-mode sell converts LP → shares, and both the LP figure shown and that conversion are
+   * rounded, so a "Max" fill can land a hair above the holding and be rejected as an oversell
+   * (markets.py: held_shares + delta_shares &lt; -1e-9). An overshoot this small is rounding and is
+   * clamped to the holding; a genuinely oversized ask is left for the server to reject. */
+  private static final double OVERSELL_SLACK_SHARES = 0.05;
   /** True whenever the selected market can't be traded — no market, the game is over, or the
    * market has closed/settled/voided. Drives both the header status label and the trade controls. */
   private final BooleanProperty marketNotTradeable = new SimpleBooleanProperty(true);
@@ -336,8 +355,33 @@ public class WagerController extends AbstractViewController<Node> {
       selectOutcomeForChart(outcome);
     });
 
-    // Both sides are entered as a share count: BUY shares -> LP cost (fee incl.), SELL shares ->
-    // LP received (fee deducted). Each field drives only its own side's preview.
+    // Trade-unit pill. In SHARES mode both sides are entered as a share count and the preview is
+    // the LP moved (BUY: cost incl. fee, SELL: proceeds net of fee); in LP mode that is inverted —
+    // the amount typed is LP (fee included) and the preview is the share count it buys/sells.
+    // A segmented pill is a mode switch, so the selected half must not be deselectable: put both
+    // in a group and veto the null selection.
+    // The chosen unit is remembered across sessions: it reflects how you think about a bet ("50 LP
+    // on this team" vs "10 shares"), not something about this particular market. Restored BEFORE
+    // the listener is attached, so opening the tab doesn't look like a mode change.
+    ToggleGroup tradeUnitGroup = new ToggleGroup();
+    sharesModeToggle.setToggleGroup(tradeUnitGroup);
+    lpModeToggle.setToggleGroup(tradeUnitGroup);
+    boolean startInLp = preferencesService.getPreferences().isWagerTradeInLp();
+    lpModeToggle.setSelected(startInLp);
+    sharesModeToggle.setSelected(!startInLp);
+    tradeUnitGroup.selectedToggleProperty().addListener((obs, old, selected) -> {
+      if (selected == null) {
+        tradeUnitGroup.selectToggle(old);
+      }
+    });
+    Tooltip unitTooltip = new Tooltip(i18n.get("wager.mode.tooltip"));
+    sharesModeToggle.setTooltip(unitTooltip);
+    lpModeToggle.setTooltip(unitTooltip);
+    lpMode.bind(lpModeToggle.selectedProperty());
+    lpMode.addListener((obs, old, toLp) -> onTradeUnitChanged(toLp));
+    applyTradeUnit(startInLp);
+
+    // Each field drives only its own side's preview.
     buySharesField.textProperty().addListener((obs, old, val) -> recomputeBuyPreview());
     sharesField.textProperty().addListener((obs, old, val) -> recomputeSellPreview());
 
@@ -357,6 +401,18 @@ public class WagerController extends AbstractViewController<Node> {
     sharesField.disableProperty().bind(busy);
     maxButton.disableProperty().bind(busy);
     sellButton.disableProperty().bind(busy);
+    // The unit pill stays usable without an outcome (it's a display preference, and switching it
+    // with the fields empty costs nothing) but not mid-trade, when the fields are frozen too.
+    sharesModeToggle.disableProperty().bind(submitting);
+    lpModeToggle.disableProperty().bind(submitting);
+
+    // Let the map thumbnail shrink with its column (never past its natural 100px). An ImageView is
+    // not resizable, so a fixed fitWidth is also its MINIMUM width — it would otherwise overhang
+    // the team cards instead of yielding the space the trade controls need. Binding a fitWidth to
+    // an ancestor's width is only safe because mapColumn has an EXPLICIT minWidth in the FXML,
+    // which overrides the max-of-children minimum this would otherwise ratchet upwards.
+    mapImageView.fitWidthProperty().bind(Bindings.createDoubleBinding(
+        () -> Math.min(100, mapColumn.getWidth()), mapColumn.widthProperty()));
 
     priceChart.setAnimated(false);
     priceChart.setCreateSymbols(false);
@@ -862,42 +918,115 @@ public class WagerController extends AbstractViewController<Node> {
     }).orElse(0);
   }
 
-  /** The total LP a buy of {@code shares} will actually cost, fee included (server rounding). */
+  /**
+   * The total LP a buy of {@code shares} will actually cost, fee included — the client-side twin
+   * of the server's {@code wager_service.markets.quote()}, exact for a price that doesn't move
+   * under us: both {@code b} and {@code feeBps} come off the market row in the subscribe snapshot,
+   * and the fee charged at trade time is read from that same row.
+   *
+   * <p>Rounded with {@link #roundLp} rather than {@code Math.round} to match the server's rounding
+   * MODE as well as its arithmetic (see roundLp).
+   */
   private long forwardTotalLp(double price, double b, double shares, int feeBps) {
-    long cost = Math.round(WagerMath.costLp(price, b, shares, PAYOUT));
-    long fee = Math.round(Math.abs((double) cost) * feeBps / 10000.0);
+    long cost = roundLp(WagerMath.costLp(price, b, shares, PAYOUT));
+    long fee = roundLp(Math.abs((double) cost) * feeBps / 10000.0);
     return cost + fee;
   }
 
-  /** Net LP received selling {@code shares} now (fee deducted). */
+  /** Net LP received selling {@code shares} now (fee deducted) — the sell side of the same quote. */
   private long sellProceeds(WagerOutcomeBean outcome, WagerMarketBean market, double shares) {
-    long gross = -Math.round(WagerMath.costLp(outcome.getPrice(), market.getLiquidity(), -shares, PAYOUT));
-    long fee = Math.round(Math.abs((double) gross) * market.getFeeBps() / 10000.0);
+    long gross = -roundLp(WagerMath.costLp(outcome.getPrice(), market.getLiquidity(), -shares, PAYOUT));
+    long fee = roundLp(Math.abs((double) gross) * market.getFeeBps() / 10000.0);
     return gross - fee;
+  }
+
+  /**
+   * Round an LP figure the way the server does. The server quotes in Python, whose {@code round()}
+   * is round-half-to-EVEN; {@code Math.round} is half-up, which quotes 1 LP high on an exact .5
+   * (and, for a negative cost, 1 LP low). {@link Math#rint} is half-to-even, so the preview and
+   * the executed price agree to the LP.
+   */
+  private static long roundLp(double lp) {
+    return (long) Math.rint(lp);
+  }
+
+  /**
+   * Shares a buy of {@code totalLp} gets, where {@code totalLp} is what the user is billed —
+   * cost plus fee. {@link #forwardTotalLp} charges the fee on the cost, so the cost the LMSR
+   * inverse is given is the typed amount less that markup. NaN if the market can't fill it.
+   */
+  private double buySharesForLp(WagerOutcomeBean outcome, WagerMarketBean market, double totalLp) {
+    double grossLp = totalLp / (1 + market.getFeeBps() / 10000.0);
+    double shares = WagerMath.sharesForLp(outcome.getPrice(), market.getLiquidity(), grossLp, PAYOUT);
+    // Floor to the panel's 2 dp so the trade never costs MORE than the amount typed.
+    return Double.isNaN(shares) || shares <= 0 ? Double.NaN : Math.floor(shares * 100.0) / 100.0;
+  }
+
+  /**
+   * Shares to sell to be paid {@code netLp}, i.e. after the fee has been deducted from the
+   * proceeds ({@link #sellProceeds}). NaN if no share count yields that much — the LMSR pays out
+   * less and less per share as the price falls, so a large enough ask is simply unreachable.
+   * Not capped at my holding: an oversell is the server's to reject, exactly as in shares mode.
+   */
+  private double sellSharesForLp(WagerOutcomeBean outcome, WagerMarketBean market, double netLp) {
+    double feeRate = market.getFeeBps() / 10000.0;
+    if (feeRate >= 1) {
+      return Double.NaN;
+    }
+    double grossLp = netLp / (1 - feeRate);
+    double delta = WagerMath.sharesForLp(outcome.getPrice(), market.getLiquidity(), -grossLp, PAYOUT);
+    if (Double.isNaN(delta) || delta >= 0) {
+      return Double.NaN;
+    }
+    // Ceil to 2 dp so the proceeds reach the amount typed rather than falling a fraction short.
+    return Math.ceil(-delta * 100.0) / 100.0;
+  }
+
+  /** My holding in {@code outcome}, floored to the panel's 2 dp (see {@link #fillMaxShares}). */
+  private double heldShares(WagerOutcomeBean outcome, WagerMarketBean market) {
+    double held = portfolioTable.getItems().stream()
+        .filter(pos -> pos.getMarketId() == market.getMarketId()
+            && outcome.getOutcomeKey().equals(pos.getOutcomeKey()))
+        .mapToDouble(WagerPositionBean::getShares)
+        .findFirst().orElse(0);
+    return Math.floor(held * 100.0) / 100.0;
   }
 
   private void recomputeBuyPreview() {
     WagerOutcomeBean outcome = selectedOutcome();
-    double shares = parseDouble(buySharesField.getText());
+    double amount = parseDouble(buySharesField.getText());
     if (outcome == null || currentMarkets == null || currentMarkets.isEmpty()
-        || Double.isNaN(shares) || shares <= 0) {
+        || Double.isNaN(amount) || amount <= 0) {
       buyPreviewLabel.setText("");
       return;
     }
     WagerMarketBean market = currentMarkets.get(0);
-    buyPreviewLabel.setText(i18n.get("wager.buyPreview",
-        forwardTotalLp(outcome.getPrice(), market.getLiquidity(), shares, market.getFeeBps())));
+    if (lpMode.get()) {
+      double shares = buySharesForLp(outcome, market, amount);
+      buyPreviewLabel.setText(Double.isNaN(shares) ? ""
+          : i18n.get("wager.previewShares", String.format("%.2f", shares)));
+    } else {
+      buyPreviewLabel.setText(i18n.get("wager.buyPreview",
+          forwardTotalLp(outcome.getPrice(), market.getLiquidity(), amount, market.getFeeBps())));
+    }
   }
 
   private void recomputeSellPreview() {
     WagerOutcomeBean outcome = selectedOutcome();
-    double shares = parseDouble(sharesField.getText());
+    double amount = parseDouble(sharesField.getText());
     if (outcome == null || currentMarkets == null || currentMarkets.isEmpty()
-        || Double.isNaN(shares) || shares <= 0) {
+        || Double.isNaN(amount) || amount <= 0) {
       sellPreviewLabel.setText("");
       return;
     }
-    sellPreviewLabel.setText(i18n.get("wager.sellPreview", sellProceeds(outcome, currentMarkets.get(0), shares)));
+    WagerMarketBean market = currentMarkets.get(0);
+    if (lpMode.get()) {
+      double shares = sellSharesForLp(outcome, market, amount);
+      sellPreviewLabel.setText(Double.isNaN(shares) ? ""
+          : i18n.get("wager.previewShares", String.format("%.2f", shares)));
+    } else {
+      sellPreviewLabel.setText(i18n.get("wager.sellPreview", sellProceeds(outcome, market, amount)));
+    }
   }
 
   private void buy() {
@@ -905,9 +1034,15 @@ public class WagerController extends AbstractViewController<Node> {
     if (outcome == null || currentMarkets == null || currentMarkets.isEmpty()) {
       return;
     }
-    double shares = parseDouble(buySharesField.getText());
+    WagerMarketBean market = currentMarkets.get(0);
+    double amount = parseDouble(buySharesField.getText());
+    if (Double.isNaN(amount) || amount <= 0) {
+      tradeStatusLabel.setText(i18n.get(lpMode.get() ? "wager.enterLp" : "wager.enterShares"));
+      return;
+    }
+    double shares = lpMode.get() ? buySharesForLp(outcome, market, amount) : amount;
     if (Double.isNaN(shares) || shares <= 0) {
-      tradeStatusLabel.setText(i18n.get("wager.enterShares"));
+      tradeStatusLabel.setText(i18n.get("wager.lpUnavailable"));
       return;
     }
     submitTrade(outcome, +shares);
@@ -918,12 +1053,72 @@ public class WagerController extends AbstractViewController<Node> {
     if (outcome == null || currentMarkets == null || currentMarkets.isEmpty()) {
       return;
     }
-    double shares = parseDouble(sharesField.getText());
-    if (Double.isNaN(shares) || shares <= 0) {
-      tradeStatusLabel.setText(i18n.get("wager.enterShares"));
+    WagerMarketBean market = currentMarkets.get(0);
+    double amount = parseDouble(sharesField.getText());
+    if (Double.isNaN(amount) || amount <= 0) {
+      tradeStatusLabel.setText(i18n.get(lpMode.get() ? "wager.enterLpReceive" : "wager.enterShares"));
       return;
     }
+    double shares = amount;
+    if (lpMode.get()) {
+      shares = sellSharesForLp(outcome, market, amount);
+      if (Double.isNaN(shares) || shares <= 0) {
+        tradeStatusLabel.setText(i18n.get("wager.lpUnavailable"));
+        return;
+      }
+      double held = heldShares(outcome, market);
+      if (shares > held && shares <= held + OVERSELL_SLACK_SHARES) {
+        shares = held;
+      }
+    }
     submitTrade(outcome, -shares);
+  }
+
+  /** Switch the trade fields between share counts and LP amounts: carry whatever is typed over to
+   * the new unit (so the pill re-expresses the trade instead of losing it), and clear it when it
+   * can't be converted — leaving "10" in place would silently mean something else. */
+  private void onTradeUnitChanged(boolean toLp) {
+    preferencesService.getPreferences().setWagerTradeInLp(toLp);
+    preferencesService.storeInBackground();
+    applyTradeUnit(toLp);
+    convertTradeField(buySharesField, toLp, true);
+    convertTradeField(sharesField, toLp, false);
+    recomputeBuyPreview();
+    recomputeSellPreview();
+  }
+
+  /** Point the prompts and the unit label beside each field at the unit now in force. */
+  private void applyTradeUnit(boolean toLp) {
+    String prompt = i18n.get(toLp ? "wager.lpUnit" : "wager.shares");
+    buySharesField.setPromptText(prompt);
+    sharesField.setPromptText(prompt);
+    String unit = i18n.get(toLp ? "wager.lpUnit" : "wager.sharesUnit");
+    buyUnitLabel.setText(unit);
+    sellUnitLabel.setText(unit);
+  }
+
+  private void convertTradeField(TextField field, boolean toLp, boolean isBuy) {
+    double amount = parseDouble(field.getText());
+    WagerOutcomeBean outcome = selectedOutcome();
+    if (field.getText() == null || field.getText().isBlank()) {
+      return;
+    }
+    if (outcome == null || currentMarkets == null || currentMarkets.isEmpty()
+        || Double.isNaN(amount) || amount <= 0) {
+      field.clear();
+      return;
+    }
+    WagerMarketBean market = currentMarkets.get(0);
+    if (toLp) {
+      long lp = isBuy
+          ? forwardTotalLp(outcome.getPrice(), market.getLiquidity(), amount, market.getFeeBps())
+          : sellProceeds(outcome, market, amount);
+      field.setText(lp > 0 ? Long.toString(lp) : "");
+    } else {
+      double shares = isBuy ? buySharesForLp(outcome, market, amount)
+          : sellSharesForLp(outcome, market, amount);
+      field.setText(Double.isNaN(shares) ? "" : String.format("%.2f", shares));
+    }
   }
 
   private void submitTrade(WagerOutcomeBean outcome, double signedShares) {
@@ -944,23 +1139,29 @@ public class WagerController extends AbstractViewController<Node> {
         }));
   }
 
-  /** Fill the sell field with my current holding in the selected outcome. */
+  /**
+   * Fill the sell field with my whole holding in the selected outcome — as a share count, or in LP
+   * mode as what that holding fetches net of the fee.
+   *
+   * <p>The share count is rounded DOWN to the field's 2-dp precision: String.format rounds
+   * half-up, so a holding like 9.876 would fill "9.88" — a hair MORE than held — and the server
+   * rejects the sell as an oversell (markets.py: held_shares + delta_shares &lt; -1e-9). Flooring
+   * guarantees the amount never exceeds the holding, so "max" sells the whole position cleanly.
+   * (LP mode converts back on submit and absorbs its rounding via {@link #OVERSELL_SLACK_SHARES}.)
+   */
   private void fillMaxShares() {
     WagerOutcomeBean outcome = selectedOutcome();
     if (outcome == null || currentMarkets == null || currentMarkets.isEmpty()) {
       return;
     }
-    long marketId = currentMarkets.get(0).getMarketId();
-    double held = portfolioTable.getItems().stream()
-        .filter(pos -> pos.getMarketId() == marketId && outcome.getOutcomeKey().equals(pos.getOutcomeKey()))
-        .mapToDouble(WagerPositionBean::getShares)
-        .findFirst().orElse(0);
-    // Round DOWN to the field's 2-dp precision: String.format rounds half-up, so a holding
-    // like 9.876 would fill "9.88" — a hair MORE than held — and the server rejects the sell
-    // as an oversell (markets.py: held_shares + delta_shares < -1e-9). Flooring guarantees
-    // the amount never exceeds the holding, so "max" sells the whole position cleanly.
-    double sellable = Math.floor(held * 100.0) / 100.0;
-    sharesField.setText(sellable > 0 ? String.format("%.2f", sellable) : "0");
+    WagerMarketBean market = currentMarkets.get(0);
+    double sellable = heldShares(outcome, market);
+    if (lpMode.get()) {
+      long proceeds = sellable > 0 ? sellProceeds(outcome, market, sellable) : 0;
+      sharesField.setText(proceeds > 0 ? Long.toString(proceeds) : "0");
+    } else {
+      sharesField.setText(sellable > 0 ? String.format("%.2f", sellable) : "0");
+    }
   }
 
   /** A games-list cell with a right-click "Watch live replay" menu targeting that row. */
