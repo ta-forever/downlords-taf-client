@@ -19,6 +19,7 @@ import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.FeaturedMod;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
@@ -106,6 +107,7 @@ public class ReplayDetailController implements Controller<Node> {
   private final PreferencesService preferencesService;
   private final com.faforever.client.ladder.LadderPointsService ladderPointsService;
   private final com.faforever.client.wager.WagerService wagerService;
+  private final ModService modService;
   private final ArrayList<TeamCardController> teamCardControllers = new ArrayList<>();
   /** Re-renders the team cards (rating ⇄ ladder rank) when the global display-metric pill flips. */
   private ChangeListener<DisplayMetric> displayMetricListener;
@@ -128,6 +130,7 @@ public class ReplayDetailController implements Controller<Node> {
   public Label dateLabel;
   public Label timeLabel;
   public Label modLabel;
+  public Label modVersionLabel;
   public Label durationLabel;
   public Label ratingLabel;
   public Label qualityLabel;
@@ -284,6 +287,19 @@ public class ReplayDetailController implements Controller<Node> {
             .map(FeaturedMod::getDisplayName)
             .orElseGet(() -> i18n.get("unknown"))
     );
+
+    // Which BUILD of that mod the game ran on, resolved from the demo's units hash. Hidden until
+    // resolved, and left hidden when it can't be — see ModService.findModVersionDisplayName.
+    modVersionLabel.setVisible(false);
+    modVersionLabel.managedProperty().bind(modVersionLabel.visibleProperty());
+    modService.findModVersionDisplayName(replay.getDemoFileInfo())
+        .thenAccept(displayName -> JavaFxUtil.runLater(() -> {
+          if (this.replay != replay) {
+            return;
+          }
+          displayName.ifPresent(modVersionLabel::setText);
+          modVersionLabel.setVisible(displayName.isPresent());
+        }));
 
     double gameQuality = ratingService.calculateQuality(replay);
     if (!Double.isNaN(gameQuality)) {

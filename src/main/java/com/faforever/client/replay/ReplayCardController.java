@@ -9,6 +9,7 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
+import com.faforever.client.mod.ModService;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.rating.JSkillsRatingService;
 import com.faforever.client.rating.RatingService;
@@ -61,6 +62,7 @@ public class ReplayCardController implements Controller<Node> {
   private final UserService userService;
   private final PlayerService playerService;
   private final JSkillsRatingService jSkillsRatingService;
+  private final ModService modService;
   private final I18n i18n;
   public Label dateLabel;
   public DefaultImageView mapThumbnailImageView;
@@ -68,6 +70,7 @@ public class ReplayCardController implements Controller<Node> {
   public Node replayTileRoot;
   public Label timeLabel;
   public Label modLabel;
+  public Label modVersionLabel;
   public Label durationLabel;
   public Label ratingLabel;
   public Label ratingTypeLabel;
@@ -136,6 +139,7 @@ public class ReplayCardController implements Controller<Node> {
     dateLabel.setText(timeService.asDate(replay.getStartTime()));
     timeLabel.setText(timeService.asShortTime(replay.getStartTime()));
     modLabel.setText(replay.getFeaturedMod().getDisplayName());
+    populateModVersion(replay);
     double gameQuality = ratingService.calculateQuality(replay);
     if (!Double.isNaN(gameQuality)) {
       qualityLabel.setText(i18n.get("percentage", Math.round(gameQuality * 100)));
@@ -188,6 +192,31 @@ public class ReplayCardController implements Controller<Node> {
   public void setShowWinnersProperty(BooleanProperty showWinnersProperty) {
     this.showWinnersProperty = showWinnersProperty;
     JavaFxUtil.addListener(showWinnersProperty, new WeakInvalidationListener(showWinnersChangedListener));
+  }
+
+  /**
+   * Show which build of the featured mod the replay was played on. Resolved asynchronously (it
+   * needs the featured-mod list, cached after the first card), so the label starts hidden and
+   * appears only once a version is known — an unresolvable version stays hidden rather than
+   * showing a placeholder.
+   *
+   * Its own label rather than appended to {@link #modLabel}'s text: that one shares a row with
+   * {@link #ratingTypeLabel} and is hidden whenever the game was rated on a non-global leaderboard,
+   * which on TAF is most games. Sitting beside both in the FXML's HBox, the version stays visible
+   * either way and reads as belonging to whichever name is showing.
+   */
+  private void populateModVersion(Replay replay) {
+    modVersionLabel.setVisible(false);
+    modVersionLabel.managedProperty().bind(modVersionLabel.visibleProperty());
+    modService.findModVersionDisplayName(replay.getDemoFileInfo())
+        .thenAccept(displayName -> JavaFxUtil.runLater(() -> {
+          // The controller may have been handed a different replay while we were resolving.
+          if (this.replay != replay) {
+            return;
+          }
+          displayName.ifPresent(modVersionLabel::setText);
+          modVersionLabel.setVisible(displayName.isPresent());
+        }));
   }
 
   private void populateTeams() {

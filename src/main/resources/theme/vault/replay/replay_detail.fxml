@@ -78,12 +78,17 @@
                                        <Region styleClass="icon,duration-icon"/>
                                    </graphic>
                                </Label>
-                               <Label fx:id="modLabel" graphicTextGap="10.0" text="&lt;Mods&gt;"
-                                      GridPane.columnIndex="1" GridPane.rowIndex="3">
-                                 <graphic>
-                                     <Region styleClass="icon,mods-icon"/>
-                                 </graphic>
-                              </Label>
+                               <HBox spacing="5.0" alignment="CENTER_LEFT"
+                                     GridPane.columnIndex="1" GridPane.rowIndex="3">
+                                   <Label fx:id="modLabel" graphicTextGap="10.0" text="&lt;Mods&gt;">
+                                     <graphic>
+                                         <Region styleClass="icon,mods-icon"/>
+                                     </graphic>
+                                  </Label>
+                                   <Label fx:id="modVersionLabel" text="&lt;ModVersion&gt;">
+                                     <tooltip><Tooltip text="%replay.modVersionTooltip"/></tooltip>
+                                  </Label>
+                               </HBox>
                                <Label fx:id="ratingTypeLabel" graphicTextGap="10.0"
                                       GridPane.columnIndex="2" GridPane.rowIndex="3">
                                    <graphic>

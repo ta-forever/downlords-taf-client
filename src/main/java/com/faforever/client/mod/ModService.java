@@ -122,6 +122,39 @@ public class ModService implements InitializingBean, DisposableBean {
         });
   }
 
+  /**
+   * Display string of the featured-mod VERSION a replay was played on ("10.1"), NOT the mod's
+   * current version.
+   *
+   * Resolved from the demo's units hash, which is the only record of the build a replay actually
+   * ran on: {@link FafService#findFeaturedModByTaDemoModHash} matches it against each
+   * FeaturedModVersion's taHash and NARROWS the returned mod's versions list to the one that
+   * matched, so element 0 is the played build. That narrowing is safe to rely on because
+   * getFeaturedMods() rebuilds its beans per call — it never mutates shared state.
+   *
+   * Empty when the replay predates replayMeta (no units hash), when the hash matches no version we
+   * know about, or when the lookup fails. Callers should hide the field rather than show a
+   * placeholder: for TA a wrong version is worse than no version, since the unit set changes
+   * between builds.
+   */
+  public CompletableFuture<Optional<String>> findModVersionDisplayName(DemoFileInfo demoFileInfo) {
+    if (demoFileInfo == null || demoFileInfo.getModHash() == null || demoFileInfo.getModHash().isBlank()) {
+      return completedFuture(Optional.empty());
+    }
+    return findFeaturedModByTaDemoFileInfo(demoFileInfo)
+        .thenApply(featuredMod -> {
+          if (featuredMod == null || featuredMod.getVersions().isEmpty()) {
+            return Optional.<String>empty();
+          }
+          String displayName = featuredMod.getVersions().get(0).getDisplayName();
+          return displayName == null || displayName.isBlank() ? Optional.<String>empty() : Optional.of(displayName);
+        })
+        .exceptionally(throwable -> {
+          logger.warn("Could not resolve the mod version for demo {}", demoFileInfo, throwable);
+          return Optional.empty();
+        });
+  }
+
   public void loadInstalledMods() {
 //    try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(modsDirectory, entry -> Files.isDirectory(entry))) {
 //      for (Path path : directoryStream) {

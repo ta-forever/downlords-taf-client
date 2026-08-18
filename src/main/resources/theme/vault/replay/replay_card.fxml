@@ -40,12 +40,19 @@
                 </HBox>
             </graphic>
         </Label>
-        <Label fx:id="ratingTypeLabel" graphicTextGap="10.0">
-            <graphic><Region styleClass="icon, icon-trophy"/></graphic>
-        </Label>
-        <Label fx:id="modLabel" graphicTextGap="10.0" text="&lt;Mod&gt;">
-            <graphic><Region styleClass="icon, mods-icon"/></graphic>
-        </Label>
+        <!-- ratingTypeLabel and modLabel share this row (only one is ever visible); the mod version
+             sits immediately to the right of whichever one is showing. -->
+        <HBox spacing="5.0" alignment="CENTER_LEFT">
+            <Label fx:id="ratingTypeLabel" graphicTextGap="10.0">
+                <graphic><Region styleClass="icon, icon-trophy"/></graphic>
+            </Label>
+            <Label fx:id="modLabel" graphicTextGap="10.0" text="&lt;Mod&gt;">
+                <graphic><Region styleClass="icon, mods-icon"/></graphic>
+            </Label>
+            <Label fx:id="modVersionLabel" text="&lt;ModVersion&gt;">
+                <tooltip><Tooltip text="%replay.modVersionTooltip"/></tooltip>
+            </Label>
+        </HBox>
     </VBox>
     <VBox GridPane.rowIndex="0" GridPane.rowSpan="2"
           GridPane.columnIndex="1" GridPane.columnSpan="2"

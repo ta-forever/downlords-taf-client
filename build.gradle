@@ -182,6 +182,9 @@ compileTestJava {
   // biggest JVM-crash source) and closes the backslash-escape hole in the old quoting.
   include '**/chat/ChatJsQuoteTest.java'
   include '**/util/LogTailUtilTest.java'
+  // Replay mod-version resolution behind the vault card / detail labels. Scoped to the one file so
+  // it doesn't pull in the broken ModServiceTest beside it.
+  include '**/mod/ModServiceModVersionTest.java'
   // Pins the redaction that keeps the API access token (argv --hashtoken and the
   // /set_hash_api_token console push) out of the world-readable client.log.
   include '**/util/LogRedactUtilTest.java'
