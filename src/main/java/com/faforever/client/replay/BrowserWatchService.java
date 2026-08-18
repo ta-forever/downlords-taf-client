@@ -4,7 +4,6 @@ import com.faforever.client.assetserver.LocalAssetServerService;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.fa.DemoFileInfo;
 import com.faforever.client.fx.BrowserLauncher;
-import com.faforever.client.fx.PlatformService;
 import com.faforever.client.game.Game;
 import com.faforever.client.game.GameService;
 import com.faforever.client.map.MapService;
@@ -62,7 +61,6 @@ public class BrowserWatchService {
   private final GameUpdater gameUpdater;
   private final PreferencesService preferencesService;
   private final LocalAssetServerService localAssetServerService;
-  private final PlatformService platformService;
   private final BrowserLauncher browserLauncher;
   private final NotificationService notificationService;
 

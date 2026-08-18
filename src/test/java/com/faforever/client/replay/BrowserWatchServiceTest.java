@@ -3,7 +3,7 @@ package com.faforever.client.replay;
 import com.faforever.client.assetserver.LocalAssetServerService;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.fa.DemoFileInfo;
-import com.faforever.client.fx.PlatformService;
+import com.faforever.client.fx.BrowserLauncher;
 import com.faforever.client.game.Game;
 import com.faforever.client.game.GameService;
 import com.faforever.client.map.MapService;
@@ -52,9 +52,7 @@ public class BrowserWatchServiceTest {
   @Mock
   private LocalAssetServerService localAssetServerService;
   @Mock
-  private PlatformService platformService;
-  @Mock
-  private com.faforever.client.fx.BrowserLauncher browserLauncher;
+  private BrowserLauncher browserLauncher;
   @Mock
   private NotificationService notificationService;
   @Mock
@@ -87,7 +85,7 @@ public class BrowserWatchServiceTest {
     when(gameUpdater.update(any(), any())).thenReturn(completedFuture("main"));
 
     instance = new BrowserWatchService(clientProperties, replayService, gameService, mapService, modService,
-        gameUpdater, preferencesService, localAssetServerService, platformService, browserLauncher,
+        gameUpdater, preferencesService, localAssetServerService, browserLauncher,
         notificationService);
   }
 
@@ -99,7 +97,7 @@ public class BrowserWatchServiceTest {
     instance.watchInBrowser(game).join();
 
     ArgumentCaptor<String> url = ArgumentCaptor.forClass(String.class);
-    verify(platformService).showDocument(url.capture());
+    verify(browserLauncher).open(url.capture());
     assertThat(url.getValue(), is(
         "https://www.taforever.com/live/42"
             + "#source=live"
@@ -115,7 +113,7 @@ public class BrowserWatchServiceTest {
     instance.watchInBrowser(game).join();
 
     ArgumentCaptor<String> url = ArgumentCaptor.forClass(String.class);
-    verify(platformService).showDocument(url.capture());
+    verify(browserLauncher).open(url.capture());
     assertThat(url.getValue().contains("ticket="), is(false));
     assertThat(url.getValue().contains("#source=live&mod=tacc"), is(true));
   }
@@ -126,7 +124,7 @@ public class BrowserWatchServiceTest {
 
     instance.watchInBrowser(game).join();
 
-    verify(platformService, never()).showDocument(anyString());
+    verify(browserLauncher, never()).open(anyString());
     verify(localAssetServerService, never()).ensureRunning();
   }
 
@@ -137,7 +135,7 @@ public class BrowserWatchServiceTest {
     instance.watchInBrowser(game).join();
 
     verify(mapService, never()).optionalEnsureMap(any(), any(), any(), any(), any(), any());
-    verify(platformService, never()).showDocument(anyString());
+    verify(browserLauncher, never()).open(anyString());
   }
 
   @Test
@@ -155,7 +153,7 @@ public class BrowserWatchServiceTest {
     instance.watchReplayInBrowser(replay).join();
 
     ArgumentCaptor<String> url = ArgumentCaptor.forClass(String.class);
-    verify(platformService).showDocument(url.capture());
+    verify(browserLauncher).open(url.capture());
     assertThat(url.getValue(), is(
         "https://www.taforever.com/live/314"
             + "#source=vod"
@@ -170,7 +168,7 @@ public class BrowserWatchServiceTest {
     instance.watchTadaReplayInBrowser("k1", "abc123", "my game.tad").join();
 
     ArgumentCaptor<String> url = ArgumentCaptor.forClass(String.class);
-    verify(platformService).showDocument(url.capture());
+    verify(browserLauncher).open(url.capture());
     assertThat(url.getValue(), is(
         "https://www.taforever.com/live/0"
             + "#source=tada"
@@ -205,10 +203,10 @@ public class BrowserWatchServiceTest {
     // the game's OWN recorded mod version wins over the mod's default branch
     verify(gameUpdater).update(taccMod, "abc123");
     // …and it happens first: an update can bring map archives with it
-    InOrder order = inOrder(gameUpdater, mapService, platformService);
+    InOrder order = inOrder(gameUpdater, mapService, browserLauncher);
     order.verify(gameUpdater).update(any(), anyString());
     order.verify(mapService).optionalEnsureMap(any(), any(), any(), any(), any(), any());
-    order.verify(platformService).showDocument(anyString());
+    order.verify(browserLauncher).open(anyString());
   }
 
   @Test
@@ -232,7 +230,7 @@ public class BrowserWatchServiceTest {
     instance.watchReplayInBrowser(replay).join();
 
     verify(gameUpdater).update(taccMod, "main");
-    verify(platformService).showDocument(anyString());
+    verify(browserLauncher).open(anyString());
   }
 
   /**
@@ -290,7 +288,7 @@ public class BrowserWatchServiceTest {
     verify(gameUpdater, times(1)).update(taccMod, "v10.0-530units");
     verify(localAssetServerService, times(1)).stop(anyInt());
     // …but the viewer still opens both times, on a server that kept its port and token
-    verify(platformService, times(2)).showDocument(anyString());
+    verify(browserLauncher, times(2)).open(anyString());
   }
 
   @Test
@@ -307,7 +305,7 @@ public class BrowserWatchServiceTest {
     instance.watchReplayInBrowser(replay).join();
 
     verify(gameUpdater).update(taccMod, "main");
-    verify(platformService).showDocument(anyString());
+    verify(browserLauncher).open(anyString());
   }
 
   @Test
@@ -319,7 +317,7 @@ public class BrowserWatchServiceTest {
 
     // updating would mean a full clone off the back of a "watch" click
     verify(gameUpdater, never()).update(any(), any());
-    verify(platformService).showDocument(anyString());
+    verify(browserLauncher).open(anyString());
   }
 
   @Test
@@ -332,7 +330,7 @@ public class BrowserWatchServiceTest {
     instance.watchInBrowser(game).join();
 
     // a mod that won't update is a degraded view, not a reason to refuse to open
-    verify(platformService).showDocument(anyString());
+    verify(browserLauncher).open(anyString());
   }
 
   /**
@@ -375,11 +373,11 @@ public class BrowserWatchServiceTest {
 
     instance.watchInBrowser(game).join();
 
-    InOrder order = inOrder(mapService, gameUpdater, platformService);
+    InOrder order = inOrder(mapService, gameUpdater, browserLauncher);
     order.verify(mapService).addInstalledMapsUpdateDeferal();
     order.verify(gameUpdater).update(any(), any());
     order.verify(mapService).optionalEnsureMap(any(), any(), any(), any(), any(), any());
-    order.verify(platformService).showDocument(anyString());
+    order.verify(browserLauncher).open(anyString());
     order.verify(mapService).releaseInstalledMapsUpdateDeferal();
   }
 
@@ -409,7 +407,7 @@ public class BrowserWatchServiceTest {
     verify(gameUpdater, never()).update(any(), any());
     verify(localAssetServerService, never()).stop(anyInt());
     // the viewer still opens; only the update is skipped
-    verify(platformService).showDocument(anyString());
+    verify(browserLauncher).open(anyString());
   }
 
   @Test
@@ -437,6 +435,6 @@ public class BrowserWatchServiceTest {
 
     // the mod isn't known until livescene decodes the demo header
     verify(gameUpdater, never()).update(any(), any());
-    verify(platformService).showDocument(anyString());
+    verify(browserLauncher).open(anyString());
   }
 }
