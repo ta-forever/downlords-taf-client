@@ -86,6 +86,11 @@ public class MockLadderPointsService implements LadderPointsService {
   }
 
   @Override
+  public boolean isFeaturedMedalCached(int playerId) {
+    return true;   // nothing to resolve, so never ask for an async follow-up
+  }
+
+  @Override
   public CompletableFuture<Void> setFeaturedMedal(int playerId, String medalCode) {
     return CompletableFuture.completedFuture(null);
   }

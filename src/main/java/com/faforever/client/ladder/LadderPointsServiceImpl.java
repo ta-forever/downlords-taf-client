@@ -365,6 +365,12 @@ public class LadderPointsServiceImpl implements LadderPointsService {
     return Optional.empty();
   }
 
+  @Override
+  public boolean isFeaturedMedalCached(int playerId) {
+    CachedFeaturedMedal cached = featuredMedalCache.get(playerId);
+    return cached != null && cached.expiresAt() > System.currentTimeMillis();
+  }
+
   /** Career total of one medal code for a player: tournament medals from the tournament summary,
    * everything else (LP + season placement) from the medal-summary rollup. */
   private long careerMedalCount(int playerId, String code) {

@@ -178,6 +178,9 @@ compileTestJava {
   include '**/rating/JSkillsRatingServiceConstrainedTest.java'
   // Self-contained skill-rating tier hysteresis (LADDER_POINTS_DESIGN §13.2.3); no broken siblings pulled in.
   include '**/leaderboard/RatingTierServiceTest.java'
+  // Pins the JS string escaping that replaced JSObject.call in the chat WebView (the fleet's
+  // biggest JVM-crash source) and closes the backslash-escape hole in the old quoting.
+  include '**/chat/ChatJsQuoteTest.java'
   include '**/util/LogTailUtilTest.java'
   // Self-contained Ed25519 update-signature verifier test (no broken siblings in update/).
   include '**/update/UpdateSignatureVerifierTest.java'

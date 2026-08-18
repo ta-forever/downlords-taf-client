@@ -48,7 +48,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
-import netscape.javascript.JSObject;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -345,9 +344,9 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
 
     preferencesService.getPreferences().getChat().showToxicityProperty().addListener((observable, oldValue, newValue) -> {
       if (newValue) {
-        JavaFxUtil.runLater(() -> getJsObject().call("enableToxicityVisibility"));
+        JavaFxUtil.runLater(() -> callJs("enableToxicityVisibility"));
       } else {
-        JavaFxUtil.runLater(() -> getJsObject().call("disableToxicityVisibility"));
+        JavaFxUtil.runLater(() -> callJs("disableToxicityVisibility"));
       }
     });
 
@@ -468,8 +467,69 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
 
   protected abstract WebView getMessagesWebView();
 
-  protected JSObject getJsObject() {
-    return (JSObject) engine.executeScript("window");
+  /**
+   * Calls a global function of the chat document, passing each argument as a JS string literal.
+   * <p>
+   * Deliberately <em>not</em> {@code ((JSObject) engine.executeScript("window")).call(fn, args)}:
+   * {@code JSObject.call} routes through {@code JSObjectCallAsFunction} in jfxwebkit, whose
+   * argument array is not protected from JavaScriptCore's garbage collector while the Java
+   * arguments are being converted. If a GC runs part-way through that conversion an already
+   * converted argument is collected, and the next argument read decodes a null {@code Structure*}
+   * — an {@code EXCEPTION_ACCESS_VIOLATION} that kills the whole JVM (no Java exception, no
+   * recovery). The likelihood scales with the number and size of the arguments, which is why the
+   * four-string medal-avatar call was by far the biggest single crash source on the fleet.
+   * {@link WebEngine#executeScript(String)} uses {@code JSEvaluateScript} instead and has no such
+   * unrooted array.
+   * <p>
+   * This is the same workaround FAForever applied for
+   * <a href="https://github.com/FAForever/downlords-faf-client/issues/1080">issue #1080</a>; back
+   * then it was only applied to a single call site, and every site added since re-introduced the
+   * crash. Do not reintroduce {@code JSObject.call} here.
+   */
+  protected void callJs(String function, String... args) {
+    JavaFxUtil.assertApplicationThread();
+    StringBuilder script = new StringBuilder(function).append('(');
+    for (int i = 0; i < args.length; i++) {
+      if (i > 0) {
+        script.append(',');
+      }
+      script.append(jsQuote(args[i]));
+    }
+    engine.executeScript(script.append(");").toString());
+  }
+
+  /**
+   * Renders {@code value} as a single-quoted JS string literal. Every argument that reaches the
+   * chat document goes through here: chat text, user names and tooltips are attacker controlled,
+   * so a naive {@code replace("'", "\\'")} is escapable via a trailing backslash.
+   */
+  protected static String jsQuote(@Nullable String value) {
+    String text = StringUtils.defaultString(value);
+    StringBuilder result = new StringBuilder(text.length() + 16).append('\'');
+    for (int i = 0; i < text.length(); i++) {
+      char c = text.charAt(i);
+      switch (c) {
+        case '\\' -> result.append("\\\\");
+        case '\'' -> result.append("\\'");
+        case '"' -> result.append("\\\"");
+        case '\n' -> result.append("\\n");
+        case '\r' -> result.append("\\r");
+        case '\t' -> result.append("\\t");
+        case '\b' -> result.append("\\b");
+        case '\f' -> result.append("\\f");
+        // Line/paragraph separators terminate a JS line but not a Java one.
+        case 0x2028 -> result.append("\\u2028");
+        case 0x2029 -> result.append("\\u2029");
+        default -> {
+          if (c < 0x20) {
+            result.append(String.format("\\u%04x", (int) c));
+          } else {
+            result.append(c);
+          }
+        }
+      }
+    }
+    return result.append('\'').toString();
   }
 
   protected void onWebViewLoaded() {
@@ -581,11 +641,11 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
     } else {
       color = "";
     }
-    JavaFxUtil.runLater(() -> getJsObject().call("updateUserMessageColor", chatUser.getUsername(), color));
+    JavaFxUtil.runLater(() -> callJs("updateUserMessageColor", chatUser.getUsername(), color));
   }
 
   private void setUserMessageColor(ChatChannelUser chatUser, String jsColorString) {
-    JavaFxUtil.runLater(() -> getJsObject().call("updateUserMessageColor", chatUser.getUsername(), jsColorString));
+    JavaFxUtil.runLater(() -> callJs("updateUserMessageColor", chatUser.getUsername(), jsColorString));
   }
 
   /**
@@ -670,8 +730,12 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
       return;
     }
     Player player = playerOptional.get();
-    if (player.getId() <= 0 || ladderPointsService.peekFeaturedMedal(player.getId()).isPresent()) {
-      return; // no id, or the synchronous render already applied the medal
+    // Gate on "is it resolved", not "did peek return a medal": peek answers empty both for a
+    // player with no medal and for a cache miss, so the latter test spawned a future (and a
+    // continuation, per open tab) for every message from every medal-less player — the common
+    // case — only to discover there was nothing to swap in.
+    if (player.getId() <= 0 || ladderPointsService.isFeaturedMedalCached(player.getId())) {
+      return; // no id, or renderHtml's peek already settled this player, medal or not
     }
     applyMedalAvatar(player, false);
   }
@@ -711,7 +775,7 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
       }
       JavaFxUtil.runLater(() -> {
         if (isChatReady) {
-          getJsObject().call("updateUserAvatarMedal", username, avatarUrl, avatarTitle, avatarStyle);
+          callJs("updateUserAvatarMedal", username, avatarUrl, avatarTitle, avatarStyle);
         }
       });
     });
@@ -895,12 +959,17 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
 
   protected String convertUrlsToHyperlinks(String text) {
     JavaFxUtil.assertApplicationThread();
-    return (String) engine.executeScript("link('" + text.replace("'", "\\'") + "')");
+    // jsQuote, not a bare quote-escape: chat text is attacker controlled and a trailing backslash
+    // escapes out of a replace("'", "\\'") into arbitrary script.
+    return (String) engine.executeScript("link(" + jsQuote(text) + ")");
   }
 
   private void insertIntoContainer(String html, String containerId) {
-    ((JSObject) engine.executeScript("document.getElementById('" + containerId + "')"))
-        .call("insertAdjacentHTML", "beforeend", html);
+    // See callJs: never JSObject.call — the message HTML is the largest argument the chat document
+    // ever receives, so this was the second biggest JVM-crash source after the medal avatars.
+    JavaFxUtil.assertApplicationThread();
+    engine.executeScript("document.getElementById(" + jsQuote(containerId) + ")"
+        + ".insertAdjacentHTML('beforeend'," + jsQuote(html) + ");");
     getMessagesWebView().requestLayout();
   }
 

@@ -64,6 +64,12 @@ public interface LadderPointsService {
    * message WebView); returns empty and warms the cache in the background on a miss. */
   Optional<FeaturedMedalDisplay> peekFeaturedMedal(int playerId);
 
+  /** Whether {@link #peekFeaturedMedal} just answered from a live cache entry, as opposed to
+   * missing and kicking off a warm. Callers need this to tell "this player has no medal" (nothing
+   * left to do) from "not resolved yet" (worth an async follow-up) — {@code peekFeaturedMedal}
+   * returns empty for both. */
+  boolean isFeaturedMedalCached(int playerId);
+
   /** Set (or clear, when {@code medalCode} is null) the caller's featured medal. Upserts the
    * single per-player row; owner-only (server-enforced). */
   CompletableFuture<Void> setFeaturedMedal(int playerId, String medalCode);

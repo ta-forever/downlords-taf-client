@@ -512,20 +512,20 @@ public class ChannelTabController extends AbstractChatTabController {
     //Workaround for issue #1080 https://github.com/FAForever/downlords-faf-client/issues/1080
     JavaFxUtil.runLater(() -> {
       try {
-        engine.executeScript("removeUserMessageClass('" + String.format(USER_CSS_CLASS_FORMAT, chatUser.getUsername()) + "','" + cssClass + "');");
+        callJs("removeUserMessageClass", String.format(USER_CSS_CLASS_FORMAT, chatUser.getUsername()), cssClass);
       } catch (Exception ignored) {
-        //before with "getJsObject().call..." if the engine was not yet loaded the Exception was ignored and hence I know to the same
+        //if the engine has not yet loaded the page the call throws; that was ignored before too
         //TODO: only accept calls after the engine loaded the page completely
       }
     });
   }
 
   private void addUserMessageClass(ChatChannelUser player, String cssClass) {
-    JavaFxUtil.runLater(() -> getJsObject().call("addUserMessageClass", String.format(USER_CSS_CLASS_FORMAT, player.getUsername()), cssClass));
+    JavaFxUtil.runLater(() -> callJs("addUserMessageClass", String.format(USER_CSS_CLASS_FORMAT, player.getUsername()), cssClass));
   }
 
   private void updateUserMessageDisplay(ChatChannelUser chatUser, String display) {
-    JavaFxUtil.runLater(() -> getJsObject().call("updateUserMessageDisplay", chatUser.getUsername(), display));
+    JavaFxUtil.runLater(() -> callJs("updateUserMessageDisplay", chatUser.getUsername(), display));
   }
 
   private void associateChatUserWithPlayer(Player player, ChatChannelUser chatUser) {
@@ -643,9 +643,9 @@ public class ChannelTabController extends AbstractChatTabController {
   private void addSearchFieldListener() {
     searchField.textProperty().addListener((observable, oldValue, newValue) -> {
       if (newValue.trim().isEmpty()) {
-        getJsObject().call("removeHighlight");
+        callJs("removeHighlight");
       } else {
-        getJsObject().call("highlightText", newValue);
+        callJs("highlightText", newValue);
       }
     });
   }
