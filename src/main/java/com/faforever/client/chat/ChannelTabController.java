@@ -510,14 +510,11 @@ public class ChannelTabController extends AbstractChatTabController {
       return;
     }
     //Workaround for issue #1080 https://github.com/FAForever/downlords-faf-client/issues/1080
-    JavaFxUtil.runLater(() -> {
-      try {
-        callJs("removeUserMessageClass", String.format(USER_CSS_CLASS_FORMAT, chatUser.getUsername()), cssClass);
-      } catch (Exception ignored) {
-        //if the engine has not yet loaded the page the call throws; that was ignored before too
-        //TODO: only accept calls after the engine loaded the page completely
-      }
-    });
+    // The catch-everything that used to sit here (for "the engine has not yet loaded the page")
+    // is gone: callJs now skips the call until the document is ready, for every site rather than
+    // just this one. Swallowing the rest would only hide real scripting errors.
+    JavaFxUtil.runLater(() ->
+        callJs("removeUserMessageClass", String.format(USER_CSS_CLASS_FORMAT, chatUser.getUsername()), cssClass));
   }
 
   private void addUserMessageClass(ChatChannelUser player, String cssClass) {

@@ -457,9 +457,13 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
         return;
       }
       synchronized (waitingMessages) {
+        // Set BEFORE draining: the page is loaded by now, so the document is callable, and the
+        // drain itself renders messages. Leaving the flag false until afterwards would make
+        // callJs skip anything the replay path triggers. Holding the lock still keeps a
+        // concurrent onChatMessage from interleaving with the drain.
+        isChatReady = true;
         waitingMessages.forEach(AbstractChatTabController.this::addMessage);
         waitingMessages.clear();
-        isChatReady = true;
         onWebViewLoaded();
       }
     });
@@ -488,6 +492,21 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
    */
   protected void callJs(String function, String... args) {
     JavaFxUtil.assertApplicationThread();
+    if (!isChatReady) {
+      // The document defines these functions, so calling one before the page has loaded throws
+      // ReferenceError and kills whatever was in flight — e.g. joining a channel styles every user
+      // already in it (setChatChannel -> onPlayerConnected -> updateUserMessageColor) long before
+      // the WebView finishes loading, which aborted the rest of the member loop.
+      //
+      // Dropping the call is correct rather than merely safe: every function in chat_container.js
+      // only restyles ALREADY-RENDERED message DOM, and before load nothing is rendered, so there
+      // is nothing to lose. Messages that arrive meanwhile are queued in waitingMessages and
+      // replayed on load, and renderHtml bakes the user's colour, css classes and toxicity
+      // visibility into the markup at render time — so the state these calls would have applied
+      // is already correct on the other side of the load.
+      logger.trace("Chat document not ready; skipping {}()", function);
+      return;
+    }
     StringBuilder script = new StringBuilder(function).append('(');
     for (int i = 0; i < args.length; i++) {
       if (i > 0) {
