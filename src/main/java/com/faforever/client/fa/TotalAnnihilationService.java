@@ -7,6 +7,7 @@ import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.update.Version;
+import com.faforever.client.util.LogRedactUtil;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -301,7 +302,9 @@ public class TotalAnnihilationService {
   }
 
   public void sendToConsole(String command) {
-    logger.info("Sending command '{}' to gpgnet4ta console port: {}", command, this.consolePort);
+    // Redact before logging: /set_hash_api_token carries the user's API access token.
+    logger.info("Sending command '{}' to gpgnet4ta console port: {}",
+        LogRedactUtil.redactConsoleCommand(command), this.consolePort);
     try (Socket socket = new Socket("127.0.0.1", this.consolePort)) {
       socket.getOutputStream().write(command.getBytes());
       socket.getOutputStream().flush();
@@ -433,7 +436,9 @@ public class TotalAnnihilationService {
     processBuilder.directory(launchWorkingDirectory.toFile());
     processBuilder.command(launchCommand);
 
-    logger.info("{}", processBuilder.command());
+    // Redact before logging: the gpgnet4ta command line carries --hashtoken <api access token>.
+    // The ProcessBuilder keeps the real command.
+    logger.info("{}", LogRedactUtil.redactCommand(processBuilder.command()));
     Process process = processBuilder.start();
 
     return process;

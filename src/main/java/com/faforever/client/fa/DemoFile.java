@@ -1,5 +1,6 @@
 package com.faforever.client.fa;
 
+import com.faforever.client.util.LogRedactUtil;
 import com.google.gson.Gson;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +37,7 @@ public class DemoFile {
     ProcessBuilder processBuilder = new ProcessBuilder();
     processBuilder.directory(nativeDir.toFile());
     processBuilder.command(command);
-    log.info("{}", processBuilder.command());
+    log.info("{}", LogRedactUtil.redactCommand(processBuilder.command()));
 
     Process process = processBuilder.start();
     BufferedReader input = new BufferedReader(new InputStreamReader(process.getInputStream()));

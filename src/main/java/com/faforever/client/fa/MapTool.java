@@ -2,6 +2,7 @@ package com.faforever.client.fa;
 
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.map.MapService.PreviewOverlayType;
+import com.faforever.client.util.LogRedactUtil;
 
 import com.google.gson.Gson;
 import org.slf4j.Logger;
@@ -141,7 +142,7 @@ public class MapTool {
     ProcessBuilder processBuilder = new ProcessBuilder();
     processBuilder.directory(workingDirectory.toFile());
     processBuilder.command(command);
-    logger.info("{}", processBuilder.command());
+    logger.info("{}", LogRedactUtil.redactCommand(processBuilder.command()));
 
     List<String[]> mapList = new ArrayList<>();
 
@@ -163,7 +164,7 @@ public class MapTool {
       mapList.add(parts);
     }
     if (logEnable) {
-      logger.warn("Received too few fields from mapTool:\n{}\n{}", processBuilder.command(), maptoolDataReceived);
+      logger.warn("Received too few fields from mapTool:\n{}\n{}", LogRedactUtil.redactCommand(processBuilder.command()), maptoolDataReceived);
       while ((line = input.readLine()) != null) {
         logger.warn("but theres more:{}", line);
       }
