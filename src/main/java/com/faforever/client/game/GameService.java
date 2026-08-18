@@ -1654,14 +1654,37 @@ public class GameService implements InitializingBean {
 
   private void onLoggedIn() {
     recoverCrashedGameLogUploads();
-    if (isGameRunning()) {
-      if (getCurrentGame() != null) {
-        fafService.restoreGameSession(getCurrentGame().getId());
-      }
-      else {
-        log.info("[onLoggedIn] killGame because currentGame() == null");
-        killGame();
-      }
+    if (!isGameRunning()) {
+      return;
+    }
+
+    // currentGame is only ever assigned for an *open* game (STAGING/BATTLEROOM) --
+    // see the gameInfoMessage.getState().isOpen() branch in onGameInfo -- so it is
+    // null for a game that has already launched. That is exactly the case where a
+    // mid-game reconnect needs the session restored, and killing the game instead
+    // was never right: without restore_game_session the server never re-creates our
+    // GameConnection, so from then on it silently drops every message we send with
+    // target "game" (lobbyconnection.py). That takes out ICE renegotiation and the
+    // end-of-game result report alike, leaving the match unrecoverable and the
+    // result decided by whoever else was still connected.
+    //
+    // runningGameUidProperty is maintained from our own process lifecycle rather
+    // than from server-pushed game_info, so it survives the reconnect that caused
+    // the problem. Prefer currentGame when we have it (it is the more specific
+    // signal) and fall back to the locally tracked uid otherwise.
+    Game currentGame = getCurrentGame();
+    Integer runningGameUid = getRunningGameUid();
+    Integer gameIdToRestore = currentGame != null
+        ? currentGame.getId()
+        : (runningGameUid != null && runningGameUid > 0 ? runningGameUid : null);
+
+    if (gameIdToRestore != null) {
+      log.info("[onLoggedIn] restoring game session for game {}", gameIdToRestore);
+      fafService.restoreGameSession(gameIdToRestore);
+    }
+    else {
+      log.info("[onLoggedIn] killGame because no running game id is known");
+      killGame();
     }
   }
 
