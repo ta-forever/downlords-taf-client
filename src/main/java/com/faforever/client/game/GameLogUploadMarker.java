@@ -20,7 +20,7 @@ import java.util.stream.Stream;
  * dies (hard JVM crash, kill, power loss) between those two points, the marker survives. On the
  * next login the client scans for orphaned markers ({@link #listAndPrune}) and uploads the logs it
  * could not upload last time — before a subsequent game launch overwrites the fixed-name logs
- * (ice-adapter.log, tdrawlog.txt, ErrorLog.txt).</p>
+ * (ice-adapter.log, tdrawlog.txt, ErrorLog.txt, the most recent TA Demo Recorder Log -*.txt).</p>
  *
  * <p>State is a tiny {@link Properties} file per game id, so a half-written marker (interrupted
  * mid-crash) simply fails to parse and is discarded rather than corrupting anything.</p>

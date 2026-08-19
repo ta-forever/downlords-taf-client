@@ -375,6 +375,9 @@ public class FafService {
     // A hard JVM crash often fails to flush logback's final lines, so the hs_err_pid*.log the JVM
     // writes is the only record of what killed the client. Bundle any recent ones too.
     fileList.addAll(collectRecentJvmCrashLogs());
+    // tplayx writes its own log next to TotalA.exe; it is the only place a recorder exception is
+    // reported, and those can take TotalA.exe down with them (game 187889).
+    fileList.addAll(collectRecentRecorderLogs(modTechnical));
 
     File[] files = fileList.stream()
         .filter(Objects::nonNull)
@@ -430,6 +433,7 @@ public class FafService {
 
   /** Per-text-log byte cap applied before zipping; we keep the last this-many bytes of oversized logs. */
   private static final long PER_LOG_TAIL_BYTES = 400_000;
+  private static final int MAX_RECORDER_LOGS = 3;
 
   /**
    * Best-effort collection of JVM fatal-error logs (hs_err_pid*.log) modified in the last few days.
@@ -473,6 +477,40 @@ public class FafService {
       log.info("[collectRecentJvmCrashLogs] including {} JVM crash log(s) in upload", byName.size());
     }
     return new java.util.ArrayList<>(byName.values());
+  }
+
+  /**
+   * The most recent {@value #MAX_RECORDER_LOGS} {@code TA Demo Recorder Log -*.txt} files from the TA
+   * install directory. tplayx writes one per run, and the run that matters is not always the last —
+   * the client can start a new TA before the upload happens.
+   */
+  private java.util.List<File> collectRecentRecorderLogs(String modTechnical) {
+    if (modTechnical == null) {
+      return java.util.List.of();
+    }
+    Path taPath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath();
+    if (taPath == null || !Files.isDirectory(taPath)) {
+      return java.util.List.of();
+    }
+    try (java.util.stream.Stream<Path> stream = Files.list(taPath)) {
+      java.util.List<File> recent = stream
+          .filter(p -> {
+            String name = p.getFileName().toString();
+            return name.startsWith("TA Demo Recorder Log -") && name.endsWith(".txt");
+          })
+          .map(Path::toFile)
+          // by mtime: the timestamp in the name is dd.mm.yyyy and does not sort as a string
+          .sorted(Comparator.comparingLong(File::lastModified).reversed())
+          .limit(MAX_RECORDER_LOGS)
+          .collect(java.util.stream.Collectors.toList());
+      if (!recent.isEmpty()) {
+        log.info("[collectRecentRecorderLogs] including {} recorder log(s) in upload", recent.size());
+      }
+      return recent;
+    } catch (IOException e) {
+      log.debug("[collectRecentRecorderLogs] could not scan {}: {}", taPath, e.toString());
+      return java.util.List.of();
+    }
   }
 
   private void removeErrorLog(String modTechnical) {
