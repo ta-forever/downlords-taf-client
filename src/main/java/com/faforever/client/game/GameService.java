@@ -1071,6 +1071,31 @@ public class GameService implements InitializingBean {
     return runningGameUidProperty.getValue();
   }
 
+  /**
+   * Whether {@code gameInfoMessage} refers to the game this client is actually running right now,
+   * as determined locally from our own process lifecycle rather than from server-pushed state.
+   * <p>
+   * Used to suppress the "the server says I am not in this game" conclusion immediately after a
+   * lobby reconnect. On reconnect the server re-sends {@code game_info} before {@code player_info},
+   * so {@code currentPlayer.getCurrentGameUid()} is briefly stale and the player looks like they
+   * left a game they are demonstrably still playing. Nulling {@code currentGame} on that basis
+   * makes the {@code currentGame} listener fire and send {@code /quit} to gpgnet4ta -- which is
+   * absorbed by its two-strike debounce while TA is up, but is immediately fatal in the
+   * staging/battleroom phase where TA has not launched yet and a single {@code /quit} terminates
+   * outright ({@code GpgNetGameLauncher::onExtendedMessage}, {@code !isApplicationRunning()}).
+   * Observed in prod 2026-08-19 costing two players their games (187871, 187901).
+   * <p>
+   * A genuinely ended game still clears {@code currentGame} via the {@code GameStatus.ENDED} branch
+   * above, so the "host left before we started TA" cleanup this guard sits next to is preserved.
+   */
+  private boolean isLocallyRunningGame(GameInfoMessage gameInfoMessage) {
+    Integer runningGameUid = getRunningGameUid();
+    return isGameRunning()
+        && runningGameUid != null
+        && runningGameUid > 0
+        && Objects.equals(runningGameUid, gameInfoMessage.getUid());
+  }
+
   public ReadOnlyIntegerProperty runningGameUidProperty() {
     return runningGameUidProperty;
   }
@@ -1950,7 +1975,7 @@ public class GameService implements InitializingBean {
             setStartPositions();
           }
         }
-      } else if (isGameCurrentGame && !currentPlayerInGame) {
+      } else if (isGameCurrentGame && !currentPlayerInGame && !isLocallyRunningGame(gameInfoMessage)) {
         synchronized (currentGame) {
           currentGame.set(null);
         }
