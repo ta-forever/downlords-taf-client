@@ -45,11 +45,20 @@ public class JSkillsRatingServiceConstrainedTest {
   private JSkillsRatingService instance;
   private final Map<Integer, Pair<String, LeaderboardRating>> ratings = new HashMap<>();
 
+  private ClientConfiguration.AutoBalance autoBalance;
+
   @Before
   public void setUp() {
     when(clientProperties.getTrueSkill()).thenReturn(trueSkill);
+    // Match application.yml so the unrated-prior assertions below are about real numbers.
+    when(trueSkill.getInitialMean()).thenReturn(1500);
+    when(trueSkill.getInitialStandardDeviation()).thenReturn(500);
+    when(trueSkill.getBeta()).thenReturn(240);
+    when(trueSkill.getDynamicFactor()).thenReturn(10f);
+    when(trueSkill.getDrawProbability()).thenReturn(0.1f);
+
     ClientConfiguration config = new ClientConfiguration();
-    ClientConfiguration.AutoBalance autoBalance = new ClientConfiguration.AutoBalance();
+    autoBalance = new ClientConfiguration.AutoBalance();
     autoBalance.setMetric("kl");
     config.setAutoBalance(autoBalance);
     when(preferencesService.getClientRemoteConfiguration()).thenReturn(config);
@@ -180,5 +189,85 @@ public class JSkillsRatingServiceConstrainedTest {
     assertThat(order.size(), is(4));
     assertThat("p2 and p3 must be on opposite teams",
         indexOfId(order, 2) % 2 != indexOfId(order, 3) % 2, is(true));
+  }
+
+  // --- getDistilledPlayerRatings: which board is picked, and what an unrated player is worth ---
+
+  private static Player bare(int id) {
+    Player p = new Player(new com.faforever.client.remote.domain.Player());
+    p.setId(id);
+    p.setUsername("p" + id);
+    return p;
+  }
+
+  private static LeaderboardRating rating(float mean, float deviation, int games) {
+    LeaderboardRating lbr = LeaderboardRating.create(mean, deviation);
+    lbr.setNumberOfGames(games);
+    return lbr;
+  }
+
+  /**
+   * A player with no rated games must be balanced as a beginner, not at the TrueSkill initial mean.
+   * At mean 1500 the balancer weighed a newcomer like a displayed-1200 regular, which is what kept
+   * autoteam stacking them onto the weaker side.
+   */
+  @Test
+  public void unratedPlayerBalancesAtBeginnerPrior() {
+    Player p = bare(1);   // no leaderboard ratings at all
+
+    LeaderboardRating result = instance
+        .getDistilledPlayerRatings(List.of(p), java.util.Set.of("lb9"), java.util.Set.of("lb1"), "teams")
+        .get(1).getValue();
+
+    assertThat(result.getMean(), is(800f));
+    assertThat(result.getDeviation(), is(500f));   // a newcomer really is that uncertain
+    assertThat(result.getNumberOfGames(), is(0));
+  }
+
+  @Test
+  public void unratedAssumedMeanIsRemotelyConfigurable() {
+    autoBalance.setUnratedAssumedMean(500.0);
+    Player p = bare(1);
+
+    LeaderboardRating result = instance
+        .getDistilledPlayerRatings(List.of(p), java.util.Set.of("lb9"), java.util.Set.of("lb1"), "teams")
+        .get(1).getValue();
+
+    assertThat(result.getMean(), is(500f));
+  }
+
+  /**
+   * With nothing clearing 10 games, a thinly-played but format-relevant board beats the wider
+   * cross-board aggregate.
+   */
+  @Test
+  public void thinlyPlayedRelevantBoardBeatsWiderAggregate() {
+    Player p = bare(1);
+    p.setLeaderboardRatings(Map.of(
+        "lb9", rating(1200f, 150f, 4),    // team board, thin but relevant
+        "lb1", rating(900f, 120f, 5)));   // singles board
+
+    Pair<String, LeaderboardRating> result = instance
+        .getDistilledPlayerRatings(List.of(p), java.util.Set.of("lb9"), java.util.Set.of("lb1"), "teams")
+        .get(1);
+
+    assertThat(result.getKey(), is("teams"));
+    assertThat(result.getValue().getMean(), is(1200f));
+  }
+
+  /** A board with 10+ games still wins outright over a more relevant thin one. */
+  @Test
+  public void wellPlayedBoardWinsOverThinnerMoreRelevantBoard() {
+    Player p = bare(1);
+    p.setLeaderboardRatings(Map.of(
+        "lb9", rating(1200f, 150f, 4),     // team board, below the 10-game bar
+        "lb1", rating(900f, 60f, 40)));    // singles board, well established
+
+    Pair<String, LeaderboardRating> result = instance
+        .getDistilledPlayerRatings(List.of(p), java.util.Set.of("lb9"), java.util.Set.of("lb1"), "teams")
+        .get(1);
+
+    assertThat(result.getKey(), is("singles"));
+    assertThat(result.getValue().getMean(), is(900f));
   }
 }

@@ -28,6 +28,12 @@ public class ClientConfiguration {
     String metric;   // eg "trueskill"
     Double threshold;// eg 0.8
     Double scale;    // eg 0.03
+    /**
+     * TrueSkill mean assumed for a player with no rated games, used for team balance only.
+     * eg 800. Null falls back to the client's built-in default. See
+     * JSkillsRatingService#createUnratedBalancePrior for why this is not the TrueSkill initial mean.
+     */
+    Double unratedAssumedMean;
   }
 
   @Data

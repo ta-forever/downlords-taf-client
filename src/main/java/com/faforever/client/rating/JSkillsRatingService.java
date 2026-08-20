@@ -10,6 +10,7 @@ import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.replay.Replay;
 import com.faforever.client.replay.Replay.PlayerStats;
+import com.faforever.client.update.ClientConfiguration;
 import com.faforever.client.util.RatingUtil;
 import jskills.GameInfo;
 import jskills.Rating;
@@ -35,6 +36,18 @@ import static com.faforever.client.leaderboard.LeaderboardService.DEFAULT_RATING
 @Service
 @Slf4j
 public class JSkillsRatingService implements RatingService {
+  /**
+   * Fallback for {@link ClientConfiguration.AutoBalance#getUnratedAssumedMean()}. See
+   * {@link #createUnratedBalancePrior()} for how this number is derived.
+   */
+  private static final float DEFAULT_UNRATED_ASSUMED_MEAN = 800f;
+
+  /**
+   * Game counts at which a leaderboard is considered usable, tried in order. A board that clears
+   * the first threshold wins outright; only if none does do we settle for a thinly-played one.
+   */
+  private static final int[] MIN_GAMES_PREFERENCE = {10, 3};
+
   private final GameInfo gameInfo;
   private final PlayerService playerService;
   private final FafService fafService;
@@ -515,9 +528,6 @@ public class JSkillsRatingService implements RatingService {
   public Map<Integer, javafx.util.Pair<String, LeaderboardRating>> getDistilledPlayerRatings(
       List<Player> players, Set<String> teamBoards, Set<String> singleBoards, String priority) {
 
-    LeaderboardRating defaultRating = LeaderboardRating.create(
-        (float) gameInfo.getInitialMean(), (float) gameInfo.getInitialStandardDeviation());
-
     // for each player+host find a suitable rating
     // most preferred: aggregate over all teams leaderboards for the mod
     // next preferred: aggregate over all singles leaderboards for the mod
@@ -536,7 +546,10 @@ public class JSkillsRatingService implements RatingService {
               .map(Map.Entry::getValue)
               .toList());
 
-          LeaderboardRating lbrDefault = player.getLeaderboardRatings().getOrDefault(DEFAULT_RATING_TYPE, defaultRating);
+          // Each unrated player gets their own prior instance: LeaderboardRating is mutable
+          // (JavaFX properties), so a shared one would alias across players.
+          LeaderboardRating lbrDefault = player.getLeaderboardRatings()
+              .getOrDefault(DEFAULT_RATING_TYPE, createUnratedBalancePrior());
 
           LeaderboardRating lbrEverything = aggregateRatings(player.getLeaderboardRatings().values().stream()
               .toList());
@@ -572,16 +585,21 @@ public class JSkillsRatingService implements RatingService {
           }
 
           assert lbrList != null;
-          if (lbrList.get(0).getValue().getNumberOfGames() >= 10) {
-            return lbrList.get(0);
+
+          // Prefer the most format-relevant board that has enough games to be meaningful. Only if
+          // nothing clears 10 games do we accept a thinly-played board (>= 3), which still beats
+          // falling through to the least relevant aggregate.
+          for (int minGames : MIN_GAMES_PREFERENCE) {
+            for (javafx.util.Pair<String, LeaderboardRating> candidate : lbrList) {
+              if (candidate.getValue().getNumberOfGames() >= minGames) {
+                return candidate;
+              }
+            }
           }
-          if (lbrList.get(1).getValue().getNumberOfGames() >= 10) {
-            return lbrList.get(1);
-          }
-          if (lbrList.get(2).getValue().getNumberOfGames() >= 10) {
-            return lbrList.get(2);
-          }
-          return lbrList.get(3);
+
+          // Nobody has 3 games anywhere: the last entry is the widest aggregate, or the unrated
+          // prior if the player has no rated games at all.
+          return lbrList.get(lbrList.size() - 1);
         }
     ));
   }
@@ -684,9 +702,40 @@ public class JSkillsRatingService implements RatingService {
         return lbr;
       }
     }
-    LeaderboardRating lbr = LeaderboardRating.create((float) gameInfo.getInitialMean(), (float) gameInfo.getInitialStandardDeviation());
+    return createUnratedBalancePrior();
+  }
+
+  /**
+   * The rating assumed for a player with no rated games, <em>for team balance only</em>.
+   * <p>
+   * TrueSkill's initial mean (1500) is the wrong anchor here. The balancer works in mean-space
+   * (see {@link #computeKLDivergence}, {@link #computeWasserstein}), whereas the rating a player
+   * sees is {@code mean - 3*sigma}. An established player with sigma ~= 100 therefore carries a
+   * mean about 300 above their displayed rating, so an unrated player parked at mean 1500 weighs
+   * into the balance like a displayed-1200 regular. That is why autoteam kept stacking newcomers
+   * onto the weaker side even though they showed as 0.
+   * <p>
+   * Anchoring instead to a displayed-rating target of ~500 — the band our regular beginners sit in —
+   * gives {@code mean = 500 + 3*sigma_established ~= 800}. The value is served from the remote
+   * AutoBalance config so it can be retuned without a client release.
+   * <p>
+   * Sigma stays at the TrueSkill initial deviation: a newcomer really is that uncertain, and the
+   * balance metrics use the variance. Note this makes {@code mean - 3*sigma} negative, so this
+   * object must never be displayed — the UI path uses {@link #createNewLeaderboardRating()}.
+   */
+  private LeaderboardRating createUnratedBalancePrior() {
+    LeaderboardRating lbr = LeaderboardRating.create(
+        getUnratedAssumedMean(), (float) gameInfo.getInitialStandardDeviation());
     lbr.setNumberOfGames(0);
     return lbr;
+  }
+
+  private float getUnratedAssumedMean() {
+    ClientConfiguration clientConfiguration = preferencesService.getClientRemoteConfiguration();
+    ClientConfiguration.AutoBalance autoBalance = clientConfiguration == null
+        ? null : clientConfiguration.getAutoBalance();
+    Double configured = autoBalance == null ? null : autoBalance.getUnratedAssumedMean();
+    return configured == null ? DEFAULT_UNRATED_ASSUMED_MEAN : configured.floatValue();
   }
 
   public static <T> List<List<T>> generateCombinations(List<T> items, int k) {
