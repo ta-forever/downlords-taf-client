@@ -199,6 +199,9 @@ compileTestJava {
   // Country flags: guards that every country we offer actually has a flag image
   // (Kosovo/XK is GeoIP-only, so Locale.getISOCountries() misses it).
   include '**/chat/CountryFlagServiceTest.java'
+  // NickServ RECOVER of our own nick after a ghosted reconnect. Scoped to the one file so it
+  // doesn't pull in the stale KittehChatServiceTest beside it.
+  include '**/chat/KittehNickRecoveryTest.java'
   include '**/assetserver/**'
   // Test base classes / shared utilities — required by tests in the
   // included packages above. Don't include broken siblings of these.

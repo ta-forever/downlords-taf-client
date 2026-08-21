@@ -254,6 +254,27 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     log.debug("[onConnect]");
     connectionState.set(ConnectionState.CONNECTED);
     identifyIrc();
+    recoverOwnNick();
+  }
+
+  /**
+   * Reclaim our own nick when a stale session of ours is still holding it.
+   *
+   * A half-open IRC socket keeps the nick until the ircd's 180s ping timeout, so a
+   * reconnect inside that window lands on "Nick`" and misses its channel joins.
+   * NickServ RECOVER kills the ghost, and with anope's {@code restoreonrecover} it
+   * also renames us back and rejoins the channels.
+   */
+  void recoverOwnNick() {
+    String desiredNick = userService.getUsername();
+    String actualNick = client.getNick();
+    if (desiredNick == null || desiredNick.equalsIgnoreCase(actualNick)) {
+      return;
+    }
+
+    log.info("[recoverOwnNick] connected as '{}' instead of '{}', recovering", actualNick, desiredNick);
+    // The password is stripped from the log by onMessage.
+    client.sendMessage("NickServ", String.format("RECOVER %s %s", desiredNick, getPassword()));
   }
 
   private void registerIrc() {
