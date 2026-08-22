@@ -5,6 +5,7 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.net.ConnectionState;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.update.ClientConfiguration;
 import com.faforever.client.test.AbstractPlainJavaFxTest;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.user.UserService;
@@ -85,6 +86,10 @@ public class ChatControllerTest extends AbstractPlainJavaFxTest {
     when(uiService.loadFxml("theme/chat/channel_tab.fxml")).thenReturn(channelTabController);
     when(userService.getUsername()).thenReturn(TEST_USER_NAME);
     when(chatService.connectionStateProperty()).thenReturn(connectionState);
+    when(chatService.getChatBanNoticeMessage()).thenReturn(new SimpleObjectProperty<>());
+    ClientConfiguration clientConfiguration = mock(ClientConfiguration.class);
+    when(clientConfiguration.getAllChatChannels()).thenReturn(java.util.List.of());
+    when(preferencesService.getClientRemoteConfiguration()).thenReturn(clientConfiguration);
 
     loadFxml("theme/chat/chat.fxml", clazz -> instance);
 
@@ -97,7 +102,7 @@ public class ChatControllerTest extends AbstractPlainJavaFxTest {
     tab.setId(TEST_CHANNEL_NAME);
     when(channelTabController.getRoot()).thenReturn(tab);
 
-    ChatMessage chatMessage = new ChatMessage(TEST_CHANNEL_NAME, Instant.now(), TEST_USER_NAME, "message");
+    ChatMessage chatMessage = new ChatMessage(TEST_CHANNEL_NAME, Instant.now(), TEST_USER_NAME, "message", 0d);
     instance.onChatMessage(new ChatMessageEvent(chatMessage));
     WaitForAsyncUtils.waitForFxEvents();
 
@@ -113,7 +118,7 @@ public class ChatControllerTest extends AbstractPlainJavaFxTest {
   @Test
   public void testOnPrivateMessage() throws Exception {
     when(privateChatTabController.getRoot()).thenReturn(new Tab());
-    ChatMessage chatMessage = new ChatMessage(null, Instant.now(), TEST_USER_NAME, "message");
+    ChatMessage chatMessage = new ChatMessage(null, Instant.now(), TEST_USER_NAME, "message", 0d);
     instance.onChatMessage(new ChatMessageEvent(chatMessage));
     WaitForAsyncUtils.waitForFxEvents();
 
@@ -211,5 +216,60 @@ public class ChatControllerTest extends AbstractPlainJavaFxTest {
     assertThat(ReflectionUtils.findMethod(
         instance.getClass(), "onInitiatePrivateChatEvent", InitiatePrivateChatEvent.class),
         hasAnnotation(Subscribe.class));
+  }
+
+  /**
+   * A dropped IRC connection empties every channel's user list, which takes us out of it too.
+   * That read as us leaving the channel and closed the tab, discarding the message history and
+   * parting the channel for real on reconnect (prod, 2026-08-22 23:20).
+   */
+  @Test
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  public void ourOwnRemovalWhileDisconnectedKeepsTheTabOpen() {
+    MapChangeListener<String, ChatChannelUser> usersListener = joinAndCaptureUsersListener();
+    int tabsBefore = instance.tabPane.getTabs().size();
+
+    connectionState.set(ConnectionState.DISCONNECTED);
+    usersListener.onChanged(removalOf(TEST_USER_NAME));
+    WaitForAsyncUtils.waitForFxEvents();
+
+    assertEquals(tabsBefore, instance.tabPane.getTabs().size());
+  }
+
+  @Test
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  public void ourOwnRemovalWhileConnectedStillClosesTheTab() {
+    MapChangeListener<String, ChatChannelUser> usersListener = joinAndCaptureUsersListener();
+    int tabsBefore = instance.tabPane.getTabs().size();
+
+    connectionState.set(ConnectionState.CONNECTED);
+    usersListener.onChanged(removalOf(TEST_USER_NAME));
+    WaitForAsyncUtils.waitForFxEvents();
+
+    assertEquals(tabsBefore - 1, instance.tabPane.getTabs().size());
+  }
+
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private MapChangeListener<String, ChatChannelUser> joinAndCaptureUsersListener() {
+    Tab tab = new Tab(TEST_CHANNEL_NAME);
+    tab.setId(TEST_CHANNEL_NAME);
+    when(channelTabController.getRoot()).thenReturn(tab);
+
+    MapChangeListener.Change change = mock(MapChangeListener.Change.class);
+    when(change.wasAdded()).thenReturn(true);
+    when(change.getValueAdded()).thenReturn(new ChatChannel(TEST_CHANNEL_NAME));
+    channelsListener.getValue().onChanged(change);
+    WaitForAsyncUtils.waitForFxEvents();
+
+    verify(chatService).addUsersListener(eq(TEST_CHANNEL_NAME), onUsersListenerCaptor.capture());
+    return onUsersListenerCaptor.getValue();
+  }
+
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private MapChangeListener.Change removalOf(String username) {
+    MapChangeListener.Change change = mock(MapChangeListener.Change.class);
+    when(change.wasRemoved()).thenReturn(true);
+    when(change.getValueRemoved()).thenReturn(new ChatChannelUser(username, false));
+    return change;
   }
 }

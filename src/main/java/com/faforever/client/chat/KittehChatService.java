@@ -61,6 +61,7 @@ import org.kitteh.irc.client.library.event.client.ClientNegotiationCompleteEvent
 import org.kitteh.irc.client.library.event.connection.ClientConnectionEndedEvent;
 import org.kitteh.irc.client.library.event.user.PrivateMessageEvent;
 import org.kitteh.irc.client.library.event.user.PrivateNoticeEvent;
+import org.kitteh.irc.client.library.event.user.UserNickChangeEvent;
 import org.kitteh.irc.client.library.event.user.UserQuitEvent;
 import org.kitteh.irc.client.library.feature.auth.NickServ;
 import org.springframework.beans.factory.DisposableBean;
@@ -80,6 +81,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static com.faforever.client.chat.ChatColorMode.DEFAULT;
@@ -97,6 +101,12 @@ import static javafx.collections.FXCollections.observableMap;
 public class KittehChatService implements ChatService, InitializingBean, DisposableBean {
 
   private static final Set<Character> MODERATOR_PREFIXES = Set.of('~', '&', '@', '%');
+  /** How long to give NickServ RECOVER before falling back to a reconnect. */
+  private static final int NICK_RECLAIM_CHECK_SECONDS = 6;
+  /** How long to let a retried NICK be accepted before giving up and reconnecting. */
+  private static final int NICK_RETRY_SECONDS = 3;
+  /** Let our own QUIT land before re-registering, so we do not collide with ourselves. */
+  private static final int RELOG_SETTLE_SECONDS = 2;
   private final ChatUserService chatUserService;
   private final PreferencesService preferencesService;
   private final UserService userService;
@@ -118,6 +128,15 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   @VisibleForTesting
   DefaultClient client;
   private NickServ nickServ;
+  /** One reclaim-reconnect per connection, so a nick we can never win cannot loop us. */
+  private final AtomicBoolean nickReconnectUsed = new AtomicBoolean();
+  private final AtomicBoolean nickCheckScheduled = new AtomicBoolean();
+  /**
+   * Where we were when the IRC connection dropped. Channels are otherwise joined only from
+   * {@link #onSocialMessage}, which the lobby sends at login — so an IRC-only reconnect (the
+   * lobby socket untouched) brought the client back online in no channels at all.
+   */
+  private final Set<String> channelsToRejoin = ConcurrentHashMap.newKeySet();
   /**
    * Indicates whether the "auto channels" already have been joined. This is needed because we don't want to auto join
    * channels after a reconnect that the user left before the reconnect.
@@ -253,29 +272,37 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   public void onConnect(ClientNegotiationCompleteEvent event) {
     log.debug("[onConnect]");
     connectionState.set(ConnectionState.CONNECTED);
+    // One line that says whether the nick machinery is healthy: with TafNickListener in place
+    // these agree, and a mismatch means the swap did not take effect.
+    log.info("[onConnect] registered as '{}' (wanted '{}')", client.getNick(), userService.getUsername());
+    rejoinChannels();
     identifyIrc();
+    nickReconnectUsed.set(false);
     recoverOwnNick();
   }
 
   /**
-   * Reclaim our own nick when a stale session of ours is still holding it.
-   *
-   * A half-open IRC socket keeps the nick until the ircd's 180s ping timeout, so a
-   * reconnect inside that window lands on "Nick`" and misses its channel joins.
-   * NickServ RECOVER kills the ghost, and with anope's {@code restoreonrecover} it
-   * also renames us back and rejoins the channels.
+   * Swap out the two stock listeners that cannot cope with this ircd. See
+   * {@link TafNickListener} and {@link TafNickRejectedListener} for what each gets wrong;
+   * between them they are why {@code client.getNick()} lies and why a reclaimed nick is given
+   * straight back.
    */
-  void recoverOwnNick() {
-    String desiredNick = userService.getUsername();
-    String actualNick = client.getNick();
-    if (desiredNick == null || desiredNick.equalsIgnoreCase(actualNick)) {
-      return;
+  private void replaceBrokenNickListeners() {
+    int removed = 0;
+    for (Object listener : new ArrayList<>(client.getEventManager().getRegisteredEventListeners())) {
+      String name = listener.getClass().getSimpleName();
+      if ("DefaultNickListener".equals(name) || "DefaultNickRejectedListener".equals(name)) {
+        client.getEventManager().unregisterEventListener(listener);
+        removed++;
+      }
     }
-
-    log.info("[recoverOwnNick] connected as '{}' instead of '{}', recovering", actualNick, desiredNick);
-    // The password is stripped from the log by onMessage.
-    client.sendMessage("NickServ", String.format("RECOVER %s %s", desiredNick, getPassword()));
+    client.getEventManager().registerEventListener(new TafNickListener(client));
+    client.getEventManager().registerEventListener(
+        new TafNickRejectedListener(client, userService::getUsername,
+            () -> connectionState.get() == ConnectionState.CONNECTED));
+    log.info("[replaceBrokenNickListeners] replaced {} stock nick listener(s)", removed);
   }
+
 
   private void registerIrc() {
     String nick = client.getNick();
@@ -305,21 +332,83 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     log.debug("[onChatUserList]");
     Channel channel = event.getChannel();
     List<ChatChannelUser> users = channel.getUsers().stream().map(user -> getOrCreateChatUser(user, channel)).collect(Collectors.toList());
-    getOrCreateChannel(channel.getName()).addUsers(users);
+    ChatChannel chatChannel = getOrCreateChannel(channel.getName());
+    chatChannel.addUsers(users);
+
+    // NAMES is the whole truth for this channel, so drop anyone it doesn't list. Renames
+    // otherwise linger forever: Kitteh fires no event for our own nick change outside a
+    // tracked channel (DefaultNickListener returns early for isSelf), so "Nick`" would
+    // stay in the list after services moved us back to "Nick".
+    Set<String> present = users.stream().map(ChatChannelUser::getUsername).collect(Collectors.toSet());
+    chatChannel.getUsers().stream()
+        .map(ChatChannelUser::getUsername)
+        .filter(name -> !present.contains(name))
+        .collect(Collectors.toList())
+        .forEach(name -> {
+          log.debug("[onChatUserList] dropping stale user {} from {}", name, channel.getName());
+          chatChannel.removeUser(name);
+          synchronized (chatChannelUsersByChannelAndName) {
+            chatChannelUsersByChannelAndName.remove(mapKey(name, channel.getName()));
+          }
+        });
   }
 
   @Handler
   private void onPartEvent(ChannelPartEvent event) {
     log.debug("[onPartEvent]");
     User user = event.getActor();
-    onChatUserLeftChannel(event.getChannel().getName(), user.getNick());
+    boolean weLeft = user.getNick().equalsIgnoreCase(userService.getUsername());
+    onChatUserLeftChannel(event.getChannel().getName(), user.getNick(), weLeft);
+  }
+
+  /**
+   * Re-key a renamed user in every channel they are in.
+   *
+   * A rename produces no PART and no QUIT, so nothing else would ever drop the old name. This
+   * only became reachable once {@link TafNickListener} replaced Kitteh's own nick listener —
+   * upstream threw on this ircd's bare-prefix NICK and never fired the event at all.
+   */
+  @Handler
+  private void onUserNickChange(UserNickChangeEvent event) {
+    String oldNick = event.getOldUser().getNick();
+    String newNick = event.getNewUser().getNick();
+    log.debug("[onUserNickChange] {} -> {}", oldNick, newNick);
+    if (oldNick.equals(newNick)) {
+      return;
+    }
+
+    for (ChatChannel channel : new ArrayList<>(channels.values())) {
+      String channelName = channel.getName();
+      ChatChannelUser oldUser = channel.removeUser(oldNick);
+      if (oldUser == null) {
+        continue;
+      }
+      synchronized (chatChannelUsersByChannelAndName) {
+        chatChannelUsersByChannelAndName.remove(mapKey(oldNick, channelName));
+      }
+      // Recreated, not renamed, so the Player association is resolved for the new nick.
+      addUserToChannel(channelName, getOrCreateChatUser(newNick, channelName, oldUser.isModerator()));
+    }
   }
 
   @Handler
   private void onChatUserQuit(UserQuitEvent event) {
     log.debug("[onChatUserQuit]");
-    User user = event.getUser();
-    new ArrayList<>(channels.values()).forEach(channel -> onChatUserLeftChannel(channel.getName(), user.getNick()));
+    String nick = event.getUser().getNick();
+
+    // A stale session of ours holds our own name, and services rename us onto that name
+    // as they kill it — so this quit can carry our current nick without being us.
+    // Treating it as our own departure dropped us from the user list and, via
+    // ChatController's channels listener, parted the channel.
+    // Never act on a quit carrying a name that is, or is about to be, ours. Comparing only
+    // against the nick we hold *right now* loses a race: the ghost's quit and our rename onto
+    // its name arrive on different threads about a millisecond apart (22:03:45.774 vs .775),
+    // and deleting that entry takes us out of the channel.
+    String desired = userService.getUsername();
+    if (desired == null || !desired.equalsIgnoreCase(nick)) {
+      new ArrayList<>(channels.values())
+          .forEach(channel -> onChatUserLeftChannel(channel.getName(), nick, false));
+    }
   }
 
   @Handler
@@ -421,6 +510,103 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     }
   }
 
+  /**
+   * Restore the channels we were in before the connection dropped.
+   *
+   * Deliberately the channels we actually occupied, not the configured auto-join list: a user
+   * who had left a channel must stay out of it. Marks the auto-join as done for the same
+   * reason — a later SocialMessage must not drag those channels back in.
+   */
+  /**
+   * Take our own nick back when a stale session of ours is holding it.
+   *
+   * RECOVER kills that session; if it died on its own first the nick is simply free and
+   * setNick takes it. Either way we may still be left on "Nick`", because Kitteh answers the
+   * 433 by claiming the suffix and then renames us back off the nick whenever we reclaim it —
+   * from a thread we cannot get ahead of. So {@link #scheduleNickReclaimCheck()} reconnects
+   * instead: registering afresh once the nick is free is the only sequence that holds, and it
+   * needs no rename, which is the part this ircd and Kitteh cannot agree on.
+   */
+  void recoverOwnNick() {
+    String desiredNick = userService.getUsername();
+    String actualNick = client.getNick();
+    if (desiredNick == null || desiredNick.equalsIgnoreCase(actualNick)) {
+      return;
+    }
+
+    log.info("[recoverOwnNick] connected as '{}' instead of '{}', recovering", actualNick, desiredNick);
+    client.setNick(desiredNick);
+    // The password is stripped from the log by onMessage.
+    client.sendMessage("NickServ", String.format("RECOVER %s %s", desiredNick, getPassword()));
+    scheduleNickReclaimCheck();
+  }
+
+  /**
+   * After RECOVER, take the nick back — by rename if we can, by reconnecting only if we must.
+   *
+   * RECOVER renames us when it actually kills a ghost. When the ghost has already died of its
+   * own accord it reports "No one is using your nick", nothing renames us, and we are left on
+   * the suffix holding a request that was refused while the ghost was still up. A plain retry
+   * claims it then, with none of the churn of a reconnect; observed needing this on two of four
+   * cycles on 2026-08-22.
+   */
+  private void scheduleNickReclaimCheck() {
+    if (!nickCheckScheduled.compareAndSet(false, true)) {
+      return;
+    }
+    CompletableFuture.runAsync(() -> {
+      nickCheckScheduled.set(false);
+      String desired = userService.getUsername();
+      if (!needsNick(desired)) {
+        return;
+      }
+      // A refused retry is harmless: TafNickRejectedListener's fallback is the suffix we are
+      // already on, so this cannot push us further out.
+      log.info("[nickReclaim] still '{}', asking for '{}' again before reconnecting",
+          client.getNick(), desired);
+      client.setNick(desired);
+      scheduleRelogIfStillNotOurs();
+    }, CompletableFuture.delayedExecutor(NICK_RECLAIM_CHECK_SECONDS, TimeUnit.SECONDS));
+  }
+
+  private void scheduleRelogIfStillNotOurs() {
+    CompletableFuture.runAsync(() -> {
+      String desired = userService.getUsername();
+      if (!needsNick(desired)) {
+        log.info("[nickReclaim] reclaimed '{}' without reconnecting", client.getNick());
+        return;
+      }
+      if (!nickReconnectUsed.compareAndSet(false, true)) {
+        return;
+      }
+      log.info("[nickReclaim] '{}' still not ours, reconnecting to register as '{}'",
+          client.getNick(), desired);
+      disconnect();
+      // Let our own QUIT land first: re-registering on top of a socket that still holds the
+      // suffix collides with ourselves and yields "Nick``" (seen 2026-08-22 12:10:13).
+      CompletableFuture.runAsync(this::connect,
+          CompletableFuture.delayedExecutor(RELOG_SETTLE_SECONDS, TimeUnit.SECONDS));
+    }, CompletableFuture.delayedExecutor(NICK_RETRY_SECONDS, TimeUnit.SECONDS));
+  }
+
+  /** True when we are connected and the server has us on something other than our own nick. */
+  private boolean needsNick(String desired) {
+    return desired != null
+        && connectionState.get() == ConnectionState.CONNECTED
+        && !desired.equalsIgnoreCase(client.getNick());
+  }
+
+  private void rejoinChannels() {
+    if (channelsToRejoin.isEmpty()) {
+      return;
+    }
+    List<String> toJoin = new ArrayList<>(channelsToRejoin);
+    channelsToRejoin.clear();
+    autoChannelsJoined = true;
+    log.info("[rejoinChannels] restoring {} channel(s) after reconnect: {}", toJoin.size(), toJoin);
+    joinChannels(toJoin, true);
+  }
+
   private void joinChannels(List<String> channels, boolean reverseOrder) {
     if (channels == null) {
       return;
@@ -439,8 +625,13 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   private void onDisconnected() {
     log.debug("[onDisconnected]");
     synchronized (channels) {
+      // Remember where we were; nothing else would rejoin us.
+      channelsToRejoin.clear();
+      channelsToRejoin.addAll(channels.keySet());
+      // Keep the entries. Removing one closes its tab, which discards the message history and
+      // parts the channel for real via AbstractChatTabController.close(). Users are refilled
+      // from NAMES on rejoin.
       channels.values().forEach(ChatChannel::clearUsers);
-      channels.clear();
     }
     synchronized (chatChannelUsersByChannelAndName) {
       chatChannelUsersByChannelAndName.clear();
@@ -456,12 +647,17 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     }
   }
 
-  private void onChatUserLeftChannel(String channelName, String username) {
-    log.debug("[onChatUserLeftChannel] {} {}", channelName, username);
+  /**
+   * @param weLeft drop the channel itself, not just the user. Passed in rather than inferred
+   *     from the name: a stale session of ours quits under our own nick, and treating that as
+   *     our own departure closed the tab, which parts the channel for real.
+   */
+  private void onChatUserLeftChannel(String channelName, String username, boolean weLeft) {
+    log.debug("[onChatUserLeftChannel] {} {} weLeft={}", channelName, username, weLeft);
     if (!channels.containsKey(channelName) || channels.get(channelName).removeUser(username) == null) {
       return;
     }
-    if (userService.getUsername().equalsIgnoreCase(username)) {
+    if (weLeft) {
       synchronized (channels) {
         channels.remove(channelName);
       }
@@ -544,6 +740,7 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
         .build();
 
     client.getMessageTagManager().registerTagCreator("message-tags", "+taforever.com/toxicity", Toxicity.FUNCTION);
+    replaceBrokenNickListeners();
     client.getEventManager().registerEventListener(this);
     client.getActorTracker().setQueryChannelInformation(false);
     client.connect();
@@ -625,6 +822,12 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
   @Override
   public void leaveChannel(String channelName) {
     log.debug("[leaveChannel] {}", channelName);
+    if (connectionState.get() != ConnectionState.CONNECTED) {
+      // Kitteh would hold the PART and send it on the next connection, parting a channel we
+      // had just rejoined. Reached when a tab is closed while disconnected.
+      log.debug("[leaveChannel] not connected, ignoring {}", channelName);
+      return;
+    }
     if (client != null) {
       client.removeChannel(channelName);
     }

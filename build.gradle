@@ -199,9 +199,16 @@ compileTestJava {
   // Country flags: guards that every country we offer actually has a flag image
   // (Kosovo/XK is GeoIP-only, so Locale.getISOCountries() misses it).
   include '**/chat/CountryFlagServiceTest.java'
-  // NickServ RECOVER of our own nick after a ghosted reconnect. Scoped to the one file so it
-  // doesn't pull in the stale KittehChatServiceTest beside it.
-  include '**/chat/KittehNickRecoveryTest.java'
+  include '**/chat/KittehGhostQuitTest.java'
+  include '**/chat/KittehRejoinOnReconnectTest.java'
+  // Replacements for the two Kitteh listeners this ircd defeats (bare-prefix NICK,
+  // and the 433 fallback that renames us off a nick we already hold).
+  include '**/chat/TafNickListenerTest.java'
+  include '**/chat/TafNickRejectedListenerTest.java'
+  include '**/chat/KittehNickRekeyTest.java'
+  // Pins that a dropped connection keeps the channel tab (and its message history) open:
+  // clearing the user list removes us too, which read as us leaving the channel.
+  include '**/chat/ChatControllerTest.java'
   include '**/assetserver/**'
   // Test base classes / shared utilities — required by tests in the
   // included packages above. Don't include broken siblings of these.

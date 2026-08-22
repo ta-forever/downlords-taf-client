@@ -363,11 +363,19 @@ public class ChatController extends AbstractViewController<Node> {
   }
 
   private void onChatUserLeftChannel(ChatChannelUser chatUser, String channelName) {
-    if (isCurrentUser(chatUser)) {
-      AbstractChatTabController chatTab = nameToChatTabController.get(channelName);
-      if (chatTab != null) {
-        JavaFxUtil.runLater(() -> tabPane.getTabs().remove(chatTab.getRoot()));
-      }
+    if (!isCurrentUser(chatUser)) {
+      return;
+    }
+    // A drop empties the user list, which takes us out of it too. That is not us leaving:
+    // closing the tab discards the message history and parts the channel for real. Checked
+    // here rather than inside runLater, which would run after we are back online.
+    if (chatService.connectionStateProperty().get() != ConnectionState.CONNECTED) {
+      log.debug("[onChatUserLeftChannel] not connected, keeping {} open", channelName);
+      return;
+    }
+    AbstractChatTabController chatTab = nameToChatTabController.get(channelName);
+    if (chatTab != null) {
+      JavaFxUtil.runLater(() -> tabPane.getTabs().remove(chatTab.getRoot()));
     }
   }
 
