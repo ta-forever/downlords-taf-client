@@ -248,12 +248,6 @@ public class ReplayDetailController implements Controller<Node> {
         replay.hostIdProperty().isEqualTo(userService.getUserId())));
     unhideButton.managedProperty().bind(unhideButton.visibleProperty());
 
-    replayIdField.visibleProperty().bind(replay.replayHiddenProperty().not());
-    replayIdField.managedProperty().bind(replayIdField.visibleProperty());
-
-    copyButton.visibleProperty().bind(replay.replayHiddenProperty().not());
-    copyButton.managedProperty().bind(copyButton.visibleProperty());
-
     tadaUploadButton.visibleProperty().bind(Bindings.createBooleanBinding(
         () -> replayService.uploadReplayToTadaPermitted(replay) && !replay.getReplayHidden(),
         replay.replayHiddenProperty()));
