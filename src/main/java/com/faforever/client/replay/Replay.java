@@ -70,6 +70,13 @@ public class Replay {
   private final ObjectProperty<ReviewsSummary> reviewsSummary;
   private final BooleanProperty replayHidden;
   private final IntegerProperty hostId;
+  /**
+   * The demo compiler's metadata blob, as the API hands it to us. Set once from the DTO and never
+   * observed, hence a plain field. Null for games recorded before it existed, and for games whose
+   * demo never compiled.
+   */
+  @Nullable
+  private ReplayMeta replayMeta;
 
   public Replay(String title) {
     this();
@@ -137,6 +144,7 @@ public class Replay {
 
     if (dto.getReplayMeta() != null) {
       ReplayMeta replayMeta = new Gson().fromJson(dto.getReplayMeta(), ReplayMeta.class);
+      replay.setReplayMeta(replayMeta);
       replay.setDemoFileInfo(new DemoFileInfo(null, replayMeta.getMapName(), replayMeta.getTaMapHash(),
           replayMeta.getUnitsHash(), replayMeta.getTaVersionMajor(), replayMeta.getTaVersionMinor()));
     }
@@ -172,6 +180,15 @@ public class Replay {
             s -> new LinkedList<>()
         ).add(PlayerStats.fromDto(gamePlayerStats)));
     return teams;
+  }
+
+  @Nullable
+  public ReplayMeta getReplayMeta() {
+    return replayMeta;
+  }
+
+  public void setReplayMeta(@Nullable ReplayMeta replayMeta) {
+    this.replayMeta = replayMeta;
   }
 
   public static String getReplayUrl(int replayId, String baseUrlFormat) {

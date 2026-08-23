@@ -196,6 +196,9 @@ compileTestJava {
   // so the ChaCha20 port, the 326-byte preamble layout and the body-relative offset are all covered.
   include '**/replay/LocalDemoSealServiceTest.java'
   include '**/replay/BrowserWatchServiceTest.java'
+  // Pins the replay download name against the server's TADA upload naming (tada_service.py);
+  // pure formatter, no broken siblings pulled in.
+  include '**/replay/CanonicalReplayNameTest.java'
   // Country flags: guards that every country we offer actually has a flag image
   // (Kosovo/XK is GeoIP-only, so Locale.getISOCountries() misses it).
   include '**/chat/CountryFlagServiceTest.java'

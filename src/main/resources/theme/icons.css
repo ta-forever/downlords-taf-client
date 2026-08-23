@@ -111,6 +111,11 @@
   -fx-padding: 0.666667em 0.5em;
 }
 
+.download-icon {
+  -fx-shape: "M214 128h596v86h-596v-86zM384 342v256h-170l298 298 298-298h-170v-256h-256z";
+  -fx-padding: 0.666667em 0.5em;
+}
+
 .fast-rewind-icon {
   -fx-shape: "M11.484 12l8.531-6v12zM11.016 18l-8.531-6 8.531-6v12z";
   -fx-padding: 0.666667em 0.5em;

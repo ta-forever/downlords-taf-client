@@ -379,6 +379,18 @@ public class ReplayService implements InitializingBean {
   }
 
   /**
+   * Downloads the vault's zip verbatim to a location of the user's choosing, rather than expanding
+   * it into the replay cache the way {@link #downloadReplay(int)} does for the local replayer.
+   */
+  public CompletableFuture<Path> saveReplayAs(int id, Path destination) {
+    ReplayDownloadTask task = applicationContext.getBean(ReplayDownloadTask.class);
+    task.setReplayId(Integer.toString(id));
+    task.setDownloadPath(destination);
+    task.setUnzip(false);
+    return taskService.submitTask(task).getFuture();
+  }
+
+  /**
    * Reads the specified replay file in order to add more information to the specified replay instance.
    */
   public void enrich(Replay replay, Path path) {

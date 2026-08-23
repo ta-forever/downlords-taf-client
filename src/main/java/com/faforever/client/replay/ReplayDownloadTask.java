@@ -32,6 +32,7 @@ public class ReplayDownloadTask extends CompletableTask<Path> {
   private String replayId;
   private URL replayUrl;
   private Path downloadPath;
+  private boolean unzip = true;
 
   @Inject
   public ReplayDownloadTask(I18n i18n, ClientProperties clientProperties,
@@ -62,7 +63,7 @@ public class ReplayDownloadTask extends CompletableTask<Path> {
     }
 
     try (InputStream inputStream = urlConnection.getInputStream()) {
-      if (urlConnection.getContentType().equals("application/zip")) {
+      if (unzip && "application/zip".equals(urlConnection.getContentType())) {
         Unzipper.from(inputStream)
             .zipBombByteCountThreshold(100_000_000)
             .to(downloadPath.getParent())
@@ -90,6 +91,17 @@ public class ReplayDownloadTask extends CompletableTask<Path> {
 
   public ReplayDownloadTask setDownloadPath(Path downloadPath) {
     this.downloadPath = downloadPath;
+    return this;
+  }
+
+  /**
+   * Whether a zip served by the vault is expanded into {@code downloadPath}'s parent directory
+   * (the default, which is what the local replayer needs) or written verbatim to
+   * {@code downloadPath}. "Save replay as..." wants the archive itself, under a name of its own
+   * choosing, so it turns this off.
+   */
+  public ReplayDownloadTask setUnzip(boolean unzip) {
+    this.unzip = unzip;
     return this;
   }
 

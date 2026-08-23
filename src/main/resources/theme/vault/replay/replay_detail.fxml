@@ -122,6 +122,13 @@
                                                <Region styleClass="icon,upload-icon"/>
                                            </graphic>
                                        </Button>
+                                       <Button fx:id="downloadButton" mnemonicParsing="false"
+                                               onAction="#onDownloadButtonClicked" text="%replay.download">
+                                           <tooltip><Tooltip text="%replay.download.tooltip" /></tooltip>
+                                           <graphic>
+                                               <Region styleClass="icon,download-icon"/>
+                                           </graphic>
+                                       </Button>
                                        <Button fx:id="watchButton" defaultButton="true" mnemonicParsing="false"
                                                onAction="#onWatchButtonClicked" text="%game.watchButtonFormat">
                                            <graphic>

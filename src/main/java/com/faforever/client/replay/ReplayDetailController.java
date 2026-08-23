@@ -6,6 +6,7 @@ import com.faforever.client.fa.DemoFileInfo;
 import com.faforever.client.fx.DefaultImageView;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
+import com.faforever.client.fx.PlatformService;
 import com.faforever.client.fx.StringCell;
 import com.faforever.client.galacticwar.GalacticWarService;
 import com.faforever.client.game.Faction;
@@ -20,7 +21,10 @@ import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.mod.ModService;
+import com.faforever.client.notification.Action;
 import com.faforever.client.notification.NotificationService;
+import com.faforever.client.notification.PersistentNotification;
+import com.faforever.client.notification.Severity;
 import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.DisplayMetric;
@@ -64,14 +68,20 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
+import javafx.stage.FileChooser;
+import javafx.stage.FileChooser.ExtensionFilter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.util.Assert;
 
+import java.io.File;
 import java.io.FileNotFoundException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -105,6 +115,7 @@ public class ReplayDetailController implements Controller<Node> {
   private final UserService userService;
   private final GalacticWarService galacticWarService;
   private final PreferencesService preferencesService;
+  private final PlatformService platformService;
   private final com.faforever.client.ladder.LadderPointsService ladderPointsService;
   private final com.faforever.client.wager.WagerService wagerService;
   private final ModService modService;
@@ -153,6 +164,7 @@ public class ReplayDetailController implements Controller<Node> {
   public Node replayAvailableContainer;
   public Button watchButton;
   public Button tadaUploadButton;
+  public Button downloadButton;
   public TextField replayIdField;
   public ScrollPane scrollPane;
   public ToggleButton viewBattleReportButton;
@@ -286,6 +298,7 @@ public class ReplayDetailController implements Controller<Node> {
     // resolved, and left hidden when it can't be — see ModService.findModVersionDisplayName.
     modVersionLabel.setVisible(false);
     modVersionLabel.managedProperty().bind(modVersionLabel.visibleProperty());
+    resolvedModVersion = null;
     modService.findModVersionDisplayName(replay.getDemoFileInfo())
         .thenAccept(displayName -> JavaFxUtil.runLater(() -> {
           if (this.replay != replay) {
@@ -293,6 +306,7 @@ public class ReplayDetailController implements Controller<Node> {
           }
           displayName.ifPresent(modVersionLabel::setText);
           modVersionLabel.setVisible(displayName.isPresent());
+          resolvedModVersion = displayName.orElse(null);
         }));
 
     double gameQuality = ratingService.calculateQuality(replay);
@@ -747,6 +761,76 @@ public class ReplayDetailController implements Controller<Node> {
   }
 
   public void onTadaUploadButtonClicked() { replayService.uploadReplayToTada(replay.getId()); }
+
+  /**
+   * Saves the vault's replay archive to wherever the user wants it, pre-named the same way the
+   * server names the copy it uploads to TADA - see {@link CanonicalReplayName}. The download is a
+   * zip holding the .tad, so the canonical stem takes a .zip extension and the .tad keeps its own
+   * name inside the archive.
+   */
+  public void onDownloadButtonClicked() {
+    // resolvedModVersion is whatever the units-hash lookup fired off by setReplay came back with.
+    // It is normally in by the time the user reaches this button; if it is not, the name simply
+    // carries no version, which is the same outcome as a version we cannot resolve at all.
+    String fileName = CanonicalReplayName.stem(replay, resolvedModVersion) + ".zip";
+
+    FileChooser fileChooser = new FileChooser();
+    fileChooser.setTitle(i18n.get("replay.download.chooseFile"));
+    fileChooser.setInitialFileName(fileName);
+    fileChooser.getExtensionFilters().add(new ExtensionFilter(i18n.get("replay.download.fileType"), "*.zip"));
+    Optional.ofNullable(lastDownloadDirectory())
+        .ifPresent(directory -> fileChooser.setInitialDirectory(directory.toFile()));
+
+    Scene scene = getRoot().getScene();
+    File destination = fileChooser.showSaveDialog(scene == null ? null : scene.getWindow());
+    if (destination == null) {
+      return;
+    }
+    lastDownloadDirectory = destination.toPath().getParent();
+
+    replayService.saveReplayAs(replay.getId(), destination.toPath())
+        .thenAccept(path -> JavaFxUtil.runLater(() ->
+            notificationService.addNotification(new PersistentNotification(
+                i18n.get("replay.download.finished", path.getFileName().toString()), Severity.INFO,
+                List.of(new Action(i18n.get("replay.download.showInFolder"),
+                    event -> platformService.reveal(path)))))))
+        .exceptionally(throwable -> {
+          Throwable cause = throwable.getCause() == null ? throwable : throwable.getCause();
+          if (cause instanceof FileNotFoundException) {
+            log.warn("Replay {} not available on server yet", replay.getId(), cause);
+            notificationService.addImmediateWarnNotification("replayNotAvailable", replay.getId());
+          } else {
+            log.error("Replay {} could not be downloaded", replay.getId(), cause);
+            notificationService.addImmediateErrorNotification(cause, "replay.download.failed", replay.getId());
+          }
+          return null;
+        });
+  }
+
+  /**
+   * Display name of the featured-mod build this replay ran on, once
+   * {@link ModService#findModVersionDisplayName} has resolved it. Null until then, and null for
+   * good when the units hash matches no build we know about.
+   */
+  @Nullable
+  private String resolvedModVersion;
+
+  /**
+   * Where the last save landed, so a run of downloads doesn't reopen in the same default every
+   * time. Static because the detail dialog is prototype-scoped: a fresh controller is built for
+   * each replay, so an instance field would forget between two consecutive downloads.
+   */
+  @Nullable
+  private static Path lastDownloadDirectory;
+
+  @Nullable
+  private Path lastDownloadDirectory() {
+    if (lastDownloadDirectory != null && Files.isDirectory(lastDownloadDirectory)) {
+      return lastDownloadDirectory;
+    }
+    Path downloads = Path.of(System.getProperty("user.home"), "Downloads");
+    return Files.isDirectory(downloads) ? downloads : null;
+  }
 
   public void copyLink() {
     String replayUrl = Replay.getReplayUrl(replay.getId(), clientProperties.getVault().getReplayDownloadUrlFormat());
