@@ -112,13 +112,24 @@ public class GalacticWarService implements InitializingBean {
 
         .thenCompose(scenario -> {
           Set<Integer> idsToFetch = new HashSet<>();
-          // Atomically reserve properties
-          for (Integer id : scenario.getPlayers().keySet()) {
-            playerNames.computeIfAbsent(id, key -> {
-              idsToFetch.add(key);
-              return new SimpleStringProperty("Loading...");
-            });
-          }
+
+          // Reserve a property per player and note which still need resolving. The test is on the
+          // VALUE, not key-absence: scenarios.put() above publishes the scenario to the UI a stage
+          // before we get here, so the leaderboard may already have called
+          // getPlayerNameProperty() and installed a placeholder. Keying off computeIfAbsent's
+          // mapper would then skip those ids and strand them on the placeholder forever.
+          java.util.function.Consumer<Integer> reserve = id -> {
+            StringProperty prop =
+                playerNames.computeIfAbsent(id, key -> new SimpleStringProperty(NAME_LOADING));
+            if (isPlaceholderName(prop.get())) {
+              idsToFetch.add(id);
+            }
+          };
+
+          // The CAREER map, not getPlayers(): veterans who have not fought yet this galaxy exist
+          // only in lifetime_players, and the career leaderboard lists them.
+          scenario.getCareerPlayers().keySet().forEach(reserve);
+
           // Also resolve past wars' top contributors so the Hall of Victors and the
           // victory splash honours panel can show names
           if (scenario.getHistory() != null) {
@@ -128,10 +139,7 @@ public class GalacticWarService implements InitializingBean {
                 .flatMap(java.util.List::stream)
                 .map(Scenario.Contributor::getPlayerId)
                 .filter(java.util.Objects::nonNull)
-                .forEach(id -> playerNames.computeIfAbsent(id, key -> {
-                  idsToFetch.add(key);
-                  return new SimpleStringProperty("Loading...");
-                }));
+                .forEach(reserve);
           }
           if (idsToFetch.isEmpty()) {
             return CompletableFuture.completedFuture(scenario);
@@ -141,20 +149,37 @@ public class GalacticWarService implements InitializingBean {
               .getPlayersByIds(idsToFetch)
               .thenApply(playersList -> {
                 JavaFxUtil.runLater(() -> {
+                  Set<Integer> resolved = new HashSet<>();
                   for (var p : playersList) {
                     StringProperty prop = playerNames.get(p.getId());
                     if (prop != null) {
                       prop.set(p.getUsername());
                     }
+                    resolved.add(p.getId());
                   }
+                  // Ids the API had nothing for (deleted accounts) would otherwise sit on
+                  // "Loading..." forever; say so instead.
+                  idsToFetch.stream()
+                      .filter(id -> !resolved.contains(id))
+                      .map(playerNames::get)
+                      .filter(java.util.Objects::nonNull)
+                      .forEach(prop -> prop.set(NAME_UNKNOWN));
                 });
                 return scenario;
               });
         });
   }
 
+  static final String NAME_LOADING = "Loading...";
+  static final String NAME_UNKNOWN = "<unknown>";
+
+  /** True while a name has never been resolved — such ids are (re)tried on the next fetch. */
+  private static boolean isPlaceholderName(String name) {
+    return name == null || NAME_LOADING.equals(name) || NAME_UNKNOWN.equals(name);
+  }
+
   public StringProperty getPlayerNameProperty(int playerId) {
-    return playerNames.computeIfAbsent(playerId, key -> new SimpleStringProperty("<unknown>"));
+    return playerNames.computeIfAbsent(playerId, key -> new SimpleStringProperty(NAME_UNKNOWN));
   }
 
   Scenario getScenario(String galaxyTechnicalName) {

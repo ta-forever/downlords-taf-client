@@ -54,6 +54,37 @@ public class Scenario {
         nz(careerScore.getCumLosingScores()) - nz(baseline.getCumLosingScores()));
   }
 
+  /**
+   * All-time totals per player per faction: this galaxy merged over every previous one.
+   *
+   * <p>Neither underlying map is complete on its own. {@code players} is reset at each galaxy
+   * rollover, so it omits veterans who have not fought yet this galaxy; {@code lifetime_players}
+   * is only refreshed at rollover, so it omits both newcomers and anything earned since. Where a
+   * faction appears in both, the {@code players} entry wins — it was pre-seeded from the lifetime
+   * baseline at first use and has accumulated on top of it, so it is already the career total.
+   */
+  public Map<Integer, Map<String, GwPlayerScore>> getCareerPlayers() {
+    Map<Integer, Map<String, GwPlayerScore>> career = new java.util.HashMap<>();
+
+    if (lifetimePlayers != null) {
+      lifetimePlayers.forEach((playerId, factionScores) -> {
+        if (factionScores != null) {
+          career.computeIfAbsent(playerId, id -> new java.util.LinkedHashMap<>()).putAll(factionScores);
+        }
+      });
+    }
+
+    if (players != null) {
+      players.forEach((playerId, factionScores) -> {
+        if (factionScores != null) {
+          career.computeIfAbsent(playerId, id -> new java.util.LinkedHashMap<>()).putAll(factionScores);
+        }
+      });
+    }
+
+    return career;
+  }
+
   private static int nz(Integer value) {
     return value != null ? value : 0;
   }

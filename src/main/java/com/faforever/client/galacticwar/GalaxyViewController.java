@@ -3,7 +3,6 @@ package com.faforever.client.galacticwar;
 import com.faforever.client.chat.UserInfoWindowController;
 import com.faforever.client.fx.AbstractViewController;
 import com.faforever.client.fx.JavaFxUtil;
-import com.faforever.client.galacticwar.Scenario.FactionScoreRank;
 import com.faforever.client.game.Faction;
 import com.faforever.client.game.Game;
 import com.faforever.client.game.GameService;
@@ -853,6 +852,41 @@ public class GalaxyViewController extends AbstractViewController<Node> {
     return table;
   }
 
+  /**
+   * One row per player in "this war" mode (their top-ranked faction), but one row per
+   * (player, faction) in career mode: a player who has fought for both ARM and CORE gets a
+   * line for each, so their two careers are not hidden behind whichever ranks highest.
+   */
+  private record LeaderboardEntry(
+      Integer playerId,
+      String factionName,
+      GwPlayerScore careerScore,
+      GwPlayerScore displayed
+  ) {}
+
+  private static boolean isEmptyScore(GwPlayerScore score) {
+    return score == null
+        || (nz(score.getWins()) == 0
+        && nz(score.getLosses()) == 0
+        && nz(score.getCumWinningScores()) == 0.0f);
+  }
+
+  /** {@link Scenario#rankForPlayerScore} unboxes its fields, so absent scores get the floor rank. */
+  private static GwRank safeRank(Scenario scenario, GwPlayerScore score) {
+    if (score == null || score.getCumWinningScores() == null) {
+      return GwRank.PRIVATE;
+    }
+    return scenario.rankForPlayerScore(score);
+  }
+
+  private static int nz(Integer value) {
+    return value != null ? value : 0;
+  }
+
+  private static float nz(Float value) {
+    return value != null ? value : 0.0f;
+  }
+
   private void populateLeaderboard(Scenario scenario) {
     leaderboardContainer.getChildren().clear();
 
@@ -862,66 +896,83 @@ public class GalaxyViewController extends AbstractViewController<Node> {
 
     leaderboardContainer.getChildren().add(table);
 
-    // Career mode (default) shows/orders by all-time XP; "this war" mode shows/orders by the
-    // XP delta earned in the current galaxy. Faction identity and the rank medal stay
-    // career-based in both modes — ranks are for careers, the toggle only changes the numbers.
+    // Career mode (default) shows/orders by all-time XP — this galaxy and every previous one —
+    // and lists each faction a player has fought for separately. "This war" mode shows/orders by
+    // the XP delta earned in the current galaxy, collapsed to one row per player. Faction identity
+    // and the rank medal stay career-based in both modes — ranks are for careers, the toggle only
+    // changes the numbers.
     boolean thisWarOnly = leaderboardWarXpToggle != null && leaderboardWarXpToggle.isSelected();
 
-    java.util.function.BiFunction<Integer, Map<String, GwPlayerScore>, Float> sortScore =
-        (playerId, scores) -> scores.entrySet().stream()
-            .map(e -> {
-              GwPlayerScore s = e.getValue() != null ? e.getValue() : GwPlayerScore.EMPTY_SCORE;
-              if (thisWarOnly) {
-                s = scenario.getCurrentWarScore(playerId, e.getKey(), s);
-              }
-              return s.getCumWinningScores() != null ? s.getCumWinningScores() : 0.0f;
-            })
-            .max(Float::compare)
-            .orElse(0.0f);
+    // Career mode must read the merged map, or veterans who have not fought yet this galaxy are
+    // missing entirely (they live only in lifetime_players). "This war" mode must NOT: the merged
+    // map can surface a faction the player has not touched this galaxy, and picking that as their
+    // top-ranked faction would yield a zero delta and drop them from the war leaderboard.
+    Map<Integer, Map<String, GwPlayerScore>> source =
+        thisWarOnly ? scenario.getPlayers() : scenario.getCareerPlayers();
 
     ObservableList<GwLeaderboardRow> rows = FXCollections.observableArrayList();
     AtomicInteger rankCounter = new AtomicInteger(1);
 
-    scenario.getPlayers().entrySet().stream().sorted(
-        (a, b) -> Float.compare(sortScore.apply(b.getKey(), b.getValue()),
-            sortScore.apply(a.getKey(), a.getValue())))
-        .forEachOrdered(entry -> {
+    source.entrySet().stream()
+        .flatMap(entry -> {
           Integer playerId = entry.getKey();
-          Optional<FactionScoreRank> fsr = scenario.getFactionScoreRank(entry.getValue());
-          if (fsr.isEmpty()) {
-            return;
-          }
-
           Map<String, GwPlayerScore> scores = entry.getValue();
-          Optional<Map.Entry<String, GwPlayerScore>> topEntry =
-              scores.entrySet().stream()
-                  .max(java.util.Comparator.comparingInt(
-                      e -> scenario.rankForPlayerScore(e.getValue()).getTier()));
-          if (topEntry.isEmpty()) {
-            return;
+          if (scores == null || scores.isEmpty()) {
+            return java.util.stream.Stream.empty();
           }
 
-          String factionName = topEntry.get().getKey();
-          Faction faction = Faction.fromString(factionName);
-          GwPlayerScore careerScore = topEntry.get().getValue();
-          GwRank gwRank = scenario.rankForPlayerScore(careerScore);
-
-          GwPlayerScore displayed = thisWarOnly
-              ? scenario.getCurrentWarScore(playerId, factionName, careerScore)
-              : careerScore;
-          if (thisWarOnly && displayed.getWins() == 0 && displayed.getLosses() == 0) {
-            // pre-seeded veterans who haven't fought this war yet
-            return;
+          if (thisWarOnly) {
+            Optional<Map.Entry<String, GwPlayerScore>> topEntry =
+                scores.entrySet().stream()
+                    .filter(e -> e.getValue() != null)
+                    .max(java.util.Comparator.comparingInt(
+                        e -> safeRank(scenario, e.getValue()).getTier()));
+            if (topEntry.isEmpty()) {
+              return java.util.stream.Stream.empty();
+            }
+            String factionName = topEntry.get().getKey();
+            GwPlayerScore careerScore = topEntry.get().getValue();
+            GwPlayerScore warScore = scenario.getCurrentWarScore(playerId, factionName, careerScore);
+            if (nz(warScore.getWins()) == 0 && nz(warScore.getLosses()) == 0) {
+              // pre-seeded veterans who haven't fought this war yet
+              return java.util.stream.Stream.empty();
+            }
+            return java.util.stream.Stream.of(
+                new LeaderboardEntry(playerId, factionName, careerScore, warScore));
           }
+
+          java.util.List<LeaderboardEntry> perFaction = scores.entrySet().stream()
+              .filter(e -> !isEmptyScore(e.getValue()))
+              .map(e -> new LeaderboardEntry(playerId, e.getKey(), e.getValue(), e.getValue()))
+              .toList();
+          if (!perFaction.isEmpty()) {
+            return perFaction.stream();
+          }
+
+          // every faction is all-zero: still list the player once, as before
+          return scores.entrySet().stream()
+              .filter(e -> e.getValue() != null)
+              .max(java.util.Comparator.comparingInt(
+                  e -> safeRank(scenario, e.getValue()).getTier()))
+              .map(e -> new LeaderboardEntry(playerId, e.getKey(), e.getValue(), e.getValue()))
+              .stream();
+        })
+        .sorted((a, b) -> Float.compare(
+            nz(b.displayed().getCumWinningScores()),
+            nz(a.displayed().getCumWinningScores())))
+        .forEachOrdered(entry -> {
+          Faction faction = Faction.fromString(entry.factionName());
+          GwRank gwRank = safeRank(scenario, entry.careerScore());
+          GwPlayerScore displayed = entry.displayed();
 
           rows.add(new GwLeaderboardRow(
               rankCounter.getAndIncrement(),
-              galacticWarService.getPlayerNameProperty(playerId),
-              displayed.getWins(),
-              Math.round(displayed.getCumWinningScores()),
-              displayed.getLosses(),
-              Math.round(displayed.getCumLosingScores()),
-              galacticWarService.getMedalIcon(scenario, factionName, gwRank),
+              galacticWarService.getPlayerNameProperty(entry.playerId()),
+              nz(displayed.getWins()),
+              Math.round(nz(displayed.getCumWinningScores())),
+              nz(displayed.getLosses()),
+              Math.round(nz(displayed.getCumLosingScores())),
+              galacticWarService.getMedalIcon(scenario, entry.factionName(), gwRank),
               faction
           ));
         });
