@@ -23,6 +23,19 @@
   -fx-background-color: -fx-background;
 }
 
+.replay-download-button {
+  -fx-padding: 0;
+}
+
+.replay-download-button > .label {
+  -fx-padding: 0.666667em 1.25em;
+  -fx-graphic-text-gap: 0.666667em;
+}
+
+.replay-download-button > .arrow-button {
+  -fx-padding: 0.666667em 0.833333em;
+}
+
 /***************** Split Pane *****************/
 
 .split-pane > .split-pane-divider {

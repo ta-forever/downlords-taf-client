@@ -4,9 +4,11 @@
 <?import javafx.scene.chart.LineChart?>
 <?import javafx.scene.chart.NumberAxis?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckMenuItem?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.SplitMenuButton?>
 <?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
@@ -122,13 +124,23 @@
                                                <Region styleClass="icon,upload-icon"/>
                                            </graphic>
                                        </Button>
-                                       <Button fx:id="downloadButton" mnemonicParsing="false"
-                                               onAction="#onDownloadButtonClicked" text="%replay.download">
-                                           <tooltip><Tooltip text="%replay.download.tooltip" /></tooltip>
+                                       <SplitMenuButton fx:id="downloadButton" styleClass="replay-download-button"
+                                                        mnemonicParsing="false"
+                                                        onAction="#onDownloadButtonClicked" text="%replay.download">
+                                           <items>
+                                               <CheckMenuItem fx:id="downloadIncludeDateMenuItem"
+                                                              text="%replay.download.includeDate" />
+                                               <CheckMenuItem fx:id="downloadIncludeModMenuItem"
+                                                              text="%replay.download.includeMod" />
+                                               <CheckMenuItem fx:id="downloadIncludeMapMenuItem"
+                                                              text="%replay.download.includeMap" />
+                                               <CheckMenuItem fx:id="downloadIncludePlayersMenuItem"
+                                                              text="%replay.download.includePlayers" />
+                                           </items>
                                            <graphic>
                                                <Region styleClass="icon,download-icon"/>
                                            </graphic>
-                                       </Button>
+                                       </SplitMenuButton>
                                        <Button fx:id="watchButton" defaultButton="true" mnemonicParsing="false"
                                                onAction="#onWatchButtonClicked" text="%game.watchButtonFormat">
                                            <graphic>

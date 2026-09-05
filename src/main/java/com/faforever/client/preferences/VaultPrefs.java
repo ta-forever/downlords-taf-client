@@ -20,6 +20,10 @@ public class VaultPrefs {
   private final MapProperty<String, String> savedMapQueries;
   private final MapProperty<String, String> savedModQueries;
   private final BooleanProperty showWinnersInReplays;
+  private final BooleanProperty replayDownloadIncludeDate;
+  private final BooleanProperty replayDownloadIncludeMod;
+  private final BooleanProperty replayDownloadIncludeMap;
+  private final BooleanProperty replayDownloadIncludePlayers;
 
 
   public VaultPrefs() {
@@ -30,6 +34,10 @@ public class VaultPrefs {
     savedMapQueries = new SimpleMapProperty<>(FXCollections.observableHashMap());
     savedModQueries = new SimpleMapProperty<>(FXCollections.observableHashMap());
     showWinnersInReplays = new SimpleBooleanProperty(true);
+    replayDownloadIncludeDate = new SimpleBooleanProperty(true);
+    replayDownloadIncludeMod = new SimpleBooleanProperty(true);
+    replayDownloadIncludeMap = new SimpleBooleanProperty(true);
+    replayDownloadIncludePlayers = new SimpleBooleanProperty(true);
   }
 
   public SortConfig getOnlineReplaySortConfig() {
@@ -62,6 +70,22 @@ public class VaultPrefs {
 
   public BooleanProperty showWinnersInReplaysProperty() {
     return showWinnersInReplays;
+  }
+
+  public BooleanProperty replayDownloadIncludeDateProperty() {
+    return replayDownloadIncludeDate;
+  }
+
+  public BooleanProperty replayDownloadIncludeModProperty() {
+    return replayDownloadIncludeMod;
+  }
+
+  public BooleanProperty replayDownloadIncludeMapProperty() {
+    return replayDownloadIncludeMap;
+  }
+
+  public BooleanProperty replayDownloadIncludePlayersProperty() {
+    return replayDownloadIncludePlayers;
   }
 
   public ObjectProperty<SortConfig> mapSortConfigProperty() {

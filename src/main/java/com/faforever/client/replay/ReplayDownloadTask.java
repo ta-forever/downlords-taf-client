@@ -33,6 +33,7 @@ public class ReplayDownloadTask extends CompletableTask<Path> {
   private URL replayUrl;
   private Path downloadPath;
   private boolean unzip = true;
+  private String archiveReplayFileName;
 
   @Inject
   public ReplayDownloadTask(I18n i18n, ClientProperties clientProperties,
@@ -63,7 +64,10 @@ public class ReplayDownloadTask extends CompletableTask<Path> {
     }
 
     try (InputStream inputStream = urlConnection.getInputStream()) {
-      if (unzip && "application/zip".equals(urlConnection.getContentType())) {
+      if (archiveReplayFileName != null) {
+        ReplayArchiveWriter.write(inputStream, downloadPath, archiveReplayFileName);
+      }
+      else if (unzip && "application/zip".equals(urlConnection.getContentType())) {
         Unzipper.from(inputStream)
             .zipBombByteCountThreshold(100_000_000)
             .to(downloadPath.getParent())
@@ -102,6 +106,11 @@ public class ReplayDownloadTask extends CompletableTask<Path> {
    */
   public ReplayDownloadTask setUnzip(boolean unzip) {
     this.unzip = unzip;
+    return this;
+  }
+
+  public ReplayDownloadTask setArchiveReplayFileName(String archiveReplayFileName) {
+    this.archiveReplayFileName = archiveReplayFileName;
     return this;
   }
 
