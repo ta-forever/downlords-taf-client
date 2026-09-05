@@ -8,6 +8,7 @@ import org.jetbrains.annotations.Nullable;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -27,12 +28,14 @@ import java.util.stream.Collectors;
  * {@code datestamp} is {@code game_stats.startTime}, {@code mapName}/{@code players} come from the
  * demo compiler's JSON blob, and {@code file_extension} comes from {@code game_featuredMods}.
  * <p>
- * We insert one segment the server does not, so the name says which game the replay is even of:
+ * By default we insert one segment the server does not, so the name says which game the replay is
+ * even of:
  * <pre>
  *   {datestamp} - {mod}[ {version}] - {mapName} - {name1, name2, ...}.{file_extension}
  * </pre>
- * It goes directly after the date so the player list stays last, which is what the length budget
- * truncates. The mod name is the <em>untranslated</em> display name: the localised one would give
+ * The user may omit any of the five details. When both mod and version are selected they form one
+ * segment, with the version directly after the mod. If every detail is omitted, the stable replay
+ * id is used instead. The mod name is the <em>untranslated</em> display name: the localised one would give
  * the same replay a different file name in every language. The version is dropped entirely when it
  * is not known rather than filled with a placeholder - see
  * {@code ModService#findModVersionDisplayName}, which cannot resolve it for a replay predating
@@ -78,42 +81,77 @@ public final class CanonicalReplayName {
    *                   resolved - in which case the name simply carries no version.
    */
   public static String of(Replay replay, @Nullable String modVersion) {
-    return stem(replay, modVersion) + "." + extension(replay);
+    return of(replay, modVersion, ReplayDownloadNameOptions.all());
+  }
+
+  public static String of(Replay replay, @Nullable String modVersion,
+                          ReplayDownloadNameOptions options) {
+    return stem(replay, modVersion, options) + "." + extension(replay);
   }
 
   /**
-   * The canonical name without the trailing {@code .tad}, for callers naming a container of the
-   * demo rather than the demo itself. The vault download is a zip <em>holding</em> the {@code .tad},
-   * so it is named {@code <stem>.zip} and the {@code .tad} keeps its own name inside.
+   * The canonical name without the replay extension, for callers naming a container of the demo
+   * rather than the demo itself. The vault download is a zip holding the mod-specific replay file,
+   * so the two share this stem while retaining their own extensions.
    */
   public static String stem(Replay replay, @Nullable String modVersion) {
-    String datestamp = datestamp(replay.getStartTime());
-    String mod = modSegment(replay, modVersion);
+    return stem(replay, modVersion, ReplayDownloadNameOptions.all());
+  }
+
+  public static String stem(Replay replay, @Nullable String modVersion,
+                            ReplayDownloadNameOptions options) {
+    Objects.requireNonNull(options);
     ReplayMeta meta = replay.getReplayMeta();
+    List<String> segments = new ArrayList<>();
+
+    if (options.includeDate()) {
+      segments.add(datestamp(replay.getStartTime()));
+    }
+    if (options.includeMod() || options.includeVersion()) {
+      String mod = modSegment(replay, modVersion, options.includeMod(), options.includeVersion());
+      if (!mod.isEmpty()) {
+        segments.add(mod);
+      }
+    }
 
     // Pre-replay_meta games (and any game whose demo never compiled) have no map or player list on
     // record. The server falls back to the replay id alone; match it rather than inventing a name
     // out of the TAF-side team lists, which carry logins, not in-game aliases. The mod is still
     // known from the game record, so it stays.
     if (meta == null || meta.getMapName() == null || meta.getPlayers() == null || meta.getPlayers().isEmpty()) {
-      return sanitize(datestamp + mod + " - TAF-" + replay.getId());
+      segments.add("TAF-" + replay.getId());
+      return String.join(" - ", segments);
     }
 
-    String mapName = sanitize(meta.getMapName());
-    String prefix = datestamp + mod + " - " + mapName + " - ";
-    // Length budget for the player list: whatever is left once the fixed parts and the extension
-    // are accounted for.
-    int budget = MAX_LENGTH - prefix.length() - extension(replay).length() - 1;
-    return prefix + playerList(meta.getPlayers(), budget);
+    if (options.includeMap()) {
+      segments.add(sanitize(meta.getMapName()));
+    }
+    if (options.includePlayers()) {
+      String prefix = segments.isEmpty() ? "" : String.join(" - ", segments) + " - ";
+      int budget = MAX_LENGTH - prefix.length() - extension(replay).length() - 1;
+      String players = playerList(meta.getPlayers(), budget);
+      if (!players.isEmpty()) {
+        segments.add(players);
+      }
+    }
+
+    if (segments.isEmpty()) {
+      return "TAF-" + replay.getId();
+    }
+    return String.join(" - ", segments);
   }
 
   /**
-   * {@code " - Escalation 9.86"}, or {@code " - Escalation"} with no known version, or {@code ""}
+   * {@code "Escalation 9.86"}, or {@code "Escalation"} with no known version, or {@code ""}
    * when the replay carries no featured mod at all (local replay files). Note the mod name itself
    * needs sanitising like any other: {@code TA:CC} has a colon in it.
    */
-  private static String modSegment(Replay replay, @Nullable String modVersion) {
+  private static String modSegment(Replay replay, @Nullable String modVersion,
+                                   boolean includeMod, boolean includeVersion) {
     Optional<FeaturedMod> featuredMod = Optional.ofNullable(replay.getFeaturedMod());
+    if (featuredMod.isEmpty()) {
+      return "";
+    }
     String name = featuredMod
         .map(FeaturedMod::getDisplayNameNotLocalised)
         .filter(displayName -> !displayName.isBlank())
@@ -125,12 +163,11 @@ public final class CanonicalReplayName {
         .filter(displayName -> !displayName.isEmpty())
         .orElse(null);
 
-    if (name == null) {
-      return "";
+    String version = !includeVersion || modVersion == null ? "" : sanitize(modVersion).trim();
+    if (!includeMod || name == null) {
+      return version;
     }
-
-    String version = modVersion == null ? "" : sanitize(modVersion).trim();
-    return version.isEmpty() ? " - " + name : " - " + name + " " + version;
+    return version.isEmpty() ? name : name + " " + version;
   }
 
   private static String extension(Replay replay) {

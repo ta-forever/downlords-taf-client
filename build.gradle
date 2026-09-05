@@ -199,6 +199,8 @@ compileTestJava {
   // Pins the replay download name against the server's TADA upload naming (tada_service.py);
   // pure formatter, no broken siblings pulled in.
   include '**/replay/CanonicalReplayNameTest.java'
+  include '**/replay/ReplayArchiveWriterTest.java'
+  include '**/replay/ReplayDownloadControlsTest.java'
   // Country flags: guards that every country we offer actually has a flag image
   // (Kosovo/XK is GeoIP-only, so Locale.getISOCountries() misses it).
   include '**/chat/CountryFlagServiceTest.java'

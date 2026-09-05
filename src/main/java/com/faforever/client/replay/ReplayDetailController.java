@@ -29,6 +29,7 @@ import com.faforever.client.player.Player;
 import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.DisplayMetric;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.VaultPrefs;
 import com.faforever.client.rating.RatingService;
 import com.faforever.client.replay.Replay.ChatMessage;
 import com.faforever.client.replay.Replay.GameOption;
@@ -45,6 +46,7 @@ import com.faforever.client.vault.review.ReviewsController;
 import com.faforever.commons.io.Bytes;
 import com.google.common.annotations.VisibleForTesting;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.ObservableMap;
@@ -53,11 +55,13 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.geometry.Side;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
+import javafx.scene.control.SplitMenuButton;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -164,7 +168,12 @@ public class ReplayDetailController implements Controller<Node> {
   public Node replayAvailableContainer;
   public Button watchButton;
   public Button tadaUploadButton;
-  public Button downloadButton;
+  public SplitMenuButton downloadButton;
+  public CheckMenuItem downloadIncludeDateMenuItem;
+  public CheckMenuItem downloadIncludeModMenuItem;
+  public CheckMenuItem downloadIncludeVersionMenuItem;
+  public CheckMenuItem downloadIncludeMapMenuItem;
+  public CheckMenuItem downloadIncludePlayersMenuItem;
   public TextField replayIdField;
   public ScrollPane scrollPane;
   public ToggleButton viewBattleReportButton;
@@ -226,6 +235,7 @@ public class ReplayDetailController implements Controller<Node> {
     ratingTypeLabel.setTooltip(new Tooltip(i18n.get("leaderboard.displayName")));
     qualityLabel.setTooltip(new Tooltip(i18n.get("replay.qualityTooltip")));
     notRatedReasonLabel.managedProperty().bind(notRatedReasonLabel.visibleProperty());
+    configureReplayDownloadOptions();
 
     // The team cards show a skill rating or a ladder rank depending on the global pill (one of which
     // is included in this dialog's header); rebuild them live when it flips.
@@ -762,17 +772,44 @@ public class ReplayDetailController implements Controller<Node> {
 
   public void onTadaUploadButtonClicked() { replayService.uploadReplayToTada(replay.getId()); }
 
+  private void configureReplayDownloadOptions() {
+    VaultPrefs vaultPrefs = preferencesService.getPreferences().getVault();
+    configureReplayDownloadOption(downloadIncludeDateMenuItem, vaultPrefs.replayDownloadIncludeDateProperty());
+    configureReplayDownloadOption(downloadIncludeModMenuItem, vaultPrefs.replayDownloadIncludeModProperty());
+    configureReplayDownloadOption(downloadIncludeVersionMenuItem, vaultPrefs.replayDownloadIncludeVersionProperty());
+    configureReplayDownloadOption(downloadIncludeMapMenuItem, vaultPrefs.replayDownloadIncludeMapProperty());
+    configureReplayDownloadOption(downloadIncludePlayersMenuItem, vaultPrefs.replayDownloadIncludePlayersProperty());
+  }
+
+  private void configureReplayDownloadOption(CheckMenuItem menuItem, BooleanProperty preference) {
+    menuItem.setSelected(preference.get());
+    menuItem.selectedProperty().addListener((observable, oldValue, newValue) -> {
+      preference.set(newValue);
+      preferencesService.storeInBackground();
+    });
+  }
+
+  private ReplayDownloadNameOptions replayDownloadNameOptions() {
+    VaultPrefs vaultPrefs = preferencesService.getPreferences().getVault();
+    return new ReplayDownloadNameOptions(
+        vaultPrefs.replayDownloadIncludeDateProperty().get(),
+        vaultPrefs.replayDownloadIncludeModProperty().get(),
+        vaultPrefs.replayDownloadIncludeVersionProperty().get(),
+        vaultPrefs.replayDownloadIncludeMapProperty().get(),
+        vaultPrefs.replayDownloadIncludePlayersProperty().get());
+  }
+
   /**
-   * Saves the vault's replay archive to wherever the user wants it, pre-named the same way the
-   * server names the copy it uploads to TADA - see {@link CanonicalReplayName}. The download is a
-   * zip holding the .tad, so the canonical stem takes a .zip extension and the .tad keeps its own
-   * name inside the archive.
+   * Saves the vault's replay archive to wherever the user wants it. The zip and the replay inside
+   * share the selected canonical stem, while the replay uses the featured mod's proper extension.
    */
   public void onDownloadButtonClicked() {
     // resolvedModVersion is whatever the units-hash lookup fired off by setReplay came back with.
     // It is normally in by the time the user reaches this button; if it is not, the name simply
     // carries no version, which is the same outcome as a version we cannot resolve at all.
-    String fileName = CanonicalReplayName.stem(replay, resolvedModVersion) + ".zip";
+    ReplayDownloadNameOptions nameOptions = replayDownloadNameOptions();
+    String replayFileName = CanonicalReplayName.of(replay, resolvedModVersion, nameOptions);
+    String fileName = CanonicalReplayName.stem(replay, resolvedModVersion, nameOptions) + ".zip";
 
     FileChooser fileChooser = new FileChooser();
     fileChooser.setTitle(i18n.get("replay.download.chooseFile"));
@@ -788,7 +825,7 @@ public class ReplayDetailController implements Controller<Node> {
     }
     lastDownloadDirectory = destination.toPath().getParent();
 
-    replayService.saveReplayAs(replay.getId(), destination.toPath())
+    replayService.saveReplayAs(replay.getId(), destination.toPath(), replayFileName)
         .thenAccept(path -> JavaFxUtil.runLater(() ->
             notificationService.addNotification(new PersistentNotification(
                 i18n.get("replay.download.finished", path.getFileName().toString()), Severity.INFO,

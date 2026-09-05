@@ -165,6 +165,53 @@ public class CanonicalReplayNameTest {
         is("2026-08-23 - Escalation 9.86 - The Pass - Alice.tad3"));
   }
 
+  @Test
+  public void usesProtaReplayExtensionEvenWhenModIsOmittedFromName() {
+    Replay replay = replay(MIDNIGHT_UTC, meta("The Pass", List.of(player("Alice", 0))),
+        "pro", "ProTA", "tavmod");
+    ReplayDownloadNameOptions options = new ReplayDownloadNameOptions(true, false, false, true, true);
+
+    assertThat(CanonicalReplayName.of(replay, "4.6", options),
+        is("2026-08-23 - The Pass - Alice.pro"));
+  }
+
+  @Test
+  public void includesOnlySelectedNameParts() {
+    Replay replay = replay(MIDNIGHT_UTC,
+        meta("Painted Desert", Arrays.asList(player("Alice", 0), player("Bob", 1))), "tad");
+    ReplayDownloadNameOptions options = new ReplayDownloadNameOptions(false, true, true, true, false);
+
+    assertThat(CanonicalReplayName.of(replay, "9.86", options),
+        is("Escalation 9.86 - Painted Desert.tad"));
+  }
+
+  @Test
+  public void canIncludeModWithoutVersion() {
+    Replay replay = replay(MIDNIGHT_UTC, meta("The Pass", List.of(player("Alice", 0))),
+        "pro", "ProTA", "tavmod");
+    ReplayDownloadNameOptions options = new ReplayDownloadNameOptions(false, true, false, false, false);
+
+    assertThat(CanonicalReplayName.of(replay, "4.8", options), is("ProTA.pro"));
+  }
+
+  @Test
+  public void canIncludeVersionWithoutMod() {
+    Replay replay = replay(MIDNIGHT_UTC, meta("The Pass", List.of(player("Alice", 0))),
+        "pro", "ProTA", "tavmod");
+    ReplayDownloadNameOptions options = new ReplayDownloadNameOptions(false, false, true, false, false);
+
+    assertThat(CanonicalReplayName.of(replay, "4.8", options), is("4.8.pro"));
+  }
+
+  @Test
+  public void fallsBackToReplayIdWhenEveryNamePartIsDisabled() {
+    Replay replay = replay(MIDNIGHT_UTC,
+        meta("Painted Desert", Arrays.asList(player("Alice", 0), player("Bob", 1))), "tad");
+    ReplayDownloadNameOptions options = new ReplayDownloadNameOptions(false, false, false, false, false);
+
+    assertThat(CanonicalReplayName.of(replay, "9.86", options), is("TAF-123456.tad"));
+  }
+
   /**
    * Games predating replay_meta fall back to the replay id, as the server does - but the mod is
    * known from the game record rather than the demo, so it survives the fallback.
