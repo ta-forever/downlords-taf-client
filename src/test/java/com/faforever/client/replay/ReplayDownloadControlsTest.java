@@ -35,7 +35,7 @@ public class ReplayDownloadControlsTest extends AbstractPlainJavaFxTest {
 
     assertEquals(controller.watchButton.getHeight(), controller.downloadButton.getHeight(), 0.01);
     assertEquals(controller.unhideButton.getHeight(), controller.downloadButton.getHeight(), 0.01);
-    assertEquals(4, controller.downloadButton.getItems().size());
+    assertEquals(5, controller.downloadButton.getItems().size());
     assertNull(controller.downloadButton.getTooltip());
   }
 }

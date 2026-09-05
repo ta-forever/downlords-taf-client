@@ -132,6 +132,8 @@
                                                               text="%replay.download.includeDate" />
                                                <CheckMenuItem fx:id="downloadIncludeModMenuItem"
                                                               text="%replay.download.includeMod" />
+                                               <CheckMenuItem fx:id="downloadIncludeVersionMenuItem"
+                                                              text="%replay.download.includeVersion" />
                                                <CheckMenuItem fx:id="downloadIncludeMapMenuItem"
                                                               text="%replay.download.includeMap" />
                                                <CheckMenuItem fx:id="downloadIncludePlayersMenuItem"

@@ -171,6 +171,7 @@ public class ReplayDetailController implements Controller<Node> {
   public SplitMenuButton downloadButton;
   public CheckMenuItem downloadIncludeDateMenuItem;
   public CheckMenuItem downloadIncludeModMenuItem;
+  public CheckMenuItem downloadIncludeVersionMenuItem;
   public CheckMenuItem downloadIncludeMapMenuItem;
   public CheckMenuItem downloadIncludePlayersMenuItem;
   public TextField replayIdField;
@@ -775,6 +776,7 @@ public class ReplayDetailController implements Controller<Node> {
     VaultPrefs vaultPrefs = preferencesService.getPreferences().getVault();
     configureReplayDownloadOption(downloadIncludeDateMenuItem, vaultPrefs.replayDownloadIncludeDateProperty());
     configureReplayDownloadOption(downloadIncludeModMenuItem, vaultPrefs.replayDownloadIncludeModProperty());
+    configureReplayDownloadOption(downloadIncludeVersionMenuItem, vaultPrefs.replayDownloadIncludeVersionProperty());
     configureReplayDownloadOption(downloadIncludeMapMenuItem, vaultPrefs.replayDownloadIncludeMapProperty());
     configureReplayDownloadOption(downloadIncludePlayersMenuItem, vaultPrefs.replayDownloadIncludePlayersProperty());
   }
@@ -792,6 +794,7 @@ public class ReplayDetailController implements Controller<Node> {
     return new ReplayDownloadNameOptions(
         vaultPrefs.replayDownloadIncludeDateProperty().get(),
         vaultPrefs.replayDownloadIncludeModProperty().get(),
+        vaultPrefs.replayDownloadIncludeVersionProperty().get(),
         vaultPrefs.replayDownloadIncludeMapProperty().get(),
         vaultPrefs.replayDownloadIncludePlayersProperty().get());
   }

@@ -22,6 +22,7 @@ public class VaultPrefs {
   private final BooleanProperty showWinnersInReplays;
   private final BooleanProperty replayDownloadIncludeDate;
   private final BooleanProperty replayDownloadIncludeMod;
+  private final BooleanProperty replayDownloadIncludeVersion;
   private final BooleanProperty replayDownloadIncludeMap;
   private final BooleanProperty replayDownloadIncludePlayers;
 
@@ -36,6 +37,7 @@ public class VaultPrefs {
     showWinnersInReplays = new SimpleBooleanProperty(true);
     replayDownloadIncludeDate = new SimpleBooleanProperty(true);
     replayDownloadIncludeMod = new SimpleBooleanProperty(true);
+    replayDownloadIncludeVersion = new SimpleBooleanProperty(true);
     replayDownloadIncludeMap = new SimpleBooleanProperty(true);
     replayDownloadIncludePlayers = new SimpleBooleanProperty(true);
   }
@@ -78,6 +80,10 @@ public class VaultPrefs {
 
   public BooleanProperty replayDownloadIncludeModProperty() {
     return replayDownloadIncludeMod;
+  }
+
+  public BooleanProperty replayDownloadIncludeVersionProperty() {
+    return replayDownloadIncludeVersion;
   }
 
   public BooleanProperty replayDownloadIncludeMapProperty() {
