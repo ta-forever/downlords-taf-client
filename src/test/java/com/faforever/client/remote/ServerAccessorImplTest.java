@@ -3,6 +3,8 @@ package com.faforever.client.remote;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.fa.CloseGameEvent;
 import com.faforever.client.game.Faction;
+import com.faforever.client.game.GameService;
+import org.springframework.beans.factory.ObjectProvider;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.legacy.FactionDeserializer;
 import com.faforever.client.legacy.ServerMessageSerializer;
@@ -115,6 +117,8 @@ public class ServerAccessorImplTest extends AbstractPlainJavaFxTest {
   @Mock
   private ReconnectTimerService reconnectTimerService;
   @Mock
+  private ObjectProvider<GameService> gameServiceProvider;
+  @Mock
   private ClientProperties clientProperties;
 
   private FafServerAccessorImpl instance;
@@ -137,7 +141,7 @@ public class ServerAccessorImplTest extends AbstractPlainJavaFxTest {
         .setHost(LOOPBACK_ADDRESS.getHostAddress())
         .setPort(fafLobbyServerSocket.getLocalPort());
 
-    instance = new FafServerAccessorImpl(preferencesService, uidService, notificationService, i18n, reportingService, taskScheduler, eventBus, reconnectTimerService, clientProperties);
+    instance = new FafServerAccessorImpl(preferencesService, uidService, notificationService, i18n, reportingService, taskScheduler, eventBus, reconnectTimerService, gameServiceProvider, clientProperties);
     instance.afterPropertiesSet();
     LoginPrefs loginPrefs = new LoginPrefs();
     loginPrefs.setUsername("junit");

@@ -11,6 +11,7 @@ import com.faforever.client.fa.relay.GpgServerMessageType;
 import com.faforever.client.fa.relay.LobbyMode;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.game.Faction;
+import com.faforever.client.game.GameService;
 import com.faforever.client.game.NewGameInfo;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.legacy.UidService;
@@ -144,6 +145,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.utils.IOUtils;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Profile;
@@ -210,6 +212,10 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
   private final TaskScheduler taskScheduler;
   private final EventBus eventBus;
   private final ReconnectTimerService reconnectTimerService;
+  // ObjectProvider breaks the FafServerAccessorImpl <-> GameService construction cycle
+  // (GameService injects FafService, which wraps this). Only the liveness watchdog uses it,
+  // and only to ask whether a game is running.
+  private final ObjectProvider<GameService> gameServiceProvider;
 
   @org.jetbrains.annotations.NotNull
   private final ClientProperties clientProperties;
@@ -442,6 +448,9 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
             log.info("FAF server connection established");
             JavaFxUtil.runLater(() -> connectionState.set(ConnectionState.CONNECTED));
             reconnectTimerService.resetConnectionFailures();
+            // Arm the liveness watchdog against this socket, not a stale one.
+            lastServerContactMillis = System.currentTimeMillis();
+            livenessProbeSentMillis = 0L;
 
             blockingReadServer(fafServerSocket);
           } catch (IOException e) {
@@ -783,6 +792,9 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
   }
 
   public void onServerMessage(String message) {
+    // Any inbound byte proves the link is alive. See the liveness watchdog below.
+    lastServerContactMillis = System.currentTimeMillis();
+    livenessProbeSentMillis = 0L;
     ServerCommand serverCommand = ServerCommand.fromString(message);
     if (serverCommand != null) {
       dispatchServerMessage(serverCommand);
@@ -893,6 +905,92 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
     idleSince = Instant.now();
     if (wasIdleSeconds) {
       writeToServer(new PingMessage(0));
+    }
+  }
+
+  // ---- lobby-server liveness watchdog ---------------------------------------
+  //
+  // A blocking read on a socket whose network path has vanished never returns; the OS
+  // holds the connection ESTABLISHED until keep-alive expires (~2h on Windows).
+  // enableAggressiveKeepAlive() above tries to shorten that, but its jdk.net extended
+  // options do not take on every platform, so a client can sit on a dead socket
+  // indefinitely and never reconnect.
+  //
+  // That is not cosmetic: ICE candidate exchange is relayed over this connection, so
+  // while it is silently dead the peer never hears our offers and an in-progress game
+  // hangs until TA's dropout timer ejects everybody (diagnosed 2026-09-06). The server
+  // already answers PingMessage with PONG; nothing checked that the answer arrived.
+  // Closing the socket unblocks blockingReadServer(), whose IOException runs the
+  // existing reconnect path, so there is no second recovery mechanism to maintain.
+  //
+  // Armed ONLY while a game is running (see the gate in checkServerLiveness). That is both
+  // where the hang hurts and what keeps the probe from becoming a fleet-wide 5s heartbeat.
+  //
+  // The poll period below quantises BOTH thresholds upward, so it must stay well under
+  // the smaller one: at a 4s period these 5s/6s values behaved like 7s/8s.
+  private static final long LIVENESS_PROBE_AFTER_SILENCE_MS = 5_000;
+  private static final long LIVENESS_DEAD_AFTER_PROBE_MS = 6_000;
+
+  private volatile long lastServerContactMillis;
+  private volatile long livenessProbeSentMillis;
+
+  @Scheduled(fixedDelay = 1_000, initialDelay = 20_000)
+  public void checkServerLiveness() {
+    Socket socket = fafServerSocket;
+    if (socket == null || socket.isClosed() || !socket.isConnected() || serverWriter == null) {
+      return;
+    }
+    if (connectionState.get() != ConnectionState.CONNECTED) {
+      return;   // still connecting/logging in; the login path has its own handling
+    }
+
+    // Probe only while a game is up. ICE candidate exchange is relayed over this socket, so a
+    // silently-reaped registration hangs a running game -- that is the case worth spending a
+    // 5s heartbeat on. Idle in the lobby nothing is at stake until the user acts, and the 60s
+    // ping() plus the reconnect loop already cover it. Without this gate every client probes
+    // every ~5s for its whole session (an answered probe resets both stamps in
+    // onServerMessage), which is 12x the keepalive rate fleet-wide for no benefit.
+    GameService gameService = gameServiceProvider.getIfAvailable();
+    if (gameService == null || !gameService.isGameRunning()) {
+      // Disarm, so a game starting after a long quiet spell re-arms from now rather than
+      // inheriting a stale timestamp and probing immediately.
+      lastServerContactMillis = 0L;
+      livenessProbeSentMillis = 0L;
+      return;
+    }
+
+    if (lastServerContactMillis == 0L) {
+      lastServerContactMillis = System.currentTimeMillis();
+      return;
+    }
+
+    long now = System.currentTimeMillis();
+    long silentFor = now - lastServerContactMillis;
+
+    if (livenessProbeSentMillis == 0L) {
+      if (silentFor >= LIVENESS_PROBE_AFTER_SILENCE_MS) {
+        // A quiet lobby is normal, so silence alone proves nothing. Ask a question we
+        // know the server always answers, and judge it on the answer.
+        livenessProbeSentMillis = now;
+        // debug, not info: an answered probe resets both stamps via onServerMessage, so
+        // on an idle-but-healthy connection this fires every ~5s forever. Only the
+        // UNANSWERED probe below is an event worth a log line.
+        log.debug("No FAF server traffic for {}ms, probing with a ping", silentFor);
+        writeToServer(new PingMessage(0));
+      }
+      return;
+    }
+
+    if (now - livenessProbeSentMillis >= LIVENESS_DEAD_AFTER_PROBE_MS) {
+      log.warn("No response from FAF server {}ms after ping probe (silent for {}ms) - "
+              + "treating the connection as dead and forcing a reconnect. ICE candidate "
+              + "exchange is relayed over this socket, so a game in progress would hang "
+              + "until it is re-established.",
+          now - livenessProbeSentMillis, silentFor);
+      livenessProbeSentMillis = 0L;
+      lastServerContactMillis = 0L;
+      // Unblocks blockingReadServer(); the IOException is handled by the connect loop.
+      IOUtils.closeQuietly(socket);
     }
   }
 
