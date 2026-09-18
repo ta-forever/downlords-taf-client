@@ -41,8 +41,17 @@ public final class LadderUiUtil {
   public static final String SEASON_BRONZE = "season_bronze";
   public static final String SEASON_TOP10 = "season_top10";
   public static final String SEASON_TOP33 = "season_top33";
+
+  /** Season wagering medal: the season's best wager P&amp;L on a board (season_medals.py
+   * {@code high_roller}). Awarded by the same season-close sweep but independently of
+   * placement — taf_season_medal is keyed (season, user_id, medal_code), so the season
+   * champion can also be its high roller. Gated on a real market (>= 10 players with a
+   * non-zero P&amp;L) and a meaningful win (P&amp;L above the greater of 1000 LP and 10% of the
+   * season's best game-earned LP total), so a quiet season awards nobody. */
+  public static final String SEASON_HIGH_ROLLER = "season_high_roller";
   public static final List<String> SEASON_MEDAL_CODES =
-      List.of(SEASON_GOLD, SEASON_SILVER, SEASON_BRONZE, SEASON_TOP10, SEASON_TOP33);
+      List.of(SEASON_GOLD, SEASON_SILVER, SEASON_BRONZE, SEASON_TOP10, SEASON_TOP33,
+          SEASON_HIGH_ROLLER);
 
   /** Achievement medals — per-game personal feats (combat_rating_service/medals.py
    * {@code _achievement_awards}). NOT win-gated (a loser who did the deed still earns it) and
@@ -77,6 +86,7 @@ public final class LadderUiUtil {
       new MedalClass("medal.class.achievement", ACHIEVEMENT_MEDAL_CODES),
       new MedalClass("medal.class.podium", List.of(SEASON_GOLD, SEASON_SILVER, SEASON_BRONZE)),
       new MedalClass("medal.class.percentile", List.of(SEASON_TOP10, SEASON_TOP33)),
+      new MedalClass("medal.class.wager", List.of(SEASON_HIGH_ROLLER)),
       new MedalClass("medal.class.tournament", TOURNAMENT_MEDAL_CODES),
       new MedalClass("medal.class.galacticWar", GW_MEDAL_CODES));
 
