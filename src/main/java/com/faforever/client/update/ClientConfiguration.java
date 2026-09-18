@@ -20,8 +20,23 @@ public class ClientConfiguration {
   List<String> defaultChatChannels;
   List<String> allChatChannels;
   AutoBalance autoBalance;
+  TrueSkill trueSkill;
   Boolean repairAsymmetricAlliances;
   List<Hotfix> hotfixes;
+
+  /**
+   * The rating system's prior for a player with no rated games, mirroring the lobby server's
+   * {@code START_RATING_MEAN} / {@code START_RATING_DEV}. Served remotely so that changing the
+   * server-side prior does not need a matching client release — the client's
+   * {@code faf-client.true-skill} properties are only the fallback.
+   */
+  @Data
+  public static class TrueSkill {
+    /** eg 1500. Null falls back to the client's built-in {@code initialMean} property. */
+    Double initialMean;
+    /** eg 500. Null falls back to the client's built-in {@code initialStandardDeviation} property. */
+    Double initialStandardDeviation;
+  }
 
   @Data
   public static class AutoBalance {

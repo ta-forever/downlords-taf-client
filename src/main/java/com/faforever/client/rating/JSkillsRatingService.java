@@ -65,7 +65,34 @@ public class JSkillsRatingService implements RatingService {
 
   @Override
   public LeaderboardRating createNewLeaderboardRating() {
-    return LeaderboardRating.create((float)gameInfo.getInitialMean(), (float)gameInfo.getInitialStandardDeviation());
+    return LeaderboardRating.create(getInitialMean(), getInitialStandardDeviation());
+  }
+
+  /**
+   * The rating system's prior mean for a player with no rated games, preferring the value served by
+   * the lobby server over the client's compiled-in {@code faf-client.true-skill.initialMean}.
+   * <p>
+   * The local property is a fallback only: the authoritative prior is the server's
+   * {@code START_RATING_MEAN}, which is runtime-tunable there. Reading it from remote config means
+   * a change to the server-side prior does not silently leave the client seeding unrated players at
+   * a stale value.
+   */
+  private float getInitialMean() {
+    ClientConfiguration.TrueSkill remote = getRemoteTrueSkill();
+    Double configured = remote == null ? null : remote.getInitialMean();
+    return configured == null ? (float) gameInfo.getInitialMean() : configured.floatValue();
+  }
+
+  /** @see #getInitialMean() */
+  private float getInitialStandardDeviation() {
+    ClientConfiguration.TrueSkill remote = getRemoteTrueSkill();
+    Double configured = remote == null ? null : remote.getInitialStandardDeviation();
+    return configured == null ? (float) gameInfo.getInitialStandardDeviation() : configured.floatValue();
+  }
+
+  private ClientConfiguration.TrueSkill getRemoteTrueSkill() {
+    ClientConfiguration clientConfiguration = preferencesService.getClientRemoteConfiguration();
+    return clientConfiguration == null ? null : clientConfiguration.getTrueSkill();
   }
 
   @Override
@@ -82,8 +109,8 @@ public class JSkillsRatingService implements RatingService {
           Team team = new Team();
           players.forEach(stats -> team.addPlayer(
               new jskills.Player<>(stats.getPlayerId()), new Rating(
-                  stats.getBeforeMean() == null ? gameInfo.getInitialMean() : stats.getBeforeMean(),
-                  stats.getBeforeDeviation() == null ? gameInfo.getInitialStandardDeviation() : stats.getAfterDeviation()
+                  stats.getBeforeMean() == null ? getInitialMean() : stats.getBeforeMean(),
+                  stats.getBeforeDeviation() == null ? getInitialStandardDeviation() : stats.getAfterDeviation()
               )));
           return team;
         })
@@ -385,8 +412,8 @@ public class JSkillsRatingService implements RatingService {
             PlayerStats::getPlayerId,
             stats -> new javafx.util.Pair<>("replay",
                 LeaderboardRating.create(
-                    stats.getBeforeMean() == null ? (float)gameInfo.getInitialMean() : stats.getBeforeMean().floatValue(),
-                    stats.getBeforeDeviation() == null ? (float)gameInfo.getInitialStandardDeviation() : stats.getBeforeDeviation().floatValue()
+                    stats.getBeforeMean() == null ? getInitialMean() : stats.getBeforeMean().floatValue(),
+                    stats.getBeforeDeviation() == null ? getInitialStandardDeviation() : stats.getBeforeDeviation().floatValue()
             ))));
 
     List<Player> result = balancePlayers(players, distilledRatings);
@@ -725,7 +752,7 @@ public class JSkillsRatingService implements RatingService {
    */
   private LeaderboardRating createUnratedBalancePrior() {
     LeaderboardRating lbr = LeaderboardRating.create(
-        getUnratedAssumedMean(), (float) gameInfo.getInitialStandardDeviation());
+        getUnratedAssumedMean(), getInitialStandardDeviation());
     lbr.setNumberOfGames(0);
     return lbr;
   }

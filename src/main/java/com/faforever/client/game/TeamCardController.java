@@ -161,7 +161,10 @@ public class TeamCardController implements Controller<Node> {
       Function<Player, Faction> playerFactionProvider,
       Function<Player, Image> playerGwMedalProvider,
       RatingPrecision ratingPrecision, Boolean hidePlayerRatings) {
-    int totalRating = 0;
+    // The card's aggregate discounts every player by the same reference deviation instead of summing
+    // each player's own mean-3*deviation, so a single unplaced player can't drag the team total down
+    // by 1500 and invert which side the card shows as stronger. See RatingUtil#getTeamRatingContribution.
+    double totalRating = 0;
     // LP (Season Ladder) mode shows a ladder rank per row. Resolve the whole card's ranks in ONE
     // board-scoped query rather than a per-row fetch: lighter on the server, and the card fills in
     // one batch instead of ranks trickling in one at a time.
@@ -174,11 +177,15 @@ public class TeamCardController implements Controller<Node> {
         continue;
       }
       PlayerCardTooltipController playerCardTooltipController = uiService.loadFxml("theme/player_card_tooltip.fxml");
-      Integer playerRating = RatingUtil.getRating(ratingProvider.apply(player));
+      LeaderboardRating leaderboardRating = ratingProvider.apply(player);
+      Integer playerRating = leaderboardRating == null ? null : RatingUtil.getRating(leaderboardRating);
+      // A player still in placement shows a marker instead of this number, but still contributes
+      // their mean to the team aggregate — that is what the rating engine compared.
+      boolean inPlacement = RatingUtil.isInPlacement(leaderboardRating);
       if (playerRating != null) {
-        totalRating += playerRating;
+        totalRating += RatingUtil.getTeamRatingContribution(leaderboardRating);
 
-        if (ratingPrecision == RatingPrecision.ROUNDED) {
+        if (!inPlacement && ratingPrecision == RatingPrecision.ROUNDED) {
           playerRating = RatingUtil.getRoundedRating(playerRating);
         }
       }
@@ -195,7 +202,8 @@ public class TeamCardController implements Controller<Node> {
       playerCardTooltipController.setLeaderboardContext(ratingType);
       // When batching, the row waits for the shared lookup below instead of self-fetching.
       playerCardTooltipController.setDeferRankToContainer(batchRanks);
-      playerCardTooltipController.setPlayer(player, hidePlayerRatings ? null : playerRating, faction, gwMedalIcon);
+      playerCardTooltipController.setPlayer(player, hidePlayerRatings ? null : playerRating, faction, gwMedalIcon,
+          inPlacement);
       cardsByPlayerId.put(player.getId(), playerCardTooltipController);
       // Team cards hide friend/foe status by default; users can opt back in via a setting.
       if (!preferencesService.getPreferences().isShowFriendFoeInTeamCards()) {
@@ -254,7 +262,7 @@ public class TeamCardController implements Controller<Node> {
     } else if (hidePlayerRatings){
       teamTitle = i18n.get("replay.team", Integer.parseInt(team) - 1);
     } else {
-      teamTitle = i18n.get("game.tooltip.teamTitle", Integer.parseInt(team) - 1, totalRating);
+      teamTitle = i18n.get("game.tooltip.teamTitle", Integer.parseInt(team) - 1, (int) totalRating);
     }
     teamNameLabel.setText(teamTitle);
   }

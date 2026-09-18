@@ -182,6 +182,9 @@ compileTestJava {
   // biggest JVM-crash source) and closes the backslash-escape hole in the old quoting.
   include '**/chat/ChatJsQuoteTest.java'
   include '**/util/LogTailUtilTest.java'
+  // Pins the team-card aggregate: one unplaced player must not invert which team reads as stronger
+  // (the game-192813 regression). Self-contained, pure static helper.
+  include '**/util/RatingUtilTest.java'
   // Replay mod-version resolution behind the vault card / detail labels. Scoped to the one file so
   // it doesn't pull in the broken ModServiceTest beside it.
   include '**/mod/ModServiceModVersionTest.java'

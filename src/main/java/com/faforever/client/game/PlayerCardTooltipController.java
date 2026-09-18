@@ -102,6 +102,16 @@ public class PlayerCardTooltipController implements Controller<Node> {
   }
 
   public void setPlayer(Player player, Integer rating, Faction faction, Image gwMedalIcon) {
+    setPlayer(player, rating, faction, gwMedalIcon, false);
+  }
+
+  /**
+   * @param inPlacement the player has too few rated games for {@code rating} to be meaningful, so
+   *     show a placement marker in its place. See
+   *     {@link com.faforever.client.util.RatingUtil#isInPlacement}: a fresh 1500/500 rating displays
+   *     as 0, which reads as "terrible" rather than "not yet known".
+   */
+  public void setPlayer(Player player, Integer rating, Faction faction, Image gwMedalIcon, boolean inPlacement) {
     if (player == null) {
       return;
     }
@@ -122,7 +132,9 @@ public class PlayerCardTooltipController implements Controller<Node> {
     //setFactionIcon(faction);
     playerInfo.setText(i18n.get("userInfo.tooltipFormat.noRating", player.getUsername()));
     if (!lpMode && rating != null) {
-      setRankSuffix(i18n.get("userInfo.tooltipFormat.ratingSuffix", rating));
+      setRankSuffix(inPlacement
+          ? i18n.get("userInfo.tooltipFormat.placementSuffix")
+          : i18n.get("userInfo.tooltipFormat.ratingSuffix", rating));
     } else {
       // LP mode renders the rating as a division (filled in async); leave the rank label blank
       // meanwhile so the skill rating never flashes (and is never shown at all in LP mode).

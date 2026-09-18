@@ -155,10 +155,13 @@ public class ClientProperties {
   }
 
   /**
-   * @deprecated load from server
+   * Fallback only. {@code initialMean} / {@code initialStandardDeviation} are served by the lobby
+   * server via {@link com.faforever.client.update.ClientConfiguration.TrueSkill} and mirror its
+   * runtime-tunable {@code START_RATING_MEAN} / {@code START_RATING_DEV}; these compiled-in values
+   * apply only until that config is fetched, or if the server omits them. The remaining fields
+   * (beta, dynamic factor, draw probability) are still local-only.
    */
   @Data
-  @Deprecated
   public static class TrueSkill {
     private int initialStandardDeviation;
     private int initialMean;

@@ -369,7 +369,7 @@ public class ManualTeamArrangementController implements Controller<VBox> {
   private Node buildRow(Player player) {
     PlayerCardTooltipController card = uiService.loadFxml("theme/player_card_tooltip.fxml");
     card.setLeaderboardContext(ratingType);
-    card.setPlayer(player, ratingOf(player), null, null);
+    card.setPlayer(player, ratingOf(player), null, null, RatingUtil.isInPlacement(leaderboardRatingOf(player)));
     Node nameNode = card.getRoot();
     HBox.setHgrow(nameNode, Priority.ALWAYS);
 
@@ -412,33 +412,45 @@ public class ManualTeamArrangementController implements Controller<VBox> {
     // The order is interleaved: even indices are Team 1, odd indices Team 2.
     int sizeA = 0;
     int sizeB = 0;
-    int ratingA = 0;
-    int ratingB = 0;
+    double ratingA = 0;
+    double ratingB = 0;
     for (int i = 0; i < order.size(); i++) {
-      int rating = ratingOf(order.get(i));
+      double contribution = RatingUtil.getTeamRatingContribution(leaderboardRatingOf(order.get(i)));
       if (i % 2 == 0) {
         sizeA++;
-        ratingA += rating;
+        ratingA += contribution;
       } else {
         sizeB++;
-        ratingB += rating;
+        ratingB += contribution;
       }
     }
-    previewLabel.setText(i18n.get("manualTeams.preview", sizeA, ratingA, sizeB, ratingB));
+    previewLabel.setText(i18n.get("manualTeams.preview", sizeA, (int) ratingA, sizeB, (int) ratingB));
     previewLabel.setVisible(true);
   }
 
+  /**
+   * A team's aggregate for the headers and the balance preview. Discounts every player by the same
+   * reference deviation rather than summing each player's own displayed rating, so an unplaced
+   * player counts as their mean instead of as 0 — otherwise a host arranging teams by hand sees a
+   * newcomer as worthless and stacks them onto the side that is already stronger. See
+   * {@link RatingUtil#getTeamRatingContribution}.
+   */
   private int sumRating(List<Player> players) {
-    int total = 0;
+    double total = 0;
     for (Player p : players) {
-      total += ratingOf(p);
+      total += RatingUtil.getTeamRatingContribution(leaderboardRatingOf(p));
     }
-    return total;
+    return (int) total;
   }
 
+  /** The number shown on one player's row. Meaningless while the player is still in placement —
+   *  rows check {@link RatingUtil#isInPlacement} and show a marker instead. */
   private int ratingOf(Player p) {
-    LeaderboardRating r = p.getLeaderboardRatings().getOrDefault(ratingType, ratingService.createNewLeaderboardRating());
-    return RatingUtil.getRoundedRating(RatingUtil.getRating(r));
+    return RatingUtil.getRoundedRating(RatingUtil.getRating(leaderboardRatingOf(p)));
+  }
+
+  private LeaderboardRating leaderboardRatingOf(Player p) {
+    return p.getLeaderboardRatings().getOrDefault(ratingType, ratingService.createNewLeaderboardRating());
   }
 
   @Override
