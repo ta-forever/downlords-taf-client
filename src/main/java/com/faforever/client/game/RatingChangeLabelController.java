@@ -35,6 +35,13 @@ public class RatingChangeLabelController implements Controller<Node> {
     if (playerStats.getAfterMean() == null || playerStats.getAfterDeviation() == null) {
       return;
     }
+    // While a player is in placement their row shows a marker rather than a rating, so a delta
+    // against a number that was never displayed is noise — and it is mostly the deviation collapsing
+    // rather than skill moving (a debutant's first game swings mean-3*deviation by hundreds).
+    if (playerStats.getBeforeDeviation() != null
+        && playerStats.getBeforeDeviation() >= RatingUtil.PLACEMENT_DEVIATION_THRESHOLD) {
+      return;
+    }
     int newRating = RatingUtil.getRating(playerStats.getAfterMean(), playerStats.getAfterDeviation());
     int oldRating = RatingUtil.getRating(playerStats.getBeforeMean(), playerStats.getBeforeDeviation());
 

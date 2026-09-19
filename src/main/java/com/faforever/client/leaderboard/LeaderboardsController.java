@@ -20,6 +20,7 @@ import com.faforever.client.player.PlayerService;
 import com.faforever.client.preferences.DisplayMetric;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.theme.UiService;
+import com.faforever.client.util.RatingUtil;
 import com.faforever.client.util.TimeService;
 import com.faforever.client.util.Validator;
 import com.google.common.annotations.VisibleForTesting;
@@ -33,6 +34,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -213,7 +215,24 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     gamesPlayedColumn.setCellFactory(param -> new StringCell<>(count -> i18n.number(count.intValue())));
 
     ratingColumn.setCellValueFactory(param -> param.getValue().ratingProperty());
-    ratingColumn.setCellFactory(param -> new StringCell<>(rating -> i18n.number(rating.intValue())));
+    // A player inside their placement games has a rating dominated by uncertainty — with the prior
+    // at 1000/500 it starts at -500, and measured on prod 51% of one-game players already sit below
+    // zero. Name the state rather than publish the number. The API entry carries no deviation, so
+    // this is the game-count form of the rule (RatingUtil.PLACEMENT_GAMES).
+    ratingColumn.setCellFactory(param -> new TableCell<>() {
+      @Override
+      protected void updateItem(Number rating, boolean empty) {
+        super.updateItem(rating, empty);
+        LeaderboardEntry entry = getTableRow() == null ? null : getTableRow().getItem();
+        if (empty || rating == null || entry == null) {
+          setText(null);
+        } else if (RatingUtil.isInPlacement(entry.getTotalGames())) {
+          setText(i18n.get("userInfo.tooltipFormat.placementSuffix"));
+        } else {
+          setText(i18n.number(rating.intValue()));
+        }
+      }
+    });
 
     // Season Ladder table (LP mode). SeasonStanding is immutable, so wrap each value per row.
     seasonRankColumn.setCellValueFactory(param ->

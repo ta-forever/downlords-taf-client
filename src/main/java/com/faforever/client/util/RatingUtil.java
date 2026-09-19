@@ -44,6 +44,26 @@ public final class RatingUtil {
   }
 
   /**
+   * Game count below which a player is treated as still in placement, for the surfaces that carry a
+   * game count but not a deviation (the leaderboard table's API entries).
+   * <p>
+   * Chosen to agree with {@link #PLACEMENT_DEVIATION_THRESHOLD}: measured over 2,298 prod ratings
+   * (2026-09) {@code totalGames < 8} classifies 94.1% of players identically to
+   * {@code deviation >= 250}, the closest of any cutoff.
+   */
+  public static final int PLACEMENT_GAMES = 8;
+
+  /**
+   * True when the player has too few rated games for their displayed rating to mean anything. Use
+   * the {@link #isInPlacement(LeaderboardRating) deviation overload} wherever a deviation is
+   * available — it is what actually drives the number. This game-count form exists for the
+   * leaderboard table, whose API entries carry {@code totalGames} but no deviation.
+   */
+  public static boolean isInPlacement(int totalGames) {
+    return totalGames < PLACEMENT_GAMES;
+  }
+
+  /**
    * One player's contribution to a team aggregate: the mean discounted by a <em>fixed</em> reference
    * deviation instead of the player's own.
    * <p>

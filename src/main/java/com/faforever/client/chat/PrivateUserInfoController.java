@@ -259,10 +259,17 @@ public class PrivateUserInfoController implements Controller<Node> {
     leaderboards.forEach(leaderboard -> {
       LeaderboardRating leaderboardRating = player.getLeaderboardRatings().get(leaderboard.getTechnicalName());
       if (leaderboardRating != null) {
-        // Hysteresis-stabilised tier (§13.2.3) so the number reads as a steady skill tier.
-        int tier = ratingTierService.displayTier(player.getId(), leaderboard.getTechnicalName(),
-            RatingUtil.getLeaderboardRating(player, leaderboard));
-        rows.add(Map.entry(i18n.get(leaderboard.getNameKey()), i18n.number(tier)));
+        if (RatingUtil.isInPlacement(leaderboardRating)) {
+          // Too few games for mean-3*deviation to be a skill tier — with the prior at 1000/500 it
+          // starts at -500 — so name the state instead of publishing the number.
+          rows.add(Map.entry(i18n.get(leaderboard.getNameKey()),
+              i18n.get("userInfo.tooltipFormat.placementSuffix")));
+        } else {
+          // Hysteresis-stabilised tier (§13.2.3) so the number reads as a steady skill tier.
+          int tier = ratingTierService.displayTier(player.getId(), leaderboard.getTechnicalName(),
+              RatingUtil.getLeaderboardRating(player, leaderboard));
+          rows.add(Map.entry(i18n.get(leaderboard.getNameKey()), i18n.number(tier)));
+        }
       }
     });
     return rows;

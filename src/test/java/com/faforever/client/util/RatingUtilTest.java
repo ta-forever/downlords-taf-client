@@ -39,6 +39,17 @@ public class RatingUtilTest {
   }
 
   @Test
+  public void placementIsDetectedByGameCountWhereNoDeviationIsAvailable() {
+    // The leaderboard table's API entries carry totalGames but no deviation. The cutoff is tuned to
+    // agree with the deviation rule (94.1% identical classification on prod, 2026-09).
+    assertTrue(RatingUtil.isInPlacement(0));
+    assertTrue(RatingUtil.isInPlacement(1));
+    assertTrue(RatingUtil.isInPlacement(RatingUtil.PLACEMENT_GAMES - 1));
+    assertFalse(RatingUtil.isInPlacement(RatingUtil.PLACEMENT_GAMES));
+    assertFalse(RatingUtil.isInPlacement(50));
+  }
+
+  @Test
   public void teamContributionDiscountsEveryPlayerEqually() {
     // Same mean, wildly different certainty -> same contribution. The old per-player displayed
     // rating would have differed by 1200 here.

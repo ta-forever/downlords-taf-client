@@ -3,6 +3,7 @@ package com.faforever.client.game;
 import com.faforever.client.discord.DiscordJoinEvent;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.leaderboard.LeaderboardRating;
 import com.faforever.client.notification.Action;
 import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.NotificationService;
@@ -62,6 +63,11 @@ public class JoinGameHelper {
   public void join(Game game, String password, boolean ignoreRating) {
     Player currentPlayer = playerService.getCurrentPlayer().orElseThrow(() -> new IllegalStateException("Player has not been set"));
     int playerRating = RatingUtil.getRoundedLeaderboardRating(currentPlayer, game.getRatingType());
+    // Quoting a placement player's own number back at them is meaningless — with the prior at
+    // 1000/500 it opens at -500 — so the confirmation names the state instead. The bounds check
+    // itself is unchanged: it is a warning with a "join anyway" action, not a hard block.
+    LeaderboardRating currentRating = currentPlayer.getLeaderboardRatings().get(game.getRatingType());
+    boolean ratingUnestablished = currentRating == null || RatingUtil.isInPlacement(currentRating);
 
     if (!preferencesService.isGameExeValid(game.getFeaturedMod())) {
       CompletableFuture<Path> gameDirectoryFuture = new CompletableFuture<>();
@@ -74,7 +80,7 @@ public class JoinGameHelper {
     boolean maxRatingViolated = game.getMaxRating() != null && playerRating > game.getMaxRating();
 
     if (!ignoreRating && (minRatingViolated || maxRatingViolated)) {
-      showRatingOutOfBoundsConfirmation(playerRating, game, password);
+      showRatingOutOfBoundsConfirmation(playerRating, ratingUnestablished, game, password);
       return;
     }
 
@@ -94,10 +100,13 @@ public class JoinGameHelper {
     }
   }
 
-  private void showRatingOutOfBoundsConfirmation(int playerRating, Game game, String password) {
+  private void showRatingOutOfBoundsConfirmation(int playerRating, boolean ratingUnestablished,
+                                                Game game, String password) {
     notificationService.addNotification(new ImmediateNotification(
         i18n.get("game.joinGameRatingConfirmation.title"),
-        i18n.get("game.joinGameRatingConfirmation.text", game.getMinRating(), game.getMaxRating(), playerRating),
+        ratingUnestablished
+            ? i18n.get("game.joinGameRatingConfirmation.textUnrated", game.getMinRating(), game.getMaxRating())
+            : i18n.get("game.joinGameRatingConfirmation.text", game.getMinRating(), game.getMaxRating(), playerRating),
         Severity.INFO,
         asList(
             new Action(i18n.get("game.join"), event -> this.join(game, password, true)),

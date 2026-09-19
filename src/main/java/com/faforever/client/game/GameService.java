@@ -2022,12 +2022,18 @@ public class GameService implements InitializingBean {
   }
 
   private double calcAverageRating(GameInfoMessage gameInfoMessage) {
+    // Players still in placement are left out rather than averaged in. Previously a player with no
+    // rating on this board counted as a flat 0; now that the prior is 1000/500 a player one game in
+    // counts as a negative number, and either way one newcomer drags a lobby's advertised average
+    // down by hundreds. Omitting them makes the figure mean "the rated players here average X".
     return gameInfoMessage.getTeams().values().stream()
         .flatMap(Collection::stream)
         .map(playerService::getPlayerForUsername)
         .filter(Optional::isPresent)
         .map(Optional::get)
-        .mapToInt(player -> RatingUtil.getLeaderboardRating(player, gameInfoMessage.getRatingType()))
+        .map(player -> player.getLeaderboardRatings().get(gameInfoMessage.getRatingType()))
+        .filter(rating -> rating != null && !RatingUtil.isInPlacement(rating))
+        .mapToInt(RatingUtil::getRating)
         .average()
         .orElse(0.0);
   }

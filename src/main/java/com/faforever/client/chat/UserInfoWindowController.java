@@ -929,6 +929,10 @@ public class UserInfoWindowController implements Controller<Node> {
 
     List<XYChart.Data<Long, Integer>> trueskillHistory = ratingData.stream().sorted(Comparator.comparing(RatingHistoryDataPoint::getInstant))
         .filter(dataPoint -> dataPoint.getInstant().isAfter(afterDate))
+        // Drop the placement games. Their mean-3*deviation is dominated by the deviation collapsing
+        // (it starts at prior-3*500, i.e. -500 once the prior is 1000), so plotting them buries the
+        // actual skill movement under a near-vertical opening climb that isn't skill at all.
+        .filter(dataPoint -> dataPoint.getDeviation() < RatingUtil.PLACEMENT_DEVIATION_THRESHOLD)
         .map(dataPoint -> new Data<>(dataPoint.getInstant().toEpochSecond(), RatingUtil.getRating(dataPoint)))
         .collect(Collectors.toList());
 
