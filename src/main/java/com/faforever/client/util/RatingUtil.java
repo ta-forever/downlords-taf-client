@@ -19,6 +19,15 @@ public final class RatingUtil {
    * after 3-4, 268 after 5-9, and 179 after 10-19. It sits clear of established players — with 20+
    * games the p99 deviation is 201 and the observed maximum 220 — so no settled player is ever
    * marked as being in placement.
+   * <p>
+   * This is deliberately the <em>only</em> placement rule. Do not add a game-count approximation for
+   * a surface that looks like it lacks a deviation — the leaderboard's API entry does carry one
+   * ({@code LeaderboardEntry.getDeviation()}); it simply was not copied out of the DTO until 2026-09.
+   * A {@code totalGames < 8} rule was tried and disagreed with this one for 6.0% of prod players, in
+   * both directions. The mismatch is mostly players who played a burst months ago and whose
+   * deviation has since re-inflated through the dynamics factor (tau): 12-18 games and a deviation
+   * near 300. A game count cannot see that a rating has gone stale; the deviation is the thing that
+   * actually drives the displayed number, so it is the thing to test.
    */
   public static final float PLACEMENT_DEVIATION_THRESHOLD = 250f;
 
@@ -43,25 +52,6 @@ public final class RatingUtil {
     return leaderboardRating != null && leaderboardRating.getDeviation() >= PLACEMENT_DEVIATION_THRESHOLD;
   }
 
-  /**
-   * Game count below which a player is treated as still in placement, for the surfaces that carry a
-   * game count but not a deviation (the leaderboard table's API entries).
-   * <p>
-   * Chosen to agree with {@link #PLACEMENT_DEVIATION_THRESHOLD}: measured over 2,298 prod ratings
-   * (2026-09) {@code totalGames < 8} classifies 94.1% of players identically to
-   * {@code deviation >= 250}, the closest of any cutoff.
-   */
-  public static final int PLACEMENT_GAMES = 8;
-
-  /**
-   * True when the player has too few rated games for their displayed rating to mean anything. Use
-   * the {@link #isInPlacement(LeaderboardRating) deviation overload} wherever a deviation is
-   * available — it is what actually drives the number. This game-count form exists for the
-   * leaderboard table, whose API entries carry {@code totalGames} but no deviation.
-   */
-  public static boolean isInPlacement(int totalGames) {
-    return totalGames < PLACEMENT_GAMES;
-  }
 
   /**
    * One player's contribution to a team aggregate: the mean discounted by a <em>fixed</em> reference

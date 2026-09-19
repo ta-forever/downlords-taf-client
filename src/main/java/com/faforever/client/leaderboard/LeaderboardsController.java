@@ -215,10 +215,10 @@ public class LeaderboardsController extends AbstractViewController<Node> {
     gamesPlayedColumn.setCellFactory(param -> new StringCell<>(count -> i18n.number(count.intValue())));
 
     ratingColumn.setCellValueFactory(param -> param.getValue().ratingProperty());
-    // A player inside their placement games has a rating dominated by uncertainty — with the prior
-    // at 1000/500 it starts at -500, and measured on prod 51% of one-game players already sit below
-    // zero. Name the state rather than publish the number. The API entry carries no deviation, so
-    // this is the game-count form of the rule (RatingUtil.PLACEMENT_GAMES).
+    // An unplaced player's rating is dominated by uncertainty — with the prior at 1000/500 it starts
+    // at -500, and measured on prod 51% of one-game players already sit below zero. Name the state
+    // rather than publish the number, using the same deviation rule as every other surface so a
+    // player can't read "(unrated)" on a team card and a number here.
     ratingColumn.setCellFactory(param -> new TableCell<>() {
       @Override
       protected void updateItem(Number rating, boolean empty) {
@@ -226,7 +226,7 @@ public class LeaderboardsController extends AbstractViewController<Node> {
         LeaderboardEntry entry = getTableRow() == null ? null : getTableRow().getItem();
         if (empty || rating == null || entry == null) {
           setText(null);
-        } else if (RatingUtil.isInPlacement(entry.getTotalGames())) {
+        } else if (entry.getDeviation() >= RatingUtil.PLACEMENT_DEVIATION_THRESHOLD) {
           setText(i18n.get("userInfo.tooltipFormat.placementSuffix"));
         } else {
           setText(i18n.number(rating.intValue()));

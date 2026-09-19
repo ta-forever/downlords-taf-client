@@ -39,14 +39,13 @@ public class RatingUtilTest {
   }
 
   @Test
-  public void placementIsDetectedByGameCountWhereNoDeviationIsAvailable() {
-    // The leaderboard table's API entries carry totalGames but no deviation. The cutoff is tuned to
-    // agree with the deviation rule (94.1% identical classification on prod, 2026-09).
-    assertTrue(RatingUtil.isInPlacement(0));
-    assertTrue(RatingUtil.isInPlacement(1));
-    assertTrue(RatingUtil.isInPlacement(RatingUtil.PLACEMENT_GAMES - 1));
-    assertFalse(RatingUtil.isInPlacement(RatingUtil.PLACEMENT_GAMES));
-    assertFalse(RatingUtil.isInPlacement(50));
+  public void aLapsedPlayerWithManyGamesIsStillInPlacement() {
+    // The rule is deviation, never game count. A player who played a burst months ago has had their
+    // deviation re-inflated by the dynamics factor, so their rating is stale even though they have
+    // plenty of games — e.g. prod's Leonidas: 9 games since 2025-12, deviation 287.75.
+    assertTrue(RatingUtil.isInPlacement(rating(1278.93f, 287.75f)));
+    // A game-count rule would have called that settled, and disagreed with this one for 6.0% of
+    // prod players. Do not reintroduce one.
   }
 
   @Test

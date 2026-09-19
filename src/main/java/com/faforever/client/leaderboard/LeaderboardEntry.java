@@ -18,6 +18,10 @@ public class LeaderboardEntry {
   private final IntegerProperty userId;
   private final StringProperty username;
   private final DoubleProperty rating;
+  /** TrueSkill deviation behind {@link #rating}. Carried so the table can apply the same
+   *  placement rule as every other surface (RatingUtil.isInPlacement) rather than an
+   *  approximation from the game count. */
+  private final DoubleProperty deviation;
   private final IntegerProperty totalGames;
   private final IntegerProperty wonGames;
   private final IntegerProperty drawnGames;
@@ -34,6 +38,7 @@ public class LeaderboardEntry {
     userId = new SimpleIntegerProperty();
     username = new SimpleStringProperty();
     rating = new SimpleDoubleProperty();
+    deviation = new SimpleDoubleProperty();
     totalGames = new SimpleIntegerProperty();
     wonGames = new SimpleIntegerProperty();
     drawnGames = new SimpleIntegerProperty();
@@ -53,6 +58,7 @@ public class LeaderboardEntry {
     leaderboardEntry.setUserId(Integer.parseInt(entry.getPlayer().getId()));
     leaderboardEntry.setUsername(entry.getPlayer().getLogin());
     leaderboardEntry.setRating(entry.getRating());
+    leaderboardEntry.setDeviation(entry.getDeviation() == null ? 0d : entry.getDeviation());
     leaderboardEntry.setStreak(entry.getStreak());
     leaderboardEntry.setBestStreak(entry.getBestStreak());
     leaderboardEntry.setRecentMod(entry.getRecentMod());
@@ -119,6 +125,18 @@ public class LeaderboardEntry {
 
   public DoubleProperty ratingProperty() {
     return rating;
+  }
+
+  public double getDeviation() {
+    return deviation.get();
+  }
+
+  public void setDeviation(double deviation) {
+    this.deviation.set(deviation);
+  }
+
+  public DoubleProperty deviationProperty() {
+    return deviation;
   }
 
   public int getTotalGames() {
