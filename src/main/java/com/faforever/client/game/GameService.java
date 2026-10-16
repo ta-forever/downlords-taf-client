@@ -44,6 +44,7 @@ import com.faforever.client.remote.ReconnectTimerService;
 import com.faforever.client.library.LibraryGameInfo;
 import com.faforever.client.library.LibraryLaunchPlan;
 import com.faforever.client.library.LibraryMod;
+import com.faforever.client.library.LibraryPrompts;
 import com.faforever.client.remote.domain.GameInfoMessage;
 import com.faforever.client.remote.domain.GameLaunchMessage;
 import com.faforever.client.remote.domain.GameStatus;
@@ -158,6 +159,7 @@ public class GameService implements InitializingBean {
   private final RatingService ratingService;
   private final HotfixService hotfixService;
   private final LadderPointsService ladderPointsService;
+  private final LibraryPrompts libraryPrompts;
 
   private final ObservableList<Game> games;
   private final String faWindowTitle;
@@ -217,7 +219,8 @@ public class GameService implements InitializingBean {
                      ChatService chatService,
                      RatingService ratingService,
                      HotfixService hotfixService,
-                     LadderPointsService ladderPointsService) {
+                     LadderPointsService ladderPointsService,
+                     LibraryPrompts libraryPrompts) {
 
     this.clientProperties = clientProperties;
     this.fafService = fafService;
@@ -239,6 +242,7 @@ public class GameService implements InitializingBean {
     this.ratingService = ratingService;
     this.hotfixService = hotfixService;
     this.ladderPointsService = ladderPointsService;
+    this.libraryPrompts = libraryPrompts;
 
     ircHostAndPort = String.format("%s:%d", clientProperties.getIrc().getHost(), 6667);//clientProperties.getIrc().getPort());
     faWindowTitle = clientProperties.getForgedAlliance().getWindowTitle();
@@ -1892,7 +1896,13 @@ public class GameService implements InitializingBean {
         currentGame == null &&
         getRunningGameUid() == 0) {
       log.info("[checkAutoJoin] auto-joining {}!", gameOptional.get());
-      JavaFxUtil.runLater(() -> this.joinGame(gameOptional.get(), prototype.getPassword()));
+      Game autoJoinGame = gameOptional.get();
+      if (LibraryGameInfo.isLibraryMod(autoJoinGame.getFeaturedMod()) && autoJoinGame.getLibrary() != null) {
+        // same Library checks as a manual join: explains what is missing, offers "Join anyway" on a version hint
+        libraryPrompts.checkJoin(autoJoinGame.getLibrary(), () -> this.joinGame(autoJoinGame, prototype.getPassword()));
+        return;
+      }
+      JavaFxUtil.runLater(() -> this.joinGame(autoJoinGame, prototype.getPassword()));
     }
   }
 

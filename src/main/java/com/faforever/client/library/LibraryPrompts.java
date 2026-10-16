@@ -45,13 +45,21 @@ public class LibraryPrompts {
     return switch (verdict.outcome()) {
       case JOINABLE -> null;
       case JOINABLE_WITH_VERSION_HINT ->
-          i18n.get("library.hint.version", verdict.modName(), verdict.hostVersion(), verdict.localVersion());
+          versionHintText(verdict.modName(), new LibraryVersionHint(verdict.hostVersion(), verdict.localVersion()));
       case NEEDS_MOD -> i18n.get("library.reason.needsMod", verdict.modName());
       case NEEDS_SETUP -> i18n.get("library.reason.needsSetup");
       case NEEDS_OA -> verdict.requiredOaVersion() == null
           ? i18n.get("library.reason.needsOaAny")
           : i18n.get("library.reason.needsOa", verdict.requiredOaVersion());
     };
+  }
+
+  /**
+   * "Host plays Talon 1.03, you have 1.02. Update it in OA's Library." Built from the recorded and the local
+   * version only, so other recordings (replays) can reuse it.
+   */
+  public String versionHintText(String modName, LibraryVersionHint hint) {
+    return i18n.get("library.hint.version", modName, hint.recordedVersion(), hint.localVersion());
   }
 
   /** The judgement of a listed game against the last check of the player's OA; null until there is one. */

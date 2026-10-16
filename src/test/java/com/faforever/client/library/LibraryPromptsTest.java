@@ -65,6 +65,12 @@ public class LibraryPromptsTest {
   }
 
   @Test
+  public void theHintTextCanBeBuiltFromAnyRecordedVersion() {
+    assertThat(prompts.versionHintText("Talon", new LibraryVersionHint("1.03", "1.02")),
+        is("library.hint.version[Talon, 1.03, 1.02]"));
+  }
+
+  @Test
   public void aJoinableGameJustProceeds() {
     AtomicInteger joined = new AtomicInteger();
 

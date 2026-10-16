@@ -3,7 +3,7 @@ package com.faforever.client.library;
 import javax.annotation.Nullable;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Whether the local player can join a hosted Library mod game, given what is installed locally. The version
@@ -42,27 +42,16 @@ public record LibraryJoinVerdict(Outcome outcome, String modName, @Nullable Stri
     if (candidates.isEmpty()) {
       return new LibraryJoinVerdict(Outcome.NEEDS_MOD, game.name(), null, null, null);
     }
-    LibraryMod local = candidates.stream().filter(mod -> !differs(game, mod)).findFirst()
+    LibraryMod local = candidates.stream().filter(mod -> hintFor(game, mod).isEmpty()).findFirst()
         .orElseGet(() -> candidates.stream().max(Comparator.comparing(LibraryMod::version)).orElseThrow());
-    if (!differs(game, local)) {
-      return new LibraryJoinVerdict(Outcome.JOINABLE, game.name(), null, null, null);
-    }
-    boolean sameVersion = Objects.equals(game.version(), local.version());
-    String host = sameVersion ? withRevision(game.version(), game.revision()) : game.version();
-    String mine = sameVersion ? withRevision(local.version(), local.revision()) : local.version();
-    return new LibraryJoinVerdict(Outcome.JOINABLE_WITH_VERSION_HINT, game.name(), host, mine, null);
+    return hintFor(game, local)
+        .map(hint -> new LibraryJoinVerdict(Outcome.JOINABLE_WITH_VERSION_HINT, game.name(), hint.recordedVersion(),
+            hint.localVersion(), null))
+        .orElseGet(() -> new LibraryJoinVerdict(Outcome.JOINABLE, game.name(), null, null, null));
   }
 
-  /** Version or revision differ, but only where the host recorded them. */
-  private static boolean differs(LibraryGameInfo game, LibraryMod local) {
-    if (game.version() != null && !game.version().isBlank() && !game.version().trim().equals(local.version().trim())) {
-      return true;
-    }
-    return game.revision() != null && local.revision() != null && !game.revision().equals(local.revision());
-  }
-
-  private static String withRevision(String version, @Nullable Integer revision) {
-    return revision == null ? version : version + " (revision " + revision + ")";
+  private static Optional<LibraryVersionHint> hintFor(LibraryGameInfo game, LibraryMod local) {
+    return LibraryVersionHint.compare(game.version(), game.revision(), local.version(), local.revision());
   }
 
   /** The join cannot go ahead; the player has to fix something first. */
