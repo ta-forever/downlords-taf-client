@@ -112,6 +112,12 @@
         <Label styleClass="h2" style="-fx-padding: 0;" text="%game.create.gameType" GridPane.rowIndex="3"/>
         <VBox spacing="10.0" GridPane.columnIndex="0" GridPane.rowIndex="4" GridPane.rowSpan="2" GridPane.vgrow="ALWAYS">
             <ListView fx:id="featuredModListView" VBox.vgrow="SOMETIMES" prefHeight="180"/>
+            <!-- why the Open Annihilation Library section offers nothing -->
+            <HBox fx:id="libraryNoticeBox" alignment="CENTER_LEFT" spacing="10.0" visible="false" managed="false">
+                <Label fx:id="libraryNoticeLabel" wrapText="true" HBox.hgrow="ALWAYS" maxWidth="1.7976931348623157E308"/>
+                <Button fx:id="libraryOpenOaButton" mnemonicParsing="false" onAction="#onLibraryOpenOaClicked"
+                        text="%library.prompt.openOa" visible="false" managed="false"/>
+            </HBox>
             <HBox alignment="CENTER_LEFT" spacing="10.0">
                 <CheckBox fx:id="rankedEnabledCheckBox">
                     <tooltip>

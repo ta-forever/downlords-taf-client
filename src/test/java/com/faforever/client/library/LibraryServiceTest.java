@@ -1,6 +1,14 @@
 package com.faforever.client.library;
 
 import com.faforever.client.fa.oa.OaInstallationService;
+import com.faforever.client.fa.oa.OaInstallationService.InstalledOa;
+import com.faforever.client.fa.oa.OaVersion;
+import com.faforever.client.library.LibraryJoinVerdict.Outcome;
+import com.faforever.client.library.LibraryReadiness.Status;
+import com.faforever.client.update.ClientConfiguration;
+import com.faforever.client.update.ClientConfiguration.OaMod;
+import com.faforever.client.update.ClientConfiguration.OaSupport;
+import com.faforever.client.update.ClientConfiguration.OpenAnnihilation;
 import com.faforever.client.library.OaContentListing.ListedMap;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
@@ -21,6 +29,8 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class LibraryServiceTest {
@@ -39,14 +49,27 @@ public class LibraryServiceTest {
   private Path userFolder;
   private LibraryService.CommandRunner runner;
   private int listContentExit = 0;
+  private OaInstallationService oa;
+  private OaMod policy;
+  private final List<List<String>> started = new ArrayList<>();
 
   @Before
   public void setUp() throws IOException {
     PreferencesService preferencesService = mock(PreferencesService.class);
-    OaInstallationService oa = mock(OaInstallationService.class);
+    oa = mock(OaInstallationService.class);
     prefs = new TotalAnnihilationPrefs("oalibrary", null, "", null);
     when(preferencesService.getTotalAnnihilation("oalibrary")).thenReturn(prefs);
     when(oa.ensureExecutable("oalibrary")).thenReturn(CompletableFuture.completedFuture(EXE));
+    when(oa.findInstalled("oalibrary")).thenReturn(new InstalledOa(EXE, new OaVersion(0, 8, 1)));
+    policy = new OaMod();
+    policy.setModTechnical("oalibrary");
+    policy.setSupport(OaSupport.OA_ONLY);
+    policy.setMinVersion("0.8.0");
+    ClientConfiguration configuration = new ClientConfiguration();
+    OpenAnnihilation openAnnihilation = new OpenAnnihilation();
+    openAnnihilation.setMods(List.of(policy));
+    configuration.setOpenAnnihilation(openAnnihilation);
+    when(preferencesService.getClientRemoteConfiguration()).thenReturn(configuration);
     userFolder = temp.newFolder("oa-user").toPath();
     Path mod = userFolder.resolve("Mods").resolve("talon");
     Files.createDirectories(mod);
@@ -60,7 +83,7 @@ public class LibraryServiceTest {
       return new LibraryService.CommandResult(listContentExit, listContentExit == 0 ? "timing\n" + LISTING + "\n" : "no game folder");
     };
     prefs.setOaExtraArgs("--user-folder " + userFolder);
-    service = new LibraryService(preferencesService, oa, runner);
+    service = new LibraryService(preferencesService, oa, runner, started::add);
   }
 
   @Test
@@ -110,5 +133,70 @@ public class LibraryServiceTest {
 
     assertThat(LibraryService.userFolder("", home), is(home.resolve("Documents").resolve("Open Annihilation")));
     assertThat(LibraryService.userFolder("--mute --user-folder D:/oa", home), is(Path.of("D:/oa")));
+  }
+
+  private static LibraryGameInfo hosted(String modId, String version) {
+    return new LibraryGameInfo(modId, "Talon", "coreprime", version, 2, null, "totala", List.of());
+  }
+
+  @Test
+  public void withoutAnOaOnDiskTheSnapshotSaysNoOaAndDoesNotRunOrDownloadAnything() {
+    when(oa.findInstalled("oalibrary")).thenReturn(InstalledOa.NONE);
+
+    LibrarySnapshot snapshot = service.refresh(false).join();
+
+    assertThat(snapshot.readiness().status(), is(Status.NO_OA));
+    assertThat(snapshot.mods().isEmpty(), is(true));
+    assertThat(commands.isEmpty(), is(true));
+    verify(oa, never()).ensureExecutable("oalibrary");
+  }
+
+  @Test
+  public void whenAllowedToDownloadAMissingManagedOaIsFetchedFirst() {
+    when(oa.findInstalled("oalibrary")).thenReturn(InstalledOa.NONE);
+    when(oa.detectVersion(EXE)).thenReturn(java.util.Optional.of(new OaVersion(0, 8, 1)));
+
+    LibrarySnapshot snapshot = service.refresh(true).join();
+
+    assertThat(snapshot.readiness().status(), is(Status.READY));
+    assertThat(snapshot.mods().size(), is(1));
+  }
+
+  @Test
+  public void anOaOutsideTheAllowedRangeIsReportedWithoutRunningIt() {
+    when(oa.findInstalled("oalibrary")).thenReturn(new InstalledOa(EXE, new OaVersion(0, 7, 3)));
+
+    LibrarySnapshot snapshot = service.refresh(false).join();
+
+    assertThat(snapshot.readiness().status(), is(Status.OA_VERSION_NOT_ALLOWED));
+    assertThat(commands.isEmpty(), is(true));
+  }
+
+  @Test
+  public void aListContentFailureMeansSetupIsNotDone() {
+    listContentExit = 1;
+
+    LibrarySnapshot snapshot = service.refresh(false).join();
+
+    assertThat(snapshot.readiness().status(), is(Status.SETUP_NOT_DONE));
+    assertThat(snapshot.mods().isEmpty(), is(true));
+  }
+
+  @Test
+  public void theSnapshotGivesAJoinVerdictPerHostedGameAndIsPublishedAsAProperty() {
+    LibrarySnapshot snapshot = service.refresh(false).join();
+
+    assertThat(service.snapshotProperty().get(), is(snapshot));
+    assertThat(snapshot.verdictFor(hosted("talon", "1.03")).outcome(), is(Outcome.JOINABLE));
+    assertThat(snapshot.verdictFor(hosted("rhyoss", "1.0")).outcome(), is(Outcome.NEEDS_MOD));
+    assertThat(snapshot.verdictFor(hosted("talon", "1.02")).outcome(), is(Outcome.JOINABLE_WITH_VERSION_HINT));
+  }
+
+  @Test
+  public void openingOaStartsItsExecutableWithTheUserFoldersExtraArgsAndNothingElse() {
+    service.openOa().join();
+
+    assertThat(started.size(), is(1));
+    assertThat(started.get(0), contains(EXE.toString(), "--user-folder", userFolder.toString()));
   }
 }

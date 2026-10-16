@@ -7,6 +7,7 @@ import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.Leaderboard;
+import com.faforever.client.library.LibraryPrompts;
 import com.faforever.client.leaderboard.LeaderboardService;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
@@ -74,6 +75,9 @@ public class GameTileController implements Controller<Node> {
   private final UiService uiService;
   private final LeaderboardService leaderboardService;
   private final BrowserWatchService browserWatchService;
+  private final LibraryPrompts libraryPrompts;
+  private final InvalidationListener libraryListener = observable -> JavaFxUtil.runLater(this::updateLibraryState);
+  private String modDisplayName;
   public Node lockIconLabel;
   public Label gameTypeLabel;
   public Node gameCardRoot;
@@ -233,6 +237,14 @@ public class GameTileController implements Controller<Node> {
     return gameCardRoot;
   }
 
+  private void updateLibraryState() {
+    if (modDisplayName == null) {
+      return;
+    }
+    gameTypeLabel.setText(modDisplayName + libraryPrompts.listSuffix(game.getLibrary()));
+    gameCardRoot.setOpacity(libraryPrompts.isUnavailable(game.getLibrary()) ? 0.5 : 1);
+  }
+
   public void setGame(Game game) {
     Assert.isNull(this.game, "Game has already been set");
     this.game = game;
@@ -245,8 +257,15 @@ public class GameTileController implements Controller<Node> {
 
     CompletableFuture<FeaturedMod> featuredModFuture = modService.getFeaturedMod(game.getFeaturedMod());
     featuredModFuture.thenAccept(featuredModBean ->
-        JavaFxUtil.runLater(() -> gameTypeLabel.setText(game.getModDisplayName(featuredModBean.getDisplayName())))
+        JavaFxUtil.runLater(() -> {
+          modDisplayName = game.getModDisplayName(featuredModBean.getDisplayName());
+          updateLibraryState();
+        })
     );
+    if (game.getLibrary() != null) {
+      // Library mod games are listed for everyone; the reason one cannot be joined follows the mod name, dimmed
+      JavaFxUtil.addListener(libraryPrompts.snapshotProperty(), new WeakInvalidationListener(libraryListener));
+    }
 
     CompletableFuture<List<Leaderboard>> leaderboardsFuture = this.leaderboardService.getLeaderboards();
     gameRatingTypeLabel.textProperty().bind(

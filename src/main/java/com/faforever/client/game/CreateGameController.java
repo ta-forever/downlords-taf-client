@@ -17,6 +17,8 @@ import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.map.MapSize;
 import com.faforever.client.library.LibraryGameInfo;
 import com.faforever.client.library.LibraryMod;
+import com.faforever.client.library.LibraryPrompts;
+import com.faforever.client.library.LibrarySnapshot;
 import com.faforever.client.library.LibraryService;
 import com.faforever.client.library.OaContentListing.ListedMap;
 import com.faforever.client.mod.FeaturedMod;
@@ -139,6 +141,9 @@ public class CreateGameController implements Controller<Pane> {
   private final EventBus eventBus;
   private final PlatformService platformService;
   private final LibraryService libraryService;
+  private final LibraryPrompts libraryPrompts;
+  /** Section header entries ("Open Annihilation Library") in the mod list: shown, never selectable. */
+  private final java.util.Set<FeaturedMod> libraryHeaders = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
   /** The installed Library mods offered below the featured mods, each as a pseudo featured mod "oalibrary". */
   private final Map<FeaturedMod, LibraryMod> libraryEntries = new java.util.IdentityHashMap<>();
   /** Shown names of the selected Library mod maps, by key (name@pack for pack maps). */
@@ -156,6 +161,9 @@ public class CreateGameController implements Controller<Pane> {
   public TextField maxRankingTextField;
   public CheckBox enforceRankingCheckBox;
   public ListView<FeaturedMod> featuredModListView;
+  public HBox libraryNoticeBox;
+  public Label libraryNoticeLabel;
+  public Button libraryOpenOaButton;
   public ListView<MapBean> mapListView;
   public StackPane createGameRoot;
   public Button createGameButton;
@@ -1121,7 +1129,13 @@ public class CreateGameController implements Controller<Pane> {
             modMarker,
             FeaturedMod::getDescription,
             STYLE_CLASS_DUAL_LIST_CELL, uiService
-        )
+        ) {
+          @Override
+          protected void updateItem(FeaturedMod item, boolean empty) {
+            super.updateItem(item, empty);
+            setDisable(!empty && libraryHeaders.contains(item));
+          }
+        }
     );
 
     modService.getFeaturedMods().thenAccept(featuredModBeans -> JavaFxUtil.runLater(() -> {
@@ -1129,7 +1143,12 @@ public class CreateGameController implements Controller<Pane> {
       featuredModListView.setItems(modSource.filtered(FeaturedMod::isVisible));
       offerLibraryMods(modSource);
       featuredModListView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-        if (newValue != null) {
+        if (newValue != null && libraryHeaders.contains(newValue)) {
+          // a section header: step over it in the direction of travel
+          int headerIndex = featuredModListView.getItems().indexOf(newValue);
+          int oldIndex = oldValue == null ? -1 : featuredModListView.getItems().indexOf(oldValue);
+          JavaFxUtil.runLater(() -> featuredModListView.getSelectionModel().select(oldIndex > headerIndex ? headerIndex - 1 : headerIndex + 1));
+        } else if (newValue != null) {
           JavaFxUtil.runLater(() -> setButtonStatesForFeaturedMod(newValue));
         }
       });
@@ -1142,8 +1161,18 @@ public class CreateGameController implements Controller<Pane> {
    * "oalibrary" named after the Library mod; picking one lists the OA maps for that mod and hosts an unrated OA game.
    */
   private void offerLibraryMods(ObservableList<FeaturedMod> modSource) {
-    libraryService.installedMods().thenAccept(mods -> JavaFxUtil.runLater(() -> {
-      for (LibraryMod mod : mods) {
+    libraryService.refresh(true).thenAccept(snapshot -> JavaFxUtil.runLater(() -> {
+      showLibraryNotice(snapshot);
+      if (!snapshot.mods().isEmpty()) {
+        FeaturedMod header = new FeaturedMod();
+        header.setTechnicalName("");
+        header.setDisplayName(i18n.get("game.create.libraryHeader"));
+        header.setDescription("");
+        header.setVisible(true);
+        libraryHeaders.add(header);
+        modSource.add(header);
+      }
+      for (LibraryMod mod : snapshot.mods()) {
         FeaturedMod entry = new FeaturedMod();
         entry.setTechnicalName(LibraryGameInfo.UMBRELLA_FEATURED_MOD);
         entry.setDisplayName(mod.version().isBlank() ? mod.name() : mod.name() + " " + mod.version());
@@ -1156,6 +1185,21 @@ public class CreateGameController implements Controller<Pane> {
       log.info("Open Annihilation Library mods are not offered: {}", throwable.getMessage());
       return null;
     });
+  }
+
+  /** Says why the Library section offers nothing (no OA, OA not allowed, first-run setup not done). */
+  private void showLibraryNotice(LibrarySnapshot snapshot) {
+    String notice = libraryPrompts.noticeFor(snapshot.readiness());
+    libraryNoticeLabel.setText(notice);
+    libraryNoticeBox.setVisible(notice != null);
+    libraryNoticeBox.setManaged(notice != null);
+    boolean openOa = notice != null && libraryPrompts.offersOpenOa(snapshot.readiness());
+    libraryOpenOaButton.setVisible(openOa);
+    libraryOpenOaButton.setManaged(openOa);
+  }
+
+  public void onLibraryOpenOaClicked(ActionEvent actionEvent) {
+    libraryPrompts.openOa();
   }
 
   private void setButtonStatesForFeaturedMod(FeaturedMod featuredMod) {
@@ -1319,6 +1363,11 @@ public class CreateGameController implements Controller<Pane> {
   private void hostLibraryGame(MapBean map) {
     FeaturedMod entry = featuredModListView.getSelectionModel().getSelectedItem();
     LibraryMod mod = libraryEntries.get(entry);
+    // checks the player's OA and the mod once more (it may have changed since the dialog opened) and explains if not
+    libraryPrompts.checkHost(mod, () -> hostLibraryGame(map, entry, mod));
+  }
+
+  private void hostLibraryGame(MapBean map, FeaturedMod entry, LibraryMod mod) {
     libraryService.hostInfo(mod)
         .thenCompose(info -> gameService.hostGame(new NewGameInfo(
             titleTextField.getText(),

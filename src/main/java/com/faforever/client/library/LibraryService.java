@@ -1,8 +1,14 @@
 package com.faforever.client.library;
 
 import com.faforever.client.fa.oa.OaInstallationService;
+import com.faforever.client.fa.oa.OaInstallationService.InstalledOa;
+import com.faforever.client.fa.oa.OaPolicy;
+import com.faforever.client.fa.oa.OaVersion;
 import com.faforever.client.library.OaContentListing.ListedMap;
 import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.update.ClientConfiguration.OaMod;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -30,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 public class LibraryService {
 
   private static final int TIMEOUT_SECONDS = 60;
+  private static final long STALE_AFTER_MILLIS = 60_000;
 
   /** Runs a command and returns its exit code and combined output. Replaceable for tests. */
   @FunctionalInterface
@@ -43,17 +50,109 @@ public class LibraryService {
   private final PreferencesService preferencesService;
   private final OaInstallationService oaInstallationService;
   private final CommandRunner runner;
+  private final ProcessStarter starter;
+  private final ObjectProperty<LibrarySnapshot> snapshot = new SimpleObjectProperty<>();
+  private volatile long snapshotTakenAtMillis;
+  private volatile CompletableFuture<LibrarySnapshot> refreshing;
+
+  /** Starts a process and returns at once. Replaceable for tests. */
+  @FunctionalInterface
+  interface ProcessStarter {
+    void start(List<String> command) throws IOException;
+  }
 
   @Autowired
   public LibraryService(PreferencesService preferencesService, OaInstallationService oaInstallationService) {
-    this(preferencesService, oaInstallationService, LibraryService::runProcess);
+    this(preferencesService, oaInstallationService, LibraryService::runProcess, LibraryService::startProcess);
   }
 
   LibraryService(PreferencesService preferencesService, OaInstallationService oaInstallationService,
-                 CommandRunner runner) {
+                 CommandRunner runner, ProcessStarter starter) {
     this.preferencesService = preferencesService;
     this.oaInstallationService = oaInstallationService;
     this.runner = runner;
+    this.starter = starter;
+  }
+
+  /** The last check of the player's OA and Library, or null before the first one finishes. */
+  public ObjectProperty<LibrarySnapshot> snapshotProperty() {
+    return snapshot;
+  }
+
+  /**
+   * Checks the player's OA now: is there one, is its version allowed, is its first-run setup done, and which
+   * Library mods are installed. Publishes the result as {@link #snapshotProperty()}.
+   *
+   * @param allowDownload whether a TAF-managed OA that is not on disk yet may be downloaded (the engine TAF pins
+   *                      for the user, never Library content); the game list passes false so that merely looking
+   *                      at it downloads nothing
+   */
+  public CompletableFuture<LibrarySnapshot> refresh(boolean allowDownload) {
+    return CompletableFuture.supplyAsync(() -> {
+      LibrarySnapshot taken = takeSnapshot(allowDownload);
+      snapshotTakenAtMillis = System.currentTimeMillis();
+      snapshot.set(taken);
+      return taken;
+    });
+  }
+
+  /** Re-checks unless a check is already running or the last one is recent. For callers that run often. */
+  public void refreshIfStale() {
+    CompletableFuture<LibrarySnapshot> running = refreshing;
+    if (running != null && !running.isDone()) {
+      return;
+    }
+    if (snapshot.get() != null && System.currentTimeMillis() - snapshotTakenAtMillis < STALE_AFTER_MILLIS) {
+      return;
+    }
+    refreshing = refresh(false);
+  }
+
+  private LibrarySnapshot takeSnapshot(boolean allowDownload) {
+    OaMod policy = OaPolicy.forMod(preferencesService.getClientRemoteConfiguration(), LibraryGameInfo.UMBRELLA_FEATURED_MOD)
+        .orElse(null);
+    InstalledOa found = oaInstallationService.findInstalled(LibraryGameInfo.UMBRELLA_FEATURED_MOD);
+    Path exe = found.exe();
+    OaVersion version = found.version();
+    if (exe == null && allowDownload && policy != null) {
+      try {
+        exe = oaInstallationService.ensureExecutable(LibraryGameInfo.UMBRELLA_FEATURED_MOD).join();
+        version = oaInstallationService.detectVersion(exe).orElse(version);
+      } catch (RuntimeException e) {
+        log.info("[Library] no Open Annihilation to use: {}", e.getMessage());
+        exe = null;
+      }
+    }
+    LibraryReadiness readiness = LibraryReadiness.assess(policy, exe != null, version, null);
+    if (!readiness.isReady()) {
+      return new LibrarySnapshot(readiness, List.of());
+    }
+    try {
+      CommandResult result = runner.run(withExtraArgs(LibraryCommands.listContent(exe)));
+      readiness = LibraryReadiness.assess(policy, true, version, result.exitCode());
+      if (!readiness.isReady()) {
+        log.info("[Library] --list-content exited {}: {}", result.exitCode(), result.output());
+        return new LibrarySnapshot(readiness, List.of());
+      }
+      return new LibrarySnapshot(readiness, LibraryDiscovery.discover(userFolder(), OaContentListing.parse(result.output())));
+    } catch (IOException | IllegalArgumentException e) {
+      log.warn("[Library] could not list the content of Open Annihilation", e);
+      return new LibrarySnapshot(LibraryReadiness.assess(policy, true, version, 1), List.of());
+    }
+  }
+
+  /** Opens Open Annihilation itself, so the player can finish its first-run setup or install a Library mod. */
+  public CompletableFuture<Void> openOa() {
+    return CompletableFuture.runAsync(() -> {
+      InstalledOa found = oaInstallationService.findInstalled(LibraryGameInfo.UMBRELLA_FEATURED_MOD);
+      Path exe = found.exe() != null ? found.exe()
+          : oaInstallationService.ensureExecutable(LibraryGameInfo.UMBRELLA_FEATURED_MOD).join();
+      try {
+        starter.start(withExtraArgs(new ArrayList<>(List.of(exe.toString()))));
+      } catch (IOException e) {
+        throw new IllegalStateException("Could not start Open Annihilation: " + e.getMessage(), e);
+      }
+    });
   }
 
   private String extraArgs() {
@@ -76,24 +175,11 @@ public class LibraryService {
   }
 
   /**
-   * The Library mods that are installed and that OA lists. Empty when OA is not ready (its first-run setup is
-   * not done, so {@code --list-content} exits 1) or the Library has no mods.
-   * Completes exceptionally when there is no usable OA executable.
+   * The Library mods that are installed and that OA lists. Empty when OA is not ready (see {@link #refresh}) or
+   * the Library has no mods.
    */
   public CompletableFuture<List<LibraryMod>> installedMods() {
-    return oaInstallationService.ensureExecutable(LibraryGameInfo.UMBRELLA_FEATURED_MOD).thenApplyAsync(exe -> {
-      try {
-        CommandResult result = runner.run(withExtraArgs(LibraryCommands.listContent(exe)));
-        if (result.exitCode() != 0) {
-          log.info("[Library] --list-content exited {}: {}", result.exitCode(), result.output());
-          return List.of();
-        }
-        return LibraryDiscovery.discover(userFolder(), OaContentListing.parse(result.output()));
-      } catch (IOException | IllegalArgumentException e) {
-        log.warn("[Library] could not list OA's content", e);
-        return List.of();
-      }
-    });
+    return refresh(true).thenApply(LibrarySnapshot::mods);
   }
 
   /** The maps OA has for this mod's content: its shown names and the keys a launch file uses. */
@@ -137,6 +223,12 @@ public class LibraryService {
       full.addAll(List.of(extra.trim().split("\\s+")));
     }
     return full;
+  }
+
+  private static void startProcess(List<String> command) throws IOException {
+    new ProcessBuilder(command)
+        .directory(Path.of(command.get(0)).toAbsolutePath().getParent().toFile())
+        .start();
   }
 
   private static CommandResult runProcess(List<String> command) throws IOException {

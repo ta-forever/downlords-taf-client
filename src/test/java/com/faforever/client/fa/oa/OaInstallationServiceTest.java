@@ -65,6 +65,26 @@ public class OaInstallationServiceTest {
   }
 
   @Test
+  public void findInstalledReportsAnExistingExecutableAndItsVersionWithoutJudgingIt() throws IOException {
+    PreferencesService preferencesService = mock(PreferencesService.class);
+    com.faforever.client.preferences.TotalAnnihilationPrefs prefs =
+        new com.faforever.client.preferences.TotalAnnihilationPrefs("oalibrary", null, "", null);
+    prefs.setOaInstallation(com.faforever.client.preferences.OaInstallationMode.EXISTING);
+    org.mockito.Mockito.when(preferencesService.getTotalAnnihilation("oalibrary")).thenReturn(prefs);
+    Path exe = fakeExe("open-annihilation-v0.7.3-windows-x64");
+    prefs.setOaExecutablePath(exe);
+
+    OaInstallationService.InstalledOa found = new OaInstallationService(preferencesService).findInstalled("oalibrary");
+
+    assertThat(found.exe(), is(exe));
+    assertThat(found.version(), is(new OaVersion(0, 7, 3)));
+
+    prefs.setOaExecutablePath(exe.resolveSibling("gone.exe"));
+    assertThat(new OaInstallationService(preferencesService).findInstalled("oalibrary"),
+        is(OaInstallationService.InstalledOa.NONE));
+  }
+
+  @Test
   public void existingInstallMustBeAnAllowedVersion() throws IOException {
     Path exe = fakeExe("open-annihilation-v0.7.3-windows-x64");
 

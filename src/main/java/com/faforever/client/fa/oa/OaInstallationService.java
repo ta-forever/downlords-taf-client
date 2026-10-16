@@ -89,6 +89,39 @@ public class OaInstallationService {
     });
   }
 
+  /**
+   * The Open Annihilation that is on disk for {@code modTechnical} right now. Never downloads and never rejects a
+   * version, so it can say what is there while the caller decides whether it is allowed.
+   *
+   * @param exe     the executable, or null if there is none yet (a TAF-managed copy not downloaded counts as none)
+   * @param version its version, or null if there is no executable or the version cannot be told
+   */
+  public record InstalledOa(Path exe, OaVersion version) {
+    public static final InstalledOa NONE = new InstalledOa(null, null);
+  }
+
+  public InstalledOa findInstalled(String modTechnical) {
+    TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
+    if (prefs.getOaInstallation() == OaInstallationMode.EXISTING) {
+      Path exe = prefs.getOaExecutablePath();
+      return exe != null && Files.isRegularFile(exe) ? new InstalledOa(exe, detectVersion(exe).orElse(null)) : InstalledOa.NONE;
+    }
+    String platform = OaPlatform.current();
+    OaRelease release = OaPolicy.pickRelease(preferencesService.getClientRemoteConfiguration(), modTechnical, platform)
+        .orElse(null);
+    if (release == null) {
+      return InstalledOa.NONE;
+    }
+    try {
+      return findExecutable(enginesRoot().resolve(release.getVersion()).resolve(platform), platform)
+          .map(exe -> new InstalledOa(exe, OaVersion.find(release.getVersion())))
+          .orElse(InstalledOa.NONE);
+    } catch (IOException e) {
+      log.warn("Could not look for Open Annihilation {}", release.getVersion(), e);
+      return InstalledOa.NONE;
+    }
+  }
+
   /** @throws IllegalStateException when the executable is missing or its version is not allowed */
   Path validateExisting(Path exe, OaMod policy) {
     if (exe == null || !Files.isRegularFile(exe)) {
