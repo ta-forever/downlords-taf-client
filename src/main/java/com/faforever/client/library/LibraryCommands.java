@@ -18,6 +18,8 @@ public final class LibraryCommands {
 
   private static final Pattern SIM_HASH = Pattern.compile("^sha256-sim\\s+([0-9a-f]{64})\\s*$", Pattern.MULTILINE);
 
+  private static final String LOOPBACK = "127.0.0.1";
+
   private LibraryCommands() {
   }
 
@@ -25,6 +27,47 @@ public final class LibraryCommands {
   public static List<String> launch(Path oaExe, Path launchFile, String extraArgs) {
     List<String> command = new ArrayList<>(List.of(oaExe.toString(), "-c", launchFile.toString()));
     command.addAll(split(extraArgs));
+    return command;
+  }
+
+  /**
+   * Local playback of a vault {@code .tad} with the mod folder and content the replay was recorded with. Not
+   * {@code --game-dir}: the player's own OA install and Library are used.
+   */
+  public static List<String> playDemo(Path oaExe, Path modDir, String baseGame, List<String> expansions, Path demo,
+                                      String extraArgs) {
+    List<String> command = replayBase(oaExe, modDir, baseGame, expansions);
+    command.addAll(List.of("--play-demo", demo.toString()));
+    command.addAll(split(extraArgs));
+    return command;
+  }
+
+  /** Loads a demo headlessly for one tick and exits: status 0 if OA can play it, else 1 with the reason. */
+  public static List<String> checkDemo(Path oaExe, Path modDir, String baseGame, List<String> expansions, Path demo) {
+    List<String> command = replayBase(oaExe, modDir, baseGame, expansions);
+    command.addAll(List.of("--headless-check", "--play-demo", demo.toString(), "--match-ticks", "1"));
+    return command;
+  }
+
+  /**
+   * Joins the game replayer.exe hosts on loopback (live replay). OA refuses {@code --player-name} together with
+   * {@code --replay-viewer}, so none is passed.
+   */
+  public static List<String> replayViewer(Path oaExe, Path modDir, String baseGame, List<String> expansions,
+                                          String extraArgs) {
+    List<String> command = replayBase(oaExe, modDir, baseGame, expansions);
+    command.addAll(List.of("--replay-viewer", "-n1:" + LOOPBACK));
+    command.addAll(split(extraArgs));
+    return command;
+  }
+
+  private static List<String> replayBase(Path oaExe, Path modDir, String baseGame, List<String> expansions) {
+    List<String> command = new ArrayList<>();
+    command.add(oaExe.toString());
+    command.add("--skip-intro");
+    command.addAll(List.of("--mod-dir", modDir.toString()));
+    command.add("--content");
+    command.add(expansions.isEmpty() ? baseGame : baseGame + ":" + String.join(",", expansions));
     return command;
   }
 

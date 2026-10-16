@@ -257,9 +257,13 @@ public class OaLaunchServerTest {
   }
 
   private void startLibraryServer(LibraryLaunchPlan plan) throws IOException {
+    startLibraryServer(plan, Mode.GAME);
+  }
+
+  private void startLibraryServer(LibraryLaunchPlan plan, Mode mode) throws IOException {
     Path logs = temp.getRoot().toPath();
     server = new OaLaunchServer(Path.of("oa", "open-annihilation"), null, "", id -> logs.resolve("oa.log"),
-        logs, Mode.GAME, plan, (command, workDir, log) -> {
+        logs, mode, plan, (command, workDir, log) -> {
       started.add(command);
       process = new FakeProcess();
       return process;
@@ -295,6 +299,22 @@ public class OaLaunchServerTest {
     assertThat(file.contains("expansions: [\"core-contingency\"]"), is(true));
     assertThat(file.contains("name: \"TheArmCommander\""), is(true));
     assertThat(file.contains("secret-token"), is(false));
+  }
+
+  @Test
+  public void aLiveReplayOfALibraryGameJoinsTheReplayerWithTheInstalledModAndItsContent() throws Exception {
+    Path modFolder = Path.of("Mods", "talon-1.02");
+    startLibraryServer(new LibraryLaunchPlan("talon", "totala", List.of("core-contingency"), null, modFolder),
+        Mode.REPLAY_VIEWER);
+
+    send("/searchjoin 0 {guid} Watcher 127.0.0.1");
+
+    assertThat(receive(), is("RUNNING"));
+    List<String> command = started.get(0);
+    assertThat(command, hasItems("--replay-viewer", "-n1:127.0.0.1", "--mod-dir", modFolder.toString(),
+        "--content", "totala:core-contingency"));
+    assertThat(command, not(hasItem("--game-dir")));
+    assertThat(command, not(hasItem("--player-name")));
   }
 
   @Test

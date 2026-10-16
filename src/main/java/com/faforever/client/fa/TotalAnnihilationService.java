@@ -6,6 +6,7 @@ import com.faforever.client.fa.oa.OaInstallationService;
 import com.faforever.client.fa.oa.OaHostSetup;
 import com.faforever.client.fa.oa.OaLaunchServer;
 import com.faforever.client.fa.oa.OaProfileInstaller;
+import com.faforever.client.library.LibraryCommands;
 import com.faforever.client.library.LibraryGameInfo;
 import com.faforever.client.library.LibraryLaunchPlan;
 import com.faforever.client.library.LibraryService;
@@ -412,14 +413,15 @@ public class TotalAnnihilationService {
     stopOaLaunchServer();
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
     Path oaExe = oaInstallationService.ensureExecutable(modTechnical).join();
-    if (LibraryGameInfo.isLibraryMod(modTechnical) && mode == OaLaunchServer.Mode.GAME) {
+    if (LibraryGameInfo.isLibraryMod(modTechnical)) {
       // A Library mod game uses the player's own OA install and user folder; it needs no TAF mod directory,
       // profile or sim-hash check (versions are not pinned).
       if (libraryPlan == null) {
         throw new IOException("No Library mod was chosen for this game");
       }
       oaLaunchServer = new OaLaunchServer(oaExe, prefs.getOaExtraArgs(),
-          gameId -> preferencesService.getNewLogFile("oa", gameId), preferencesService.getFafLogDirectory(), libraryPlan);
+          gameId -> preferencesService.getNewLogFile("oa", gameId), preferencesService.getFafLogDirectory(), libraryPlan,
+          mode);
       this.launchServerPort = oaLaunchServer.start();
       return;
     }
@@ -501,6 +503,22 @@ public class TotalAnnihilationService {
   public Process startReplay(String modTechnical, String replayUrlOrPath, Integer replayId, String playerName) throws IOException {
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
     boolean openAnnihilation = prefs.isOpenAnnihilation();
+
+    if (LibraryGameInfo.isLibraryMod(modTechnical) && isLocalDemo(replayUrlOrPath)) {
+      // A Library mod's vault replay: OA plays it itself from the player's own install, no TotalA.exe fallback
+      if (libraryPlan == null || libraryPlan.modFolder() == null) {
+        throw new IOException("No Library mod was chosen for this replay");
+      }
+      Path oaExe = oaInstallationService.ensureExecutable(modTechnical).join();
+      Path demo = Paths.get(replayUrlOrPath);
+      String refusal = oaInstallationService.checkDemo(LibraryCommands.checkDemo(oaExe, libraryPlan.modFolder(),
+          libraryPlan.baseGame(), libraryPlan.expansions(), demo), oaExe);
+      if (refusal != null) {
+        throw new IOException("Open Annihilation cannot play this replay: " + refusal);
+      }
+      return launch(oaExe.toAbsolutePath().getParent(), LibraryCommands.playDemo(oaExe, libraryPlan.modFolder(),
+          libraryPlan.baseGame(), libraryPlan.expansions(), demo, prefs.getOaExtraArgs()));
+    }
 
     if (openAnnihilation && isLocalDemo(replayUrlOrPath)) {
       // A vault/local .tad needs no replayer, no launch server and no DirectPlay: OA plays it itself.

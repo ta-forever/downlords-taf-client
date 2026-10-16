@@ -104,4 +104,14 @@ public class LibraryJoinVerdictTest {
   public void aBlockingVerdictCarriesNoLocalVersion() {
     assertThat(LibraryJoinVerdict.decide(hosted("1.03", 2), READY, List.of()).localVersion(), is(nullValue()));
   }
+
+  @Test
+  public void theLocalModForAReplayIsTheInstalledVersionThatMatchesElseTheNewest() {
+    LibraryMod old = new LibraryMod("talon", "Talon", "1.02", 2, "coreprime", "totala", List.of(), Path.of("Mods", "talon-1.02"));
+    LibraryMod current = new LibraryMod("talon", "Talon", "1.03", 2, "coreprime", "totala", List.of(), Path.of("Mods", "talon"));
+
+    assertThat(LibraryJoinVerdict.localModFor(hosted("1.02", 2), List.of(current, old)).orElseThrow(), is(old));
+    assertThat(LibraryJoinVerdict.localModFor(hosted("1.01", 2), List.of(old, current)).orElseThrow(), is(current));
+    assertThat(LibraryJoinVerdict.localModFor(hosted("1.02", 2), List.of(installed("rhyoss", "1.0", 1))).isPresent(), is(false));
+  }
 }

@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * What players are told about Library mod games: the reason a game in the list is greyed out, the prompts when
@@ -100,6 +101,23 @@ public class LibraryPrompts {
         });
   }
 
+  /**
+   * Checks the player's OA afresh and then plays the recorded game's replay ({@code proceed}, given the installed
+   * copy of the mod to play it with) or explains why not: the mod is missing, or its version differs from the
+   * recorded one (the replay may not play correctly). Safe to call from any thread; {@code proceed} runs on the
+   * JavaFX thread.
+   */
+  public void checkReplay(LibraryGameInfo recorded, Consumer<LibraryMod> proceed) {
+    libraryService.refresh(true)
+        .thenAccept(snapshot -> JavaFxUtil.runLater(() -> handleReplay(snapshot.verdictFor(recorded),
+            () -> proceed.accept(LibraryJoinVerdict.localModFor(recorded, snapshot.mods()).orElseThrow()))))
+        .exceptionally(throwable -> {
+          log.warn("[Library] could not check Open Annihilation before a replay", throwable);
+          notificationService.addImmediateErrorNotification(throwable, "library.checkFailed");
+          return null;
+        });
+  }
+
   /** The same for hosting a Library mod that was offered in Create Game. */
   public void checkHost(LibraryMod mod, Runnable proceed) {
     checkJoin(LibraryGameInfo.of(mod, null), proceed);
@@ -118,6 +136,21 @@ public class LibraryPrompts {
       case NEEDS_OA -> blocked(verdict, verdict.requiredOaVersion() == null
           ? i18n.get("library.prompt.needsOaAny")
           : i18n.get("library.prompt.needsOa", verdict.requiredOaVersion()), false);
+    }
+  }
+
+  /** {@link #handle} for a replay: the words are about watching, and a version difference may break playback. */
+  void handleReplay(LibraryJoinVerdict verdict, Runnable proceed) {
+    switch (verdict.outcome()) {
+      case JOINABLE -> proceed.run();
+      case JOINABLE_WITH_VERSION_HINT -> notificationService.addNotification(new ImmediateNotification(
+          i18n.get("library.title"),
+          i18n.get("library.hint.replayVersion", verdict.modName(), verdict.hostVersion(), verdict.localVersion()),
+          Severity.INFO,
+          List.of(new Action(i18n.get("library.prompt.watchAnyway"), event -> proceed.run()),
+              new Action(i18n.get("game.cancel")))));
+      case NEEDS_MOD -> blocked(verdict, i18n.get("library.prompt.replayNeedsMod", verdict.modName()), true);
+      default -> handle(verdict, proceed);
     }
   }
 

@@ -42,12 +42,21 @@ public record LibraryJoinVerdict(Outcome outcome, String modName, @Nullable Stri
     if (candidates.isEmpty()) {
       return new LibraryJoinVerdict(Outcome.NEEDS_MOD, game.name(), null, null, null);
     }
-    LibraryMod local = candidates.stream().filter(mod -> hintFor(game, mod).isEmpty()).findFirst()
-        .orElseGet(() -> candidates.stream().max(Comparator.comparing(LibraryMod::version)).orElseThrow());
+    LibraryMod local = localModFor(game, candidates).orElseThrow();
     return hintFor(game, local)
         .map(hint -> new LibraryJoinVerdict(Outcome.JOINABLE_WITH_VERSION_HINT, game.name(), hint.recordedVersion(),
             hint.localVersion(), null))
         .orElseGet(() -> new LibraryJoinVerdict(Outcome.JOINABLE, game.name(), null, null, null));
+  }
+
+  /**
+   * The installed copy of the game's mod to play it with: the one whose version matches the recorded one, else
+   * the newest. Empty when the mod is not installed.
+   */
+  public static Optional<LibraryMod> localModFor(LibraryGameInfo game, List<LibraryMod> installed) {
+    List<LibraryMod> candidates = installed.stream().filter(mod -> mod.id().equals(game.modId())).toList();
+    return candidates.stream().filter(mod -> hintFor(game, mod).isEmpty()).findFirst()
+        .or(() -> candidates.stream().max(Comparator.comparing(LibraryMod::version)));
   }
 
   private static Optional<LibraryVersionHint> hintFor(LibraryGameInfo game, LibraryMod local) {

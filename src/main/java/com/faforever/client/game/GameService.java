@@ -749,6 +749,9 @@ public class GameService implements InitializingBean {
   }
 
   public CompletableFuture<Void> runWithReplay(String replayFileOrUrl, Game game) {
+    if (LibraryGameInfo.isLibraryMod(game.getFeaturedMod()) && game.getLibrary() != null) {
+      return runWithLibraryReplay(replayFileOrUrl, game.getId(), game.getLibrary());
+    }
     if (game.getFeaturedModVersion() != null) {
       return runWithReplay(
           replayFileOrUrl, game.getId(), game.getFeaturedMod(), game.getFeaturedModVersion(),
@@ -760,6 +763,32 @@ public class GameService implements InitializingBean {
               replayFileOrUrl, game.getId(), game.getFeaturedMod(), featuredModBean.getGitBranch(),
               game.getMapName(), game.getMapCrc(), game.getMapArchiveName()));
     }
+  }
+
+  /**
+   * Watches a Library mod game, live or from the vault, through Open Annihilation with the mod the game was
+   * recorded with. TAF installs nothing: a missing mod gets the "install it from OA's Library" prompt and a
+   * different version gets the version hint before OA is started.
+   *
+   * @param replayFileOrUrl Either a path to a locally available file, or a url eg taforever.com:15000/1234
+   */
+  public CompletableFuture<Void> runWithLibraryReplay(String replayFileOrUrl, Integer replayId, LibraryGameInfo recorded) {
+    if (!canStartReplay()) {
+      return completedFuture(null);
+    }
+    libraryPrompts.checkReplay(recorded, installed -> {
+      try {
+        if (isGameRunning()) {
+          return;
+        }
+        onMatchmakerSearchStopped();
+        totalAnnihilationService.setLibraryPlan(LibraryLaunchPlan.forReplay(installed, recorded));
+        launchReplayProcess(LibraryGameInfo.UMBRELLA_FEATURED_MOD, replayFileOrUrl, replayId);
+      } catch (IOException | RuntimeException e) {
+        notifyCantPlayReplay(replayId, e);
+      }
+    });
+    return completedFuture(null);
   }
 
   /**
@@ -796,21 +825,7 @@ public class GameService implements InitializingBean {
               return;
             }
 
-            // Open Annihilation plays a local .tad by itself; only a live watch needs a launch server
-            if (!totalAnnihilationService.isOpenAnnihilation(modTechnical) || !TotalAnnihilationService.isLocalDemo(replayFileOrUrl)) {
-              Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(
-                  modTechnical, replayId, OaLaunchServer.Mode.REPLAY_VIEWER));
-              spawnGenericTerminationListener(launchServerProcess);
-            }
-
-            this.process = totalAnnihilationService.startReplay(modTechnical, replayFileOrUrl, replayId, getCurrentPlayer().getUsername());
-            setRunningGameUid(-1);
-
-            BooleanProperty dismissTrigger = openProcessRunningDialog(this.process,
-                i18n.get("replay.running.title", replayId, replayFileOrUrl),
-                new File(replayFileOrUrl).exists() ? i18n.get("replay.running.text.local") : i18n.get("replay.running.text.live"));
-            spawnGameTerminationListener(this.process, replayId, modTechnical, dismissTrigger);
-
+            launchReplayProcess(modTechnical, replayFileOrUrl, replayId);
           } catch (IOException e) {
             notifyCantPlayReplay(replayId, e);
           }
@@ -819,6 +834,23 @@ public class GameService implements InitializingBean {
           notifyCantPlayReplay(replayId, throwable);
           return null;
         });
+  }
+
+  private void launchReplayProcess(String modTechnical, String replayFileOrUrl, Integer replayId) throws IOException {
+    // Open Annihilation plays a local .tad by itself; only a live watch needs a launch server
+    if (!totalAnnihilationService.isOpenAnnihilation(modTechnical) || !TotalAnnihilationService.isLocalDemo(replayFileOrUrl)) {
+      Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(
+          modTechnical, replayId, OaLaunchServer.Mode.REPLAY_VIEWER));
+      spawnGenericTerminationListener(launchServerProcess);
+    }
+
+    this.process = totalAnnihilationService.startReplay(modTechnical, replayFileOrUrl, replayId, getCurrentPlayer().getUsername());
+    setRunningGameUid(-1);
+
+    BooleanProperty dismissTrigger = openProcessRunningDialog(this.process,
+        i18n.get("replay.running.title", replayId, replayFileOrUrl),
+        new File(replayFileOrUrl).exists() ? i18n.get("replay.running.text.local") : i18n.get("replay.running.text.live"));
+    spawnGameTerminationListener(this.process, replayId, modTechnical, dismissTrigger);
   }
 
   private BooleanProperty openProcessRunningDialog(Process process, String title, String text) {

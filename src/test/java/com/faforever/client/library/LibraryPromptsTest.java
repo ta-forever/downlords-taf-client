@@ -164,4 +164,40 @@ public class LibraryPromptsTest {
     verify(notificationService).addNotification(captor.capture());
     return captor.getValue();
   }
+
+  @Test
+  public void aReplayWithADifferentVersionSaysWhatTheReplayNeedsAndOffersToWatchAnyway() {
+    AtomicInteger watched = new AtomicInteger();
+
+    prompts.handleReplay(verdict(LibraryJoinVerdict.Outcome.JOINABLE_WITH_VERSION_HINT), watched::incrementAndGet);
+
+    ImmediateNotification notification = shown();
+    assertThat(notification.getText(), is("library.hint.replayVersion[Talon, 1.03, 1.02]"));
+    assertThat(notification.getActions().get(0).getTitle(), is("library.prompt.watchAnyway"));
+    assertThat(watched.get(), is(0));
+    notification.getActions().get(0).call(null);
+    assertThat(watched.get(), is(1));
+  }
+
+  @Test
+  public void aReplayOfAMissingModSaysToInstallItFromOasLibraryAndOffersToOpenOa() {
+    AtomicInteger watched = new AtomicInteger();
+
+    prompts.handleReplay(verdict(LibraryJoinVerdict.Outcome.NEEDS_MOD), watched::incrementAndGet);
+
+    ImmediateNotification notification = shown();
+    assertThat(notification.getText(), is("library.prompt.replayNeedsMod[Talon]"));
+    assertThat(notification.getActions().get(0).getTitle(), is("library.prompt.openOa"));
+    assertThat(watched.get(), is(0));
+  }
+
+  @Test
+  public void aReplayWithTheSameVersionJustPlays() {
+    AtomicInteger watched = new AtomicInteger();
+
+    prompts.handleReplay(verdict(LibraryJoinVerdict.Outcome.JOINABLE), watched::incrementAndGet);
+
+    assertThat(watched.get(), is(1));
+    verify(notificationService, never()).addNotification(any(ImmediateNotification.class));
+  }
 }

@@ -1,5 +1,6 @@
 package com.faforever.client.library;
 
+import static org.hamcrest.Matchers.hasItem;
 import org.junit.Test;
 import org.yaml.snakeyaml.Yaml;
 
@@ -153,5 +154,38 @@ public class LibraryLaunchTest {
     assertThat(LibraryCommands.isMatchStarted("{\"event\":\"match\",\"seq\":7,\"frame\":200,\"tick\":0,\"change\":\"started\"}"), is(true));
     assertThat(LibraryCommands.isMatchStarted("{\"event\":\"screen\",\"seq\":6,\"name\":\"match\"}"), is(false));
     assertThat(LibraryCommands.isMatchStarted("{\"event\":\"match\",\"change\":\"ended\"}"), is(false));
+  }
+
+  @Test
+  public void aVaultReplayPlaysWithTheRecordedModsFolderAndContentAndNoGameDir() {
+    Path modDir = Path.of("Mods", "talon");
+    Path demo = Path.of("cache", "replays", "196786.tad");
+
+    List<String> command = LibraryCommands.playDemo(EXE, modDir, "totala", List.of("core-contingency"), demo, " --mute");
+
+    assertThat(command, contains(EXE.toString(), "--skip-intro", "--mod-dir", modDir.toString(),
+        "--content", "totala:core-contingency", "--play-demo", demo.toString(), "--mute"));
+    assertThat(command, not(hasItem("--game-dir")));
+  }
+
+  @Test
+  public void theHeadlessPreflightOfAReplayUsesTheSameContent() {
+    Path modDir = Path.of("Mods", "talon");
+    Path demo = Path.of("196786.tad");
+
+    assertThat(LibraryCommands.checkDemo(EXE, modDir, "totala", List.of(), demo), contains(
+        EXE.toString(), "--skip-intro", "--mod-dir", modDir.toString(), "--content", "totala",
+        "--headless-check", "--play-demo", demo.toString(), "--match-ticks", "1"));
+  }
+
+  @Test
+  public void aLiveReplayJoinsTheReplayersLoopbackGameWithTheRecordedContentAndNoPlayerName() {
+    Path modDir = Path.of("Mods", "talon");
+
+    List<String> command = LibraryCommands.replayViewer(EXE, modDir, "totala", List.of("core-contingency"), "");
+
+    assertThat(command, contains(EXE.toString(), "--skip-intro", "--mod-dir", modDir.toString(),
+        "--content", "totala:core-contingency", "--replay-viewer", "-n1:127.0.0.1"));
+    assertThat(command, not(hasItem("--player-name")));
   }
 }

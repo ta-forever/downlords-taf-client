@@ -9,6 +9,7 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.library.LibraryPrompts;
 import com.faforever.client.leaderboard.LeaderboardService;
+import com.faforever.client.library.LibraryGameInfo;
 import com.faforever.client.library.LibraryMapPreviewService;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
@@ -222,7 +223,7 @@ public class GameTileController implements Controller<Node> {
     // Watching is normally for idle players only, but a player waiting in a staging room can still
     // watch in the browser (BrowserWatchService#isBrowserOnly) — the button stays up for them and
     // its menu drops the "in game" option.
-    boolean canWatchNow = (!isGameProcessRunning && isPlayerIdle) || browserWatchService.isBrowserOnly();
+    boolean canWatchNow = (!isGameProcessRunning && isPlayerIdle) || (browserWatchService.isBrowserOnly() && LibraryGameInfo.offersBrowserWatch(game.getFeaturedMod()));
     watchButton.setVisible(!isOwnGame && canWatchNow && !isStagingRoomOpen && !isBattleRoomOpen && game.getReplayDelaySeconds() >= 0);
 
     final String activatedStyleClass = "autojoin-game-button-active";

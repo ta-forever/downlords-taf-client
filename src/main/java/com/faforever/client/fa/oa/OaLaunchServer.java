@@ -104,7 +104,13 @@ public class OaLaunchServer implements Closeable {
   /** A Library mod game: uses the player's own OA install and user folder, not a TAF mod directory. */
   public OaLaunchServer(Path oaExe, String extraArgs, IntFunction<Path> logFileForGame, Path launchDir,
                         LibraryLaunchPlan libraryPlan) {
-    this(oaExe, null, extraArgs, logFileForGame, launchDir, Mode.GAME, libraryPlan, OaLaunchServer::startProcess);
+    this(oaExe, extraArgs, logFileForGame, launchDir, libraryPlan, Mode.GAME);
+  }
+
+  /** A Library mod game ({@link Mode#GAME}) or a live replay of one ({@link Mode#REPLAY_VIEWER}). */
+  public OaLaunchServer(Path oaExe, String extraArgs, IntFunction<Path> logFileForGame, Path launchDir,
+                        LibraryLaunchPlan libraryPlan, Mode mode) {
+    this(oaExe, null, extraArgs, logFileForGame, launchDir, mode, libraryPlan, OaLaunchServer::startProcess);
   }
 
   OaLaunchServer(Path oaExe, Path modDir, String extraArgs, IntFunction<Path> logFileForGame, Path farkDir,
@@ -243,7 +249,10 @@ public class OaLaunchServer implements Closeable {
       command = LibraryCommands.launch(oaExe, launchFile.toAbsolutePath(), extraArgs);
     } else if (mode == Mode.REPLAY_VIEWER) {
       host = false;
-      command = OaCommands.replayViewer(oaExe, modDir, extraArgs);
+      command = libraryPlan != null && libraryPlan.modFolder() != null
+          ? LibraryCommands.replayViewer(oaExe, libraryPlan.modFolder(), libraryPlan.baseGame(),
+          libraryPlan.expansions(), extraArgs)
+          : OaCommands.replayViewer(oaExe, modDir, extraArgs);
     } else if (host) {
       command = OaCommands.host(oaExe, modDir, playerName, gameId, extraArgs);
     } else {

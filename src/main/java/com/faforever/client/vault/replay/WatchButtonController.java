@@ -4,6 +4,7 @@ import com.faforever.client.config.ClientProperties;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.game.Game;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.library.LibraryGameInfo;
 import com.faforever.client.replay.BrowserWatchService;
 import com.faforever.client.replay.ReplayService;
 import com.faforever.client.util.TimeService;
@@ -60,7 +61,9 @@ public class WatchButtonController implements Controller<Node> {
     watchButton.setDisable(true);
     watchButton.setOnAction(event -> {
       populateWatchMenu();
-      watchMenu.show(watchButton, Side.BOTTOM, 0, 0);
+      if (!watchMenu.getItems().isEmpty()) {
+        watchMenu.show(watchButton, Side.BOTTOM, 0, 0);
+      }
     });
   }
 
@@ -78,7 +81,8 @@ public class WatchButtonController implements Controller<Node> {
       watchInGameItem.setOnAction(event -> replayService.runLiveReplay(game));
       watchMenu.getItems().add(watchInGameItem);
     }
-    if (browserWatchService.isAvailable()) {
+    // the browser viewer cannot draw a Library mod's units
+    if (browserWatchService.isAvailable() && (game == null || LibraryGameInfo.offersBrowserWatch(game.getFeaturedMod()))) {
       MenuItem watchInBrowserItem = new MenuItem(i18n.get("game.watch.inBrowser"));
       watchInBrowserItem.setOnAction(event -> browserWatchService.watchInBrowser(game));
       watchMenu.getItems().add(watchInBrowserItem);

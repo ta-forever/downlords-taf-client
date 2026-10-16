@@ -239,8 +239,13 @@ public class OaInstallationService {
    * @return null if OA accepts the demo, else OA's own refusal text
    */
   public String checkDemo(Path exe, Path modDir, Path demo) {
+    return checkDemo(OaCommands.checkDemo(exe, modDir, demo), exe);
+  }
+
+  /** The same for a ready-made check command (a Library mod's replay). */
+  public String checkDemo(java.util.List<String> command, Path exe) {
     try {
-      Process process = new ProcessBuilder(OaCommands.checkDemo(exe, modDir, demo))
+      Process process = new ProcessBuilder(command)
           .directory(exe.toAbsolutePath().getParent().toFile())
           .redirectErrorStream(true)
           .start();

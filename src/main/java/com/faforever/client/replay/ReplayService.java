@@ -333,6 +333,17 @@ public class ReplayService implements InitializingBean {
 
 
   public void runDownloadReplay(Replay replay) {
+    if (replay.getLibrary() != null) {
+      // a Library mod game: OA plays it with the recorded mod; the demo's unit table maps to no featured mod
+      downloadReplay(replay.getId())
+          .thenAccept(replayFile -> gameService.runWithLibraryReplay(replayFile.toString(), replay.getId(), replay.getLibrary()))
+          .exceptionally(throwable -> {
+            log.error("Replay could not be started", throwable);
+            notificationService.addImmediateErrorNotification(throwable, "replayCouldNotBeStarted", replay.getId());
+            return null;
+          });
+      return;
+    }
     downloadReplay(replay.getId())
         .thenApply(replayFile -> DemoFile.sneakyGetInfo(replayFile.toString()))
         .thenAccept(this.gameService::runWithReplay)
