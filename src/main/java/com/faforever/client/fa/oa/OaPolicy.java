@@ -35,6 +35,15 @@ public final class OaPolicy {
         .orElse(false);
   }
 
+  /**
+   * Whether a mod really runs on Open Annihilation: the player chose it AND the server offers OA for the mod.
+   * A choice saved while the server offered OA for a mod (or before it stopped) must not outlive that offer, or the
+   * host/join request carries engine "oa" and the server refuses it ("Open Annihilation is not enabled for this mod").
+   */
+  public static boolean usesOpenAnnihilation(ClientConfiguration configuration, String modTechnical, boolean chosenInPrefs) {
+    return chosenInPrefs && isOaSupported(configuration, modTechnical);
+  }
+
   public static boolean isVersionAllowed(OaMod mod, OaVersion version) {
     if (mod == null || version == null || mod.getSupport() == null || mod.getSupport() == OaSupport.NONE) {
       return false;

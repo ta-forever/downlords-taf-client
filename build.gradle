@@ -221,6 +221,8 @@ compileTestJava {
   include '**/fa/oa/**'
   // Library mods (OA Library games): discovery over temp folders and canned --list-content output, .oalaunch writer, commands.
   include '**/library/**'
+  // Which games the custom games list shows (Library mod games have no map archive).
+  include '**/game/CustomGamesListingTest.java'
   // Install dialog: the Open Annihilation engine section is shown only when the server offers it for the mod.
   include '**/mod/FeaturedModInstallControllerEngineTest.java'
   include '**/assetserver/**'

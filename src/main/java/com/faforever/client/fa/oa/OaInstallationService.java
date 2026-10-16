@@ -186,7 +186,7 @@ public class OaInstallationService {
 
   public EngineReport engineReport(String modTechnical) {
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
-    if (!prefs.isOpenAnnihilation()) {
+    if (!preferencesService.isOpenAnnihilation(modTechnical)) {
       return EngineReport.CAVEDOG;
     }
     Optional<OaVersion> version;

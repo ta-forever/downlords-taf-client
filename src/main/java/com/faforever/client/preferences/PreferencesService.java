@@ -470,7 +470,7 @@ public class PreferencesService implements InitializingBean {
   @SneakyThrows
   public boolean isGameExeValid(String baseGameName) {
     TotalAnnihilationPrefs prefs = preferences.getTotalAnnihilation(baseGameName);
-    if (prefs.isOpenAnnihilation()) {
+    if (isOpenAnnihilation(baseGameName)) {
       // Open Annihilation needs no TotalA.exe: the install folder only has to exist and be writable
       Path installedPath = prefs.getInstalledPath();
       return installedPath != null && Files.isDirectory(installedPath) && Files.isWritable(installedPath);
@@ -578,6 +578,19 @@ public class PreferencesService implements InitializingBean {
 
   public TotalAnnihilationPrefs getTotalAnnihilation(String modTechnical) {
     return preferences.getTotalAnnihilation(modTechnical);
+  }
+
+  /**
+   * The engine a mod actually runs on: the saved choice, but only while the server still offers Open Annihilation
+   * for the mod. The Library umbrella mod is Open Annihilation by definition.
+   */
+  public boolean isOpenAnnihilation(String modTechnical) {
+    TotalAnnihilationPrefs prefs = preferences.getTotalAnnihilation(modTechnical);
+    if (com.faforever.client.library.LibraryGameInfo.UMBRELLA_FEATURED_MOD.equals(prefs.getBaseGameName())) {
+      return true;
+    }
+    return com.faforever.client.fa.oa.OaPolicy.usesOpenAnnihilation(
+        getClientRemoteConfiguration(), modTechnical, prefs.isOpenAnnihilation());
   }
 
   public TotalAnnihilationPrefs setTotalAnnihilation(String modTechnical, Path installedExePath,

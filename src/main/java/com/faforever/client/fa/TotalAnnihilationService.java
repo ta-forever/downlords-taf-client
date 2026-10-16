@@ -406,7 +406,7 @@ public class TotalAnnihilationService {
   }
 
   public boolean isOpenAnnihilation(String modTechnical) {
-    return preferencesService.getTotalAnnihilation(modTechnical).isOpenAnnihilation();
+    return preferencesService.isOpenAnnihilation(modTechnical);
   }
 
   private void startOaLaunchServer(String modTechnical, OaLaunchServer.Mode mode) throws IOException {
@@ -448,7 +448,7 @@ public class TotalAnnihilationService {
 
   public Process startGameOffline(String modTechnical, List<String> args) throws IOException {
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
-    if (prefs.isOpenAnnihilation()) {
+    if (isOpenAnnihilation(modTechnical)) {
       Path oaExe = oaInstallationService.ensureExecutable(modTechnical).join();
       oaProfileInstaller.ensureInstalled(modTechnical, prefs.getInstalledPath());
       return launch(prefs.getInstalledPath(), OaCommands.offline(oaExe, prefs.getInstalledPath(),
@@ -466,7 +466,7 @@ public class TotalAnnihilationService {
                            Player currentPlayer, String demoCompilerUrl, @Nullable String ircUrl, boolean autoLaunch,
                            boolean isRated) throws IOException {
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
-    boolean openAnnihilation = prefs.isOpenAnnihilation();
+    boolean openAnnihilation = isOpenAnnihilation(modTechnical);
     this.freePort47624(openAnnihilation);
     this.consolePort = getFreeTcpPort();
 
@@ -502,7 +502,7 @@ public class TotalAnnihilationService {
 
   public Process startReplay(String modTechnical, String replayUrlOrPath, Integer replayId, String playerName) throws IOException {
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
-    boolean openAnnihilation = prefs.isOpenAnnihilation();
+    boolean openAnnihilation = isOpenAnnihilation(modTechnical);
 
     if (LibraryGameInfo.isLibraryMod(modTechnical) && isLocalDemo(replayUrlOrPath)) {
       // A Library mod's vault replay: OA plays it itself from the player's own install, no TotalA.exe fallback

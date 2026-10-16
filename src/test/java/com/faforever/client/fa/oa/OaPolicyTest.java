@@ -121,4 +121,20 @@ public class OaPolicyTest {
     assertThat(OaPlatform.executableName("windows-x64"), is("open-annihilation.exe"));
     assertThat(OaPlatform.executableName("linux-x86_64"), is("open-annihilation"));
   }
+
+  @Test
+  public void staleOaEngineChoiceIsIgnoredForAModTheServerDoesNotOffer() {
+    ClientConfiguration configuration = configuration(List.of(), List.of(
+        mod("tavmod", OaSupport.NONE, "0.8.1", "0.8.1"), mod("tacc", OaSupport.MIXED, "0.8.1", "0.8.1")));
+
+    assertThat(OaPolicy.usesOpenAnnihilation(configuration, "tavmod", true), is(false));
+    assertThat(OaPolicy.usesOpenAnnihilation(configuration, "unlisted", true), is(false));
+    assertThat(OaPolicy.usesOpenAnnihilation(configuration, "tacc", true), is(true));
+    assertThat(OaPolicy.usesOpenAnnihilation(configuration, "tacc", false), is(false));
+  }
+
+  @Test
+  public void aStaleOaChoiceIsIgnoredWhenTheConfigurationIsMissing() {
+    assertThat(OaPolicy.usesOpenAnnihilation(null, "tacc", true), is(false));
+  }
 }

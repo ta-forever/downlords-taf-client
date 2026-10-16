@@ -441,7 +441,7 @@ public class GameDetailController implements Controller<Pane> {
     // Watching is normally for idle players only, but a player waiting in a staging room can still
     // watch in the browser (BrowserWatchService#isBrowserOnly) — the button stays up for them and
     // its menu drops the "in game" option.
-    boolean canWatchNow = (!isGameProcessRunning && isPlayerIdle) || (browserWatchService.isBrowserOnly() && LibraryGameInfo.offersBrowserWatch(thisGame.getFeaturedMod()));
+    boolean canWatchNow = (!isGameProcessRunning && isPlayerIdle) || (thisGame != null && browserWatchService.isBrowserOnly() && LibraryGameInfo.offersBrowserWatch(thisGame.getFeaturedMod()));
     watchButton.setVisible(!isOwnGame && canWatchNow && isLive && thisGame.getReplayDelaySeconds() >= 0);
 
     updatePositionPicker();
