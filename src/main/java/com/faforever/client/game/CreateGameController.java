@@ -16,6 +16,7 @@ import com.faforever.client.map.MapService.PreviewOverlayType;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.map.MapSize;
 import com.faforever.client.library.LibraryGameInfo;
+import com.faforever.client.library.LibraryMapPreviewService;
 import com.faforever.client.library.LibraryMod;
 import com.faforever.client.library.LibraryPrompts;
 import com.faforever.client.library.LibrarySnapshot;
@@ -144,6 +145,7 @@ public class CreateGameController implements Controller<Pane> {
   private final LibraryPrompts libraryPrompts;
   /** Section header entries ("Open Annihilation Library") in the mod list: shown, never selectable. */
   private final java.util.Set<FeaturedMod> libraryHeaders = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+  private final LibraryMapPreviewService libraryMapPreviewService;
   /** The installed Library mods offered below the featured mods, each as a pseudo featured mod "oalibrary". */
   private final Map<FeaturedMod, LibraryMod> libraryEntries = new java.util.IdentityHashMap<>();
   /** Shown names of the selected Library mod maps, by key (name@pack for pack maps). */
@@ -993,10 +995,7 @@ public class CreateGameController implements Controller<Pane> {
     }
     FeaturedMod selectedMod = featuredModListView.getSelectionModel().getSelectedItem();
     if (selectedMod != null && LibraryGameInfo.isLibraryMod(selectedMod.getTechnicalName())) {
-      // previews of Library mod maps come in a later slice; the vault knows none of them
-      mapPreview.setVisible(false);
-      setMapPreviewPaneBackground(mapPreviewPane, null);
-      setMapPreviewPaneBackground(mapPreviewOverlayPane, null);
+      setSelectedLibraryMap(libraryEntries.get(selectedMod), newValue);
       return;
     }
     mapPreview.setVisible(true);
@@ -1036,6 +1035,40 @@ public class CreateGameController implements Controller<Pane> {
     } else {
       versionLabel.setText(i18n.get("map.versionFormat", mapVersion));
     }
+  }
+
+  /**
+   * Shows a Library mod map. Its preview comes from {@link LibraryMapPreviewService} (maptool on the Library
+   * folders, a TAF map of the same name, the registry's PNG), so it arrives later and may not exist, in which
+   * case the pane stays empty. The vault knows nothing else about these maps beyond what OA listed.
+   */
+  private void setSelectedLibraryMap(LibraryMod mod, MapBean map) {
+    mapPreview.setVisible(true);
+    setMapPreviewPaneBackground(mapPreviewPane, null);
+    setMapPreviewPaneBackground(mapPreviewOverlayPane, null);
+    preferencesService.getPreferences().getLastGame().setLastMap(map.getMapName());
+    preferencesService.storeInBackground();
+
+    mapSizeLabel.setText("");
+    setSignedMapStatLabel(mapWindLabel, "", "mapPreview.wind");
+    setSignedMapStatLabel(mapTidalLabel, "", "mapPreview.tidal");
+    mapPlayersLabel.setText(i18n.number(map.getPlayers()));
+    mapDescriptionLabel.setText("");
+    versionLabel.setVisible(false);
+    MapBean titled = new MapBean();
+    titled.setMapName(libraryMapShownNames.getOrDefault(map.getMapName(), map.getMapName()));
+    setMapTitleLabels(titled);
+
+    if (mod == null) {
+      return;
+    }
+    libraryMapPreviewService.loadPreview(mod.id(), mod.registry(), map.getMapName())
+        .thenAccept(image -> JavaFxUtil.runLater(() -> {
+          MapBean current = mapListView.getSelectionModel().getSelectedItem();
+          if (current != null && current.getMapName().equals(map.getMapName())) {
+            setMapPreviewPaneBackground(mapPreviewPane, image.orElse(null));
+          }
+        }));
   }
 
   private String formatMapDescription(String description) {

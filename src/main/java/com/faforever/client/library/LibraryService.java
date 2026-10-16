@@ -18,9 +18,13 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 /**
  * Runs the player's own Open Annihilation to find out which Library mods they have installed, which maps a mod
@@ -47,9 +51,16 @@ public class LibraryService {
   record CommandResult(int exitCode, String output) {
   }
 
+  /** Downloads a registry catalogue (no token needed). Replaceable for tests. */
+  @FunctionalInterface
+  interface CatalogueFetcher {
+    String fetch(String url) throws IOException;
+  }
+
   private final PreferencesService preferencesService;
   private final OaInstallationService oaInstallationService;
   private final CommandRunner runner;
+  private final CatalogueFetcher catalogueFetcher;
   private final ProcessStarter starter;
   private final ObjectProperty<LibrarySnapshot> snapshot = new SimpleObjectProperty<>();
   private volatile long snapshotTakenAtMillis;
@@ -63,14 +74,16 @@ public class LibraryService {
 
   @Autowired
   public LibraryService(PreferencesService preferencesService, OaInstallationService oaInstallationService) {
-    this(preferencesService, oaInstallationService, LibraryService::runProcess, LibraryService::startProcess);
+    this(preferencesService, oaInstallationService, LibraryService::runProcess, LibraryService::downloadCatalogue,
+        LibraryService::startProcess);
   }
 
   LibraryService(PreferencesService preferencesService, OaInstallationService oaInstallationService,
-                 CommandRunner runner, ProcessStarter starter) {
+                 CommandRunner runner, CatalogueFetcher catalogueFetcher, ProcessStarter starter) {
     this.preferencesService = preferencesService;
     this.oaInstallationService = oaInstallationService;
     this.runner = runner;
+    this.catalogueFetcher = catalogueFetcher;
     this.starter = starter;
   }
 
@@ -134,7 +147,11 @@ public class LibraryService {
         log.info("[Library] --list-content exited {}: {}", result.exitCode(), result.output());
         return new LibrarySnapshot(readiness, List.of());
       }
-      return new LibrarySnapshot(readiness, LibraryDiscovery.discover(userFolder(), OaContentListing.parse(result.output())));
+      List<LibraryMod> installed = LibraryDiscovery.discover(userFolder(), OaContentListing.parse(result.output()));
+      LibraryPolicy libraryPolicy = LibraryPolicy.from(preferencesService.getClientRemoteConfiguration());
+      Path listedBy = exe;
+      return new LibrarySnapshot(readiness,
+          LibraryTrust.filter(installed, libraryPolicy, lazyCatalogues(libraryPolicy), mod -> simHashOf(listedBy, mod)));
     } catch (IOException | IllegalArgumentException e) {
       log.warn("[Library] could not list the content of Open Annihilation", e);
       return new LibrarySnapshot(LibraryReadiness.assess(policy, true, version, 1), List.of());
@@ -180,6 +197,31 @@ public class LibraryService {
    */
   public CompletableFuture<List<LibraryMod>> installedMods() {
     return refresh(true).thenApply(LibrarySnapshot::mods);
+  }
+
+  /** Catalogues by registry id, each downloaded at most once per call and only if asked for. */
+  private Function<String, Optional<RegistryCatalogue>> lazyCatalogues(LibraryPolicy policy) {
+    Map<String, Optional<RegistryCatalogue>> loaded = new HashMap<>();
+    return registryId -> loaded.computeIfAbsent(registryId, id -> policy.trustedRegistries().stream()
+        .filter(registry -> registry.id().equals(id) && registry.catalogueUrl() != null)
+        .findFirst()
+        .flatMap(registry -> {
+          try {
+            return Optional.of(RegistryCatalogue.parse(catalogueFetcher.fetch(registry.catalogueUrl())));
+          } catch (IOException | IllegalArgumentException e) {
+            log.warn("[Library] could not read the catalogue of {}: {}", id, e.getMessage());
+            return Optional.empty();
+          }
+        }));
+  }
+
+  private Optional<String> simHashOf(Path exe, LibraryMod mod) {
+    try {
+      return LibraryCommands.simHash(runner.run(withExtraArgs(LibraryCommands.printProfile(exe, mod.folder()))).output());
+    } catch (IOException e) {
+      log.debug("[Library] no sim hash for {}: {}", mod.id(), e.getMessage());
+      return Optional.empty();
+    }
   }
 
   /** The maps OA has for this mod's content: its shown names and the keys a launch file uses. */
@@ -229,6 +271,15 @@ public class LibraryService {
     new ProcessBuilder(command)
         .directory(Path.of(command.get(0)).toAbsolutePath().getParent().toFile())
         .start();
+  }
+
+  private static String downloadCatalogue(String url) throws IOException {
+    java.net.URLConnection connection = java.net.URI.create(url).toURL().openConnection();
+    connection.setConnectTimeout(10_000);
+    connection.setReadTimeout(20_000);
+    try (java.io.InputStream in = connection.getInputStream()) {
+      return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+    }
   }
 
   private static CommandResult runProcess(List<String> command) throws IOException {

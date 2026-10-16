@@ -9,6 +9,7 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.library.LibraryPrompts;
 import com.faforever.client.leaderboard.LeaderboardService;
+import com.faforever.client.library.LibraryMapPreviewService;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.FeaturedMod;
@@ -34,8 +35,11 @@ import javafx.event.ActionEvent;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectBinding;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -65,6 +69,7 @@ import static javafx.beans.binding.Bindings.createStringBinding;
 public class GameTileController implements Controller<Node> {
 
   private final MapService mapService;
+  private final LibraryMapPreviewService libraryMapPreviewService;
   private final I18n i18n;
   private final JoinGameHelper joinGameHelper;
   private final ModService modService;
@@ -357,10 +362,16 @@ public class GameTileController implements Controller<Node> {
     ObservableMap<String, String> simMods = game.getSimMods();
     modsLabel.textProperty().bind(createStringBinding(() -> getSimModsLabelContent(simMods), simMods));
 
-    mapImageView.backgroundLoadingImageProperty().bind(createObjectBinding(
-        () -> mapService.loadPreview(game.getFeaturedMod(), game.getMapName(), PreviewType.MINI, 10),
-        game.mapNameProperty()
-    ));
+    ObjectBinding<Image> tafMapPreview = createObjectBinding(
+        () -> game.getLibrary() == null
+            ? mapService.loadPreview(game.getFeaturedMod(), game.getMapName(), PreviewType.MINI, 10)
+            : null,
+        game.mapNameProperty(), game.libraryProperty()
+    );
+    mapImageView.backgroundLoadingImageProperty().bind(
+        Bindings.when(game.libraryProperty().isNotNull())
+            .then(libraryMapPreviewService.previewProperty(game))
+            .otherwise(tafMapPreview));
     mapImageView.visibleProperty().bind(
         game.replayDelaySecondsProperty().greaterThanOrEqualTo(0).or(
             gameService.getCurrentGameProperty().isEqualTo(game)));

@@ -5,13 +5,11 @@ import com.faforever.client.fa.oa.OaInstallationService.InstalledOa;
 import com.faforever.client.fa.oa.OaVersion;
 import com.faforever.client.library.LibraryJoinVerdict.Outcome;
 import com.faforever.client.library.LibraryReadiness.Status;
-import com.faforever.client.update.ClientConfiguration;
-import com.faforever.client.update.ClientConfiguration.OaMod;
-import com.faforever.client.update.ClientConfiguration.OaSupport;
-import com.faforever.client.update.ClientConfiguration.OpenAnnihilation;
 import com.faforever.client.library.OaContentListing.ListedMap;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
+import com.faforever.client.update.ClientConfiguration;
+import com.google.gson.Gson;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,8 +48,9 @@ public class LibraryServiceTest {
   private LibraryService.CommandRunner runner;
   private int listContentExit = 0;
   private OaInstallationService oa;
-  private OaMod policy;
   private final List<List<String>> started = new ArrayList<>();
+  private final List<String> fetches = new ArrayList<>();
+  private static final String CATALOGUE = "{\"packages\":[{\"kind\":\"oamod\",\"id\":\"talon\",\"version\":\"1.03\"}]}";
 
   @Before
   public void setUp() throws IOException {
@@ -61,15 +60,6 @@ public class LibraryServiceTest {
     when(preferencesService.getTotalAnnihilation("oalibrary")).thenReturn(prefs);
     when(oa.ensureExecutable("oalibrary")).thenReturn(CompletableFuture.completedFuture(EXE));
     when(oa.findInstalled("oalibrary")).thenReturn(new InstalledOa(EXE, new OaVersion(0, 8, 1)));
-    policy = new OaMod();
-    policy.setModTechnical("oalibrary");
-    policy.setSupport(OaSupport.OA_ONLY);
-    policy.setMinVersion("0.8.0");
-    ClientConfiguration configuration = new ClientConfiguration();
-    OpenAnnihilation openAnnihilation = new OpenAnnihilation();
-    openAnnihilation.setMods(List.of(policy));
-    configuration.setOpenAnnihilation(openAnnihilation);
-    when(preferencesService.getClientRemoteConfiguration()).thenReturn(configuration);
     userFolder = temp.newFolder("oa-user").toPath();
     Path mod = userFolder.resolve("Mods").resolve("talon");
     Files.createDirectories(mod);
@@ -83,7 +73,37 @@ public class LibraryServiceTest {
       return new LibraryService.CommandResult(listContentExit, listContentExit == 0 ? "timing\n" + LISTING + "\n" : "no game folder");
     };
     prefs.setOaExtraArgs("--user-folder " + userFolder);
-    service = new LibraryService(preferencesService, oa, runner, started::add);
+    ClientConfiguration configuration = new Gson().fromJson(
+        "{\"openAnnihilation\":{\"mods\":[{\"modTechnical\":\"oalibrary\",\"support\":\"OA_ONLY\",\"minVersion\":\"0.8.0\"}],"
+            + "\"trustedRegistries\":[{\"id\":\"coreprime\",\"catalogueUrl\":\"http://catalogue\"}],"
+            + "\"hiddenLibraryMods\":[\"escalation\"]}}", ClientConfiguration.class);
+    when(preferencesService.getClientRemoteConfiguration()).thenReturn(configuration);
+    service = new LibraryService(preferencesService, oa, runner, url -> {
+      fetches.add(url);
+      return CATALOGUE;
+    }, started::add);
+  }
+
+  @Test
+  public void aLocalModFolderIsOnlyOfferedWhenTheTrustedCatalogueListsIt() throws IOException {
+    Path local = userFolder.resolve("Mods").resolve("talon");
+    Files.writeString(local.resolve("oamod.yaml"), "oamod: 1\nid: talon\nname: Talon\nversion: \"7.7\"\n");
+
+    assertThat(service.installedMods().join().isEmpty(), is(true));
+    assertThat(fetches, contains("http://catalogue"));
+  }
+
+  @Test
+  public void aModMatchingTheCatalogueByIdAndVersionIsOffered() {
+    assertThat(service.installedMods().join().stream().map(LibraryMod::id).toList(), contains("talon"));
+  }
+
+  @Test
+  public void aModOaInstalledFromTheTrustedRegistryNeedsNoDownload() throws IOException {
+    Files.writeString(userFolder.resolve("Mods").resolve("talon").resolve(".oa-origin.yaml"), "registry: coreprime\n");
+
+    assertThat(service.installedMods().join().stream().map(LibraryMod::id).toList(), contains("talon"));
+    assertThat(fetches.isEmpty(), is(true));
   }
 
   @Test
