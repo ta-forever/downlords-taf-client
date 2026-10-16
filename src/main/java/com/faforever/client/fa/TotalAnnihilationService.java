@@ -6,6 +6,9 @@ import com.faforever.client.fa.oa.OaInstallationService;
 import com.faforever.client.fa.oa.OaHostSetup;
 import com.faforever.client.fa.oa.OaLaunchServer;
 import com.faforever.client.fa.oa.OaProfileInstaller;
+import com.faforever.client.library.LibraryGameInfo;
+import com.faforever.client.library.LibraryLaunchPlan;
+import com.faforever.client.library.LibraryService;
 import com.faforever.client.player.Player;
 import com.faforever.client.preferences.MaxPacketSizeOption;
 import com.faforever.client.preferences.PreferencesService;
@@ -56,12 +59,20 @@ public class TotalAnnihilationService {
   private final FafService fafService;
   private final OaInstallationService oaInstallationService;
   private final OaProfileInstaller oaProfileInstaller;
+  private final LibraryService libraryService;
 
   private Process launchServerProcess;
   private boolean launchServerHasUac;
   private int launchServerPort; // the gpgnet4ta process listening on this port may have UAC and the only thing it can do is start TotalA.exe
   private int consolePort;      // the gpgnet4ta process listening on this port doesn't need root privileges to do any of its tasks (/quit, /map and all the non UAC stuff related to /launch)
   private OaLaunchServer oaLaunchServer;
+  /** What the next Library mod game loads; set by GameService before the launch server is started. */
+  private volatile LibraryLaunchPlan libraryPlan;
+
+  /** Tells the next launch of the "oalibrary" pseudo-mod which mod, base game, expansions and map to load. */
+  public void setLibraryPlan(LibraryLaunchPlan libraryPlan) {
+    this.libraryPlan = libraryPlan;
+  }
   private Timer launchServerKeepAliveTimer;
   private KeepAliveTimerTask launchServerKeepAliveTimerTask;
 
@@ -401,6 +412,17 @@ public class TotalAnnihilationService {
     stopOaLaunchServer();
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
     Path oaExe = oaInstallationService.ensureExecutable(modTechnical).join();
+    if (LibraryGameInfo.isLibraryMod(modTechnical) && mode == OaLaunchServer.Mode.GAME) {
+      // A Library mod game uses the player's own OA install and user folder; it needs no TAF mod directory,
+      // profile or sim-hash check (versions are not pinned).
+      if (libraryPlan == null) {
+        throw new IOException("No Library mod was chosen for this game");
+      }
+      oaLaunchServer = new OaLaunchServer(oaExe, prefs.getOaExtraArgs(),
+          gameId -> preferencesService.getNewLogFile("oa", gameId), preferencesService.getFafLogDirectory(), libraryPlan);
+      this.launchServerPort = oaLaunchServer.start();
+      return;
+    }
     oaProfileInstaller.ensureInstalled(modTechnical, prefs.getInstalledPath());
     if (mode == OaLaunchServer.Mode.GAME) {
       String problem = oaInstallationService.checkProfile(modTechnical, oaExe, prefs.getInstalledPath());
@@ -468,7 +490,8 @@ public class TotalAnnihilationService {
     }
 
     List<String> gpgnet4taCommand = getGpgNet4TaCommand(
-        loopbackAddress, this.consolePort, prefs.getBaseGameName(), uid, prefs.getInstalledPath(), autoLaunch,
+        loopbackAddress, this.consolePort, prefs.getBaseGameName(), uid,
+        LibraryGameInfo.isLibraryMod(modTechnical) ? libraryService.userFolder() : prefs.getInstalledPath(), autoLaunch,
         false, proactiveResend, maxPacketSize, gpgNetUrl, demoCompilerUrl, ircUrl,
         preferencesService.getNewLogFile("game", uid), this.launchServerPort, isRated, additionalArgs, openAnnihilation);
 

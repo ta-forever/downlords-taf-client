@@ -42,6 +42,8 @@ import com.faforever.client.rating.RatingService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.ReconnectTimerService;
 import com.faforever.client.library.LibraryGameInfo;
+import com.faforever.client.library.LibraryLaunchPlan;
+import com.faforever.client.library.LibraryMod;
 import com.faforever.client.remote.domain.GameInfoMessage;
 import com.faforever.client.remote.domain.GameLaunchMessage;
 import com.faforever.client.remote.domain.GameStatus;
@@ -544,6 +546,10 @@ public class GameService implements InitializingBean {
     preferencesService.storeInBackground();
   }
 
+  /** The Library mod of the game being hosted or joined; read when its launch server is started. */
+  private volatile LibraryGameInfo pendingLibrary;
+  private volatile boolean pendingLibraryHost;
+
   public CompletableFuture<Void> hostGame(NewGameInfo newGameInfo) {
     log.info("[hostGame] title={}", newGameInfo.getTitle());
 
@@ -554,7 +560,8 @@ public class GameService implements InitializingBean {
     }
 
     String modTechnicalName = newGameInfo.getFeaturedMod().getTechnicalName();
-    if (!preferencesService.isGameExeValid(modTechnicalName)) {
+    boolean libraryGame = LibraryGameInfo.isLibraryMod(modTechnicalName);
+    if (!libraryGame && !preferencesService.isGameExeValid(modTechnicalName)) {
       CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(modTechnicalName);
       return gameDirectoryFuture.thenCompose(path -> hostGame(newGameInfo));
     }
@@ -567,7 +574,11 @@ public class GameService implements InitializingBean {
 
     autoJoinRequestedGameProperty.set(null);
     recentHostGameRequest = newGameInfo;
-    return updateGameIfNecessary(newGameInfo.getFeaturedMod(), newGameInfo.getFeaturedModVersionKey())
+    pendingLibrary = libraryGame ? newGameInfo.getLibrary() : null;
+    pendingLibraryHost = true;
+    // TAF never installs or updates a Library mod: OA's Library does
+    return (libraryGame ? completedFuture((String) null)
+        : updateGameIfNecessary(newGameInfo.getFeaturedMod(), newGameInfo.getFeaturedModVersionKey()))
         .thenCompose(modVersionKey -> {
           newGameInfo.setFeaturedModVersionKey(modVersionKey);
           return fafService.requestHostGame(newGameInfo);
@@ -609,7 +620,8 @@ public class GameService implements InitializingBean {
       return completedFuture(null);
     }
 
-    if (!preferencesService.isGameExeValid(game.getFeaturedMod())) {
+    boolean libraryGame = LibraryGameInfo.isLibraryMod(game.getFeaturedMod());
+    if (!libraryGame && !preferencesService.isGameExeValid(game.getFeaturedMod())) {
       CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(game.getFeaturedMod());
       return gameDirectoryFuture.thenCompose(path -> joinGame(game, password));
     }
@@ -626,11 +638,16 @@ public class GameService implements InitializingBean {
     autoJoinRequestedGameProperty.set(null);
     setRunningGameUid(game.getId());  // set it early so create-game button disabled during setup
 
-    return
-        modService.getFeaturedMod(game.getFeaturedMod())
+    pendingLibrary = libraryGame ? game.getLibrary() : null;
+    pendingLibraryHost = false;
+    CompletableFuture<?> prepared = libraryGame
+        // OA's battle room fetches a missing pack map (GET MAP); the Library installs the mod
+        ? completedFuture((Object) null)
+        : modService.getFeaturedMod(game.getFeaturedMod())
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, game.getFeaturedModVersion() != null
             ? game.getFeaturedModVersion() : featuredModBean.getGitBranch()))
-        .thenCompose(aVoid -> mapService.optionalEnsureMap(game.getFeaturedMod(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null))
+        .thenCompose(aVoid -> mapService.optionalEnsureMap(game.getFeaturedMod(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null));
+    return prepared
         .exceptionally(throwable -> {
           log.warn("Exception preparing to join game", throwable);
           notificationService.addImmediateErrorNotification(throwable, "games.errorInPreparing");
@@ -1469,6 +1486,12 @@ public class GameService implements InitializingBean {
           }
           List<String> args = fixMalformedArgs(gameLaunchMessage.getArgs());
 
+          LibraryGameInfo library = pendingLibrary;
+          if (LibraryGameInfo.isLibraryMod(modTechnical) && library != null) {
+            totalAnnihilationService.setLibraryPlan(new LibraryLaunchPlan(library.modId(),
+                library.baseGame() == null ? LibraryMod.DEFAULT_BASE_GAME : library.baseGame(),
+                library.expansions(), pendingLibraryHost ? gameLaunchMessage.getMapname() : null));
+          }
           Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(modTechnical, uid));
           totalAnnihilationService.configureOaHost(modTechnical, gameLaunchMessage.getMapname());
           spawnGenericTerminationListener(launchServerProcess);
