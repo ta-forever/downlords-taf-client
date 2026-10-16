@@ -4,6 +4,8 @@ import com.faforever.client.fa.oa.OaInstallationService;
 import com.faforever.client.library.OaContentListing.ListedMap;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
+import com.faforever.client.update.ClientConfiguration;
+import com.google.gson.Gson;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -39,6 +41,8 @@ public class LibraryServiceTest {
   private Path userFolder;
   private LibraryService.CommandRunner runner;
   private int listContentExit = 0;
+  private final List<String> fetches = new ArrayList<>();
+  private static final String CATALOGUE = "{\"packages\":[{\"kind\":\"oamod\",\"id\":\"talon\",\"version\":\"1.03\"}]}";
 
   @Before
   public void setUp() throws IOException {
@@ -60,7 +64,36 @@ public class LibraryServiceTest {
       return new LibraryService.CommandResult(listContentExit, listContentExit == 0 ? "timing\n" + LISTING + "\n" : "no game folder");
     };
     prefs.setOaExtraArgs("--user-folder " + userFolder);
-    service = new LibraryService(preferencesService, oa, runner);
+    ClientConfiguration configuration = new Gson().fromJson(
+        "{\"openAnnihilation\":{\"trustedRegistries\":[{\"id\":\"coreprime\",\"catalogueUrl\":\"http://catalogue\"}],"
+            + "\"hiddenLibraryMods\":[\"escalation\"]}}", ClientConfiguration.class);
+    when(preferencesService.getClientRemoteConfiguration()).thenReturn(configuration);
+    service = new LibraryService(preferencesService, oa, runner, url -> {
+      fetches.add(url);
+      return CATALOGUE;
+    });
+  }
+
+  @Test
+  public void aLocalModFolderIsOnlyOfferedWhenTheTrustedCatalogueListsIt() throws IOException {
+    Path local = userFolder.resolve("Mods").resolve("talon");
+    Files.writeString(local.resolve("oamod.yaml"), "oamod: 1\nid: talon\nname: Talon\nversion: \"7.7\"\n");
+
+    assertThat(service.installedMods().join().isEmpty(), is(true));
+    assertThat(fetches, contains("http://catalogue"));
+  }
+
+  @Test
+  public void aModMatchingTheCatalogueByIdAndVersionIsOffered() {
+    assertThat(service.installedMods().join().stream().map(LibraryMod::id).toList(), contains("talon"));
+  }
+
+  @Test
+  public void aModOaInstalledFromTheTrustedRegistryNeedsNoDownload() throws IOException {
+    Files.writeString(userFolder.resolve("Mods").resolve("talon").resolve(".oa-origin.yaml"), "registry: coreprime\n");
+
+    assertThat(service.installedMods().join().stream().map(LibraryMod::id).toList(), contains("talon"));
+    assertThat(fetches.isEmpty(), is(true));
   }
 
   @Test

@@ -8,7 +8,7 @@ import java.util.Optional;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
-public class RegistryCatalogueTest {
+public class RegistryMapPreviewsTest {
 
   private static final String JSON = "{\"catalogue\":1,\"registry\":\"coreprime\",\"packages\":["
       + "{\"kind\":\"oamod\",\"id\":\"talon\",\"name\":\"Talon\"},"
@@ -16,7 +16,7 @@ public class RegistryCatalogueTest {
       + "\"name\":\"1 Continent (King)\",\"preview\":\"/v1/i/eeef.png\"},"
       + "{\"map\":\"No Preview@1-continent-king\",\"name\":\"x\"}]}]}";
 
-  private final RegistryCatalogue catalogue = RegistryCatalogue.parse("http://downloads.coreprime.net", JSON);
+  private final RegistryMapPreviews catalogue = RegistryMapPreviews.parse("http://downloads.coreprime.net", JSON);
 
   @Test
   public void aPackMapHasItsPreviewUnderTheRegistryHost() {
@@ -32,6 +32,6 @@ public class RegistryCatalogueTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void aCatalogueThatIsNotJsonIsRejected() {
-    RegistryCatalogue.parse("http://x", "<html>");
+    RegistryMapPreviews.parse("http://x", "<html>");
   }
 }

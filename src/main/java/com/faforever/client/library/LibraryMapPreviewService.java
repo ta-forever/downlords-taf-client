@@ -50,11 +50,6 @@ public class LibraryMapPreviewService {
   private static final long INSTALLED_MODS_TTL_MS = TimeUnit.SECONDS.toMillis(30);
   private static final long CATALOGUE_TTL_MS = TimeUnit.HOURS.toMillis(1);
 
-  /** Where the catalogue of each trusted registry lives. Core Prime is the only registry TAF trusts so far. */
-  private static final Map<String, String> REGISTRY_HOSTS = Map.of("coreprime", "http://downloads.coreprime.net");
-  private static final String DEFAULT_REGISTRY = "coreprime";
-  private static final String CATALOGUE_PATH = "/v1/catalogue.json";
-
   private final LibraryService libraryService;
   private final MapService mapService;
   private final PreferencesService preferencesService;
@@ -70,7 +65,7 @@ public class LibraryMapPreviewService {
   private CompletableFuture<List<LibraryMod>> installedMods;
   private long installedModsAt;
 
-  private record CachedCatalogue(RegistryCatalogue catalogue, long at) {
+  private record CachedCatalogue(RegistryMapPreviews catalogue, long at) {
   }
 
   @Autowired
@@ -177,20 +172,26 @@ public class LibraryMapPreviewService {
   }
 
   private Optional<URI> registryPreview(@Nullable String registry, String mapKey) throws Exception {
-    String registryId = registry == null || registry.isBlank() ? DEFAULT_REGISTRY : registry;
-    String host = REGISTRY_HOSTS.get(registryId);
-    if (host == null) {
+    // the catalogue address comes from the server's trusted registries; a game that names none gets the first
+    LibraryPolicy policy = LibraryPolicy.from(preferencesService.getClientRemoteConfiguration());
+    Optional<LibraryPolicy.Registry> trusted = policy.trustedRegistries().stream()
+        .filter(candidate -> candidate.catalogueUrl() != null
+            && (registry == null || registry.isBlank() || candidate.id().equals(registry)))
+        .findFirst();
+    if (trusted.isEmpty()) {
       return Optional.empty();
     }
+    String registryId = trusted.get().id();
+    String catalogueUrl = trusted.get().catalogueUrl();
     CachedCatalogue cached = cataloguesByRegistry.get(registryId);
     if (cached == null || System.currentTimeMillis() - cached.at() > CATALOGUE_TTL_MS) {
       HttpResponse<String> response = httpClient.send(
-          HttpRequest.newBuilder(URI.create(host + CATALOGUE_PATH)).timeout(Duration.ofSeconds(20)).build(),
+          HttpRequest.newBuilder(URI.create(catalogueUrl)).timeout(Duration.ofSeconds(20)).build(),
           HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
       if (response.statusCode() != 200) {
         throw new IOException("Catalogue of " + registryId + " answered " + response.statusCode());
       }
-      cached = new CachedCatalogue(RegistryCatalogue.parse(host, response.body()), System.currentTimeMillis());
+      cached = new CachedCatalogue(RegistryMapPreviews.parse(catalogueUrl, response.body()), System.currentTimeMillis());
       cataloguesByRegistry.put(registryId, cached);
     }
     return cached.catalogue().previewOf(mapKey);

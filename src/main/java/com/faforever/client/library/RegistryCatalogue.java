@@ -4,50 +4,41 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.net.URI;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * The part of a registry's {@code catalogue.json} that map previews need: for every pack map, the URL of its
- * preview PNG (these are downloadable without a token).
- */
-public final class RegistryCatalogue {
+/** The mods listed by a registry's catalogue ({@code catalogue.json}); other package kinds are ignored. */
+public record RegistryCatalogue(List<Entry> mods) {
+
+  public record Entry(String id, String version, @Nullable String simHash) {
+  }
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
-  private final Map<String, URI> previews;
-
-  private RegistryCatalogue(Map<String, URI> previews) {
-    this.previews = previews;
-  }
-
-  /**
-   * @param baseUrl the registry's host, e.g. {@code http://downloads.coreprime.net}; preview paths are relative to it
-   * @throws IllegalArgumentException when the text is not a catalogue
-   */
-  public static RegistryCatalogue parse(String baseUrl, String json) {
+  /** @throws IllegalArgumentException when the text is not a catalogue */
+  public static RegistryCatalogue parse(String json) {
     JsonNode root;
     try {
       root = MAPPER.readTree(json);
     } catch (JsonProcessingException e) {
       throw new IllegalArgumentException("Unreadable catalogue", e);
     }
-    Map<String, URI> previews = new HashMap<>();
-    for (JsonNode pack : root.path("packages")) {
-      for (JsonNode map : pack.path("maps")) {
-        String key = map.path("map").asText("");
-        String preview = map.path("preview").asText("");
-        if (!key.isEmpty() && !preview.isEmpty()) {
-          previews.put(key, URI.create(baseUrl).resolve(preview));
-        }
+    if (root == null || !root.path("packages").isArray()) {
+      throw new IllegalArgumentException("Not a catalogue");
+    }
+    List<Entry> mods = new ArrayList<>();
+    for (JsonNode pkg : root.path("packages")) {
+      if ("oamod".equals(pkg.path("kind").asText()) && pkg.hasNonNull("id")) {
+        mods.add(new Entry(pkg.path("id").asText(), pkg.path("version").asText(""),
+            pkg.hasNonNull("sim_hash") ? pkg.path("sim_hash").asText() : null));
       }
     }
-    return new RegistryCatalogue(previews);
+    return new RegistryCatalogue(mods);
   }
 
-  public Optional<URI> previewOf(String mapKey) {
-    return Optional.ofNullable(previews.get(mapKey));
+  public boolean matches(LibraryMod mod, @Nullable String simHash) {
+    return mods.stream().anyMatch(entry -> entry.id().equals(mod.id())
+        && (entry.version().equals(mod.version()) || (simHash != null && simHash.equals(entry.simHash()))));
   }
 }
