@@ -542,6 +542,7 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
         engine.engine(),
         engine.version()
     );
+    hostGameMessage.setLibrary(newGameInfo.getLibrary());
 
     gameLaunchFuture = new CompletableFuture<>();
     writeToServer(hostGameMessage);

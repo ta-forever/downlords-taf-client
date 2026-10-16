@@ -1,6 +1,7 @@
 package com.faforever.client.fa.oa;
 
 import com.faforever.client.fa.oa.OaLaunchServer.Mode;
+import com.faforever.client.library.LibraryLaunchPlan;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -15,6 +16,7 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -22,6 +24,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.is;
@@ -251,5 +254,87 @@ public class OaLaunchServerTest {
     assertThat(started.get(0), hasItems("--replay-viewer", "-n1:127.0.0.1"));
     assertThat(started.get(0), not(hasItem("--player-name")));
     assertThat(started.get(0), not(hasItem("--fark")));
+  }
+
+  private void startLibraryServer(LibraryLaunchPlan plan) throws IOException {
+    Path logs = temp.getRoot().toPath();
+    server = new OaLaunchServer(Path.of("oa", "open-annihilation"), null, "", id -> logs.resolve("oa.log"),
+        logs, Mode.GAME, plan, (command, workDir, log) -> {
+      started.add(command);
+      process = new FakeProcess();
+      return process;
+    });
+    int port = server.start();
+    client = new Socket(InetAddress.getByName("127.0.0.1"), port);
+    client.setSoTimeout(5000);
+  }
+
+  private String launchFileOf(List<String> command) throws IOException {
+    assertThat(command.get(1), is("-c"));
+    return Files.readString(Path.of(command.get(2)));
+  }
+
+  @Test
+  public void aLibraryHostIsStartedFromAnOalaunchFileNotFromGameDirSwitches() throws Exception {
+    startLibraryServer(new LibraryLaunchPlan("talon", "totala", List.of("core-contingency"), "Red Planet@pack"));
+
+    send("/host 196786 {4a7c1d0e-6c62-5d6e-9a49-0f1d2c3b4a59} TheArmCommander 127.0.0.1 https://api/launch_codes secret-token");
+
+    assertThat(receive(), is("RUNNING"));
+    List<String> command = started.get(0);
+    assertThat(command.size(), is(3));
+    assertThat(command, not(hasItem("--game-dir")));
+    assertThat(command, not(hasItem("--fark")));
+    assertThat(command, not(hasItem("secret-token")));
+    String file = launchFileOf(command);
+    assertThat(file.contains("role: host"), is(true));
+    assertThat(file.contains("name: \"TAF196786\""), is(true));
+    assertThat(file.contains("application-guid: \"{4a7c1d0e-6c62-5d6e-9a49-0f1d2c3b4a59}\""), is(true));
+    assertThat(file.contains("map: \"Red Planet@pack\""), is(true));
+    assertThat(file.contains("mod: \"talon\""), is(true));
+    assertThat(file.contains("expansions: [\"core-contingency\"]"), is(true));
+    assertThat(file.contains("name: \"TheArmCommander\""), is(true));
+    assertThat(file.contains("secret-token"), is(false));
+  }
+
+  @Test
+  public void aLibraryJoinerJoinsTheLoopbackProxyWithTheSameContent() throws Exception {
+    startLibraryServer(new LibraryLaunchPlan("talon", "totala", List.of("core-contingency"), null));
+
+    send("/join 196786 {4a7c1d0e-6c62-5d6e-9a49-0f1d2c3b4a59} TheCoreCommander 127.0.0.1 a b");
+
+    assertThat(receive(), is("RUNNING"));
+    String file = launchFileOf(started.get(0));
+    assertThat(file.contains("role: join"), is(true));
+    assertThat(file.contains("address: \"127.0.0.1\""), is(true));
+    assertThat(file.contains("mod: \"talon\""), is(true));
+    assertThat(file.contains("map:"), is(false));
+  }
+
+  @Test
+  public void aLibraryGameThatEndsWithOasLeftCodeIsNotACrash() throws Exception {
+    startLibraryServer(new LibraryLaunchPlan("talon", "totala", List.of(), null));
+    send("/join 1 {guid} Player 127.0.0.1 a b");
+    assertThat(receive(), is("RUNNING"));
+
+    process.exit(0);
+
+    assertThat(receive(), is("IDLE"));
+  }
+
+  @Test
+  public void aLibraryHostIsToldTheMatchLaunchedWhenTheStatusStreamSaysSo() throws Exception {
+    startLibraryServer(new LibraryLaunchPlan("talon", "totala", List.of(), "Acid Pools"));
+    send("/host 7 {guid} Host 127.0.0.1 a b");
+    assertThat(receive(), is("RUNNING"));
+    String file = launchFileOf(started.get(0));
+    String statusPath = file.lines().filter(line -> line.startsWith("  file: ")).findFirst().orElseThrow()
+        .substring("  file: ".length()).replace("\"", "").replace("\\\\", "\\");
+
+    Files.writeString(Path.of(statusPath), "{\"event\":\"hello\"}\n"
+        + "{\"event\":\"match\",\"seq\":7,\"change\":\"started\"}\n");
+
+    client.setSoTimeout(8000);
+    assertThat(receive(), is("LAUNCHED"));
   }
 }

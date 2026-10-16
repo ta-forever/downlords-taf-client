@@ -41,6 +41,7 @@ import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.rating.RatingService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.ReconnectTimerService;
+import com.faforever.client.library.LibraryGameInfo;
 import com.faforever.client.remote.domain.GameInfoMessage;
 import com.faforever.client.remote.domain.GameLaunchMessage;
 import com.faforever.client.remote.domain.GameStatus;
@@ -2078,6 +2079,11 @@ public class GameService implements InitializingBean {
       String hostOriginalTitle = hostOriginalTitles.get(gameInfoMessage.getUid());
       game.setTitle(hostOriginalTitle != null ? hostOriginalTitle : serverTitle);
       game.setMapName(gameInfoMessage.getMapName());
+      game.setLibrary(gameInfoMessage.getLibraryModId() == null ? null : new LibraryGameInfo(
+          gameInfoMessage.getLibraryModId(), gameInfoMessage.getLibraryModName(), gameInfoMessage.getLibraryRegistry(),
+          gameInfoMessage.getLibraryModVersion(), gameInfoMessage.getLibraryModRevision(),
+          gameInfoMessage.getLibrarySimHash(), gameInfoMessage.getLibraryBaseGame(),
+          gameInfoMessage.getLibraryExpansions() == null ? List.of() : gameInfoMessage.getLibraryExpansions()));
       game.setFeaturedMod(gameInfoMessage.getFeaturedMod());
       game.setGalacticWarPlanetName(gameInfoMessage.getGalacticWarPlanetName());
       game.setNumPlayers(gameInfoMessage.getNumPlayers());

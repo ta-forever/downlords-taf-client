@@ -549,7 +549,7 @@ public class GameDetailController implements Controller<Pane> {
         .thenAccept(featuredMod -> JavaFxUtil.runLater(() -> {
           gameTypeLabel.setText(i18n.get("loading"));
           String fullName = featuredMod != null ? featuredMod.getDisplayName() : null;
-          gameTypeLabel.setText(StringUtils.defaultString(fullName));
+          gameTypeLabel.setText(StringUtils.defaultString(game.getModDisplayName(fullName)));
         }));
     game.featuredModProperty().addListener(featuredModInvalidationListener);
     featuredModInvalidationListener.invalidated(game.featuredModProperty());

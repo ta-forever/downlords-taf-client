@@ -1,5 +1,8 @@
 package com.faforever.client.fa.oa;
 
+import com.faforever.client.library.LibraryCommands;
+import com.faforever.client.library.LibraryLaunch;
+import com.faforever.client.library.LibraryLaunchPlan;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Closeable;
@@ -8,6 +11,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -68,6 +72,8 @@ public class OaLaunchServer implements Closeable {
   private final Path farkDir;
   private final Mode mode;
   private final ProcessFactory processFactory;
+  /** Set for a Library mod game: OA is started from a .oalaunch file naming the mod, and modDir is unused. */
+  private final LibraryLaunchPlan libraryPlan;
 
   private final List<Socket> clients = new CopyOnWriteArrayList<>();
   private ServerSocket serverSocket;
@@ -95,8 +101,20 @@ public class OaLaunchServer implements Closeable {
     this(oaExe, modDir, extraArgs, logFileForGame, farkDir, mode, OaLaunchServer::startProcess);
   }
 
+  /** A Library mod game: uses the player's own OA install and user folder, not a TAF mod directory. */
+  public OaLaunchServer(Path oaExe, String extraArgs, IntFunction<Path> logFileForGame, Path launchDir,
+                        LibraryLaunchPlan libraryPlan) {
+    this(oaExe, null, extraArgs, logFileForGame, launchDir, Mode.GAME, libraryPlan, OaLaunchServer::startProcess);
+  }
+
   OaLaunchServer(Path oaExe, Path modDir, String extraArgs, IntFunction<Path> logFileForGame, Path farkDir,
                  Mode mode, ProcessFactory processFactory) {
+    this(oaExe, modDir, extraArgs, logFileForGame, farkDir, mode, null, processFactory);
+  }
+
+  OaLaunchServer(Path oaExe, Path modDir, String extraArgs, IntFunction<Path> logFileForGame, Path farkDir,
+                 Mode mode, LibraryLaunchPlan libraryPlan, ProcessFactory processFactory) {
+    this.libraryPlan = libraryPlan;
     this.mode = mode;
     this.processFactory = processFactory;
     this.oaExe = oaExe;
@@ -180,7 +198,7 @@ public class OaLaunchServer implements Closeable {
         boolean host = command.equals("/host");
         if (!isOaRunning()) {
           try {
-            startOa(host, parseGameId(args[1]), args[3]);
+            startOa(host, parseGameId(args[1]), args[2], args[3]);
           } catch (IOException e) {
             log.warn("[OaLaunchServer] could not start Open Annihilation", e);
             reply(client, "FAIL");
@@ -203,14 +221,27 @@ public class OaLaunchServer implements Closeable {
     }
   }
 
-  private synchronized void startOa(boolean hostRequested, int gameId, String playerName) throws IOException {
+  private synchronized void startOa(boolean hostRequested, int gameId, String dplayGuid, String playerName)
+      throws IOException {
     boolean host = hostRequested;
     if (isOaRunning()) {
       return;
     }
     Path farkFile = farkDir.resolve("oa_fark_" + gameId + ".json");
+    Path statusFile = null;
     List<String> command;
-    if (mode == Mode.REPLAY_VIEWER) {
+    if (libraryPlan != null && mode == Mode.GAME) {
+      statusFile = farkDir.resolve("oa_status_" + gameId + ".jsonl");
+      Files.deleteIfExists(statusFile);
+      Path launchFile = farkDir.resolve("oalibrary_" + gameId + ".oalaunch");
+      LibraryLaunch launch = host
+          ? LibraryLaunch.host(libraryPlan.mod(), libraryPlan.baseGame(), libraryPlan.expansions(), playerName,
+          OaCommands.gameName(gameId), dplayGuid, libraryPlan.mapKey(), statusFile.toAbsolutePath())
+          : LibraryLaunch.join(libraryPlan.mod(), libraryPlan.baseGame(), libraryPlan.expansions(), playerName,
+          OaCommands.LOOPBACK, dplayGuid, statusFile.toAbsolutePath());
+      Files.writeString(launchFile, launch.toOaLaunch(), StandardCharsets.UTF_8);
+      command = LibraryCommands.launch(oaExe, launchFile.toAbsolutePath(), extraArgs);
+    } else if (mode == Mode.REPLAY_VIEWER) {
       host = false;
       command = OaCommands.replayViewer(oaExe, modDir, extraArgs);
     } else if (host) {
@@ -218,7 +249,7 @@ public class OaLaunchServer implements Closeable {
     } else {
       command = OaCommands.join(oaExe, modDir, playerName, extraArgs);
     }
-    if (host) {
+    if (host && statusFile == null) {
       command = new java.util.ArrayList<>(command);
       command.addAll(List.of("--fark", "--fark-file", farkFile.toString()));
     }
@@ -227,13 +258,14 @@ public class OaLaunchServer implements Closeable {
     process = started;
 
     boolean watchForLaunch = host;
-    Thread watcher = new Thread(() -> watch(started, watchForLaunch, farkFile), "oa-launch-watch");
+    Path watchedStatusFile = statusFile;
+    Thread watcher = new Thread(() -> watch(started, watchForLaunch, farkFile, watchedStatusFile), "oa-launch-watch");
     watcher.setDaemon(true);
     watcher.start();
   }
 
   /** Pushes LAUNCHED once the host's match is running (host only), and IDLE or FAIL when OA exits. */
-  private void watch(Process started, boolean host, Path farkFile) {
+  private void watch(Process started, boolean host, Path farkFile, Path statusFile) {
     boolean launched = !host;
     int setupAttempts = host && !hostSettings.isEmpty() ? MAX_SETUP_ATTEMPTS : 0;
     while (started.isAlive() && !closed) {
@@ -243,7 +275,13 @@ public class OaLaunchServer implements Closeable {
         Thread.currentThread().interrupt();
         return;
       }
-      if (!launched && java.nio.file.Files.isRegularFile(farkFile)) {
+      if (!launched && statusFile != null) {
+        launched = matchStarted(statusFile);
+        if (launched) {
+          log.info("[OaLaunchServer] match started");
+          notifyClients("LAUNCHED");
+        }
+      } else if (!launched && java.nio.file.Files.isRegularFile(farkFile)) {
         // the endpoint serves one client at a time: when it is busy this poll fails and the next one retries
         try (OaFarkClient fark = new OaFarkClient(farkFile)) {
           String screen = fark.screen();
@@ -272,6 +310,17 @@ public class OaLaunchServer implements Closeable {
     int exitCode = exitCode(started);
     log.info("[OaLaunchServer] Open Annihilation exited with {}", exitCode);
     notifyClients(exitCode == 0 || stopRequested ? "IDLE" : "FAIL");
+  }
+
+  /** Whether OA's status stream (JSON lines) says the match is running. */
+  private static boolean matchStarted(Path statusFile) {
+    try {
+      return Files.isRegularFile(statusFile)
+          && Files.readAllLines(statusFile, StandardCharsets.UTF_8).stream().anyMatch(LibraryCommands::isMatchStarted);
+    } catch (IOException e) {
+      log.debug("[OaLaunchServer] status stream not readable yet: {}", e.getMessage());
+      return false;
+    }
   }
 
   private static int exitCode(Process p) {

@@ -93,7 +93,12 @@ public class TotalAnnihilationPrefs {
   public String getOaExtraArgs() { return this.oaExtraArgs.get() == null ? "" : this.oaExtraArgs.get(); }
   public void setOaExtraArgs(String oaExtraArgs) { this.oaExtraArgs.set(oaExtraArgs); }
 
-  public boolean isOpenAnnihilation() { return getEngine() == GameEngine.OPEN_ANNIHILATION; }
+  /** Library mod games (featured mod "oalibrary") always run on Open Annihilation. */
+  public static final String LIBRARY_BASE_GAME_NAME = "oalibrary";
+
+  public boolean isOpenAnnihilation() {
+    return getEngine() == GameEngine.OPEN_ANNIHILATION || LIBRARY_BASE_GAME_NAME.equals(getBaseGameName());
+  }
 
   /**
    * The mod install directory, for both engines. For Cavedog it is the folder holding TotalA.exe.

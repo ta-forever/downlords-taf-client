@@ -245,7 +245,7 @@ public class GameTileController implements Controller<Node> {
 
     CompletableFuture<FeaturedMod> featuredModFuture = modService.getFeaturedMod(game.getFeaturedMod());
     featuredModFuture.thenAccept(featuredModBean ->
-        JavaFxUtil.runLater(() -> gameTypeLabel.setText(featuredModBean.getDisplayName()))
+        JavaFxUtil.runLater(() -> gameTypeLabel.setText(game.getModDisplayName(featuredModBean.getDisplayName())))
     );
 
     CompletableFuture<List<Leaderboard>> leaderboardsFuture = this.leaderboardService.getLeaderboards();

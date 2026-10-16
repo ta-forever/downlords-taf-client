@@ -1,6 +1,7 @@
 package com.faforever.client.remote.domain;
 
 import com.faforever.client.game.GameVisibility;
+import com.faforever.client.library.LibraryGameInfo;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -29,6 +30,15 @@ public class HostGameMessage extends ClientMessage {
   /** "cavedog" or "oa"; null from clients that predate engine reporting. */
   private String engine;
   private String engineVersion;
+  /** Library mod game fields (featured mod "oalibrary" only); null for every other game. */
+  private String libraryModId;
+  private String libraryModName;
+  private String libraryRegistry;
+  private String libraryModVersion;
+  private Integer libraryModRevision;
+  private String librarySimHash;
+  private String libraryBaseGame;
+  private java.util.List<String> libraryExpansions;
 
   public HostGameMessage(GameAccess gameAccess, String mapName, String title, boolean[] options, String mod,
                          String password, String modVersion, GameVisibility gameVisibility, Integer ratingMin,
@@ -52,5 +62,19 @@ public class HostGameMessage extends ClientMessage {
     this.maxPlayers = maxPlayers;
     this.engine = engine;
     this.engineVersion = engineVersion;
+  }
+
+  public void setLibrary(LibraryGameInfo library) {
+    if (library == null) {
+      return;
+    }
+    libraryModId = library.modId();
+    libraryModName = library.name();
+    libraryRegistry = library.registry();
+    libraryModVersion = library.version();
+    libraryModRevision = library.revision();
+    librarySimHash = library.simHash();
+    libraryBaseGame = library.baseGame();
+    libraryExpansions = library.expansions();
   }
 }

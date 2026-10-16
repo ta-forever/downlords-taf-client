@@ -287,7 +287,7 @@ public class GamesTableController implements Controller<Node> {
   @NotNull
   private ObservableValue<String> modCell(CellDataFeatures<Game, String> param) {
     String modTechnical = param.getValue().getFeaturedMod();
-    String displayName = modService.getFeaturedModDisplayName(modTechnical);
+    String displayName = param.getValue().getModDisplayName(modService.getFeaturedModDisplayName(modTechnical));
     return new SimpleStringProperty(displayName);
   }
 
