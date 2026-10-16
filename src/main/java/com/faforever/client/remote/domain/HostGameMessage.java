@@ -26,11 +26,14 @@ public class HostGameMessage extends ClientMessage {
   private String ratingType;
   private String galacticWarPlanetName;
   private Integer maxPlayers;
+  /** "cavedog" or "oa"; null from clients that predate engine reporting. */
+  private String engine;
+  private String engineVersion;
 
   public HostGameMessage(GameAccess gameAccess, String mapName, String title, boolean[] options, String mod,
                          String password, String modVersion, GameVisibility gameVisibility, Integer ratingMin,
                          Integer ratingMax, Boolean enforceRatingRange, Integer replayDelaySeconds, String ratingType,
-                         String galacticWarPlanetName, Integer maxPlayers) {
+                         String galacticWarPlanetName, Integer maxPlayers, String engine, String engineVersion) {
     super(ClientMessageType.HOST_GAME);
     access = gameAccess;
     this.mapname = mapName;
@@ -47,5 +50,7 @@ public class HostGameMessage extends ClientMessage {
     this.ratingType = ratingType;
     this.galacticWarPlanetName = galacticWarPlanetName;
     this.maxPlayers = maxPlayers;
+    this.engine = engine;
+    this.engineVersion = engineVersion;
   }
 }

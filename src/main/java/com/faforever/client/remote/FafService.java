@@ -109,8 +109,8 @@ public class FafService {
     return fafServerAccessor.connectionStateProperty();
   }
 
-  public CompletableFuture<GameLaunchMessage> requestJoinGame(int gameId, String password) {
-    return fafServerAccessor.requestJoinGame(gameId, password);
+  public CompletableFuture<GameLaunchMessage> requestJoinGame(int gameId, String password, String modTechnical) {
+    return fafServerAccessor.requestJoinGame(gameId, password, modTechnical);
   }
 
   public CompletableFuture<WatchTicketMessage> requestWatchTicket(int gameId) {

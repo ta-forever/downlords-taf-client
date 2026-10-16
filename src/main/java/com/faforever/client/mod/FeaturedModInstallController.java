@@ -1,5 +1,8 @@
 package com.faforever.client.mod;
 
+import com.faforever.client.fa.oa.OaInstallationService;
+import com.faforever.client.fa.oa.OaPolicy;
+import com.faforever.client.fa.oa.OaVersion;
 import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.game.KnownFeaturedMod;
@@ -10,6 +13,8 @@ import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.Severity;
 import com.faforever.client.preferences.AskAlwaysOrNever;
+import com.faforever.client.preferences.GameEngine;
+import com.faforever.client.preferences.OaInstallationMode;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.theme.UiService;
@@ -24,12 +29,15 @@ import javafx.event.ActionEvent;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.RadioButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
@@ -72,6 +80,7 @@ public class FeaturedModInstallController implements Controller<Node> {
   final NotificationService notificationService;
   final I18n i18n;
   final PlatformService platformService;
+  final OaInstallationService oaInstallationService;
 
   public CheckBox useExistingCheckBox;
   public ComboBox<AskAlwaysOrNever> autoUpdateComboBox;
@@ -88,6 +97,18 @@ public class FeaturedModInstallController implements Controller<Node> {
   public GridPane newInstallParamsGridPane;
   public VBox containerLayout;
   public TextField commandLineTextField;
+  public VBox engineBox;
+  public VBox oaOptionsBox;
+  public ToggleGroup engineToggleGroup;
+  public ToggleGroup oaModeToggleGroup;
+  public RadioButton cavedogRadioButton;
+  public RadioButton oaRadioButton;
+  public RadioButton oaManagedRadioButton;
+  public RadioButton oaExistingRadioButton;
+  public TextField oaExecutableTextField;
+  public Button oaExecutableButton;
+  public Label oaStatusLabel;
+  public Label oaNoWineLabel;
 
   private FeaturedMod featuredMod;
   private Optional<CompletableFuture<Path>> installedPathFuture;
@@ -109,6 +130,15 @@ public class FeaturedModInstallController implements Controller<Node> {
     if (otaExeProperty.get() != null) {
       originalTaPathTextField.setText(otaExeProperty.get().getParent().toString());
     }
+
+    oaOptionsBox.visibleProperty().bind(oaRadioButton.selectedProperty());
+    oaOptionsBox.managedProperty().bind(oaRadioButton.selectedProperty());
+    oaExecutableTextField.disableProperty().bind(oaExistingRadioButton.selectedProperty().not());
+    oaExecutableButton.disableProperty().bind(oaExistingRadioButton.selectedProperty().not());
+    oaNoWineLabel.setVisible(org.bridj.Platform.isLinux());
+    oaNoWineLabel.setManaged(org.bridj.Platform.isLinux());
+    oaExecutableTextField.textProperty().addListener((obs, oldValue, newValue) -> updateOaStatus());
+    oaExistingRadioButton.selectedProperty().addListener((obs, oldValue, newValue) -> updateOaStatus());
 
     newInstallParamsGridPane.disableProperty().bind(useExistingCheckBox.selectedProperty());
     installPathCopyToLabel.visibleProperty().bind(useExistingCheckBox.selectedProperty().not());
@@ -140,6 +170,7 @@ public class FeaturedModInstallController implements Controller<Node> {
 
     TotalAnnihilationPrefs taPrefs = preferencesService.getTotalAnnihilation(fm.getTechnicalName());
     configureAutoUpdateOption(taPrefs);
+    configureEngineSection(taPrefs);
 
     if (taPrefs.getInstalledPath() != null) {
       installPathTextField.setText(taPrefs.getInstalledPath().toString());
@@ -160,12 +191,56 @@ public class FeaturedModInstallController implements Controller<Node> {
     }
   }
 
+  /** The engine section is only offered for mods the server allows Open Annihilation for. */
+  private void configureEngineSection(TotalAnnihilationPrefs taPrefs) {
+    boolean supported = OaPolicy.isOaSupported(preferencesService.getClientRemoteConfiguration(),
+        featuredMod.getTechnicalName());
+    engineBox.setVisible(supported);
+    engineBox.setManaged(supported);
+
+    boolean oa = supported && taPrefs.isOpenAnnihilation();
+    (oa ? oaRadioButton : cavedogRadioButton).setSelected(true);
+    (taPrefs.getOaInstallation() == OaInstallationMode.EXISTING ? oaExistingRadioButton : oaManagedRadioButton)
+        .setSelected(true);
+    if (taPrefs.getOaExecutablePath() != null) {
+      oaExecutableTextField.setText(taPrefs.getOaExecutablePath().toString());
+    }
+    updateOaStatus();
+  }
+
+  /** Shows whether the chosen existing Open Annihilation is a version the server allows. */
+  private void updateOaStatus() {
+    if (!oaExistingRadioButton.isSelected() || oaExecutableTextField.getText().isBlank()) {
+      oaStatusLabel.setText("");
+      return;
+    }
+    Path exe;
+    try {
+      exe = Path.of(oaExecutableTextField.getText().trim());
+    } catch (InvalidPathException e) {
+      oaStatusLabel.setText(i18n.get("installFeaturedMod.oa.versionUnknown"));
+      return;
+    }
+    Optional<OaVersion> version = oaInstallationService.detectVersion(exe);
+    if (version.isEmpty() || !Files.isRegularFile(exe)) {
+      oaStatusLabel.setText(i18n.get("installFeaturedMod.oa.versionUnknown"));
+    } else if (OaPolicy.isVersionAllowed(
+        OaPolicy.forMod(preferencesService.getClientRemoteConfiguration(), featuredMod.getTechnicalName()).orElse(null),
+        version.get())) {
+      oaStatusLabel.setText(i18n.get("installFeaturedMod.oa.versionAllowed", version.get().toString()));
+    } else {
+      oaStatusLabel.setText(i18n.get("installFeaturedMod.oa.versionNotAllowed", version.get().toString()));
+    }
+  }
+
   public void setInstalledPathFuture(Optional<CompletableFuture<Path>> future) {
     installedPathFuture = future;
   }
 
   public void show(Window owner) {
-    boolean alreadyInstalled = Path.of(installPathTextField.getText()).resolve("TotalA.exe").toFile().exists();
+    boolean alreadyInstalled = Path.of(installPathTextField.getText()).resolve("TotalA.exe").toFile().exists()
+        || (oaRadioButton.isSelected() && Files.isDirectory(Path.of(installPathTextField.getText()))
+        && Files.exists(Path.of(installPathTextField.getText()).resolve("oamod.yaml")));
     boolean validOriginalTaPath = Path.of(originalTaPathTextField.getText()).resolve("TotalA.exe").toFile().exists();
     useExistingCheckBox.setSelected(alreadyInstalled);
     if (!validOriginalTaPath && !alreadyInstalled) {
@@ -220,33 +295,51 @@ public class FeaturedModInstallController implements Controller<Node> {
   }
 
   public void onConfirmButton(ActionEvent actionEvent) {
+    boolean openAnnihilation = engineBox.isVisible() && oaRadioButton.isSelected();
     Path installFolder = Path.of(installPathTextField.getText());
     Path installExe = installFolder.resolve("TotalA.exe");
-    if (useExistingCheckBox.isSelected() && !validateTotalAExe(installExe)) {
+    if (openAnnihilation && oaExistingRadioButton.isSelected() && !isExistingOaAllowed()) {
+      notificationService.addImmediateWarnNotification("installFeaturedMod.oa.exeNotAllowed",
+          oaExecutableTextField.getText());
+    }
+    else if (useExistingCheckBox.isSelected() && openAnnihilation && !Files.isDirectory(installFolder)) {
+      // Open Annihilation reads the HPIs and needs no TotalA.exe; the folder only has to exist
       notificationService.addImmediateWarnNotification("gameChosen.noValidExe", installFolder);
     }
-    else if (useExistingCheckBox.isSelected() && !validateRequiredForExistingInstallation(installFolder)) {
+    else if (useExistingCheckBox.isSelected() && !openAnnihilation && !validateTotalAExe(installExe)) {
+      notificationService.addImmediateWarnNotification("gameChosen.noValidExe", installFolder);
+    }
+    else if (useExistingCheckBox.isSelected() && !openAnnihilation && !validateRequiredForExistingInstallation(installFolder)) {
       notificationService.addImmediateWarnNotification("gameChosen.missingDlls", installFolder, featuredMod.getDisplayName());
     }
     else if (useExistingCheckBox.isSelected()) {
       preferencesService.setTotalAnnihilation(
           featuredMod.getTechnicalName(), installExe, commandLineTextField.getText(), autoUpdateComboBox.getValue());
+      applyEnginePreferences(openAnnihilation);
       stage.hide();
       preferencesService.storeInBackground();
-      installedPathFuture.ifPresent(future -> future.complete(installExe));
+      prepareEngine(openAnnihilation).thenAccept(ok -> {
+        if (ok) {
+          installedPathFuture.ifPresent(future -> future.complete(installExe));
+        }
+      });
     }
     else {
       // we'll only set installedExePath once we're sure installation was successful
       TotalAnnihilationPrefs taPrefs = preferencesService.getTotalAnnihilation(featuredMod.getTechnicalName());
       taPrefs.setCommandLineOptions(commandLineTextField.getText());
       taPrefs.setAutoUpdateEnable(autoUpdateComboBox.getValue());
+      applyEnginePreferences(openAnnihilation);
 
       stage.hide();
       modService.downloadAndInstallFeaturedMod(featuredMod, Path.of(originalTaPathTextField.getText()),
           installPackageUrlTextField.getText(), Path.of(installPathTextField.getText()))
-          .thenAccept((version) -> Platform.runLater(() -> {
+          .thenCompose(version -> prepareEngine(openAnnihilation))
+          .thenAccept((ok) -> Platform.runLater(() -> {
             preferencesService.storeInBackground();
-            installedPathFuture.ifPresent(future -> future.complete(installExe));
+            if (ok) {
+              installedPathFuture.ifPresent(future -> future.complete(installExe));
+            }
           }))
           .exceptionally(e -> {
             log.error("exception installing mod: {}", e.getMessage());
@@ -258,6 +351,73 @@ public class FeaturedModInstallController implements Controller<Node> {
                         () -> stage.show())))));
             return null;
           });
+    }
+  }
+
+  private boolean isExistingOaAllowed() {
+    Path exe;
+    try {
+      exe = Path.of(oaExecutableTextField.getText().trim());
+    } catch (InvalidPathException e) {
+      return false;
+    }
+    return Files.isRegularFile(exe) && oaInstallationService.detectVersion(exe)
+        .map(version -> OaPolicy.isVersionAllowed(OaPolicy.forMod(preferencesService.getClientRemoteConfiguration(),
+            featuredMod.getTechnicalName()).orElse(null), version))
+        .orElse(false);
+  }
+
+  private void applyEnginePreferences(boolean openAnnihilation) {
+    TotalAnnihilationPrefs taPrefs = preferencesService.getTotalAnnihilation(featuredMod.getTechnicalName());
+    taPrefs.setEngine(openAnnihilation ? GameEngine.OPEN_ANNIHILATION : GameEngine.CAVEDOG);
+    if (openAnnihilation) {
+      boolean existing = oaExistingRadioButton.isSelected();
+      taPrefs.setOaInstallation(existing ? OaInstallationMode.EXISTING : OaInstallationMode.TAF_MANAGED);
+      taPrefs.setOaExecutablePath(existing ? Path.of(oaExecutableTextField.getText().trim()) : null);
+    }
+  }
+
+  /**
+   * Gets Open Annihilation ready (the pinned download for TAF-managed installs) before the dialog
+   * reports success, so the first launch does not stall on it. Cavedog needs nothing.
+   *
+   * @return completes with false if the engine could not be prepared; the user has been told
+   */
+  private CompletableFuture<Boolean> prepareEngine(boolean openAnnihilation) {
+    if (!openAnnihilation) {
+      return CompletableFuture.completedFuture(true);
+    }
+    notificationService.addNotification(new com.faforever.client.notification.TransientNotification(
+        featuredMod.getDisplayName(), i18n.get("installFeaturedMod.oa.downloading")));
+    return oaInstallationService.ensureExecutable(featuredMod.getTechnicalName())
+        .handle((exe, throwable) -> {
+          if (throwable == null) {
+            return true;
+          }
+          Throwable cause = throwable.getCause() == null ? throwable : throwable.getCause();
+          log.warn("Could not prepare Open Annihilation", cause);
+          Platform.runLater(() -> {
+            notificationService.addImmediateWarnNotification("installFeaturedMod.oa.error", cause.getMessage());
+            stage.show();
+          });
+          return false;
+        });
+  }
+
+  public void onOaExecutableButton(ActionEvent actionEvent) {
+    FileChooser chooser = new FileChooser();
+    chooser.setTitle(i18n.get("installFeaturedMod.oa.exePrompt"));
+    try {
+      Path current = Path.of(oaExecutableTextField.getText().trim());
+      if (current.getParent() != null && Files.isDirectory(current.getParent())) {
+        chooser.setInitialDirectory(current.getParent().toFile());
+      }
+    }
+    catch (InvalidPathException ignored) { }
+
+    File result = chooser.showOpenDialog(getRoot().getScene().getWindow());
+    if (result != null) {
+      oaExecutableTextField.setText(result.toString());
     }
   }
 

@@ -469,7 +469,13 @@ public class PreferencesService implements InitializingBean {
 
   @SneakyThrows
   public boolean isGameExeValid(String baseGameName) {
-    return isGameExeValidWithError(preferences.getTotalAnnihilation(baseGameName).getInstalledExePath()) == null;
+    TotalAnnihilationPrefs prefs = preferences.getTotalAnnihilation(baseGameName);
+    if (prefs.isOpenAnnihilation()) {
+      // Open Annihilation needs no TotalA.exe: the install folder only has to exist and be writable
+      Path installedPath = prefs.getInstalledPath();
+      return installedPath != null && Files.isDirectory(installedPath) && Files.isWritable(installedPath);
+    }
+    return isGameExeValidWithError(prefs.getInstalledExePath()) == null;
   }
 
   /// @return null if executablePath is valid. Otherwise a i18n string for indicating the problem to the user

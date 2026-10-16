@@ -27,6 +27,8 @@ import com.faforever.client.notification.PersistentNotification;
 import com.faforever.client.notification.Severity;
 import com.faforever.client.notification.TransientNotification;
 import com.faforever.client.player.Player;
+import com.faforever.client.fa.oa.OaInstallationService;
+import com.faforever.client.fa.oa.OaInstallationService.EngineReport;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.rankedmatch.MatchmakerInfoClientMessage;
 import com.faforever.client.remote.domain.AcceptPartyInviteMessage;
@@ -205,6 +207,7 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
   private final HashMap<Class<? extends ServerMessage>, Collection<Consumer<ServerMessage>>> messageListeners = new HashMap<>();
 
   private final PreferencesService preferencesService;
+  private final OaInstallationService oaInstallationService;
   private final UidService uidService;
   private final NotificationService notificationService;
   private final I18n i18n;
@@ -519,6 +522,7 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
 
   @Override
   public CompletableFuture<GameLaunchMessage> requestHostGame(NewGameInfo newGameInfo) {
+    EngineReport engine = oaInstallationService.engineReport(newGameInfo.getFeaturedMod().getTechnicalName());
     HostGameMessage hostGameMessage = new HostGameMessage(
         StringUtils.isEmpty(newGameInfo.getPassword()) ? GameAccess.PUBLIC : GameAccess.PASSWORD,
         newGameInfo.getMap(),
@@ -534,7 +538,9 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
         newGameInfo.getReplayDelaySeconds(),
         newGameInfo.getRatingType(),
         newGameInfo.getGalacticWarPlanetName(),
-        newGameInfo.getMaxPlayers()
+        newGameInfo.getMaxPlayers(),
+        engine.engine(),
+        engine.version()
     );
 
     gameLaunchFuture = new CompletableFuture<>();
@@ -543,8 +549,9 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
   }
 
   @Override
-  public CompletableFuture<GameLaunchMessage> requestJoinGame(int gameId, String password) {
-    JoinGameMessage joinGameMessage = new JoinGameMessage(gameId, password);
+  public CompletableFuture<GameLaunchMessage> requestJoinGame(int gameId, String password, String modTechnical) {
+    EngineReport engine = oaInstallationService.engineReport(modTechnical);
+    JoinGameMessage joinGameMessage = new JoinGameMessage(gameId, password, engine.engine(), engine.version());
 
     gameLaunchFuture = new CompletableFuture<>();
     writeToServer(joinGameMessage);

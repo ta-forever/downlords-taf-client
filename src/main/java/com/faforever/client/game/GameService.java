@@ -7,6 +7,7 @@ import com.faforever.client.fa.CloseGameEvent;
 import com.faforever.client.fa.DemoFileInfo;
 import com.faforever.client.fa.MapTool;
 import com.faforever.client.fa.TotalAnnihilationService;
+import com.faforever.client.fa.oa.OaLaunchServer;
 import com.faforever.client.fa.relay.GpgGameMessage;
 import com.faforever.client.fa.relay.event.AutoJoinRequestEvent;
 import com.faforever.client.fa.relay.event.RehostRequestEvent;
@@ -634,7 +635,7 @@ public class GameService implements InitializingBean {
           notificationService.addImmediateErrorNotification(throwable, "games.errorInPreparing");
           return null;
         })
-        .thenCompose(ensuredMap -> fafService.requestJoinGame(game.getId(), password))
+        .thenCompose(ensuredMap -> fafService.requestJoinGame(game.getId(), password, game.getFeaturedMod()))
         .thenAccept(gameLaunchMessage -> {
           if (gameLaunchMessage != null) {
             // Store password in case we rehost
@@ -773,8 +774,12 @@ public class GameService implements InitializingBean {
               return;
             }
 
-            Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(modTechnical, replayId));
-            spawnGenericTerminationListener(launchServerProcess);
+            // Open Annihilation plays a local .tad by itself; only a live watch needs a launch server
+            if (!totalAnnihilationService.isOpenAnnihilation(modTechnical) || !TotalAnnihilationService.isLocalDemo(replayFileOrUrl)) {
+              Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(
+                  modTechnical, replayId, OaLaunchServer.Mode.REPLAY_VIEWER));
+              spawnGenericTerminationListener(launchServerProcess);
+            }
 
             this.process = totalAnnihilationService.startReplay(modTechnical, replayFileOrUrl, replayId, getCurrentPlayer().getUsername());
             setRunningGameUid(-1);
@@ -1464,6 +1469,7 @@ public class GameService implements InitializingBean {
           List<String> args = fixMalformedArgs(gameLaunchMessage.getArgs());
 
           Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(modTechnical, uid));
+          totalAnnihilationService.configureOaHost(modTechnical, gameLaunchMessage.getMapname());
           spawnGenericTerminationListener(launchServerProcess);
 
           String demoCompilerUrl = String.format("%s:%s/%s",

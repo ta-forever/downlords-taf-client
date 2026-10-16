@@ -23,6 +23,48 @@ public class ClientConfiguration {
   TrueSkill trueSkill;
   Boolean repairAsymmetricAlliances;
   List<Hotfix> hotfixes;
+  OpenAnnihilation openAnnihilation;
+
+  /**
+   * Open Annihilation as an alternative engine (OPEN_ANNIHILATION_INTEGRATION.md §7). The pinned
+   * releases and the per-mod policy are served here until the server grows its own tables;
+   * an absent section means "no OA support anywhere".
+   */
+  @Data
+  public static class OpenAnnihilation {
+    /** Releases TAF will download. GitHub "latest" is never followed. */
+    List<OaRelease> releases;
+    /** Per-mod policy, keyed by the featured mod's technical name. */
+    List<OaMod> mods;
+  }
+
+  @Data
+  public static class OaRelease {
+    /** eg "0.7.3" */
+    String version;
+    /** "windows-x64", "windows-x86", "linux-x86_64", "linux-arm64", "linux-armhf" or "macos-universal" */
+    String platform;
+    URL url;
+    /** Lower-case hex sha256 of the downloaded zip. A release without one is never installed. */
+    String sha256;
+    /** Path of the executable inside the zip, if not the default for the platform. */
+    String executable;
+  }
+
+  public enum OaSupport {
+    NONE, OA_ONLY, MIXED
+  }
+
+  @Data
+  public static class OaMod {
+    String modTechnical;
+    OaSupport support = OaSupport.NONE;
+    /** Inclusive bounds on the OA version, eg "0.7.3". Null = unbounded. */
+    String minVersion;
+    String maxVersion;
+    /** Expected {@code --print-profile} sim hash per allowed OA version ("0.7.3" -> hash). Optional. */
+    Map<String, String> simHashes;
+  }
 
   /**
    * The rating system's prior for a player with no rated games, mirroring the lobby server's

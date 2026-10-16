@@ -1,6 +1,11 @@
 package com.faforever.client.fa;
 
 import com.faforever.client.config.ClientProperties;
+import com.faforever.client.fa.oa.OaCommands;
+import com.faforever.client.fa.oa.OaInstallationService;
+import com.faforever.client.fa.oa.OaHostSetup;
+import com.faforever.client.fa.oa.OaLaunchServer;
+import com.faforever.client.fa.oa.OaProfileInstaller;
 import com.faforever.client.player.Player;
 import com.faforever.client.preferences.MaxPacketSizeOption;
 import com.faforever.client.preferences.PreferencesService;
@@ -16,11 +21,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.net.Inet4Address;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -46,11 +54,14 @@ public class TotalAnnihilationService {
 
   private final ClientProperties clientProperties;
   private final FafService fafService;
+  private final OaInstallationService oaInstallationService;
+  private final OaProfileInstaller oaProfileInstaller;
 
   private Process launchServerProcess;
   private boolean launchServerHasUac;
   private int launchServerPort; // the gpgnet4ta process listening on this port may have UAC and the only thing it can do is start TotalA.exe
   private int consolePort;      // the gpgnet4ta process listening on this port doesn't need root privileges to do any of its tasks (/quit, /map and all the non UAC stuff related to /launch)
+  private OaLaunchServer oaLaunchServer;
   private Timer launchServerKeepAliveTimer;
   private KeepAliveTimerTask launchServerKeepAliveTimerTask;
 
@@ -148,7 +159,7 @@ public class TotalAnnihilationService {
   private List<String> getGpgNet4TaCommand(
       String bindAddress, int consolePort, String gameMod, int gameId, Path gamePath, boolean autoLaunch, boolean lockOptions,
       boolean proactiveResend, int maxPacketSize, String gpgNetUrl, String demoCompilerUrl, @Nullable String ircUrl,
-      Path logFile, int launchServerPort, boolean isRated, List<String> args
+      Path logFile, int launchServerPort, boolean isRated, List<String> args, boolean openAnnihilation
   ) {
     Path exePath = resolveNativeBinary(org.bridj.Platform.isLinux() ? "gpgnet4ta" : "gpgnet4ta.exe");
 
@@ -191,6 +202,10 @@ public class TotalAnnihilationService {
           command.add(entry.getWhitelist());
         });
 
+    if (openAnnihilation) {
+      command.addAll(List.of("--engine", "oa"));
+    }
+
     if (isRated) {
       command.add("--israted");
     }
@@ -225,7 +240,7 @@ public class TotalAnnihilationService {
   }
 
   private List<String> getReplayCommand(String modTechnical, String replayUrlOrPath, String playerName,
-                                        Path logFile, int launchServerPort) {
+                                        Path logFile, int launchServerPort, boolean openAnnihilation) {
     Path exePath = resolveNativeBinary("replayer.exe");
 
     List<String> command = new ArrayList<>();
@@ -233,9 +248,13 @@ public class TotalAnnihilationService {
       command.add("wine");
     }
 
+    command.add(exePath.toAbsolutePath().toString());
+    if (!openAnnihilation) {
+      // Without --gamemod replayer.exe hosts under TA's standard DirectPlay application GUID, which is
+      // the only one Open Annihilation answers to (OPEN_ANNIHILATION_INTEGRATION.md §11, M0.4)
+      command.addAll(List.of("--gamemod", modTechnical));
+    }
     command.addAll(List.of(
-        exePath.toAbsolutePath().toString(),
-        "--gamemod", modTechnical,
         "--demourl", replayUrlOrPath,
         "--logfile", logFile.toString(),
         "--playername", playerName,
@@ -317,6 +336,23 @@ public class TotalAnnihilationService {
   // We use a launch server so that we don't have to keep asking over and over again for UAC if user has chosen to launch TA as admin.
   // Instead we start the launch server with UAC and we keep it alive for as long as Downlord's client is open.
   public Process startLaunchServer(String modTechnical, int gameGUID) throws IOException {
+    return startLaunchServer(modTechnical, gameGUID, OaLaunchServer.Mode.GAME);
+  }
+
+  /**
+   * @return the talauncher process, or null when nothing needs supervising: it was already running and
+   * healthy, or the mod runs on Open Annihilation, whose launch server lives inside this client
+   */
+  public Process startLaunchServer(String modTechnical, int gameGUID, OaLaunchServer.Mode oaMode) throws IOException {
+    if (isOpenAnnihilation(modTechnical)) {
+      startOaLaunchServer(modTechnical, oaMode);
+      return null;
+    }
+    stopOaLaunchServer();
+    return startTalauncher(modTechnical, gameGUID);
+  }
+
+  private Process startTalauncher(String modTechnical, int gameGUID) throws IOException {
     if (launchServerProcess != null &&
         launchServerKeepAliveTimerTask != null && launchServerKeepAliveTimerTask.retries == 10 &&
         preferencesService.getPreferences().getRequireUacEnabled() == this.launchServerHasUac) {
@@ -345,10 +381,57 @@ public class TotalAnnihilationService {
     return this.launchServerProcess;
   }
 
+  /**
+   * Tells the Open Annihilation launch server (if one is running) to select the lobby's map and end the game on
+   * commander death once the host's battle room opens. Does nothing for TotalA.exe mods.
+   *
+   * @param mapName the map as the TAF lobby announced it
+   */
+  public void configureOaHost(String modTechnical, String mapName) {
+    if (oaLaunchServer != null && isOpenAnnihilation(modTechnical)) {
+      oaLaunchServer.setHostSettings(new OaHostSetup.Settings(mapName, OaHostSetup.CommanderDeath.ENDS));
+    }
+  }
+
+  public boolean isOpenAnnihilation(String modTechnical) {
+    return preferencesService.getTotalAnnihilation(modTechnical).isOpenAnnihilation();
+  }
+
+  private void startOaLaunchServer(String modTechnical, OaLaunchServer.Mode mode) throws IOException {
+    stopOaLaunchServer();
+    TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
+    Path oaExe = oaInstallationService.ensureExecutable(modTechnical).join();
+    oaProfileInstaller.ensureInstalled(modTechnical, prefs.getInstalledPath());
+    if (mode == OaLaunchServer.Mode.GAME) {
+      String problem = oaInstallationService.checkProfile(modTechnical, oaExe, prefs.getInstalledPath());
+      if (problem != null) {
+        throw new IOException(problem);
+      }
+    }
+    Path farkDir = preferencesService.getFafLogDirectory();
+    oaLaunchServer = new OaLaunchServer(oaExe, prefs.getInstalledPath(), prefs.getOaExtraArgs(),
+        gameId -> preferencesService.getNewLogFile("oa", gameId), farkDir, mode);
+    this.launchServerPort = oaLaunchServer.start();
+  }
+
+  @PreDestroy
+  void stopOaLaunchServer() {
+    if (oaLaunchServer != null) {
+      oaLaunchServer.close();
+      oaLaunchServer = null;
+    }
+  }
+
   public Process startGameOffline(String modTechnical, List<String> args) throws IOException {
+    TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
+    if (prefs.isOpenAnnihilation()) {
+      Path oaExe = oaInstallationService.ensureExecutable(modTechnical).join();
+      oaProfileInstaller.ensureInstalled(modTechnical, prefs.getInstalledPath());
+      return launch(prefs.getInstalledPath(), OaCommands.offline(oaExe, prefs.getInstalledPath(),
+          true, prefs.getOaExtraArgs()));
+    }
     startLaunchServer(modTechnical, 0);
 
-    TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
     Path totalA = prefs.getInstalledExePath().getFileName();
     List<String> startGameOfflineCommand = getTotalACommand(totalA);
     startGameOfflineCommand.addAll(Arrays.asList(prefs.getCommandLineOptions().split(" ")));
@@ -358,15 +441,18 @@ public class TotalAnnihilationService {
   public Process startGame(String modTechnical, int uid, @Nullable List<String> additionalArgs, int gpgPort,
                            Player currentPlayer, String demoCompilerUrl, @Nullable String ircUrl, boolean autoLaunch,
                            boolean isRated) throws IOException {
-    this.freePort47624();
+    TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
+    boolean openAnnihilation = prefs.isOpenAnnihilation();
+    this.freePort47624(openAnnihilation);
     this.consolePort = getFreeTcpPort();
 
-    TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
-    List<String> registerDplayCommand = getRegisterDplayCommand(prefs.getBaseGameName(), prefs.getInstalledPath(), prefs.getInstalledExePath().getFileName(), prefs.getCommandLineOptions(), uid);
-    try {
-      this.launch(getNativeGpgnet4taDir(), registerDplayCommand).waitFor();
-    } catch (InterruptedException e) {
-      logger.warn("Interrupted exception waiting for dplay registration: {}", e.getMessage());
+    if (!openAnnihilation) {
+      List<String> registerDplayCommand = getRegisterDplayCommand(prefs.getBaseGameName(), prefs.getInstalledPath(), prefs.getInstalledExePath().getFileName(), prefs.getCommandLineOptions(), uid);
+      try {
+        this.launch(getNativeGpgnet4taDir(), registerDplayCommand).waitFor();
+      } catch (InterruptedException e) {
+        logger.warn("Interrupted exception waiting for dplay registration: {}", e.getMessage());
+      }
     }
 
     String loopbackAddress = Inet4Address.getLoopbackAddress().getHostAddress();
@@ -384,34 +470,73 @@ public class TotalAnnihilationService {
     List<String> gpgnet4taCommand = getGpgNet4TaCommand(
         loopbackAddress, this.consolePort, prefs.getBaseGameName(), uid, prefs.getInstalledPath(), autoLaunch,
         false, proactiveResend, maxPacketSize, gpgNetUrl, demoCompilerUrl, ircUrl,
-        preferencesService.getNewLogFile("game", uid), this.launchServerPort, isRated, additionalArgs);
+        preferencesService.getNewLogFile("game", uid), this.launchServerPort, isRated, additionalArgs, openAnnihilation);
 
     return launch(getNativeGpgnet4taDir(), gpgnet4taCommand);
   }
 
   public Process startReplay(String modTechnical, String replayUrlOrPath, Integer replayId, String playerName) throws IOException {
-    this.freePort47624();
-
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
-    List<String> registerDplayCommand = getRegisterDplayCommand(
-        prefs.getBaseGameName(), prefs.getInstalledPath(), prefs.getInstalledExePath().getFileName(),
-        prefs.getCommandLineOptions(), replayId);
-    try {
-      this.launch(getNativeGpgnet4taDir(), registerDplayCommand).waitFor();
-    } catch (InterruptedException e) {
-      logger.warn("Interrupted exception waiting for dplay registration: {}", e.getMessage());
+    boolean openAnnihilation = prefs.isOpenAnnihilation();
+
+    if (openAnnihilation && isLocalDemo(replayUrlOrPath)) {
+      // A vault/local .tad needs no replayer, no launch server and no DirectPlay: OA plays it itself.
+      Path oaExe = oaInstallationService.ensureExecutable(modTechnical).join();
+      Path demo = Paths.get(replayUrlOrPath);
+      oaProfileInstaller.ensureInstalled(modTechnical, prefs.getInstalledPath());
+      String refusal = oaInstallationService.checkDemo(oaExe, prefs.getInstalledPath(), demo);
+      if (refusal == null) {
+        return launch(prefs.getInstalledPath(), OaCommands.playDemo(oaExe, prefs.getInstalledPath(), demo,
+            prefs.getOaExtraArgs()));
+      }
+      if (!Files.isRegularFile(prefs.getInstalledExePath())) {
+        throw new IOException("Open Annihilation cannot play this replay: " + refusal);
+      }
+      // The mod install also holds a working TotalA.exe: let the Cavedog stack play it
+      logger.warn("Open Annihilation refused replay {} ({}); falling back to TotalA.exe", replayId, refusal);
+      openAnnihilation = false;
+      startTalauncher(modTechnical, replayId);
+    }
+
+    this.freePort47624(openAnnihilation);
+
+    // Open Annihilation live watch: replayer.exe hosts the stream, and the launch server that
+    // startLaunchServer(.., REPLAY_VIEWER) set up starts OA with --replay-viewer when the replayer
+    // asks for a /searchjoin. No DirectPlay registration is needed for OA.
+    if (!openAnnihilation) {
+      List<String> registerDplayCommand = getRegisterDplayCommand(
+          prefs.getBaseGameName(), prefs.getInstalledPath(), prefs.getInstalledExePath().getFileName(),
+          prefs.getCommandLineOptions(), replayId);
+      try {
+        this.launch(getNativeGpgnet4taDir(), registerDplayCommand).waitFor();
+      } catch (InterruptedException e) {
+        logger.warn("Interrupted exception waiting for dplay registration: {}", e.getMessage());
+      }
     }
 
     List<String> replayCommand = getReplayCommand(modTechnical, replayUrlOrPath, playerName,
-        preferencesService.getNewLogFile("replay", replayId), this.launchServerPort);
+        preferencesService.getNewLogFile("replay", replayId), this.launchServerPort, openAnnihilation);
 
     return launch(getNativeGpgnet4taDir(), replayCommand);
   }
 
-  private void freePort47624() {
+  /** A path to an existing file, as opposed to a live-replay url. */
+  public static boolean isLocalDemo(String replayFileOrUrl) {
+    try {
+      return Files.isRegularFile(Paths.get(replayFileOrUrl));
+    } catch (InvalidPathException e) {
+      return false; // a url such as taf-live://host:port/1234
+    }
+  }
+
+  /**
+   * Frees the enumeration port. Open Annihilation does not use DirectPlay, so there is no dplaysvr.exe
+   * to kill on its behalf; stale gpgnet4ta processes still hold the port.
+   */
+  private void freePort47624(boolean openAnnihilation) {
     try {
       if (org.bridj.Platform.isLinux()) {
-        for (String executable : List.of("dplaysvr.exe", "gpgnet4ta")) {
+        for (String executable : openAnnihilation ? List.of("gpgnet4ta") : List.of("dplaysvr.exe", "gpgnet4ta")) {
           ProcessBuilder processBuilder = new ProcessBuilder();
           processBuilder.command(List.of("killall", executable));
           processBuilder.start().waitFor();

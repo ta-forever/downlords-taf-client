@@ -217,6 +217,10 @@ compileTestJava {
   // Pins that a dropped connection keeps the channel tab (and its message history) open:
   // clearing the user list removes us too, which read as us leaving the channel.
   include '**/chat/ChatControllerTest.java'
+  // Open Annihilation engine support: policy, command lines, installer, launch-server protocol.
+  include '**/fa/oa/**'
+  // Install dialog: the Open Annihilation engine section is shown only when the server offers it for the mod.
+  include '**/mod/FeaturedModInstallControllerEngineTest.java'
   include '**/assetserver/**'
   // Test base classes / shared utilities — required by tests in the
   // included packages above. Don't include broken siblings of these.
