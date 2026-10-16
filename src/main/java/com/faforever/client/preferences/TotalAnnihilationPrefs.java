@@ -93,11 +93,8 @@ public class TotalAnnihilationPrefs {
   public String getOaExtraArgs() { return this.oaExtraArgs.get() == null ? "" : this.oaExtraArgs.get(); }
   public void setOaExtraArgs(String oaExtraArgs) { this.oaExtraArgs.set(oaExtraArgs); }
 
-  /** Library mod games (featured mod "oalibrary") always run on Open Annihilation. */
-  public static final String LIBRARY_BASE_GAME_NAME = "oalibrary";
-
   public boolean isOpenAnnihilation() {
-    return getEngine() == GameEngine.OPEN_ANNIHILATION || LIBRARY_BASE_GAME_NAME.equals(getBaseGameName());
+    return getEngine() == GameEngine.OPEN_ANNIHILATION || com.faforever.client.library.LibraryGameInfo.UMBRELLA_FEATURED_MOD.equals(getBaseGameName());
   }
 
   /**

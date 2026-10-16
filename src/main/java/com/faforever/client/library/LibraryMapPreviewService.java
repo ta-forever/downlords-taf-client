@@ -33,7 +33,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -53,11 +53,7 @@ public class LibraryMapPreviewService {
   private final LibraryService libraryService;
   private final MapService mapService;
   private final PreferencesService preferencesService;
-  private final Executor executor = Executors.newFixedThreadPool(2, runnable -> {
-    Thread thread = new Thread(runnable, "library-map-preview");
-    thread.setDaemon(true);
-    return thread;
-  });
+  private final Executor executor;
   private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
   private final Map<String, CompletableFuture<Optional<URI>>> previewsByKey = new ConcurrentHashMap<>();
@@ -70,7 +66,8 @@ public class LibraryMapPreviewService {
 
   @Autowired
   public LibraryMapPreviewService(LibraryService libraryService, MapService mapService,
-                                  PreferencesService preferencesService) {
+                                  PreferencesService preferencesService, ExecutorService taskExecutor) {
+    this.executor = taskExecutor;
     this.libraryService = libraryService;
     this.mapService = mapService;
     this.preferencesService = preferencesService;

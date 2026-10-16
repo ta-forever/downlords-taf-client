@@ -1,7 +1,6 @@
 package com.faforever.client.library;
 
 import javax.annotation.Nullable;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -56,7 +55,7 @@ public record LibraryJoinVerdict(Outcome outcome, String modName, @Nullable Stri
   public static Optional<LibraryMod> localModFor(LibraryGameInfo game, List<LibraryMod> installed) {
     List<LibraryMod> candidates = installed.stream().filter(mod -> mod.id().equals(game.modId())).toList();
     return candidates.stream().filter(mod -> hintFor(game, mod).isEmpty()).findFirst()
-        .or(() -> candidates.stream().max(Comparator.comparing(LibraryMod::version)));
+        .or(() -> candidates.stream().max((a, b) -> LibraryDiscovery.compareVersions(a.version(), b.version())));
   }
 
   private static Optional<LibraryVersionHint> hintFor(LibraryGameInfo game, LibraryMod local) {

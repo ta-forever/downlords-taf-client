@@ -114,4 +114,12 @@ public class LibraryJoinVerdictTest {
     assertThat(LibraryJoinVerdict.localModFor(hosted("1.01", 2), List.of(old, current)).orElseThrow(), is(current));
     assertThat(LibraryJoinVerdict.localModFor(hosted("1.02", 2), List.of(installed("rhyoss", "1.0", 1))).isPresent(), is(false));
   }
+
+  @Test
+  public void theNewestFallbackComparesVersionsNumerically() {
+    LibraryMod nine = new LibraryMod("talon", "Talon", "1.9", 1, "coreprime", "totala", List.of(), Path.of("Mods", "talon-1.9"));
+    LibraryMod ten = new LibraryMod("talon", "Talon", "1.10", 1, "coreprime", "totala", List.of(), Path.of("Mods", "talon-1.10"));
+
+    assertThat(LibraryJoinVerdict.localModFor(hosted("0.5", 1), List.of(ten, nine)).orElseThrow(), is(ten));
+  }
 }

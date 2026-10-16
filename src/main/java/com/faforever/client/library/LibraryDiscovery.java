@@ -134,7 +134,7 @@ public final class LibraryDiscovery {
   }
 
   /** Compares versions by their numeric parts, so 1.9 sorts before 1.10; falls back to text. */
-  static int compareVersions(String a, String b) {
+  public static int compareVersions(String a, String b) {
     Matcher x = NUMBER.matcher(a);
     Matcher y = NUMBER.matcher(b);
     while (x.find() && y.find()) {
