@@ -26,7 +26,7 @@ import java.util.stream.Stream;
  * <p>Dot-folders ({@code .backup}, {@code .oamod-lock}, staging folders) are never mods. A mod with a missing or
  * unreadable {@code oamod.yaml} is skipped.
  *
- * <p>Not filtered yet: registry trust and the ids TAF features itself (a later slice).
+ * <p>Registry trust and hidden ids are applied afterwards by {@link LibraryTrust}.
  */
 @Slf4j
 public final class LibraryDiscovery {

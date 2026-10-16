@@ -36,6 +36,18 @@ public class ClientConfiguration {
     List<OaRelease> releases;
     /** Per-mod policy, keyed by the featured mod's technical name. */
     List<OaMod> mods;
+    /** Registries whose Library mods are offered, most important first (Core Prime). Absent = none. */
+    List<TrustedRegistry> trustedRegistries;
+    /** Library mod ids that are never offered because TAF features them itself, eg escalation, mayhem. */
+    List<String> hiddenLibraryMods;
+  }
+
+  @Data
+  public static class TrustedRegistry {
+    /** The registry id OA records, eg "coreprime". */
+    String id;
+    /** Where the registry's catalogue is downloaded from (no token needed). */
+    String catalogueUrl;
   }
 
   @Data
