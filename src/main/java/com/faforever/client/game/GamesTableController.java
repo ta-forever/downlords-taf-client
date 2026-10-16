@@ -8,6 +8,7 @@ import com.faforever.client.fx.StringCell;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.leaderboard.LeaderboardService;
+import com.faforever.client.library.LibraryMapPreviewService;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.ModService;
@@ -20,6 +21,7 @@ import com.faforever.client.theme.UiService;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
@@ -63,6 +65,7 @@ import static com.faforever.client.leaderboard.LeaderboardService.DEFAULT_RATING
 public class GamesTableController implements Controller<Node> {
 
   private final MapService mapService;
+  private final LibraryMapPreviewService libraryMapPreviewService;
   private final JoinGameHelper joinGameHelper;
   private final GameService gameService;
   private final ModService modService;
@@ -130,12 +133,20 @@ public class GamesTableController implements Controller<Node> {
     mapPreviewColumn.setCellFactory(param -> new MapPreviewTableCell(uiService).setDefaultImage(
         uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE)));
 
-    mapPreviewColumn.setCellValueFactory(param -> Bindings.createObjectBinding(
-        () -> param.getValue().getReplayDelaySeconds() >= 0
-          ? mapService.loadPreview(param.getValue().getFeaturedMod(), param.getValue().getMapName(), PreviewType.MINI, 10)
-          : null,
-        param.getValue().mapNameProperty(), param.getValue().replayDelaySecondsProperty()
-    ));
+    mapPreviewColumn.setCellValueFactory(param -> {
+      Game game = param.getValue();
+      ObjectProperty<Image> libraryPreview = libraryMapPreviewService.previewProperty(game);
+      ObjectBinding<Image> tafMapPreview = Bindings.createObjectBinding(
+          () -> game.getReplayDelaySeconds() >= 0 && game.getLibrary() == null
+            ? mapService.loadPreview(game.getFeaturedMod(), game.getMapName(), PreviewType.MINI, 10)
+            : null,
+          game.mapNameProperty(), game.replayDelaySecondsProperty(), game.libraryProperty()
+      );
+      ObjectBinding<Image> libraryMapPreview = Bindings.createObjectBinding(
+          () -> game.getReplayDelaySeconds() >= 0 ? libraryPreview.get() : null,
+          game.replayDelaySecondsProperty(), libraryPreview);
+      return Bindings.when(game.libraryProperty().isNotNull()).then(libraryMapPreview).otherwise(tafMapPreview);
+    });
 
     gameTitleColumn.setCellValueFactory(param -> {
       Optional<Player> host = playerService.getPlayerForUsername(param.getValue().getHost());

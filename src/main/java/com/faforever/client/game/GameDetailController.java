@@ -9,6 +9,7 @@ import com.faforever.client.galacticwar.GalacticWarService;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.leaderboard.LeaderboardService;
+import com.faforever.client.library.LibraryMapPreviewService;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.ModService;
@@ -33,6 +34,7 @@ import javafx.animation.Timeline;
 import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.value.ChangeListener;
@@ -89,6 +91,7 @@ public class GameDetailController implements Controller<Pane> {
 
   private final I18n i18n;
   private final MapService mapService;
+  private final LibraryMapPreviewService libraryMapPreviewService;
   private final ModService modService;
   private final GameService gameService;
   private final PlayerService playerService;
@@ -228,7 +231,8 @@ public class GameDetailController implements Controller<Pane> {
     eventBus.unregister(this);
   }
 
-  public GameDetailController(I18n i18n, MapService mapService, ModService modService,
+  public GameDetailController(I18n i18n, MapService mapService, LibraryMapPreviewService libraryMapPreviewService,
+                              ModService modService,
                               GameService gameService, PlayerService playerService,
                               UiService uiService, ChatService chatService,
                               LeaderboardService leaderboardService, RatingService ratingService,
@@ -238,6 +242,7 @@ public class GameDetailController implements Controller<Pane> {
                               BrowserWatchService browserWatchService, EventBus eventBus) {
     this.i18n = i18n;
     this.mapService = mapService;
+    this.libraryMapPreviewService = libraryMapPreviewService;
     this.modService = modService;
     this.gameService = gameService;
     this.playerService = playerService;
@@ -537,10 +542,16 @@ public class GameDetailController implements Controller<Pane> {
       }}, game.replayDelaySecondsProperty()
     ));
 
-    mapImageView.backgroundLoadingImageProperty().bind(createObjectBinding(
-        () -> mapService.loadPreview(game.getFeaturedMod(), game.getMapName(), PreviewType.MINI, 10),
-        game.mapNameProperty()
-    ));
+    ObjectBinding<Image> tafMapPreview = createObjectBinding(
+        () -> game.getLibrary() == null
+            ? mapService.loadPreview(game.getFeaturedMod(), game.getMapName(), PreviewType.MINI, 10)
+            : null,
+        game.mapNameProperty(), game.libraryProperty()
+    );
+    mapImageView.backgroundLoadingImageProperty().bind(
+        Bindings.when(game.libraryProperty().isNotNull())
+            .then(libraryMapPreviewService.previewProperty(game))
+            .otherwise(tafMapPreview));
     mapContainer.visibleProperty().bind(
         game.replayDelaySecondsProperty().greaterThanOrEqualTo(0).or(
             gameService.getCurrentGameProperty().isEqualTo(game)));
