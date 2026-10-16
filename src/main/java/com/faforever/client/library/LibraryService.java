@@ -66,10 +66,10 @@ public class LibraryService {
   private volatile long snapshotTakenAtMillis;
   private volatile CompletableFuture<LibrarySnapshot> refreshing;
 
-  /** Starts a process and returns at once. Replaceable for tests. */
+  /** Starts a process and returns at once with a future that completes when it exits. Replaceable for tests. */
   @FunctionalInterface
   interface ProcessStarter {
-    void start(List<String> command) throws IOException;
+    CompletableFuture<Void> start(List<String> command) throws IOException;
   }
 
   @Autowired
@@ -158,18 +158,21 @@ public class LibraryService {
     }
   }
 
-  /** Opens Open Annihilation itself, so the player can finish its first-run setup or install a Library mod. */
+  /**
+   * Opens Open Annihilation itself, so the player can finish its first-run setup or install a Library mod.
+   * Completes once OA has exited and the Library has been checked again, so {@link #snapshotProperty()} is current.
+   */
   public CompletableFuture<Void> openOa() {
-    return CompletableFuture.runAsync(() -> {
+    return CompletableFuture.supplyAsync(() -> {
       InstalledOa found = oaInstallationService.findInstalled(LibraryGameInfo.UMBRELLA_FEATURED_MOD);
       Path exe = found.exe() != null ? found.exe()
           : oaInstallationService.ensureExecutable(LibraryGameInfo.UMBRELLA_FEATURED_MOD).join();
       try {
-        starter.start(withExtraArgs(new ArrayList<>(List.of(exe.toString()))));
+        return starter.start(withExtraArgs(new ArrayList<>(List.of(exe.toString()))));
       } catch (IOException e) {
         throw new IllegalStateException("Could not start Open Annihilation: " + e.getMessage(), e);
       }
-    });
+    }).thenCompose(exited -> exited).thenCompose(ignored -> refresh(false)).thenApply(snapshot -> null);
   }
 
   private String extraArgs() {
@@ -267,10 +270,11 @@ public class LibraryService {
     return full;
   }
 
-  private static void startProcess(List<String> command) throws IOException {
-    new ProcessBuilder(command)
+  private static CompletableFuture<Void> startProcess(List<String> command) throws IOException {
+    Process process = new ProcessBuilder(command)
         .directory(Path.of(command.get(0)).toAbsolutePath().getParent().toFile())
         .start();
+    return process.onExit().thenApply(exited -> null);
   }
 
   private static String downloadCatalogue(String url) throws IOException {

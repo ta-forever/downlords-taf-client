@@ -142,6 +142,8 @@ public class CreateGameController implements Controller<Pane> {
   private final EventBus eventBus;
   private final PlatformService platformService;
   private final LibraryService libraryService;
+  /** Held strongly; the service only keeps a weak reference to it. */
+  private javafx.beans.value.ChangeListener<LibrarySnapshot> librarySnapshotListener;
   private final LibraryPrompts libraryPrompts;
   /** Section header entries ("Open Annihilation Library") in the mod list: shown, never selectable. */
   private final java.util.Set<FeaturedMod> libraryHeaders = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
@@ -1194,30 +1196,69 @@ public class CreateGameController implements Controller<Pane> {
    * "oalibrary" named after the Library mod; picking one lists the OA maps for that mod and hosts an unrated OA game.
    */
   private void offerLibraryMods(ObservableList<FeaturedMod> modSource) {
-    libraryService.refresh(true).thenAccept(snapshot -> JavaFxUtil.runLater(() -> {
-      showLibraryNotice(snapshot);
-      if (!snapshot.mods().isEmpty()) {
-        FeaturedMod header = new FeaturedMod();
-        header.setTechnicalName("");
-        header.setDisplayName(i18n.get("game.create.libraryHeader"));
-        header.setDescription("");
-        header.setVisible(true);
-        libraryHeaders.add(header);
-        modSource.add(header);
+    // the snapshot changes when OA is closed after its first-run setup, so render on every change, not once
+    librarySnapshotListener = (observable, oldValue, newValue) -> {
+      if (newValue != null) {
+        JavaFxUtil.runLater(() -> renderLibrary(modSource, newValue));
       }
-      for (LibraryMod mod : snapshot.mods()) {
-        FeaturedMod entry = new FeaturedMod();
-        entry.setTechnicalName(LibraryGameInfo.UMBRELLA_FEATURED_MOD);
-        entry.setDisplayName(mod.version().isBlank() ? mod.name() : mod.name() + " " + mod.version());
-        entry.setDescription(i18n.get("game.create.libraryDescription"));
-        entry.setVisible(true);
-        libraryEntries.put(entry, mod);
-        modSource.add(entry);
-      }
-    })).exceptionally(throwable -> {
+    };
+    libraryService.snapshotProperty().addListener(new javafx.beans.value.WeakChangeListener<>(librarySnapshotListener));
+    libraryService.refresh(true).exceptionally(throwable -> {
       log.info("Open Annihilation Library mods are not offered: {}", throwable.getMessage());
       return null;
     });
+  }
+
+  /**
+   * Called each time the dialog is shown: this controller lives for the whole session, so the Library would
+   * otherwise stay as it was at the first open. Never downloads (the first open already may).
+   */
+  public void recheckLibrary() {
+    if (librarySnapshotListener != null) {
+      libraryService.refresh(false).exceptionally(throwable -> {
+        log.info("Open Annihilation Library re-check failed: {}", throwable.getMessage());
+        return null;
+      });
+    }
+  }
+
+  /** Replaces the Library section (header and entries) and the notice with what the snapshot says, keeping the selection. */
+  private void renderLibrary(ObservableList<FeaturedMod> modSource, LibrarySnapshot snapshot) {
+    FeaturedMod selected = featuredModListView.getSelectionModel().getSelectedItem();
+    LibraryMod selectedLibraryMod = libraryEntries.get(selected);
+    modSource.removeAll(libraryHeaders);
+    modSource.removeAll(libraryEntries.keySet());
+    libraryHeaders.clear();
+    libraryEntries.clear();
+    showLibraryNotice(snapshot);
+    FeaturedMod reselect = null;
+    if (!snapshot.mods().isEmpty()) {
+      FeaturedMod header = new FeaturedMod();
+      header.setTechnicalName("");
+      header.setDisplayName(i18n.get("game.create.libraryHeader"));
+      header.setDescription("");
+      header.setVisible(true);
+      libraryHeaders.add(header);
+      modSource.add(header);
+    }
+    for (LibraryMod mod : snapshot.mods()) {
+      FeaturedMod entry = new FeaturedMod();
+      entry.setTechnicalName(LibraryGameInfo.UMBRELLA_FEATURED_MOD);
+      entry.setDisplayName(mod.version().isBlank() ? mod.name() : mod.name() + " " + mod.version());
+      entry.setDescription(i18n.get("game.create.libraryDescription"));
+      entry.setVisible(true);
+      libraryEntries.put(entry, mod);
+      modSource.add(entry);
+      if (selectedLibraryMod != null && selectedLibraryMod.id().equals(mod.id())
+          && selectedLibraryMod.version().equals(mod.version())) {
+        reselect = entry;
+      }
+    }
+    if (reselect != null) {
+      featuredModListView.getSelectionModel().select(reselect);
+    } else if (selectedLibraryMod != null) {
+      selectLastOrDefaultGameType();
+    }
   }
 
   /** Says why the Library section offers nothing (no OA, OA not allowed, first-run setup not done). */

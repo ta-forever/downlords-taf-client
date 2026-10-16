@@ -206,6 +206,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
       createGameController = uiService.loadFxml("theme/play/create_game.fxml");
     }
     createGameController.setContextGame(contextGame);
+    createGameController.recheckLibrary();
     createGameController.setSelectingGalacticWarMap(null);
 
     if (mapFolderName != null) {
@@ -250,6 +251,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
     }
 
     createGameController.resetMapSearch();
+    createGameController.recheckLibrary();
     createGameController.setRankedEnabled(true);
     createGameController.setSelectedMod(selectGalacticWarMapEvent.getPlanet().getModTechnical())
         .thenRun(() -> {

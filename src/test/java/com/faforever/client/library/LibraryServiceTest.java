@@ -49,6 +49,7 @@ public class LibraryServiceTest {
   private int listContentExit = 0;
   private OaInstallationService oa;
   private final List<List<String>> started = new ArrayList<>();
+  private CompletableFuture<Void> oaExit = CompletableFuture.completedFuture(null);
   private final List<String> fetches = new ArrayList<>();
   private static final String CATALOGUE = "{\"packages\":[{\"kind\":\"oamod\",\"id\":\"talon\",\"version\":\"1.03\"}]}";
 
@@ -81,7 +82,10 @@ public class LibraryServiceTest {
     service = new LibraryService(preferencesService, oa, runner, url -> {
       fetches.add(url);
       return CATALOGUE;
-    }, started::add);
+    }, command -> {
+      started.add(command);
+      return oaExit;
+    });
   }
 
   @Test
@@ -218,5 +222,22 @@ public class LibraryServiceTest {
 
     assertThat(started.size(), is(1));
     assertThat(started.get(0), contains(EXE.toString(), "--user-folder", userFolder.toString()));
+  }
+
+  @Test
+  public void whenOaExitsTheLibraryIsCheckedAgainSoSetupDoneInOaIsPickedUp() {
+    listContentExit = 1;
+    assertThat(service.refresh(false).join().readiness().status(), is(Status.SETUP_NOT_DONE));
+    oaExit = new CompletableFuture<>();
+
+    CompletableFuture<Void> opened = service.openOa();
+    listContentExit = 0;
+    assertThat(opened.isDone(), is(false));
+    assertThat(service.snapshotProperty().get().readiness().status(), is(Status.SETUP_NOT_DONE));
+    oaExit.complete(null);
+    opened.join();
+
+    assertThat(service.snapshotProperty().get().readiness().status(), is(Status.READY));
+    assertThat(service.snapshotProperty().get().mods().size(), is(1));
   }
 }
