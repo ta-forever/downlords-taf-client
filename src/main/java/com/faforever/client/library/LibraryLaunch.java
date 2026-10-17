@@ -58,6 +58,7 @@ public record LibraryLaunch(boolean host, String mod, String baseGame, List<Stri
       out.append("map: ").append(quote(mapKey)).append('\n');
       out.append("rules:\n");
       out.append("  commander-death: ").append(COMMANDER_DEATH).append('\n');
+      out.append("  line-of-sight: true\n");
       out.append("  lock-options: true\n");
     }
     out.append("content:\n");
