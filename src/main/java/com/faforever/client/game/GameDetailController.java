@@ -677,9 +677,7 @@ public class GameDetailController implements Controller<Pane> {
     boolean inThisOpenGame = g != null && currentPlayer.isPresent()
         && g.getId() == gameService.getRunningGameUid()
         && g.getStatus() != null && g.getStatus().isOpen()
-        && g.getMaxPlayers() > 2
-        // OA's battle room places the players, so TAF's position picker has nothing to drive
-        && g.getLibrary() == null;
+        && g.getMaxPlayers() > 2;
     boolean isHost = inThisOpenGame && currentPlayer.get().getUsername().equals(g.getHost());
     boolean fixed = inThisOpenGame && g.isFixedPositionsEnabled();
     // Host always sees the box (to reach the pill); joiners only in fixed mode.
