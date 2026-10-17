@@ -43,6 +43,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
@@ -167,6 +168,7 @@ public class CreateGameController implements Controller<Pane> {
   public ListView<FeaturedMod> featuredModListView;
   public HBox libraryNoticeBox;
   public Label libraryNoticeLabel;
+  public Label libraryMapNoteLabel;
   public Button libraryOpenOaButton;
   public ListView<MapBean> mapListView;
   public StackPane createGameRoot;
@@ -712,8 +714,13 @@ public class CreateGameController implements Controller<Pane> {
     passwordTextField.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE")
         .or(interactionLevelProperty.isEqualTo("SELECT_MAP_GW")
             .or(interactionLevelProperty.isEqualTo("UPDATE_GW"))));
+    BooleanBinding libraryStagingUpdate = Bindings.createBooleanBinding(this::isLibraryStagingUpdate,
+        interactionLevelProperty, gameService.getCurrentGameStatusProperty());
+    // A Library game's map is chosen in OA's battle room: the client has no channel to change it once it is open
+    libraryMapNoteLabel.visibleProperty().bind(libraryStagingUpdate);
+    libraryMapNoteLabel.managedProperty().bind(libraryStagingUpdate);
     mapListView.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE")
-            .or(interactionLevelProperty.isEqualTo("UPDATE_GW")).or(loadingMapsProperty));
+            .or(interactionLevelProperty.isEqualTo("UPDATE_GW")).or(loadingMapsProperty).or(libraryStagingUpdate));
     randomMapButton.disableProperty().bind(mapListView.disabledProperty());
     mapSearchTextField.disableProperty().bind(mapListView.disabledProperty());
 
@@ -1515,6 +1522,13 @@ public class CreateGameController implements Controller<Pane> {
     }
   }
 
+  /** Updating the staging game of an Open Annihilation Library mod. */
+  private boolean isLibraryStagingUpdate() {
+    Game current = gameService.getCurrentGame();
+    return "UPDATE".equals(interactionLevelProperty.get()) && current != null
+        && LibraryGameInfo.isLibraryMod(current.getFeaturedMod());
+  }
+
   public void onUpdateButtonClicked() {
 
     if (this.selectGalacticWarMapEvent.get() != null) {
@@ -1556,9 +1570,13 @@ public class CreateGameController implements Controller<Pane> {
       maxRating = null;
     }
 
-    mapService.optionalEnsureMap(
-        featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(),
-        mapListView.getSelectionModel().getSelectedItem(), null, null)
+    // A Library game's map is OA's, not a TAF map to download
+    java.util.concurrent.CompletableFuture<?> mapReady = isLibraryStagingUpdate()
+        ? java.util.concurrent.CompletableFuture.completedFuture(null)
+        : mapService.optionalEnsureMap(
+            featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(),
+            mapListView.getSelectionModel().getSelectedItem(), null, null);
+    mapReady
         .thenRun(() -> gameService.updateSettingsForStagingGame(
             titleTextField.getText(),
             mapListView.getSelectionModel().getSelectedItem().getMapName(),

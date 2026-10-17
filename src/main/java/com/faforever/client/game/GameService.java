@@ -1440,41 +1440,63 @@ public class GameService implements InitializingBean {
   public void setMaxPlayersForStagingGame(int maxPlayers) {
     Game currentGame = getCurrentGame();
     if (isGameRunning() && currentGame != null && currentGame.getStatus() == GameStatus.STAGING
+        && !LibraryGameInfo.isLibraryMod(currentGame.getFeaturedMod())
         && maxPlayers > 0 && maxPlayers <= 10) {
       this.totalAnnihilationService.sendToConsole(String.format("/max_players %d", maxPlayers));
     }
   }
 
+  /**
+   * The gpgnet4ta console commands that apply a staging-lobby update. A Library mod (Open Annihilation) game has
+   * no TA lobby: its map and slot count are fixed in OA's own battle room (the client has no channel to a running
+   * room: fark is not enabled for Library games) and it is always unrated, so only the replay delay is sent.
+   *
+   * @param mapDetails the unit-separator joined maptool details of the new map, or null for none
+   */
+  static List<String> stagingConsoleCommands(boolean libraryGame, @Nullable String mapDetails, @Nullable String ratingType,
+                                             @Nullable LiveReplayOption liveReplayOption, int maxPlayers) {
+    List<String> commands = new ArrayList<>();
+    if (!libraryGame) {
+      if (mapDetails != null) {
+        commands.add(String.format("/map %s", mapDetails));
+      }
+      if (ratingType != null && ratingType.length() > 0) {
+        commands.add(String.format("/rating_type %s", ratingType));
+        commands.add(ratingType.equals(DEFAULT_RATING_TYPE)
+            ? "/disable_game_file_version_verify" : "/enable_game_file_version_verify");
+      }
+    }
+    if (liveReplayOption != null) {
+      commands.add(String.format("/replay_delay_seconds %s", liveReplayOption.getDelaySeconds()));
+    }
+    if (!libraryGame && maxPlayers > 0 && maxPlayers <= 10) {
+      commands.add(String.format("/max_players %d", maxPlayers));
+    }
+    return commands;
+  }
+
   public void updateSettingsForStagingGame(String title, String mapName, String ratingType, LiveReplayOption liveReplayOption, String password, int maxPlayers, boolean enforceRating, Integer minRating, Integer maxRating) {
     Game currentGame = getCurrentGame();
     if (isGameRunning() && currentGame != null && currentGame.getStatus()==GameStatus.STAGING) {
+      boolean libraryGame = LibraryGameInfo.isLibraryMod(currentGame.getFeaturedMod());
       try {
-        List<String[]> mapsDetails = MapTool.listMap(preferencesService.getTotalAnnihilation(currentGame.getFeaturedMod()).getInstalledPath(), mapName);
-        if (mapsDetails.size() > 0) {
-          final String UNIT_SEPARATOR = Character.toString((char) 0x1f);
-          String mapDetails = String.join(UNIT_SEPARATOR, mapsDetails.get(0));
-          this.totalAnnihilationService.sendToConsole(String.format("/map %s", mapDetails));
-        }
-        if (ratingType != null && ratingType.length() > 0) {
-          this.totalAnnihilationService.sendToConsole(String.format("/rating_type %s", ratingType));
-          if (ratingType.equals(DEFAULT_RATING_TYPE)) {
-            this.totalAnnihilationService.sendToConsole("/disable_game_file_version_verify");
-          }
-          else {
-            this.totalAnnihilationService.sendToConsole("/enable_game_file_version_verify");
+        String mapDetails = null;
+        if (!libraryGame) {
+          List<String[]> mapsDetails = MapTool.listMap(preferencesService.getTotalAnnihilation(currentGame.getFeaturedMod()).getInstalledPath(), mapName);
+          if (mapsDetails.size() > 0) {
+            mapDetails = String.join(Character.toString((char) 0x1f), mapsDetails.get(0));
           }
         }
-        if (liveReplayOption != null) {
-          this.totalAnnihilationService.sendToConsole(String.format("/replay_delay_seconds %s", liveReplayOption.getDelaySeconds()));
-        }
+        stagingConsoleCommands(libraryGame, mapDetails, ratingType, liveReplayOption, maxPlayers)
+            .forEach(this.totalAnnihilationService::sendToConsole);
         if (password != null) {
           this.fafService.setGamePassword(password);
         }
-        if (maxPlayers > 0 && maxPlayers <= 10) {
-          this.totalAnnihilationService.sendToConsole(String.format("/max_players %d", maxPlayers));
-        }
 
-        if (minRating != null && maxRating != null) {
+        if (libraryGame) {
+          // always unrated: there is no rating range to send
+        }
+        else if (minRating != null && maxRating != null) {
           this.fafService.sendGpgGameMessage(new GpgGameMessage("SetGameRatingRange", List.of(minRating, maxRating, enforceRating)));
         }
         else if (minRating != null) {
