@@ -415,6 +415,12 @@ public class TotalAnnihilationService {
     return server != null && server.setLibraryMapKey(mapKey);
   }
 
+  /** Whether the game's Open Annihilation process is up (a second OA must not be started beside it). */
+  public boolean isOaRunning() {
+    OaLaunchServer server = oaLaunchServer;
+    return server != null && server.isOaRunning();
+  }
+
   public boolean isOpenAnnihilation(String modTechnical) {
     return preferencesService.isOpenAnnihilation(modTechnical);
   }

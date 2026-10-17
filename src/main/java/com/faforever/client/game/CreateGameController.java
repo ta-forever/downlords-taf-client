@@ -1299,7 +1299,10 @@ public class CreateGameController implements Controller<Pane> {
     if (libraryEntries.containsKey(featuredMod)) {
       mapPoolListView.getItems().clear();
       setAvailableMaps(featuredMod.getTechnicalName());
-      installGameButton.setVisible(false);
+      // the install button's spot offers Open Annihilation instead, to add Library mods and maps
+      installGameButton.setVisible(true);
+      installGameButton.setStyle("-fx-background-color: -fx-background");
+      installGameButton.setText(i18n.get("library.prompt.openOa"));
       openGameFolderButton.setVisible(false);
       return;
     }
@@ -1759,6 +1762,10 @@ public class CreateGameController implements Controller<Pane> {
     FeaturedMod fm = null;
     if (featuredModListView.getSelectionModel().getSelectedItem() != null) {
       fm = featuredModListView.getSelectionModel().getSelectedItem();
+    }
+    if (fm != null && libraryEntries.containsKey(fm)) {
+      libraryPrompts.openOa();
+      return;
     }
     if (fm != null) {
       CompletableFuture<Path> future = new CompletableFuture();

@@ -11,6 +11,7 @@ import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.leaderboard.LeaderboardService;
 import com.faforever.client.library.LibraryGameInfo;
 import com.faforever.client.library.LibraryMapPreviewService;
+import com.faforever.client.library.LibraryPrompts;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.ModService;
@@ -123,6 +124,7 @@ public class GameDetailController implements Controller<Pane> {
   public Button leaveButton;
   public Button startButton;
   public Button manageGameButton;
+  public Button openOaButton;
   public WatchButtonController watchButtonController;
   public VBox reservedPlayersContainer;
   public Button editReservedPlayersButton;
@@ -438,6 +440,12 @@ public class GameDetailController implements Controller<Pane> {
     startButton.setVisible(isGameProcessRunning && isCurrentGame && (isPlayerHosting && isStagingRoomOpen || isPlayerJoining && isBattleRoomOpen));
     // Host-only: manage teams (+autoteam) and reserved slots while the lobby/battleroom is open.
     manageGameButton.setVisible(isGameProcessRunning && isCurrentGame && isOwnGame && (isStagingRoomOpen || isBattleRoomOpen));
+    // Library games run in OA: let the player open OA to install mods or maps, but never beside the game's own OA.
+    boolean offerOpenOa = LibraryPrompts.offersOpenOaInGame(
+        thisGame != null && thisGame.getLibrary() != null, isCurrentGame, isGameProcessRunning);
+    openOaButton.setVisible(offerOpenOa);
+    openOaButton.setManaged(offerOpenOa);
+    openOaButton.setDisable(!LibraryPrompts.canOpenOaInGame(gameService.isOaRunning()));
     // Watching is normally for idle players only, but a player waiting in a staging room can still
     // watch in the browser (BrowserWatchService#isBrowserOnly) — the button stays up for them and
     // its menu drops the "in game" option.
@@ -457,6 +465,10 @@ public class GameDetailController implements Controller<Pane> {
       autoJoinButton.setUserData(Boolean.FALSE);
       autoJoinButton.getStyleClass().remove(activatedStyleClass);
     }
+  }
+
+  public void onOpenOaClicked(ActionEvent actionEvent) {
+    gameService.openOaLibrary();
   }
 
   public void setGame(Game game) {

@@ -200,4 +200,18 @@ public class LibraryPromptsTest {
     assertThat(watched.get(), is(1));
     verify(notificationService, never()).addNotification(any(ImmediateNotification.class));
   }
+
+  @Test
+  public void gameDetailOffersOpenOaOnlyInTheOwnRunningLibraryGame() {
+    assertThat(LibraryPrompts.offersOpenOaInGame(true, true, true), is(true));
+    assertThat(LibraryPrompts.offersOpenOaInGame(false, true, true), is(false));
+    assertThat(LibraryPrompts.offersOpenOaInGame(true, false, true), is(false));
+    assertThat(LibraryPrompts.offersOpenOaInGame(true, true, false), is(false));
+  }
+
+  @Test
+  public void gameDetailOpenOaIsUnusableWhileTheGamesOwnOaRuns() {
+    assertThat(LibraryPrompts.canOpenOaInGame(true), is(false));
+    assertThat(LibraryPrompts.canOpenOaInGame(false), is(true));
+  }
 }

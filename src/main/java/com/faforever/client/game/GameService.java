@@ -1090,6 +1090,18 @@ public class GameService implements InitializingBean {
     return process != null && process.isAlive();
   }
 
+  /** Whether the game's own Open Annihilation is up. */
+  public boolean isOaRunning() {
+    return totalAnnihilationService.isOaRunning();
+  }
+
+  /** Opens Open Annihilation for browsing and installing, unless the game's own OA is up (never a second one). */
+  public void openOaLibrary() {
+    if (!isOaRunning()) {
+      libraryPrompts.openOa();
+    }
+  }
+
   /**
    * True while the local player is parked in a staging room that has not been launched yet.
    *

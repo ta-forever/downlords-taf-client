@@ -188,6 +188,16 @@ public class LibraryPrompts {
     };
   }
 
+  /** Whether the game detail pane offers "Open Open Annihilation": for the player's own running Library game. */
+  public static boolean offersOpenOaInGame(boolean libraryGame, boolean currentGame, boolean gameProcessRunning) {
+    return libraryGame && currentGame && gameProcessRunning;
+  }
+
+  /** Whether the game detail pane's Open OA button is usable: not while the game's own OA is up. */
+  public static boolean canOpenOaInGame(boolean oaRunning) {
+    return !oaRunning;
+  }
+
   /** Whether opening OA is the fix for this readiness (its first-run setup). */
   public boolean offersOpenOa(LibraryReadiness readiness) {
     return readiness.status() == LibraryReadiness.Status.SETUP_NOT_DONE;
