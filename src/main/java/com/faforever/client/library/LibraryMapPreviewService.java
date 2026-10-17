@@ -124,6 +124,10 @@ public class LibraryMapPreviewService {
   private Optional<URI> findInLayers(@Nullable String modId, String mapKey, String toolName, String folder,
                                      Generator generator) {
     String name = LibraryMapPreviews.mapName(mapKey);
+    Optional<URI> loose = looseOutput(mapKey, folder, generator);
+    if (loose.isPresent()) {
+      return loose;
+    }
     Path userFolder = libraryService.userFolder();
     for (Path layer : installedMod(modId).map(mod -> LibraryMapPreviews.layers(userFolder, mod)).orElse(List.of())) {
       try {
@@ -180,6 +184,20 @@ public class LibraryMapPreviewService {
   }
 
   private Optional<URI> findUri(@Nullable String modId, @Nullable String registry, String mapKey) {
+    Optional<URI> loose = looseOutput(mapKey, PreviewType.MINI.getToolName(),
+        (folder, name, cacheRoot) -> MapTool.generatePreview(folder, null, name, cacheRoot, PreviewType.MINI,
+            MAX_POSITIONS));
+    if (loose.isPresent()) {
+      return loose;
+    }
+    Optional<URI> found = findUriInLayers(modId, registry, mapKey);
+    if (found.isPresent()) {
+      return found;
+    }
+    return looseStager().packPreview(mapKey).map(Path::toUri);
+  }
+
+  private Optional<URI> findUriInLayers(@Nullable String modId, @Nullable String registry, String mapKey) {
     Path userFolder = libraryService.userFolder();
     List<Path> layers = installedMod(modId)
         .map(mod -> LibraryMapPreviews.layers(userFolder, mod))
@@ -218,6 +236,37 @@ public class LibraryMapPreviewService {
     return maptoolOutput(layer, mapName, PreviewType.MINI.getToolName(),
         (folder, name, cacheRoot) -> MapTool.generatePreview(folder, null, name, cacheRoot, PreviewType.MINI,
             MAX_POSITIONS));
+  }
+
+  private LooseMapStager looseStager() {
+    return new LooseMapStager(libraryService.userFolder(), preferencesService.getCacheDirectory().resolve("maps"));
+  }
+
+  /**
+   * Output for a map that OA installed as a loose folder, made by maptool over a packed copy of it. It goes
+   * where TAF's own map previews and overlays go ({@code <cache>/maps/<folder>/<name>.png}), so it is cached
+   * the same way and generated only once. Empty when no loose pack has the map or maptool made nothing.
+   */
+  private Optional<URI> looseOutput(String mapKey, String outputFolder, Generator generator) {
+    String name = LibraryMapPreviews.mapName(mapKey);
+    try {
+      Path cacheRoot = preferencesService.getCacheDirectory().resolve("maps");
+      Path png = cacheRoot.resolve(outputFolder).resolve(name + ".png");
+      LooseMapStager stager = looseStager();
+      if (stager.findPack(mapKey).isEmpty()) {
+        return Optional.empty();
+      }
+      if (!Files.exists(png)) {
+        Optional<Path> stage = stager.stage(mapKey);
+        if (stage.isPresent()) {
+          generator.generate(stage.get(), name, cacheRoot);
+        }
+      }
+      return Files.exists(png) ? Optional.of(png.toUri()) : Optional.empty();
+    } catch (Exception e) {
+      log.debug("[Library] no {} for loose map {}: {}", outputFolder, mapKey, e.getMessage());
+      return Optional.empty();
+    }
   }
 
   private Optional<URI> maptoolOutput(Path layer, String mapName, String outputFolder, Generator generator)
