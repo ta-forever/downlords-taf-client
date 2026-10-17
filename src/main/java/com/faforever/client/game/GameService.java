@@ -1491,6 +1491,7 @@ public class GameService implements InitializingBean {
           // the host's OA has not been started yet: it will be launched with the new map, and the server's game
           // card follows (a Library map has no TAF archive or CRC, so only its key is reported)
           if (totalAnnihilationService.setLibraryHostMap(mapName)) {
+            log.info("[updateSettingsForStagingGame] Library game map changed from {} to {}", currentGame.getMapName(), mapName);
             fafService.setGameMapDetails(mapName, "", "");
           } else {
             log.info("[updateSettingsForStagingGame] Open Annihilation is already running; cannot change the map to {}", mapName);

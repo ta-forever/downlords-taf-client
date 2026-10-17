@@ -1522,6 +1522,17 @@ public class CreateGameController implements Controller<Pane> {
         && LibraryGameInfo.isLibraryMod(current.getFeaturedMod());
   }
 
+  /**
+   * The rating type an Update of a staging game sends. A Library game is always unrated and has no map pools (the
+   * ranked box stays ticked but disabled), and a ranked game whose pool selection is empty falls back to global.
+   */
+  static String stagingRatingType(boolean libraryUpdate, boolean rankedEnabled, @javax.annotation.Nullable MatchmakingQueue selectedPool) {
+    if (libraryUpdate || !rankedEnabled || selectedPool == null) {
+      return DEFAULT_RATING_TYPE;
+    }
+    return selectedPool.getLeaderboard().getTechnicalName();
+  }
+
   public void onUpdateButtonClicked() {
 
     if (this.selectGalacticWarMapEvent.get() != null) {
@@ -1563,24 +1574,32 @@ public class CreateGameController implements Controller<Pane> {
       maxRating = null;
     }
 
+    MapBean selectedMap = mapListView.getSelectionModel().getSelectedItem();
+    boolean libraryUpdate = isLibraryStagingUpdate();
+    // Read the dialog now, on the FX thread: whatever is read inside the callback below fails silently
+    String ratingType = stagingRatingType(libraryUpdate, rankedEnabledCheckBox.isSelected(),
+        mapPoolListView.getSelectionModel().getSelectedItem());
+    String title = titleTextField.getText();
+    LiveReplayOption liveReplayOption = liveReplayOptionComboBox.getSelectionModel().getSelectedItem();
+    String password = passwordTextField.getText();
+    Integer maxPlayers = maxPlayersComboBox.getValue();
+
     // A Library game's map is OA's, not a TAF map to download
-    java.util.concurrent.CompletableFuture<?> mapReady = isLibraryStagingUpdate()
+    java.util.concurrent.CompletableFuture<?> mapReady = libraryUpdate
         ? java.util.concurrent.CompletableFuture.completedFuture(null)
         : mapService.optionalEnsureMap(
             featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(),
-            mapListView.getSelectionModel().getSelectedItem(), null, null);
+            selectedMap, null, null);
     mapReady
         .thenRun(() -> gameService.updateSettingsForStagingGame(
-            titleTextField.getText(),
-            mapListView.getSelectionModel().getSelectedItem().getMapName(),
-            rankedEnabledCheckBox.isSelected()
-                ? mapPoolListView.getSelectionModel().getSelectedItem().getLeaderboard().getTechnicalName()
-                : DEFAULT_RATING_TYPE,
-            liveReplayOptionComboBox.getSelectionModel().getSelectedItem(),
-            passwordTextField.getText(),
-            maxPlayersComboBox.getValue(),
+            title, selectedMap.getMapName(), ratingType, liveReplayOption, password, maxPlayers,
             enforceRating, minRating, maxRating
-            ));
+            ))
+        .exceptionally(throwable -> {
+          log.warn("Game settings could not be updated", throwable);
+          notificationService.addImmediateErrorNotification(throwable, "game.create.failed");
+          return null;
+        });
 
     // Apply reserved-slots state. The checkbox toggle handler doesn't send
     // anything to the server (it'd be too eager); we batch the apply here on
