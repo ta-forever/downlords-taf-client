@@ -1199,9 +1199,14 @@ public class MapService implements InitializingBean, DisposableBean {
     if (!Files.exists(cachedFile)) {
       return List.of();
     }
+    return readStartPositions(cachedFile);
+  }
+
+  /** Reads maptool's {@code positions-coords} side-car: one {@code number x y} line per start position. */
+  public static List<MapService.StartPosition> readStartPositions(Path coordsFile) {
     List<MapService.StartPosition> positions = new ArrayList<>();
     try {
-      for (String line : Files.readAllLines(cachedFile)) {
+      for (String line : Files.readAllLines(coordsFile)) {
         String[] parts = line.trim().split("\\s+");
         if (parts.length >= 3) {
           positions.add(new MapService.StartPosition(
@@ -1210,7 +1215,7 @@ public class MapService implements InitializingBean, DisposableBean {
       }
     }
     catch (IOException | NumberFormatException e) {
-      logger.warn("Could not read start positions for map '{}' ({} players)", mapName, maxPositions, e);
+      logger.warn("Could not read start positions from '{}'", coordsFile, e);
     }
     return positions;
   }

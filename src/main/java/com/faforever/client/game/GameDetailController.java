@@ -729,9 +729,12 @@ public class GameDetailController implements Controller<Pane> {
     loadedMarkersKey = key;
     final String mod = g.getFeaturedMod();
     final String map = g.getMapName();
+    final LibraryGameInfo library = g.getLibrary();
     // maptool may run on a cache miss, so load off the JavaFX thread; apply on it.
     CompletableFuture
-        .supplyAsync(() -> mapService.loadStartPositions(mod, map, positions))
+        .supplyAsync(() -> library == null
+            ? mapService.loadStartPositions(mod, map, positions)
+            : libraryMapPreviewService.loadStartPositions(library.modId(), map, positions))
         .thenAccept(coords -> JavaFxUtil.runLater(() -> {
           if (key.equals(loadedMarkersKey)) {   // still the same map/count
             buildPositionMarkers(coords, positions);

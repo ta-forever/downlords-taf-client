@@ -37,8 +37,7 @@ public class LibraryLooseMapLiveTest {
   @Rule
   public TemporaryFolder temp = new TemporaryFolder();
 
-  @Test
-  public void realMaptoolMakesThePreviewAndOverlaysWhereTheClientReadsThem() throws Exception {
+  private LibraryMapPreviewService liveService() throws Exception {
     Path nativeDir = null;
     for (Path candidate : NATIVE_DIRS) {
       if (Files.isRegularFile(candidate.resolve("bin").resolve("maptool.exe"))) {
@@ -51,7 +50,7 @@ public class LibraryLooseMapLiveTest {
         Files.isRegularFile(OA_USER_FOLDER.resolve("Maps/not-a-pic-nic/maps/" + MAP + ".tnt")));
     System.setProperty("nativeDir", nativeDir.toString());
 
-    Path cache = temp.newFolder("cache").toPath();
+    cache = temp.newFolder("cache").toPath();
     Path tafFeatures = Path.of("C:/ProgramData/TAForever/cache/maps/TA_Features_2013.ccx");
     Files.createDirectories(cache.resolve("maps"));
     if (Files.isRegularFile(tafFeatures)) {
@@ -72,6 +71,27 @@ public class LibraryLooseMapLiveTest {
       // toolkit already up
     }
 
+    return service;
+  }
+
+  private Path cache;
+
+  @Test
+  public void realMaptoolMakesTheStartPositionsWhereTheClientReadsThem() throws Exception {
+    LibraryMapPreviewService service = liveService();
+
+    List<MapService.StartPosition> positions = service.loadStartPositions("mynn", MAP + "@not-a-pic-nic", 10);
+
+    assertThat(Files.size(cache.resolve("maps/positions-coords_10").resolve(MAP + ".txt")) > 0, is(true));
+    assertThat(positions.size() >= 2, is(true));
+    for (MapService.StartPosition position : positions) {
+      assertThat(position.x() >= 0 && position.x() <= 1 && position.y() >= 0 && position.y() <= 1, is(true));
+    }
+  }
+
+  @Test
+  public void realMaptoolMakesThePreviewAndOverlaysWhereTheClientReadsThem() throws Exception {
+    LibraryMapPreviewService service = liveService();
     String key = MAP + "@not-a-pic-nic";
     service.loadPreview("mynn", null, key).get(120, TimeUnit.SECONDS);
     service.loadOverlay("mynn", key, PreviewOverlayType.POSITIONS, 10).get(120, TimeUnit.SECONDS);

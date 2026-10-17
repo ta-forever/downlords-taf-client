@@ -48,6 +48,7 @@ import java.util.concurrent.TimeUnit;
 public class LibraryMapPreviewService {
 
   private static final int MAX_POSITIONS = 10;
+  private static final String POSITIONS_COORDS_FOLDER = "positions-coords";
   private static final long INSTALLED_MODS_TTL_MS = TimeUnit.SECONDS.toMillis(30);
   private static final long CATALOGUE_TTL_MS = TimeUnit.HOURS.toMillis(1);
 
@@ -90,7 +91,7 @@ public class LibraryMapPreviewService {
     String cacheKey = modId + "|" + registry + "|" + mapKey + "|" + previewType.getToolName();
     return cachedImage(cacheKey, () -> previewType == PreviewType.MINI
         ? findUri(modId, registry, mapKey)
-        : findInLayers(modId, mapKey, previewType.getToolName(), previewType.getToolName(),
+        : findInLayers(modId, mapKey, previewType.getToolName(), previewType.getToolName(), ".png",
         (layer, name, cacheRoot) -> MapTool.generatePreview(layer, null, name, cacheRoot, previewType, MAX_POSITIONS)));
   }
 
@@ -106,9 +107,27 @@ public class LibraryMapPreviewService {
     }
     String cacheKey = modId + "|" + mapKey + "|" + overlayType.getToolName() + "|" + maxPositions;
     String folder = overlayType.getToolName() + "_" + maxPositions;
-    return cachedImage(cacheKey, () -> findInLayers(modId, mapKey, overlayType.getToolName(), folder,
+    return cachedImage(cacheKey, () -> findInLayers(modId, mapKey, overlayType.getToolName(), folder, ".png",
         (layer, name, cacheRoot) -> MapTool.generateOverlayPreview(layer, null, name, cacheRoot, overlayType,
             maxPositions)));
+  }
+
+  /**
+   * The start positions of a map of this Library mod, as maptool's {@code positions-coords} side-car gives them,
+   * cached like TAF's own ({@code <cache>/maps/positions-coords_<N>/<name>.txt}). Blocking (maptool may run), so
+   * call it off the JavaFX thread. Empty when no source has the map.
+   */
+  public List<MapService.StartPosition> loadStartPositions(@Nullable String modId, String mapKey, int maxPositions) {
+    String folder = POSITIONS_COORDS_FOLDER + "_" + maxPositions;
+    try {
+      return findInLayers(modId, mapKey, POSITIONS_COORDS_FOLDER, folder, ".txt",
+          (layer, name, cacheRoot) -> MapTool.generateStartPositions(layer, null, name, cacheRoot, maxPositions))
+          .map(uri -> MapService.readStartPositions(Path.of(uri)))
+          .orElse(List.of());
+    } catch (RuntimeException e) {
+      log.warn("[Library] no start positions for {}", mapKey, e);
+      return List.of();
+    }
   }
 
   private CompletableFuture<Optional<Image>> cachedImage(String cacheKey, java.util.function.Supplier<Optional<URI>> finder) {
@@ -122,16 +141,16 @@ public class LibraryMapPreviewService {
   }
 
   private Optional<URI> findInLayers(@Nullable String modId, String mapKey, String toolName, String folder,
-                                     Generator generator) {
+                                     String extension, Generator generator) {
     String name = LibraryMapPreviews.mapName(mapKey);
-    Optional<URI> loose = looseOutput(mapKey, folder, generator);
+    Optional<URI> loose = looseOutput(mapKey, folder, extension, generator);
     if (loose.isPresent()) {
       return loose;
     }
     Path userFolder = libraryService.userFolder();
     for (Path layer : installedMod(modId).map(mod -> LibraryMapPreviews.layers(userFolder, mod)).orElse(List.of())) {
       try {
-        Optional<URI> found = maptoolOutput(layer, name, folder, generator);
+        Optional<URI> found = maptoolOutput(layer, name, folder, extension, generator);
         if (found.isPresent()) {
           return found;
         }
@@ -184,7 +203,7 @@ public class LibraryMapPreviewService {
   }
 
   private Optional<URI> findUri(@Nullable String modId, @Nullable String registry, String mapKey) {
-    Optional<URI> loose = looseOutput(mapKey, PreviewType.MINI.getToolName(),
+    Optional<URI> loose = looseOutput(mapKey, PreviewType.MINI.getToolName(), ".png",
         (folder, name, cacheRoot) -> MapTool.generatePreview(folder, null, name, cacheRoot, PreviewType.MINI,
             MAX_POSITIONS));
     if (loose.isPresent()) {
@@ -247,11 +266,11 @@ public class LibraryMapPreviewService {
    * where TAF's own map previews and overlays go ({@code <cache>/maps/<folder>/<name>.png}), so it is cached
    * the same way and generated only once. Empty when no loose pack has the map or maptool made nothing.
    */
-  private Optional<URI> looseOutput(String mapKey, String outputFolder, Generator generator) {
+  private Optional<URI> looseOutput(String mapKey, String outputFolder, String extension, Generator generator) {
     String name = LibraryMapPreviews.mapName(mapKey);
     try {
       Path cacheRoot = preferencesService.getCacheDirectory().resolve("maps");
-      Path png = cacheRoot.resolve(outputFolder).resolve(name + ".png");
+      Path png = cacheRoot.resolve(outputFolder).resolve(name + extension);
       LooseMapStager stager = looseStager();
       if (stager.findPack(mapKey).isEmpty()) {
         return Optional.empty();
@@ -271,9 +290,14 @@ public class LibraryMapPreviewService {
 
   private Optional<URI> maptoolOutput(Path layer, String mapName, String outputFolder, Generator generator)
       throws IOException {
+    return maptoolOutput(layer, mapName, outputFolder, ".png", generator);
+  }
+
+  private Optional<URI> maptoolOutput(Path layer, String mapName, String outputFolder, String extension,
+                                      Generator generator) throws IOException {
     Path cacheRoot = preferencesService.getCacheDirectory().resolve("maps").resolve("library")
         .resolve(layer.getFileName() + "-" + Integer.toHexString(layer.toAbsolutePath().toString().hashCode()));
-    Path png = cacheRoot.resolve(outputFolder).resolve(mapName + ".png");
+    Path png = cacheRoot.resolve(outputFolder).resolve(mapName + extension);
     if (!Files.exists(png)) {
       generator.generate(layer, mapName, cacheRoot);
     }
