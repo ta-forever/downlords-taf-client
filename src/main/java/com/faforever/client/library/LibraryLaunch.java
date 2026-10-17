@@ -19,9 +19,11 @@ import java.util.stream.Collectors;
  * @param dplayGuid  the per-game DirectPlay application GUID gpgnet4ta answers under
  * @param mapKey     the host's map, as {@code --list-content} keys it ({@code name@pack} for a pack map)
  * @param statusFile where OA writes its status stream (JSON lines)
+ * @param fixedPositions host only: players start at the map's start positions in lobby order (TAF's fixed positions
+ *                       pill) rather than at random
  */
 public record LibraryLaunch(boolean host, String mod, String baseGame, List<String> expansions, String playerName,
-                            String gameName, String address, String dplayGuid, String mapKey, Path statusFile) {
+                            String gameName, String address, String dplayGuid, String mapKey, Path statusFile, boolean fixedPositions) {
 
   /** OA cuts player names to this many characters. */
   static final int MAX_NAME_LENGTH = 16;
@@ -30,14 +32,20 @@ public record LibraryLaunch(boolean host, String mod, String baseGame, List<Stri
 
   public static LibraryLaunch host(String mod, String baseGame, List<String> expansions, String playerName,
                                    String gameName, String dplayGuid, String mapKey, Path statusFile) {
+    return host(mod, baseGame, expansions, playerName, gameName, dplayGuid, mapKey, statusFile, false);
+  }
+
+  public static LibraryLaunch host(String mod, String baseGame, List<String> expansions, String playerName,
+                                   String gameName, String dplayGuid, String mapKey, Path statusFile,
+                                   boolean fixedPositions) {
     return new LibraryLaunch(true, mod, baseGame, List.copyOf(expansions), playerName, gameName, null, dplayGuid,
-        mapKey, statusFile);
+        mapKey, statusFile, fixedPositions);
   }
 
   public static LibraryLaunch join(String mod, String baseGame, List<String> expansions, String playerName,
                                    String address, String dplayGuid, Path statusFile) {
     return new LibraryLaunch(false, mod, baseGame, List.copyOf(expansions), playerName, null, address, dplayGuid,
-        null, statusFile);
+        null, statusFile, false);
   }
 
   /** The text of the {@code .oalaunch} file (YAML; UTF-8; the first line is {@code oalaunch: 1}). */
@@ -59,6 +67,7 @@ public record LibraryLaunch(boolean host, String mod, String baseGame, List<Stri
       out.append("rules:\n");
       out.append("  commander-death: ").append(COMMANDER_DEATH).append('\n');
       out.append("  line-of-sight: true\n");
+      out.append("  start-positions: ").append(fixedPositions ? "fixed" : "random").append('\n');
       out.append("  lock-options: false\n");
     }
     out.append("content:\n");

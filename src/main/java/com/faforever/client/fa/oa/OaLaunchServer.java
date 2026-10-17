@@ -74,6 +74,12 @@ public class OaLaunchServer implements Closeable {
   private final ProcessFactory processFactory;
   /** Set for a Library mod game: OA is started from a .oalaunch file naming the mod, and modDir is unused. */
   private volatile LibraryLaunchPlan libraryPlan;
+  /** The host's fixed/random start positions choice, written to a hosted Library game's launch file. */
+  private volatile boolean fixedPositions;
+
+  public void setFixedPositions(boolean fixedPositions) {
+    this.fixedPositions = fixedPositions;
+  }
 
   private final List<Socket> clients = new CopyOnWriteArrayList<>();
   private ServerSocket serverSocket;
@@ -259,7 +265,7 @@ public class OaLaunchServer implements Closeable {
       Path launchFile = farkDir.resolve("oalibrary_" + gameId + ".oalaunch");
       LibraryLaunch launch = host
           ? LibraryLaunch.host(libraryPlan.mod(), libraryPlan.baseGame(), libraryPlan.expansions(), playerName,
-          OaCommands.gameName(gameId), dplayGuid, libraryPlan.mapKey(), statusFile.toAbsolutePath())
+          OaCommands.gameName(gameId), dplayGuid, libraryPlan.mapKey(), statusFile.toAbsolutePath(), fixedPositions)
           : LibraryLaunch.join(libraryPlan.mod(), libraryPlan.baseGame(), libraryPlan.expansions(), playerName,
           OaCommands.LOOPBACK, dplayGuid, statusFile.toAbsolutePath());
       Files.writeString(launchFile, launch.toOaLaunch(), StandardCharsets.UTF_8);

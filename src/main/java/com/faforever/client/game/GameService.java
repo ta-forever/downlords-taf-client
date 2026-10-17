@@ -1188,6 +1188,7 @@ public class GameService implements InitializingBean {
             // TAForever.ini location (1=fixed, 2=random).
             boolean fixedPositions = game.isFixedPositionsEnabled();
             this.totalAnnihilationService.sendToConsole("/fixed_positions " + (fixedPositions ? "1" : "0"));
+            this.totalAnnihilationService.setOaFixedPositions(fixedPositions);
             if (sequenced) {
               this.totalAnnihilationService.sendToConsole("/launch " +
                   String.join(",", joinOrder.stream().map(p -> String.valueOf(p.getId())).toList()));

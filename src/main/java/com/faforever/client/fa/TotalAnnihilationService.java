@@ -415,6 +415,14 @@ public class TotalAnnihilationService {
     return server != null && server.setLibraryMapKey(mapKey);
   }
 
+  /** Tells a hosted Library game's launch server whether the host chose fixed start positions (before OA starts). */
+  public void setOaFixedPositions(boolean fixed) {
+    OaLaunchServer server = oaLaunchServer;
+    if (server != null) {
+      server.setFixedPositions(fixed);
+    }
+  }
+
   /** Whether the game's Open Annihilation process is up (a second OA must not be started beside it). */
   public boolean isOaRunning() {
     OaLaunchServer server = oaLaunchServer;
