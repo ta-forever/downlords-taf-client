@@ -29,6 +29,7 @@ public class LibraryPromptsTest {
   private NotificationService notificationService;
   private LibraryService libraryService;
   private LibraryPrompts prompts;
+  private javafx.beans.property.ObjectProperty<LibrarySnapshot> snapshot;
 
   @Before
   public void setUp() {
@@ -41,6 +42,11 @@ public class LibraryPromptsTest {
     notificationService = mock(NotificationService.class);
     libraryService = mock(LibraryService.class);
     when(libraryService.openOa()).thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
+    when(libraryService.openOaAtLibrary()).thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
+    snapshot = new javafx.beans.property.SimpleObjectProperty<>(new LibrarySnapshot(
+        LibraryReadiness.assess(oaMod(), true,
+            new com.faforever.client.fa.oa.OaVersion(0, 8, 1), 0), java.util.List.of()));
+    when(libraryService.snapshotProperty()).thenReturn(snapshot);
     prompts = new LibraryPrompts(i18n, notificationService, libraryService);
   }
 
@@ -91,6 +97,16 @@ public class LibraryPromptsTest {
     assertThat(notification.getActions().get(0).getTitle(), is("library.prompt.openOa"));
     assertThat(joined.get(), is(0));
     notification.getActions().get(0).call(null);
+    verify(libraryService).openOaAtLibrary();
+  }
+
+  @Test
+  public void whenOasSetupIsNotDoneItIsOpenedPlainlyBecauseThereIsNoLibraryToShowYet() {
+    snapshot.set(new LibrarySnapshot(LibraryReadiness.assess(oaMod(),
+        true, new com.faforever.client.fa.oa.OaVersion(0, 8, 1), 1), java.util.List.of()));
+
+    prompts.openOa();
+
     verify(libraryService).openOa();
   }
 
@@ -213,5 +229,11 @@ public class LibraryPromptsTest {
   public void gameDetailOpenOaIsUnusableWhileTheGamesOwnOaRuns() {
     assertThat(LibraryPrompts.canOpenOaInGame(true), is(false));
     assertThat(LibraryPrompts.canOpenOaInGame(false), is(true));
+  }
+
+  private static com.faforever.client.update.ClientConfiguration.OaMod oaMod() {
+    com.faforever.client.update.ClientConfiguration.OaMod mod = new com.faforever.client.update.ClientConfiguration.OaMod();
+    mod.setSupport(com.faforever.client.update.ClientConfiguration.OaSupport.OA_ONLY);
+    return mod;
   }
 }

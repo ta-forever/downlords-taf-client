@@ -2,6 +2,7 @@ package com.faforever.client.library;
 
 import com.faforever.client.fa.oa.OaInstallationService;
 import com.faforever.client.fa.oa.OaInstallationService.InstalledOa;
+import com.faforever.client.fa.oa.OaLibraryNavigator;
 import com.faforever.client.fa.oa.OaPolicy;
 import com.faforever.client.fa.oa.OaVersion;
 import com.faforever.client.library.OaContentListing.ListedMap;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,6 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -57,11 +60,15 @@ public class LibraryService {
     String fetch(String url) throws IOException;
   }
 
+  /** In the log folder; OA writes the address and token of its automation endpoint here. */
+  static final String LIBRARY_ENDPOINT_FILE = "oa_fark_library.json";
+
   private final PreferencesService preferencesService;
   private final OaInstallationService oaInstallationService;
   private final CommandRunner runner;
   private final CatalogueFetcher catalogueFetcher;
   private final ProcessStarter starter;
+  private final Consumer<Path> libraryNavigator;
   private final ObjectProperty<LibrarySnapshot> snapshot = new SimpleObjectProperty<>();
   private volatile long snapshotTakenAtMillis;
   private volatile CompletableFuture<LibrarySnapshot> refreshing;
@@ -75,11 +82,19 @@ public class LibraryService {
   @Autowired
   public LibraryService(PreferencesService preferencesService, OaInstallationService oaInstallationService) {
     this(preferencesService, oaInstallationService, LibraryService::runProcess, LibraryService::downloadCatalogue,
-        LibraryService::startProcess);
+        LibraryService::startProcess, LibraryService::navigateInBackground);
   }
 
   LibraryService(PreferencesService preferencesService, OaInstallationService oaInstallationService,
                  CommandRunner runner, CatalogueFetcher catalogueFetcher, ProcessStarter starter) {
+    this(preferencesService, oaInstallationService, runner, catalogueFetcher, starter, endpoint -> {
+    });
+  }
+
+  LibraryService(PreferencesService preferencesService, OaInstallationService oaInstallationService,
+                 CommandRunner runner, CatalogueFetcher catalogueFetcher, ProcessStarter starter,
+                 Consumer<Path> libraryNavigator) {
+    this.libraryNavigator = libraryNavigator;
     this.preferencesService = preferencesService;
     this.oaInstallationService = oaInstallationService;
     this.runner = runner;
@@ -163,16 +178,52 @@ public class LibraryService {
    * Completes once OA has exited and the Library has been checked again, so {@link #snapshotProperty()} is current.
    */
   public CompletableFuture<Void> openOa() {
+    return open(false);
+  }
+
+  /**
+   * Like {@link #openOa()}, but OA comes up at its Library screen, for installing mods and maps. OA has no option
+   * for that, so it is started with its automation endpoint and the Library button is clicked once its main menu is
+   * up (and its intro is skipped). If that does not work out OA is just left at whatever screen it reached.
+   */
+  public CompletableFuture<Void> openOaAtLibrary() {
+    return open(true);
+  }
+
+  private CompletableFuture<Void> open(boolean atLibrary) {
     return CompletableFuture.supplyAsync(() -> {
       InstalledOa found = oaInstallationService.findInstalled(LibraryGameInfo.UMBRELLA_FEATURED_MOD);
       Path exe = found.exe() != null ? found.exe()
           : oaInstallationService.ensureExecutable(LibraryGameInfo.UMBRELLA_FEATURED_MOD).join();
+      List<String> command = new ArrayList<>(List.of(exe.toString()));
+      Path endpoint = null;
+      if (atLibrary) {
+        endpoint = preferencesService.getFafLogDirectory().resolve(LIBRARY_ENDPOINT_FILE);
+        try {
+          // a file left by an earlier OA holds a dead address and token
+          Files.deleteIfExists(endpoint);
+        } catch (IOException e) {
+          log.debug("[Library] could not remove the old automation endpoint file {}", endpoint, e);
+        }
+        command.addAll(List.of("--skip-intro", "--fark", "--fark-file", endpoint.toString()));
+      }
       try {
-        return starter.start(withExtraArgs(new ArrayList<>(List.of(exe.toString()))));
+        CompletableFuture<Void> exited = starter.start(withExtraArgs(command));
+        if (endpoint != null) {
+          libraryNavigator.accept(endpoint);
+        }
+        return exited;
       } catch (IOException e) {
         throw new IllegalStateException("Could not start Open Annihilation: " + e.getMessage(), e);
       }
     }).thenCompose(exited -> exited).thenCompose(ignored -> refresh(false)).thenApply(snapshot -> null);
+  }
+
+  /** Clicks OA to its Library on a thread of its own, so the wait for OA's main menu holds nothing up. */
+  private static void navigateInBackground(Path endpoint) {
+    Thread thread = new Thread(() -> OaLibraryNavigator.openLibrary(endpoint), "oa-library-navigator");
+    thread.setDaemon(true);
+    thread.start();
   }
 
   private String extraArgs() {

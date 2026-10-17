@@ -51,6 +51,8 @@ public class LibraryServiceTest {
   private final List<List<String>> started = new ArrayList<>();
   private CompletableFuture<Void> oaExit = CompletableFuture.completedFuture(null);
   private final List<String> fetches = new ArrayList<>();
+  private final List<Path> navigated = new ArrayList<>();
+  private Path logDir;
   private static final String CATALOGUE = "{\"packages\":[{\"kind\":\"oamod\",\"id\":\"talon\",\"version\":\"1.03\"}]}";
 
   @Before
@@ -61,6 +63,8 @@ public class LibraryServiceTest {
     when(preferencesService.getTotalAnnihilation("oalibrary")).thenReturn(prefs);
     when(oa.ensureExecutable("oalibrary")).thenReturn(CompletableFuture.completedFuture(EXE));
     when(oa.findInstalled("oalibrary")).thenReturn(new InstalledOa(EXE, new OaVersion(0, 8, 1)));
+    logDir = temp.newFolder("logs").toPath();
+    when(preferencesService.getFafLogDirectory()).thenReturn(logDir);
     userFolder = temp.newFolder("oa-user").toPath();
     Path mod = userFolder.resolve("Mods").resolve("talon");
     Files.createDirectories(mod);
@@ -85,7 +89,7 @@ public class LibraryServiceTest {
     }, command -> {
       started.add(command);
       return oaExit;
-    });
+    }, navigated::add);
   }
 
   @Test
@@ -239,5 +243,37 @@ public class LibraryServiceTest {
 
     assertThat(service.snapshotProperty().get().readiness().status(), is(Status.READY));
     assertThat(service.snapshotProperty().get().mods().size(), is(1));
+  }
+
+  @Test
+  public void openingAtTheLibraryStartsOaWithItsAutomationEndpointAndHandsTheEndpointToTheNavigator() throws IOException {
+    Path endpoint = logDir.resolve("oa_fark_library.json");
+    Files.writeString(endpoint, "{\"address\":\"127.0.0.1:1\",\"token\":\"stale\"}");
+
+    service.openOaAtLibrary().join();
+
+    assertThat(started.size(), is(1));
+    assertThat(started.get(0), contains(EXE.toString(), "--skip-intro", "--fark", "--fark-file", endpoint.toString(),
+        "--user-folder", userFolder.toString()));
+    assertThat(navigated, contains(endpoint));
+    assertThat(Files.exists(endpoint), is(false));
+  }
+
+  @Test
+  public void openingPlainlyNeverTouchesTheAutomationEndpoint() {
+    service.openOa().join();
+
+    assertThat(navigated.isEmpty(), is(true));
+  }
+
+  @Test
+  public void openingAtTheLibraryStillChecksTheLibraryAgainWhenOaExits() {
+    listContentExit = 1;
+    assertThat(service.refresh(false).join().readiness().status(), is(Status.SETUP_NOT_DONE));
+    listContentExit = 0;
+
+    service.openOaAtLibrary().join();
+
+    assertThat(service.snapshotProperty().get().readiness().status(), is(Status.READY));
   }
 }

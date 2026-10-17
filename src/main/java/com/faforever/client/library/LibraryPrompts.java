@@ -167,7 +167,10 @@ public class LibraryPrompts {
 
   /** Opens Open Annihilation, telling the player if that fails. */
   public void openOa() {
-    libraryService.openOa().exceptionally(throwable -> {
+    LibrarySnapshot snapshot = libraryService.snapshotProperty().get();
+    // a first-run OA has no Library to show yet, so it is opened plainly
+    boolean ready = snapshot != null && snapshot.readiness().isReady();
+    (ready ? libraryService.openOaAtLibrary() : libraryService.openOa()).exceptionally(throwable -> {
       log.warn("[Library] could not open Open Annihilation", throwable);
       notificationService.addImmediateErrorNotification(throwable, "library.openFailed");
       return null;
