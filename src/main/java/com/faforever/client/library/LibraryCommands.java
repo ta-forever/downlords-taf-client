@@ -101,6 +101,26 @@ public final class LibraryCommands {
     return statusLine.contains("\"event\":\"match\"") && statusLine.contains("\"change\":\"started\"");
   }
 
+  /**
+   * Names the Library's copy of the base game ({@code <user folder>/Games/<baseGame>}) with {@code --game-dir}.
+   * OA's replay playback with {@code --mod-dir} does not look the game folder up on its own ("no Total Annihilation
+   * folder is known"), unlike a launch file. Left alone when the extra args already name a game folder or the
+   * Library has no such folder.
+   */
+  public static List<String> withBaseGameDir(List<String> command, String extraArgs, String baseGame) {
+    if (split(extraArgs).contains("--game-dir")) {
+      return command;
+    }
+    Path gameDir = LibraryService.userFolder(extraArgs, Path.of(System.getProperty("user.home")))
+        .resolve("Games").resolve(baseGame);
+    if (!java.nio.file.Files.isDirectory(gameDir)) {
+      return command;
+    }
+    List<String> out = new ArrayList<>(command);
+    out.addAll(1, List.of("--game-dir", gameDir.toString()));
+    return out;
+  }
+
   private static List<String> split(String extraArgs) {
     if (extraArgs == null || extraArgs.isBlank()) {
       return List.of();

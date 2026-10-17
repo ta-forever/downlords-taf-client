@@ -535,13 +535,15 @@ public class TotalAnnihilationService {
       }
       Path oaExe = oaInstallationService.ensureExecutable(modTechnical).join();
       Path demo = Paths.get(replayUrlOrPath);
-      String refusal = oaInstallationService.checkDemo(LibraryCommands.checkDemo(oaExe, libraryPlan.modFolder(),
-          libraryPlan.baseGame(), libraryPlan.expansions(), demo), oaExe);
+      String refusal = oaInstallationService.checkDemo(LibraryCommands.withBaseGameDir(
+          LibraryCommands.checkDemo(oaExe, libraryPlan.modFolder(), libraryPlan.baseGame(), libraryPlan.expansions(), demo),
+          prefs.getOaExtraArgs(), libraryPlan.baseGame()), oaExe);
       if (refusal != null) {
         throw new IOException("Open Annihilation cannot play this replay: " + refusal);
       }
-      return launch(oaExe.toAbsolutePath().getParent(), LibraryCommands.playDemo(oaExe, libraryPlan.modFolder(),
-          libraryPlan.baseGame(), libraryPlan.expansions(), demo, prefs.getOaExtraArgs()));
+      return launch(oaExe.toAbsolutePath().getParent(), LibraryCommands.withBaseGameDir(
+          LibraryCommands.playDemo(oaExe, libraryPlan.modFolder(), libraryPlan.baseGame(), libraryPlan.expansions(), demo,
+              prefs.getOaExtraArgs()), prefs.getOaExtraArgs(), libraryPlan.baseGame()));
     }
 
     if (openAnnihilation && isLocalDemo(replayUrlOrPath)) {
