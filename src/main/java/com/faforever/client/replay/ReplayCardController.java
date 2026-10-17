@@ -138,7 +138,9 @@ public class ReplayCardController implements Controller<Node> {
 
     dateLabel.setText(timeService.asDate(replay.getStartTime()));
     timeLabel.setText(timeService.asShortTime(replay.getStartTime()));
-    modLabel.setText(replay.getFeaturedMod().getDisplayName());
+    modLabel.setText(replay.getLibrary() != null && replay.getLibrary().name() != null
+        ? replay.getFeaturedMod().getDisplayName() + " - " + replay.getLibrary().name()
+        : replay.getFeaturedMod().getDisplayName());
     populateModVersion(replay);
     double gameQuality = ratingService.calculateQuality(replay);
     if (!Double.isNaN(gameQuality)) {
