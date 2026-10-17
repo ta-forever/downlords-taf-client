@@ -1002,7 +1002,9 @@ public class CreateGameController implements Controller<Pane> {
     }
     FeaturedMod selectedMod = featuredModListView.getSelectionModel().getSelectedItem();
     if (selectedMod != null && LibraryGameInfo.isLibraryMod(selectedMod.getTechnicalName())) {
-      setSelectedLibraryMap(libraryEntries.get(selectedMod), newValue);
+      setSelectedLibraryMap(libraryEntries.get(selectedMod), newValue,
+          Optional.ofNullable(previewType).orElse(PreviewType.MINI),
+          Optional.ofNullable(previewOverlayType).orElse(PreviewOverlayType.NONE), maxNumPlayers);
       return;
     }
     mapPreview.setVisible(true);
@@ -1049,7 +1051,8 @@ public class CreateGameController implements Controller<Pane> {
    * folders, a TAF map of the same name, the registry's PNG), so it arrives later and may not exist, in which
    * case the pane stays empty. The vault knows nothing else about these maps beyond what OA listed.
    */
-  private void setSelectedLibraryMap(LibraryMod mod, MapBean map) {
+  private void setSelectedLibraryMap(LibraryMod mod, MapBean map, PreviewType previewType,
+                                     PreviewOverlayType overlayType, int maxNumPlayers) {
     mapPreview.setVisible(true);
     setMapPreviewPaneBackground(mapPreviewPane, null);
     setMapPreviewPaneBackground(mapPreviewOverlayPane, null);
@@ -1069,13 +1072,24 @@ public class CreateGameController implements Controller<Pane> {
     if (mod == null) {
       return;
     }
-    libraryMapPreviewService.loadPreview(mod.id(), mod.registry(), map.getMapName())
+    libraryMapPreviewService.loadPreview(mod.id(), mod.registry(), map.getMapName(), previewType)
         .thenAccept(image -> JavaFxUtil.runLater(() -> {
-          MapBean current = mapListView.getSelectionModel().getSelectedItem();
-          if (current != null && current.getMapName().equals(map.getMapName())) {
+          if (isSelectedLibraryMap(map)) {
             setMapPreviewPaneBackground(mapPreviewPane, image.orElse(null));
           }
         }));
+    // approximate: maptool reads the Library folders one layer at a time
+    libraryMapPreviewService.loadOverlay(mod.id(), map.getMapName(), overlayType, maxNumPlayers)
+        .thenAccept(image -> JavaFxUtil.runLater(() -> {
+          if (isSelectedLibraryMap(map)) {
+            setMapPreviewPaneBackground(mapPreviewOverlayPane, image.orElse(null));
+          }
+        }));
+  }
+
+  private boolean isSelectedLibraryMap(MapBean map) {
+    MapBean current = mapListView.getSelectionModel().getSelectedItem();
+    return current != null && current.getMapName().equals(map.getMapName());
   }
 
   private String formatMapDescription(String description) {

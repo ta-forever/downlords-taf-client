@@ -5,6 +5,7 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.game.Game;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.map.MapService;
+import com.faforever.client.map.MapService.PreviewOverlayType;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.preferences.PreferencesService;
 import javafx.beans.InvalidationListener;
@@ -56,7 +57,7 @@ public class LibraryMapPreviewService {
   private final Executor executor;
   private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
-  private final Map<String, CompletableFuture<Optional<URI>>> previewsByKey = new ConcurrentHashMap<>();
+  private final Map<String, CompletableFuture<Optional<Image>>> previewsByKey = new ConcurrentHashMap<>();
   private final Map<String, CachedCatalogue> cataloguesByRegistry = new ConcurrentHashMap<>();
   private CompletableFuture<List<LibraryMod>> installedMods;
   private long installedModsAt;
@@ -76,10 +77,65 @@ public class LibraryMapPreviewService {
   /** The preview image of a map of this Library mod, or empty when no source has one. Never fails. */
   public CompletableFuture<Optional<Image>> loadPreview(@Nullable String modId, @Nullable String registry,
                                                         String mapKey) {
-    String cacheKey = modId + "|" + registry + "|" + mapKey;
+    return loadPreview(modId, registry, mapKey, PreviewType.MINI);
+  }
+
+  /**
+   * The preview of a map in the given style. Only the minimap has fallbacks (a TAF map of the same name, the
+   * registry's PNG); the others come from maptool over the Library folders or not at all. One shared
+   * {@link Image} per map and style, so callers that ask again get the very same instance.
+   */
+  public CompletableFuture<Optional<Image>> loadPreview(@Nullable String modId, @Nullable String registry,
+                                                        String mapKey, PreviewType previewType) {
+    String cacheKey = modId + "|" + registry + "|" + mapKey + "|" + previewType.getToolName();
+    return cachedImage(cacheKey, () -> previewType == PreviewType.MINI
+        ? findUri(modId, registry, mapKey)
+        : findInLayers(modId, mapKey, previewType.getToolName(), previewType.getToolName(),
+        (layer, name, cacheRoot) -> MapTool.generatePreview(layer, null, name, cacheRoot, previewType, MAX_POSITIONS)));
+  }
+
+  /**
+   * An overlay (start positions, metal, geothermal vents, reclaim) for a map, drawn by maptool from the Library
+   * folders that hold the map. Approximate: maptool reads the layers one folder at a time, so features that only
+   * a later layer defines may be missing. Empty when maptool made nothing.
+   */
+  public CompletableFuture<Optional<Image>> loadOverlay(@Nullable String modId, String mapKey,
+                                                        PreviewOverlayType overlayType, int maxPositions) {
+    if (overlayType == null || overlayType == PreviewOverlayType.NONE) {
+      return CompletableFuture.completedFuture(Optional.empty());
+    }
+    String cacheKey = modId + "|" + mapKey + "|" + overlayType.getToolName() + "|" + maxPositions;
+    String folder = overlayType.getToolName() + "_" + maxPositions;
+    return cachedImage(cacheKey, () -> findInLayers(modId, mapKey, overlayType.getToolName(), folder,
+        (layer, name, cacheRoot) -> MapTool.generateOverlayPreview(layer, null, name, cacheRoot, overlayType,
+            maxPositions)));
+  }
+
+  private CompletableFuture<Optional<Image>> cachedImage(String cacheKey, java.util.function.Supplier<Optional<URI>> finder) {
     return previewsByKey.computeIfAbsent(cacheKey, key -> CompletableFuture.supplyAsync(
-            () -> findUri(modId, registry, mapKey), executor))
-        .thenApply(uri -> uri.map(value -> new Image(value.toString(), true)));
+        () -> finder.get().map(uri -> new Image(uri.toString(), true)), executor));
+  }
+
+  @FunctionalInterface
+  private interface Generator {
+    void generate(Path layer, String mapName, Path cacheRoot) throws IOException;
+  }
+
+  private Optional<URI> findInLayers(@Nullable String modId, String mapKey, String toolName, String folder,
+                                     Generator generator) {
+    String name = LibraryMapPreviews.mapName(mapKey);
+    Path userFolder = libraryService.userFolder();
+    for (Path layer : installedMod(modId).map(mod -> LibraryMapPreviews.layers(userFolder, mod)).orElse(List.of())) {
+      try {
+        Optional<URI> found = maptoolOutput(layer, name, folder, generator);
+        if (found.isPresent()) {
+          return found;
+        }
+      } catch (Exception e) {
+        log.debug("[Library] no {} from {}: {}", toolName, layer, e.getMessage());
+      }
+    }
+    return Optional.empty();
   }
 
   /** The preview of a game's map for the game list; null (so the placeholder shows) until and unless one is found. */
@@ -91,6 +147,7 @@ public class LibraryMapPreviewService {
     private final Game game;
     // held here because the listeners on the game are weak
     private final InvalidationListener strongListener = observable -> refresh();
+    private String shownKey;
 
     private GamePreview(Game game) {
       this.game = game;
@@ -103,12 +160,19 @@ public class LibraryMapPreviewService {
       LibraryGameInfo library = game.getLibrary();
       String mapName = game.getMapName();
       if (library == null || mapName == null) {
+        shownKey = null;
         JavaFxUtil.runLater(() -> set(null));
         return;
       }
+      // every GAME_INFO replaces the library record, equal or not; only a different map needs a new preview
+      String key = library.modId() + "|" + library.registry() + "|" + mapName;
+      if (key.equals(shownKey)) {
+        return;
+      }
+      shownKey = key;
       loadPreview(library.modId(), library.registry(), mapName)
           .thenAccept(image -> JavaFxUtil.runLater(() -> {
-            if (mapName.equals(game.getMapName())) {
+            if (key.equals(shownKey)) {
               set(image.orElse(null));
             }
           }));
@@ -151,11 +215,18 @@ public class LibraryMapPreviewService {
   }
 
   private Optional<URI> maptoolPreview(Path layer, String mapName) throws IOException {
+    return maptoolOutput(layer, mapName, PreviewType.MINI.getToolName(),
+        (folder, name, cacheRoot) -> MapTool.generatePreview(folder, null, name, cacheRoot, PreviewType.MINI,
+            MAX_POSITIONS));
+  }
+
+  private Optional<URI> maptoolOutput(Path layer, String mapName, String outputFolder, Generator generator)
+      throws IOException {
     Path cacheRoot = preferencesService.getCacheDirectory().resolve("maps").resolve("library")
         .resolve(layer.getFileName() + "-" + Integer.toHexString(layer.toAbsolutePath().toString().hashCode()));
-    Path png = cacheRoot.resolve(PreviewType.MINI.getToolName()).resolve(mapName + ".png");
+    Path png = cacheRoot.resolve(outputFolder).resolve(mapName + ".png");
     if (!Files.exists(png)) {
-      MapTool.generatePreview(layer, null, mapName, cacheRoot, PreviewType.MINI, MAX_POSITIONS);
+      generator.generate(layer, mapName, cacheRoot);
     }
     return Files.exists(png) ? Optional.of(png.toUri()) : Optional.empty();
   }
