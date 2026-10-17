@@ -405,6 +405,16 @@ public class TotalAnnihilationService {
     }
   }
 
+  /**
+   * Changes the map the hosted Library game's OA will be started with.
+   *
+   * @return false when OA is already running (its map can then only be changed in its battle room)
+   */
+  public boolean setLibraryHostMap(String mapKey) {
+    OaLaunchServer server = oaLaunchServer;
+    return server != null && server.setLibraryMapKey(mapKey);
+  }
+
   public boolean isOpenAnnihilation(String modTechnical) {
     return preferencesService.isOpenAnnihilation(modTechnical);
   }

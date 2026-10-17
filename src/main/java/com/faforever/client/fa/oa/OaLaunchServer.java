@@ -73,7 +73,7 @@ public class OaLaunchServer implements Closeable {
   private final Mode mode;
   private final ProcessFactory processFactory;
   /** Set for a Library mod game: OA is started from a .oalaunch file naming the mod, and modDir is unused. */
-  private final LibraryLaunchPlan libraryPlan;
+  private volatile LibraryLaunchPlan libraryPlan;
 
   private final List<Socket> clients = new CopyOnWriteArrayList<>();
   private ServerSocket serverSocket;
@@ -142,6 +142,23 @@ public class OaLaunchServer implements Closeable {
 
   public int getPort() {
     return serverSocket.getLocalPort();
+  }
+
+  /**
+   * Changes the map a Library host's OA is started with (the {@code map:} of its .oalaunch file). Only possible
+   * before OA is started: once its battle room is open the client has no channel to change the map (--fark is not
+   * enabled for Library games, and the status stream is output only).
+   *
+   * @param mapKey the map key as {@code --list-content} gives it ({@code name@pack} for pack maps)
+   * @return whether the new map will be used; false when OA is already running or this is not a Library game
+   */
+  public synchronized boolean setLibraryMapKey(String mapKey) {
+    LibraryLaunchPlan plan = libraryPlan;
+    if (plan == null || isOaRunning()) {
+      return false;
+    }
+    libraryPlan = new LibraryLaunchPlan(plan.mod(), plan.baseGame(), plan.expansions(), mapKey, plan.modFolder());
+    return true;
   }
 
   public boolean isOaRunning() {

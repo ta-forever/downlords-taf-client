@@ -357,4 +357,25 @@ public class OaLaunchServerTest {
     client.setSoTimeout(8000);
     assertThat(receive(), is("LAUNCHED"));
   }
+
+  @Test
+  public void aLibraryHostMapChosenWhileStagingIsWhatOaIsStartedWith() throws Exception {
+    startLibraryServer(new LibraryLaunchPlan("talon", "totala", List.of(), "Acid Pools"));
+
+    assertThat(server.setLibraryMapKey("Red Planet@pack"), is(true));
+    send("/host 7 {guid} Host 127.0.0.1 a b");
+    assertThat(receive(), is("RUNNING"));
+
+    assertThat(launchFileOf(started.get(0)).contains("map: \"Red Planet@pack\""), is(true));
+  }
+
+  @Test
+  public void aLibraryHostMapCannotBeChangedOnceOaIsRunning() throws Exception {
+    startLibraryServer(new LibraryLaunchPlan("talon", "totala", List.of(), "Acid Pools"));
+    send("/host 7 {guid} Host 127.0.0.1 a b");
+    assertThat(receive(), is("RUNNING"));
+
+    assertThat(server.setLibraryMapKey("Red Planet@pack"), is(false));
+    assertThat(launchFileOf(started.get(0)).contains("map: \"Acid Pools\""), is(true));
+  }
 }

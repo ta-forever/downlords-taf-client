@@ -43,7 +43,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
@@ -168,7 +167,6 @@ public class CreateGameController implements Controller<Pane> {
   public ListView<FeaturedMod> featuredModListView;
   public HBox libraryNoticeBox;
   public Label libraryNoticeLabel;
-  public Label libraryMapNoteLabel;
   public Button libraryOpenOaButton;
   public ListView<MapBean> mapListView;
   public StackPane createGameRoot;
@@ -714,13 +712,8 @@ public class CreateGameController implements Controller<Pane> {
     passwordTextField.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE")
         .or(interactionLevelProperty.isEqualTo("SELECT_MAP_GW")
             .or(interactionLevelProperty.isEqualTo("UPDATE_GW"))));
-    BooleanBinding libraryStagingUpdate = Bindings.createBooleanBinding(this::isLibraryStagingUpdate,
-        interactionLevelProperty, gameService.getCurrentGameStatusProperty());
-    // A Library game's map is chosen in OA's battle room: the client has no channel to change it once it is open
-    libraryMapNoteLabel.visibleProperty().bind(libraryStagingUpdate);
-    libraryMapNoteLabel.managedProperty().bind(libraryStagingUpdate);
     mapListView.disableProperty().bind(interactionLevelProperty.isEqualTo("BROWSE")
-            .or(interactionLevelProperty.isEqualTo("UPDATE_GW")).or(loadingMapsProperty).or(libraryStagingUpdate));
+            .or(interactionLevelProperty.isEqualTo("UPDATE_GW")).or(loadingMapsProperty));
     randomMapButton.disableProperty().bind(mapListView.disabledProperty());
     mapSearchTextField.disableProperty().bind(mapListView.disabledProperty());
 

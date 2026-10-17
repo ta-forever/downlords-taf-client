@@ -151,8 +151,6 @@
                    GridPane.rowIndex="4"/>
         <VBox spacing="10.0" GridPane.columnIndex="1" GridPane.rowIndex="5" GridPane.vgrow="ALWAYS">
             <children>
-                <Label fx:id="libraryMapNoteLabel" text="%game.create.libraryMapNote" wrapText="true"
-                       visible="false" managed="false"/>
                 <ListView fx:id="mapListView" maxHeight="1.7976931348623157E308" VBox.vgrow="ALWAYS"/>
                 <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false"
                         onAction="#onDownloadMapButtonClicked" text="%map.preview.download"/>
