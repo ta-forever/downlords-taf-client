@@ -188,6 +188,18 @@ public class LibraryPrompts {
     };
   }
 
+  /**
+   * What Create Game's Library section lists: the section header and the installed mods, or, when OA is ready but
+   * has no mod to offer, a header and a placeholder (so Open Annihilation can still be reached from the list).
+   */
+  public record EntryPlan(boolean header, List<LibraryMod> mods, boolean placeholder) {
+  }
+
+  public static EntryPlan entryPlan(LibrarySnapshot snapshot) {
+    boolean placeholder = snapshot.readiness().isReady() && snapshot.mods().isEmpty();
+    return new EntryPlan(!snapshot.mods().isEmpty() || placeholder, snapshot.mods(), placeholder);
+  }
+
   /** Whether the game detail pane offers "Open Open Annihilation": for the player's own running Library game. */
   public static boolean offersOpenOaInGame(boolean libraryGame, boolean currentGame, boolean gameProcessRunning) {
     return libraryGame && currentGame && gameProcessRunning;
