@@ -59,7 +59,7 @@ public record LibraryLaunch(boolean host, String mod, String baseGame, List<Stri
       out.append("rules:\n");
       out.append("  commander-death: ").append(COMMANDER_DEATH).append('\n');
       out.append("  line-of-sight: true\n");
-      out.append("  lock-options: true\n");
+      out.append("  lock-options: false\n");
     }
     out.append("content:\n");
     out.append("  base-game: ").append(quote(baseGame)).append('\n');

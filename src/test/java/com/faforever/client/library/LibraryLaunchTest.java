@@ -52,7 +52,7 @@ public class LibraryLaunchTest {
     assertThat(group(file, "player").get("name"), is("Commander"));
     assertThat(file.get("map"), is("Red Planet@coreprime-maps"));
     assertThat(group(file, "rules").get("commander-death"), is("ends"));
-    assertThat(group(file, "rules").get("lock-options"), is(true));
+    assertThat(group(file, "rules").get("lock-options"), is(false));
     assertThat(group(file, "rules").get("line-of-sight"), is(true));
     assertThat(group(file, "content").get("mod"), is("talon"));
     assertThat(group(file, "content").get("base-game"), is("totala"));
