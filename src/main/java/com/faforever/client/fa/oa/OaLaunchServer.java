@@ -222,7 +222,7 @@ public class OaLaunchServer implements Closeable {
         if (!isOaRunning()) {
           try {
             startOa(host, parseGameId(args[1]), args[2], args[3]);
-          } catch (IOException e) {
+          } catch (IOException | RuntimeException e) {
             log.warn("[OaLaunchServer] could not start Open Annihilation", e);
             reply(client, "FAIL");
             return;

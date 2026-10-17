@@ -1530,6 +1530,15 @@ public class GameService implements InitializingBean {
     }
   }
 
+  /** The server does not echo a Library host's map back, so fall back on the one the host chose. */
+  private String libraryHostMapKey(@Nullable String launchMapname) {
+    if (launchMapname != null && !launchMapname.isBlank()) {
+      return launchMapname;
+    }
+    NewGameInfo request = recentHostGameRequest;
+    return request == null ? null : request.getMap();
+  }
+
   /**
    * Actually starts the game, including relay and replay server. Call this method when everything else is prepared
    * (mod/map download, connectivity check etc.)
@@ -1559,7 +1568,7 @@ public class GameService implements InitializingBean {
           if (LibraryGameInfo.isLibraryMod(modTechnical) && library != null) {
             totalAnnihilationService.setLibraryPlan(new LibraryLaunchPlan(library.modId(),
                 library.baseGame() == null ? LibraryMod.DEFAULT_BASE_GAME : library.baseGame(),
-                library.expansions(), pendingLibraryHost ? gameLaunchMessage.getMapname() : null));
+                library.expansions(), pendingLibraryHost ? libraryHostMapKey(gameLaunchMessage.getMapname()) : null));
           }
           Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(modTechnical, uid));
           totalAnnihilationService.configureOaHost(modTechnical, gameLaunchMessage.getMapname());
