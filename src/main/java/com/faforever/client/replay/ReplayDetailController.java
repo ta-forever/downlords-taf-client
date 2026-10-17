@@ -302,7 +302,7 @@ public class ReplayDetailController implements Controller<Node> {
         Optional.ofNullable(replay.getFeaturedMod())
             .map(FeaturedMod::getDisplayName)
             .map(name -> replay.getLibrary() != null && replay.getLibrary().name() != null
-                ? name + " - " + replay.getLibrary().name() : name)
+                ? "OA " + replay.getLibrary().name() : name)
             .orElseGet(() -> i18n.get("unknown"))
     );
 
