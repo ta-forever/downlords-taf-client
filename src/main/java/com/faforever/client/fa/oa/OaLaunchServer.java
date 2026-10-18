@@ -289,6 +289,9 @@ public class OaLaunchServer implements Closeable {
       Files.writeString(launchFile, launch.toOaLaunch(), StandardCharsets.UTF_8);
       command = OaCommands.launchFile(oaExe, modDir, launchFile.toAbsolutePath(), extraArgs);
     }
+    if (host) {
+      DirectPlayPort.ensureFreeForHosting();
+    }
     log.info("[OaLaunchServer] starting {}", command);
     Process started = processFactory.start(command, oaExe.toAbsolutePath().getParent(), logFileForGame.apply(gameId));
     process = started;
