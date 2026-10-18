@@ -51,7 +51,7 @@ public class LibraryLaunchTest {
     assertThat(group(group(file, "game"), "directplay").get("application-guid"), is(GUID));
     assertThat(group(file, "player").get("name"), is("Commander"));
     assertThat(file.get("map"), is("Red Planet@coreprime-maps"));
-    assertThat(group(file, "rules").get("commander-death"), is("ends"));
+    assertThat(group(file, "rules").containsKey("commander-death"), is(false));
     assertThat(group(file, "rules").get("lock-options"), is(false));
     assertThat(group(file, "rules").get("line-of-sight"), is(true));
     assertThat(group(file, "rules").get("start-positions"), is("random"));

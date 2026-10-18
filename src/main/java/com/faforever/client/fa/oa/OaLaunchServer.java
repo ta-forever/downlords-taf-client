@@ -86,15 +86,12 @@ public class OaLaunchServer implements Closeable {
   private volatile boolean closed;
   /** Set when gpgnet4ta asked us to stop OA, so that the resulting non-zero exit is not reported as a crash. */
   private volatile boolean stopRequested;
-  /** What the host's battle room is set to once it opens; see {@link OaHostSetup}. */
-  private volatile OaHostSetup.Settings hostSettings = OaHostSetup.Settings.NONE;
+  /** The map a TAF featured mod's host launch file names (the lobby's name for it); null leaves OA's choice. */
+  private volatile String hostMap;
 
-  /**
-   * Chooses the map and rules the host's battle room is set to when it opens. Set before gpgnet4ta's
-   * {@code /host} arrives; has no effect on a joiner.
-   */
-  public void setHostSettings(OaHostSetup.Settings settings) {
-    this.hostSettings = settings == null ? OaHostSetup.Settings.NONE : settings;
+  /** Chooses the map the host's launch file names. Set before gpgnet4ta's {@code /host} arrives; no effect on a joiner. */
+  public void setHostMap(String map) {
+    this.hostMap = map;
   }
 
   /**
@@ -164,7 +161,7 @@ public class OaLaunchServer implements Closeable {
     }
     if (plan == null) {
       // a TAF featured mod: the map is the lobby's name for it
-      hostSettings = new OaHostSetup.Settings(mapKey, hostSettings.commanderDeath());
+      hostMap = mapKey;
       return true;
     }
     libraryPlan = new LibraryLaunchPlan(plan.mod(), plan.baseGame(), plan.expansions(), mapKey, plan.modFolder());
@@ -286,7 +283,7 @@ public class OaLaunchServer implements Closeable {
       Path launchFile = farkDir.resolve("oa_" + gameId + ".oalaunch");
       LibraryLaunch launch = host
           ? LibraryLaunch.host(null, null, List.of(), playerName, OaCommands.gameName(gameId), dplayGuid,
-          hostSettings.map(), statusFile.toAbsolutePath(), fixedPositions)
+          hostMap, statusFile.toAbsolutePath(), fixedPositions)
           : LibraryLaunch.join(null, null, List.of(), playerName, OaCommands.LOOPBACK, dplayGuid,
           statusFile.toAbsolutePath());
       Files.writeString(launchFile, launch.toOaLaunch(), StandardCharsets.UTF_8);

@@ -24,7 +24,7 @@ import java.util.zip.CRC32;
  * ask U2). The endpoint serves one client at a time, so each poll opens and closes a connection.
  * While {@code --fark} is on, OA labels the battle room "REMOTED".
  */
-class OaFarkClient implements Closeable, OaHostSetup.Fark {
+class OaFarkClient implements Closeable, OaFark {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
   private static final int CONNECT_TIMEOUT_MS = 1000;

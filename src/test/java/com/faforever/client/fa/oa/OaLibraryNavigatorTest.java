@@ -18,7 +18,7 @@ public class OaLibraryNavigatorTest {
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   /** An OA that answers like the {@code --fark} endpoint: a loading screen, then the main menu with its Library button. */
-  private static class FakeOa implements OaHostSetup.Fark {
+  private static class FakeOa implements OaFark {
     int loadingAnswers;
     boolean buttonEnabled = true;
     boolean clickOpensLibrary = true;

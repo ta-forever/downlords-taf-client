@@ -3,7 +3,6 @@ package com.faforever.client.fa;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.fa.oa.OaCommands;
 import com.faforever.client.fa.oa.OaInstallationService;
-import com.faforever.client.fa.oa.OaHostSetup;
 import com.faforever.client.fa.oa.OaLaunchServer;
 import com.faforever.client.fa.oa.OaProfileInstaller;
 import com.faforever.client.library.LibraryCommands;
@@ -403,14 +402,14 @@ public class TotalAnnihilationService {
   }
 
   /**
-   * Tells the Open Annihilation launch server (if one is running) to select the lobby's map and end the game on
-   * commander death once the host's battle room opens. Does nothing for TotalA.exe mods.
+   * Tells the Open Annihilation launch server (if one is running) which map the host's launch file names.
+   * Does nothing for TotalA.exe mods.
    *
    * @param mapName the map as the TAF lobby announced it
    */
   public void configureOaHost(String modTechnical, String mapName) {
     if (oaLaunchServer != null && isOpenAnnihilation(modTechnical)) {
-      oaLaunchServer.setHostSettings(new OaHostSetup.Settings(mapName, OaHostSetup.CommanderDeath.ENDS));
+      oaLaunchServer.setHostMap(mapName);
     }
   }
 

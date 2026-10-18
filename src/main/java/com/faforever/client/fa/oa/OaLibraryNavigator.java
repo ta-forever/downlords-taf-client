@@ -85,7 +85,7 @@ public final class OaLibraryNavigator {
    *
    * @return whether the Library dialog is open at the end; false on any step that did not work out
    */
-  static boolean navigate(OaHostSetup.Fark fark, OaHostSetup.Pause pause) throws IOException, InterruptedException {
+  static boolean navigate(OaFark fark, OaPause pause) throws IOException, InterruptedException {
     for (long waited = 0; waited <= SCREEN_WAIT_MS; waited += POLL_MS) {
       JsonNode screen = fark.request(MAPPER.createObjectNode().put("op", "screen"));
       if (hasDialog(screen)) {
@@ -103,7 +103,7 @@ public final class OaLibraryNavigator {
     return false;
   }
 
-  private static boolean waitForDialog(OaHostSetup.Fark fark, OaHostSetup.Pause pause)
+  private static boolean waitForDialog(OaFark fark, OaPause pause)
       throws IOException, InterruptedException {
     for (long waited = 0; waited <= DIALOG_WAIT_MS; waited += POLL_MS) {
       if (hasDialog(fark.request(MAPPER.createObjectNode().put("op", "screen")))) {
@@ -123,7 +123,7 @@ public final class OaLibraryNavigator {
     return false;
   }
 
-  private static JsonNode enabledControl(OaHostSetup.Fark fark, String name) throws IOException {
+  private static JsonNode enabledControl(OaFark fark, String name) throws IOException {
     for (JsonNode control : fark.request(MAPPER.createObjectNode().put("op", "controls")).path("controls")) {
       if (name.equals(control.path("name").asText()) && control.path("enabled").asBoolean(false)
           && control.path("visible").asBoolean(true)) {
@@ -133,7 +133,7 @@ public final class OaLibraryNavigator {
     return null;
   }
 
-  private static void click(OaHostSetup.Fark fark, JsonNode control) throws IOException {
+  private static void click(OaFark fark, JsonNode control) throws IOException {
     JsonNode r = control.path("rect");
     int x = r.path(0).asInt() + r.path(2).asInt() / 2;
     int y = r.path(1).asInt() + r.path(3).asInt() / 2;

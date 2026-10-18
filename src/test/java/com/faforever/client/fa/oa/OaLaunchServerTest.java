@@ -159,7 +159,7 @@ public class OaLaunchServerTest {
   @Test
   public void aFeaturedModHostIsStartedFromAnOalaunchFileWithTheMapRulesGuidAndStatusStream() throws Exception {
     startServer(Mode.GAME);
-    server.setHostSettings(new OaHostSetup.Settings("[Bully] Twice Upon a Time", OaHostSetup.CommanderDeath.ENDS));
+    server.setHostMap("[Bully] Twice Upon a Time");
     server.setFixedPositions(true);
 
     send("/host 196786 {guid} TheArmCommander 127.0.0.1 https://api/launch_codes secret-token");
@@ -173,7 +173,7 @@ public class OaLaunchServerTest {
     assertThat(file.contains("name: \"TAF196786\""), is(true));
     assertThat(file.contains("application-guid: \"{guid}\""), is(true));
     assertThat(file.contains("map: \"[Bully] Twice Upon a Time\""), is(true));
-    assertThat(file.contains("commander-death: ends"), is(true));
+    assertThat(file.contains("commander-death"), is(false));
     assertThat(file.contains("start-positions: fixed"), is(true));
     assertThat(file.contains("status:"), is(true));
     assertThat(file.contains("content:"), is(false));
@@ -183,7 +183,7 @@ public class OaLaunchServerTest {
   @Test
   public void aFeaturedModHostMapChosenWhileStagingIsWhatOaIsStartedWith() throws Exception {
     startServer(Mode.GAME);
-    server.setHostSettings(new OaHostSetup.Settings("Old Map", OaHostSetup.CommanderDeath.ENDS));
+    server.setHostMap("Old Map");
 
     assertThat(server.setLibraryMapKey("New Map"), is(true));
     send("/host 7 {guid} Host 127.0.0.1 a b");
