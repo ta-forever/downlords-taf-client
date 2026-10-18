@@ -64,7 +64,8 @@ public class TotalAnnihilationService {
 
   private Process launchServerProcess;
   private boolean launchServerHasUac;
-  private int launchServerPort; // the gpgnet4ta process listening on this port may have UAC and the only thing it can do is start TotalA.exe
+  private int launchServerPort; // the port the next game's gpgnet4ta is told to use: talauncher's, or the Open Annihilation launch server's
+  private int talauncherPort; // the gpgnet4ta process listening on this port may have UAC and the only thing it can do is start TotalA.exe
   private int consolePort;      // the gpgnet4ta process listening on this port doesn't need root privileges to do any of its tasks (/quit, /map and all the non UAC stuff related to /launch)
   private OaLaunchServer oaLaunchServer;
   /** What the next Library mod game loads; set by GameService before the launch server is started. */
@@ -306,7 +307,7 @@ public class TotalAnnihilationService {
     @Override
     public void run() {
       if (launchServerProcess != null && launchServerProcess.isAlive()) {
-        try (Socket socket = new Socket("127.0.0.1", launchServerPort)) {
+        try (Socket socket = new Socket("127.0.0.1", talauncherPort)) {
           socket.setSoTimeout(300);
           socket.getOutputStream().write("/keepalive".getBytes());
           socket.getOutputStream().flush();
@@ -314,7 +315,7 @@ public class TotalAnnihilationService {
           connectedOnce = true;
         }
         catch (IOException e) {
-          logger.warn("timeout connecting to launch server on port {}", launchServerPort);
+          logger.warn("timeout connecting to launch server on port {}", talauncherPort);
           if (connectedOnce) {
             retries--;
           }
@@ -326,7 +327,7 @@ public class TotalAnnihilationService {
       }
 
       if (retries <= 0) {
-        logger.warn("cannot keepalive launch server on port {} ... giving up", launchServerPort);
+        logger.warn("cannot keepalive launch server on port {} ... giving up", talauncherPort);
         launchServerKeepAliveTimer.cancel();
         launchServerProcess.destroyForcibly();
         launchServerProcess = null;
@@ -374,10 +375,13 @@ public class TotalAnnihilationService {
         launchServerKeepAliveTimerTask != null && launchServerKeepAliveTimerTask.retries == 10 &&
         preferencesService.getPreferences().getRequireUacEnabled() == this.launchServerHasUac) {
       logger.info("[startLaunchServer] already started, is healthy and should have required UAC");
+      // an Open Annihilation game in between pointed launchServerPort at its own launch server
+      this.launchServerPort = this.talauncherPort;
       return null;
     }
 
-    this.launchServerPort = getFreeTcpPort();
+    this.talauncherPort = getFreeTcpPort();
+    this.launchServerPort = this.talauncherPort;
     this.launchServerHasUac = preferencesService.getPreferences().getRequireUacEnabled();
 
     if (launchServerKeepAliveTimer != null) {
