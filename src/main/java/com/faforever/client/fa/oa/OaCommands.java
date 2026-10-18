@@ -76,7 +76,7 @@ public final class OaCommands {
 
   /** Prints the resolved profile and its sim hash, then exits (status 1 on errors). */
   public static List<String> printProfile(Path oaExe, Path modDir) {
-    return new ArrayList<>(List.of(oaExe.toString(), "--game-dir", modDir.toString(), "--print-profile"));
+    return new ArrayList<>(List.of(oaExe.toString(), "--game-dir", modDir.toString(), "--base-game", "--print-profile"));
   }
 
   /** Session name that survives OA's "the name ends at the first blank" rule. */
@@ -94,6 +94,9 @@ public final class OaCommands {
     command.add(oaExe.toString());
     command.add("--game-dir");
     command.add(modDir.toString());
+    // The game folder is the mod (a copied install with its own oamod.yaml): never the mod folder the player
+    // picked in OA's Library, which OA remembers between runs and refuses to combine with a copied install.
+    command.add("--base-game");
     if (skipIntro) {
       command.add("--skip-intro");
     }

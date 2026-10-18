@@ -17,14 +17,14 @@ public class OaCommandsTest {
   @Test
   public void hostUsesABlankFreeSessionNameAndTheLoginAsPlayerName() {
     assertThat(OaCommands.host(EXE, DIR, "TheArmCommander", 196786, ""), contains(
-        EXE.toString(), "--game-dir", DIR.toString(), "--skip-intro",
+        EXE.toString(), "--game-dir", DIR.toString(), "--base-game", "--skip-intro",
         "--player-name", "TheArmCommander", "--host", "--game-name", "TAF196786"));
   }
 
   @Test
   public void joinTargetsTheLoopbackProxy() {
     assertThat(OaCommands.join(EXE, DIR, "TheCoreCommander", ""), contains(
-        EXE.toString(), "--game-dir", DIR.toString(), "--skip-intro",
+        EXE.toString(), "--game-dir", DIR.toString(), "--base-game", "--skip-intro",
         "--player-name", "TheCoreCommander", "--join", "127.0.0.1"));
   }
 
@@ -37,23 +37,23 @@ public class OaCommandsTest {
   @Test
   public void offlineHasNoNetworkSwitchesAndKeepsExtraArgs() {
     assertThat(OaCommands.offline(EXE, DIR, false, "  --mute   --zoom 2 "), contains(
-        EXE.toString(), "--game-dir", DIR.toString(), "--mute", "--zoom", "2"));
+        EXE.toString(), "--game-dir", DIR.toString(), "--base-game", "--mute", "--zoom", "2"));
     assertThat(OaCommands.offline(EXE, DIR, true, null), contains(
-        EXE.toString(), "--game-dir", DIR.toString(), "--skip-intro"));
+        EXE.toString(), "--game-dir", DIR.toString(), "--base-game", "--skip-intro"));
   }
 
   @Test
   public void playDemoPassesTheTadFile() {
     Path tad = Path.of("replays", "196464.tad");
     assertThat(OaCommands.playDemo(EXE, DIR, tad, ""), contains(
-        EXE.toString(), "--game-dir", DIR.toString(), "--skip-intro", "--play-demo", tad.toString()));
+        EXE.toString(), "--game-dir", DIR.toString(), "--base-game", "--skip-intro", "--play-demo", tad.toString()));
   }
 
   @Test
   public void checkDemoLoadsOneTickHeadless() {
     Path tad = Path.of("replays", "196464.tad");
     assertThat(OaCommands.checkDemo(EXE, DIR, tad), contains(
-        EXE.toString(), "--game-dir", DIR.toString(), "--skip-intro",
+        EXE.toString(), "--game-dir", DIR.toString(), "--base-game", "--skip-intro",
         "--headless-check", "--play-demo", tad.toString(), "--match-ticks", "1"));
   }
 
@@ -61,12 +61,12 @@ public class OaCommandsTest {
   public void replayViewerJoinsTheLoopbackReplayer() {
     // OA 0.7.3 refuses --player-name here: "--player-name needs --host or --join"
     assertThat(OaCommands.replayViewer(EXE, DIR, ""), contains(
-        EXE.toString(), "--game-dir", DIR.toString(), "--skip-intro", "--replay-viewer", "-n1:127.0.0.1"));
+        EXE.toString(), "--game-dir", DIR.toString(), "--base-game", "--skip-intro", "--replay-viewer", "-n1:127.0.0.1"));
   }
 
   @Test
   public void printProfileOnlyNeedsTheGameDir() {
     assertThat(OaCommands.printProfile(EXE, DIR), contains(
-        EXE.toString(), "--game-dir", DIR.toString(), "--print-profile"));
+        EXE.toString(), "--game-dir", DIR.toString(), "--base-game", "--print-profile"));
   }
 }
