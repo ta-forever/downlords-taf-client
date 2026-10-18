@@ -365,8 +365,11 @@ public class FafService {
     File taErrorLog = null;
     File tdrawLog = null;
     if (modTechnical != null) {
-      taErrorLog = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath().resolve("ErrorLog.txt").toFile();
-      tdrawLog = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath().resolve("tdrawlog.txt").toFile();
+      Path installedPath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath();
+      if (installedPath != null) { // Library games have no install folder of their own
+        taErrorLog = installedPath.resolve("ErrorLog.txt").toFile();
+        tdrawLog = installedPath.resolve("tdrawlog.txt").toFile();
+      }
     }
 
     java.util.List<File> fileList = new java.util.ArrayList<>(java.util.Arrays.asList(
