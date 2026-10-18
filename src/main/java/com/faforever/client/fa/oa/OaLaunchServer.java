@@ -277,9 +277,9 @@ public class OaLaunchServer implements Closeable {
           libraryPlan.baseGame(), libraryPlan.expansions(), extraArgs), extraArgs, libraryPlan.baseGame())
           : OaCommands.replayViewer(oaExe, modDir, extraArgs);
     } else if (host) {
-      command = OaCommands.host(oaExe, modDir, playerName, gameId, extraArgs);
+      command = OaCommands.host(oaExe, modDir, playerName, gameId, dplayGuid, extraArgs);
     } else {
-      command = OaCommands.join(oaExe, modDir, playerName, extraArgs);
+      command = OaCommands.join(oaExe, modDir, playerName, dplayGuid, extraArgs);
     }
     if (host && statusFile == null) {
       command = new java.util.ArrayList<>(command);

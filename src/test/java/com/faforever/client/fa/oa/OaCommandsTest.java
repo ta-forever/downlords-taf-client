@@ -13,24 +13,25 @@ public class OaCommandsTest {
 
   private static final Path EXE = Path.of("oa", "open-annihilation");
   private static final Path DIR = Path.of("games", "TAF-Core Contingency");
+  private static final String GUID = "{a1304614-7f7b-52a6-baf8-163213fbe736}";
 
   @Test
   public void hostUsesABlankFreeSessionNameAndTheLoginAsPlayerName() {
-    assertThat(OaCommands.host(EXE, DIR, "TheArmCommander", 196786, ""), contains(
+    assertThat(OaCommands.host(EXE, DIR, "TheArmCommander", 196786, GUID, ""), contains(
         EXE.toString(), "--game-dir", DIR.toString(), "--base-game", "--skip-intro",
-        "--player-name", "TheArmCommander", "--host", "--game-name", "TAF196786"));
+        "--player-name", "TheArmCommander", "--host", "--game-name", "TAF196786", "--dplay-guid", GUID));
   }
 
   @Test
   public void joinTargetsTheLoopbackProxy() {
-    assertThat(OaCommands.join(EXE, DIR, "TheCoreCommander", ""), contains(
+    assertThat(OaCommands.join(EXE, DIR, "TheCoreCommander", GUID, ""), contains(
         EXE.toString(), "--game-dir", DIR.toString(), "--base-game", "--skip-intro",
-        "--player-name", "TheCoreCommander", "--join", "127.0.0.1"));
+        "--player-name", "TheCoreCommander", "--join", "127.0.0.1", "--dplay-guid", GUID));
   }
 
   @Test
   public void playerNamesAreCutToSixteenCharacters() {
-    List<String> command = OaCommands.join(EXE, DIR, "ABCDEFGHIJKLMNOPQRST", "");
+    List<String> command = OaCommands.join(EXE, DIR, "ABCDEFGHIJKLMNOPQRST", GUID, "");
     assertThat(command.get(command.indexOf("--player-name") + 1), is("ABCDEFGHIJKLMNOP"));
   }
 

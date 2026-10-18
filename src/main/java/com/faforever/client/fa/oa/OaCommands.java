@@ -29,17 +29,20 @@ public final class OaCommands {
   }
 
   /** OA hosts the game; gpgnet4ta's proxy sits between it and the ICE adapter. */
-  public static List<String> host(Path oaExe, Path modDir, String playerName, int gameId, String extraArgs) {
+  public static List<String> host(Path oaExe, Path modDir, String playerName, int gameId, String dplayGuid,
+                                  String extraArgs) {
     List<String> command = base(oaExe, modDir, true);
     command.addAll(List.of("--player-name", clip(playerName), "--host", "--game-name", gameName(gameId)));
+    addDplayGuid(command, dplayGuid);
     command.addAll(split(extraArgs));
     return command;
   }
 
   /** OA joins the game gpgnet4ta's proxy announces on loopback. It auto-joins the first answer within 20 s. */
-  public static List<String> join(Path oaExe, Path modDir, String playerName, String extraArgs) {
+  public static List<String> join(Path oaExe, Path modDir, String playerName, String dplayGuid, String extraArgs) {
     List<String> command = base(oaExe, modDir, true);
     command.addAll(List.of("--player-name", clip(playerName), "--join", LOOPBACK));
+    addDplayGuid(command, dplayGuid);
     command.addAll(split(extraArgs));
     return command;
   }
@@ -87,6 +90,16 @@ public final class OaCommands {
   static String clip(String name) {
     String trimmed = name == null ? "" : name.trim();
     return trimmed.length() <= MAX_NAME_LENGTH ? trimmed : trimmed.substring(0, MAX_NAME_LENGTH);
+  }
+
+  /**
+   * Makes OA answer and look for sessions under the game's per-mod DirectPlay application GUID (the one gpgnet4ta
+   * and a TotalA.exe peer use) rather than OA's built-in TA GUID, so OA and TotalA.exe players see each other.
+   */
+  private static void addDplayGuid(List<String> command, String dplayGuid) {
+    if (dplayGuid != null && !dplayGuid.isBlank()) {
+      command.addAll(List.of("--dplay-guid", dplayGuid));
+    }
   }
 
   private static List<String> base(Path oaExe, Path modDir, boolean skipIntro) {
