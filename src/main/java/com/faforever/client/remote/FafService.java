@@ -381,6 +381,14 @@ public class FafService {
     // tplayx writes its own log next to TotalA.exe; it is the only place a recorder exception is
     // reported, and those can take TotalA.exe down with them (game 187889).
     fileList.addAll(collectRecentRecorderLogs(modTechnical));
+    // Open Annihilation games have no TotalA.exe logs; what OA printed, the launch file the client gave it and
+    // the status lines it reported are the equivalent (written by OaLaunchServer, named after the game id).
+    for (String name : new String[]{"oa_%d.log", "oa_%d.oalaunch", "oa_status_%d.jsonl"}) {
+      File oaFile = preferencesService.getFafLogDirectory().resolve(String.format(name, gameId)).toFile();
+      if (oaFile.isFile()) {
+        fileList.add(oaFile);
+      }
+    }
 
     File[] files = fileList.stream()
         .filter(Objects::nonNull)
