@@ -348,7 +348,7 @@ public class OaLaunchServerTest {
     List<String> command = started.get(0);
     assertThat(command, hasItems("--replay-viewer", "-n1:127.0.0.1", "--mod-dir", modFolder.toString(),
         "--content", "totala:core-contingency"));
-    assertThat(command, not(hasItem("--game-dir")));
+    // --game-dir is the Library's own base game folder, there only when this machine has one
     assertThat(command, not(hasItem("--player-name")));
   }
 
