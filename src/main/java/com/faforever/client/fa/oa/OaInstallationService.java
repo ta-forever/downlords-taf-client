@@ -165,17 +165,21 @@ public class OaInstallationService {
       if (known != null) {
         return Optional.of(known);
       }
+      // output goes to a file, so the wait below is the only thing that can block: an OA that ignores --version
+      // and opens its window (0.7.x) is killed after the timeout instead of hanging the read
+      Path outputFile = Files.createTempFile("oa-version", ".txt");
       Process process = new ProcessBuilder(file.toString(), "--version")
           .directory(file.getParent().toFile())
           .redirectErrorStream(true)
+          .redirectOutput(outputFile.toFile())
           .start();
       try {
         process.getOutputStream().close();
-        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         if (!process.waitFor(10, TimeUnit.SECONDS)) {
           process.destroyForcibly();
           return Optional.empty();
         }
+        String output = Files.readString(outputFile, StandardCharsets.UTF_8);
         OaVersion version = process.exitValue() == 0 ? parseVersionLine(output) : null;
         if (version != null) {
           versionCache.put(key, version);
@@ -185,6 +189,13 @@ public class OaInstallationService {
         Thread.currentThread().interrupt();
         process.destroyForcibly();
         return Optional.empty();
+      } finally {
+        outputFile.toFile().deleteOnExit(); // a killed OA may still hold the file
+        try {
+          Files.deleteIfExists(outputFile);
+        } catch (IOException ignored) {
+          // deleteOnExit has it
+        }
       }
     } catch (IOException | RuntimeException e) {
       log.debug("{} --version did not answer: {}", exe, e.getMessage());

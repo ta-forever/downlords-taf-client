@@ -589,8 +589,14 @@ public class PreferencesService implements InitializingBean {
     if (com.faforever.client.library.LibraryGameInfo.UMBRELLA_FEATURED_MOD.equals(prefs.getBaseGameName())) {
       return true;
     }
+    // Without the server's configuration (still loading, or offline) the player's own choice stands: waiting for
+    // it here could block the caller, and falling back to TotalA.exe would break an OA-only install.
+    ClientConfiguration configuration = clientRemoteConfigurationFuture.isDone() ? getClientRemoteConfiguration() : null;
+    if (configuration == null) {
+      return prefs.isOpenAnnihilation();
+    }
     return com.faforever.client.fa.oa.OaPolicy.usesOpenAnnihilation(
-        getClientRemoteConfiguration(), modTechnical, prefs.isOpenAnnihilation());
+        configuration, modTechnical, prefs.isOpenAnnihilation());
   }
 
   public TotalAnnihilationPrefs setTotalAnnihilation(String modTechnical, Path installedExePath,

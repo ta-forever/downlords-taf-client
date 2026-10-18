@@ -190,7 +190,19 @@ public class LibraryService {
     return open(true);
   }
 
-  private CompletableFuture<Void> open(boolean atLibrary) {
+  /** The OA this client opened and that is still up; a second click joins it rather than starting another. */
+  private CompletableFuture<Void> openOa;
+
+  private synchronized CompletableFuture<Void> open(boolean atLibrary) {
+    if (openOa != null && !openOa.isDone()) {
+      log.info("[Library] Open Annihilation is already open; not starting another");
+      return openOa;
+    }
+    openOa = startOa(atLibrary);
+    return openOa;
+  }
+
+  private CompletableFuture<Void> startOa(boolean atLibrary) {
     return CompletableFuture.supplyAsync(() -> {
       InstalledOa found = oaInstallationService.findInstalled(LibraryGameInfo.UMBRELLA_FEATURED_MOD);
       Path exe = found.exe() != null ? found.exe()

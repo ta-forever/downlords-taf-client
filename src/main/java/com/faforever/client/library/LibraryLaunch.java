@@ -70,6 +70,7 @@ public record LibraryLaunch(boolean host, String mod, String baseGame, List<Stri
       }
       out.append("rules:\n");
       out.append("  commander-death: ").append(COMMANDER_DEATH).append('\n');
+      // TA's usual rules. lock-options stays off on purpose (dc1c45414): the host can still adjust the room
       out.append("  line-of-sight: true\n");
       out.append("  start-positions: ").append(fixedPositions ? "fixed" : "random").append('\n');
       out.append("  lock-options: false\n");
