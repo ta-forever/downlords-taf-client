@@ -171,7 +171,8 @@ public class TotalAnnihilationService {
   private List<String> getGpgNet4TaCommand(
       String bindAddress, int consolePort, String gameMod, int gameId, Path gamePath, boolean autoLaunch, boolean lockOptions,
       boolean proactiveResend, int maxPacketSize, String gpgNetUrl, String demoCompilerUrl, @Nullable String ircUrl,
-      Path logFile, int launchServerPort, boolean isRated, List<String> args, boolean openAnnihilation
+      Path logFile, int launchServerPort, boolean isRated, List<String> args, boolean openAnnihilation,
+      @Nullable String oaNetworkVersion
   ) {
     Path exePath = resolveNativeBinary(org.bridj.Platform.isLinux() ? "gpgnet4ta" : "gpgnet4ta.exe");
 
@@ -216,6 +217,10 @@ public class TotalAnnihilationService {
 
     if (openAnnihilation) {
       command.addAll(List.of("--engine", "oa"));
+      if (oaNetworkVersion != null) {
+        // the multiplayer version the mod's TotalA.exe announces: gpgnet4ta presents an OA host to it as that version
+        command.addAll(List.of("--oa-network-version", oaNetworkVersion));
+      }
     }
 
     if (isRated) {
@@ -519,7 +524,9 @@ public class TotalAnnihilationService {
         loopbackAddress, this.consolePort, prefs.getBaseGameName(), uid,
         LibraryGameInfo.isLibraryMod(modTechnical) ? libraryService.userFolder() : prefs.getInstalledPath(), autoLaunch,
         false, proactiveResend, maxPacketSize, gpgNetUrl, demoCompilerUrl, ircUrl,
-        preferencesService.getNewLogFile("game", uid), this.launchServerPort, isRated, additionalArgs, openAnnihilation);
+        preferencesService.getNewLogFile("game", uid), this.launchServerPort, isRated, additionalArgs, openAnnihilation,
+        openAnnihilation && !LibraryGameInfo.isLibraryMod(modTechnical)
+            ? oaProfileInstaller.networkVersion(modTechnical).orElse(null) : null);
 
     return launch(getNativeGpgnet4taDir(), gpgnet4taCommand);
   }

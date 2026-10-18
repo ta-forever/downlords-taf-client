@@ -49,6 +49,17 @@ public class OaProfileInstallerTest {
   }
 
   @Test
+  public void theNetworkVersionIsWhatTheModsProfileSays() {
+    assertThat(installer.networkVersion("tacc").orElseThrow(), is("3.1"));
+    assertThat(installer.networkVersion("ladder1v1").orElseThrow(), is("3.1"));
+    assertThat(installer.networkVersion("tavmod").orElseThrow(), is("4.8"));
+    assertThat(installer.networkVersion("taesc").orElseThrow(), is("10.2"));
+    assertThat(installer.networkVersion("tamayhem").orElseThrow(), is("11.3"));
+    assertThat(installer.networkVersion("tatw").orElseThrow(), is("2.0"));
+    assertThat(installer.networkVersion("nosuchmod").isPresent(), is(false));
+  }
+
+  @Test
   public void ladderAndTaccShareTheSameInstallAndSoTheSameProfile() {
     assertThat(installer.bundledProfile("ladder1v1"), is(installer.bundledProfile("tacc")));
   }

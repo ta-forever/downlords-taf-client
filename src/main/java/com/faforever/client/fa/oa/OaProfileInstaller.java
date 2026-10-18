@@ -55,6 +55,21 @@ public class OaProfileInstaller {
     }
   }
 
+  private static final java.util.regex.Pattern NETWORK_VERSION =
+      java.util.regex.Pattern.compile("^\\s*network-version:\\s*\\[\\s*(\\d+)\\s*,\\s*(\\d+)\\s*]", java.util.regex.Pattern.MULTILINE);
+
+  /**
+   * The multiplayer version ({@code MAJOR.MINOR}) the mod's TotalA.exe announces, which its OA profile repeats as
+   * {@code identity.network-version}; 3.1c's {@code 3.1} when the profile leaves it out. Empty when the mod has no
+   * bundled profile.
+   */
+  public Optional<String> networkVersion(String modTechnical) {
+    return bundledProfile(modTechnical).map(profile -> {
+      java.util.regex.Matcher matcher = NETWORK_VERSION.matcher(profile);
+      return matcher.find() ? matcher.group(1) + "." + matcher.group(2) : "3.1";
+    });
+  }
+
   public Outcome ensureInstalled(String modTechnical, Path modDir) throws IOException {
     Optional<String> bundled = bundledProfile(modTechnical);
     if (bundled.isEmpty()) {
