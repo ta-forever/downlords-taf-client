@@ -13,7 +13,9 @@ import java.util.stream.Collectors;
  * See OA's docs/command-line.md "Launch files".
  *
  * @param host       true to host, false to join
- * @param mod        the mod's id (OA resolves whichever version it has installed)
+ * @param mod        the mod's id (OA resolves whichever version it has installed); null for a TAF featured mod,
+ *                   whose game folder is named on the command line: the file then has no content group (and a null
+ *                   {@code mapKey} leaves the battle room's own map)
  * @param gameName   the host's session name; null for a joiner
  * @param address    the address a joiner connects to (gpgnet4ta's loopback proxy); null for a host
  * @param dplayGuid  the per-game DirectPlay application GUID gpgnet4ta answers under
@@ -63,19 +65,23 @@ public record LibraryLaunch(boolean host, String mod, String baseGame, List<Stri
     out.append("player:\n");
     out.append("  name: ").append(quote(clip(playerName))).append('\n');
     if (host) {
-      out.append("map: ").append(quote(mapKey)).append('\n');
+      if (mapKey != null) {
+        out.append("map: ").append(quote(mapKey)).append('\n');
+      }
       out.append("rules:\n");
       out.append("  commander-death: ").append(COMMANDER_DEATH).append('\n');
       out.append("  line-of-sight: true\n");
       out.append("  start-positions: ").append(fixedPositions ? "fixed" : "random").append('\n');
       out.append("  lock-options: false\n");
     }
-    out.append("content:\n");
-    out.append("  base-game: ").append(quote(baseGame)).append('\n');
-    out.append("  expansions: [")
-        .append(expansions.stream().map(LibraryLaunch::quote).collect(Collectors.joining(", ")))
-        .append("]\n");
-    out.append("  mod: ").append(quote(mod)).append('\n');
+    if (mod != null) {
+      out.append("content:\n");
+      out.append("  base-game: ").append(quote(baseGame)).append('\n');
+      out.append("  expansions: [")
+          .append(expansions.stream().map(LibraryLaunch::quote).collect(Collectors.joining(", ")))
+          .append("]\n");
+      out.append("  mod: ").append(quote(mod)).append('\n');
+    }
     out.append("status:\n");
     out.append("  file: ").append(quote(statusFile.toString())).append('\n');
     return out.toString();

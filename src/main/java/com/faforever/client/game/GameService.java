@@ -1511,6 +1511,11 @@ public class GameService implements InitializingBean {
             notificationService.addImmediateWarnNotification("game.create.libraryMapLocked");
           }
         }
+        if (!libraryGame && mapName != null && !mapName.equals(currentGame.getMapName())
+            && totalAnnihilationService.isOpenAnnihilation(currentGame.getFeaturedMod())) {
+          // a TAF featured mod on OA: the host's OA is started (later) with the map named in its launch file
+          totalAnnihilationService.setLibraryHostMap(mapName);
+        }
         stagingConsoleCommands(libraryGame, mapDetails, ratingType, liveReplayOption, maxPlayers)
             .forEach(this.totalAnnihilationService::sendToConsole);
         if (password != null) {
@@ -1584,7 +1589,7 @@ public class GameService implements InitializingBean {
                 library.expansions(), pendingLibraryHost ? libraryHostMapKey(gameLaunchMessage.getMapname()) : null));
           }
           Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(modTechnical, uid));
-          totalAnnihilationService.configureOaHost(modTechnical, gameLaunchMessage.getMapname());
+          totalAnnihilationService.configureOaHost(modTechnical, libraryHostMapKey(gameLaunchMessage.getMapname()));
           spawnGenericTerminationListener(launchServerProcess);
 
           String demoCompilerUrl = String.format("%s:%s/%s",

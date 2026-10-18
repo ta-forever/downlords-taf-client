@@ -45,6 +45,17 @@ public class OaInstallationServiceTest {
   }
 
   @Test
+  public void theVersionIsReadFromTheVersionLineOfDashDashVersion() {
+    assertThat(OaInstallationService.parseVersionLine("Open Annihilation 0.8.1 (windows-x64 x86_64, 1a2b3c4d)
+"),
+        is(new OaVersion(0, 8, 1)));
+    assertThat(OaInstallationService.parseVersionLine("noise
+Open Annihilation 0.9 (linux-x86_64 x86_64, unknown)"),
+        is(new OaVersion(0, 9, 0)));
+    assertThat(OaInstallationService.parseVersionLine("usage: open-annihilation"), is((OaVersion) null));
+  }
+
+  @Test
   public void versionComesFromTheVersionFileFirst() throws IOException {
     Path exe = fakeExe("open-annihilation-v0.1.0-windows-x64");
     Files.writeString(exe.resolveSibling(OaInstallationService.VERSION_FILE), "0.7.3\n");

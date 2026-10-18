@@ -63,7 +63,6 @@ public class OaLaunchServer implements Closeable {
   }
 
   private static final long POLL_INTERVAL_MS = 2000;
-  private static final int MAX_SETUP_ATTEMPTS = 3;
 
   private final Path oaExe;
   private final Path modDir;
@@ -160,8 +159,13 @@ public class OaLaunchServer implements Closeable {
    */
   public synchronized boolean setLibraryMapKey(String mapKey) {
     LibraryLaunchPlan plan = libraryPlan;
-    if (plan == null || isOaRunning()) {
+    if (isOaRunning()) {
       return false;
+    }
+    if (plan == null) {
+      // a TAF featured mod: the map is the lobby's name for it
+      hostSettings = new OaHostSetup.Settings(mapKey, hostSettings.commanderDeath());
+      return true;
     }
     libraryPlan = new LibraryLaunchPlan(plan.mod(), plan.baseGame(), plan.expansions(), mapKey, plan.modFolder());
     return true;
@@ -256,7 +260,6 @@ public class OaLaunchServer implements Closeable {
     if (isOaRunning()) {
       return;
     }
-    Path farkFile = farkDir.resolve("oa_fark_" + gameId + ".json");
     Path statusFile = null;
     List<String> command;
     if (libraryPlan != null && mode == Mode.GAME) {
@@ -276,14 +279,18 @@ public class OaLaunchServer implements Closeable {
           ? LibraryCommands.withBaseGameDir(LibraryCommands.replayViewer(oaExe, libraryPlan.modFolder(),
           libraryPlan.baseGame(), libraryPlan.expansions(), extraArgs), extraArgs, libraryPlan.baseGame())
           : OaCommands.replayViewer(oaExe, modDir, extraArgs);
-    } else if (host) {
-      command = OaCommands.host(oaExe, modDir, playerName, gameId, dplayGuid, extraArgs);
     } else {
-      command = OaCommands.join(oaExe, modDir, playerName, dplayGuid, extraArgs);
-    }
-    if (host && statusFile == null) {
-      command = new java.util.ArrayList<>(command);
-      command.addAll(List.of("--fark", "--fark-file", farkFile.toString()));
+      // a TAF featured mod: the game folder is the mod, so only the network game, map, rules and status go in a file
+      statusFile = farkDir.resolve("oa_status_" + gameId + ".jsonl");
+      Files.deleteIfExists(statusFile);
+      Path launchFile = farkDir.resolve("oa_" + gameId + ".oalaunch");
+      LibraryLaunch launch = host
+          ? LibraryLaunch.host(null, null, List.of(), playerName, OaCommands.gameName(gameId), dplayGuid,
+          hostSettings.map(), statusFile.toAbsolutePath(), fixedPositions)
+          : LibraryLaunch.join(null, null, List.of(), playerName, OaCommands.LOOPBACK, dplayGuid,
+          statusFile.toAbsolutePath());
+      Files.writeString(launchFile, launch.toOaLaunch(), StandardCharsets.UTF_8);
+      command = OaCommands.launchFile(oaExe, modDir, launchFile.toAbsolutePath(), extraArgs);
     }
     log.info("[OaLaunchServer] starting {}", command);
     Process started = processFactory.start(command, oaExe.toAbsolutePath().getParent(), logFileForGame.apply(gameId));
@@ -291,15 +298,14 @@ public class OaLaunchServer implements Closeable {
 
     boolean watchForLaunch = host;
     Path watchedStatusFile = statusFile;
-    Thread watcher = new Thread(() -> watch(started, watchForLaunch, farkFile, watchedStatusFile), "oa-launch-watch");
+    Thread watcher = new Thread(() -> watch(started, watchForLaunch, watchedStatusFile), "oa-launch-watch");
     watcher.setDaemon(true);
     watcher.start();
   }
 
   /** Pushes LAUNCHED once the host's match is running (host only), and IDLE or FAIL when OA exits. */
-  private void watch(Process started, boolean host, Path farkFile, Path statusFile) {
+  private void watch(Process started, boolean host, Path statusFile) {
     boolean launched = !host;
-    int setupAttempts = host && !hostSettings.isEmpty() ? MAX_SETUP_ATTEMPTS : 0;
     while (started.isAlive() && !closed) {
       try {
         Thread.sleep(POLL_INTERVAL_MS);
@@ -312,27 +318,6 @@ public class OaLaunchServer implements Closeable {
         if (launched) {
           log.info("[OaLaunchServer] match started");
           notifyClients("LAUNCHED");
-        }
-      } else if (!launched && java.nio.file.Files.isRegularFile(farkFile)) {
-        // the endpoint serves one client at a time: when it is busy this poll fails and the next one retries
-        try (OaFarkClient fark = new OaFarkClient(farkFile)) {
-          String screen = fark.screen();
-          if ("match".equals(screen)) {
-            launched = true;
-            log.info("[OaLaunchServer] match started");
-            notifyClients("LAUNCHED");
-          } else if ("mp_battleroom".equals(screen) && setupAttempts > 0) {
-            setupAttempts--;
-            List<String> problems = new OaHostSetup(fark).apply(hostSettings);
-            if (problems.isEmpty()) {
-              setupAttempts = 0;
-              log.info("[OaLaunchServer] battle room set up: {}", hostSettings);
-            } else {
-              log.warn("[OaLaunchServer] battle room set-up incomplete ({} attempts left): {}", setupAttempts, problems);
-            }
-          }
-        } catch (IOException | RuntimeException e) {
-          log.debug("[OaLaunchServer] fark poll failed: {}", e.getMessage());
         }
       }
     }

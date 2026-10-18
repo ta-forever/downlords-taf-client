@@ -24,9 +24,11 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Comparator;
 import java.util.HexFormat;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -114,7 +116,7 @@ public class OaInstallationService {
     }
     try {
       return findExecutable(enginesRoot().resolve(release.getVersion()).resolve(platform), platform)
-          .map(exe -> new InstalledOa(exe, OaVersion.find(release.getVersion())))
+          .map(exe -> new InstalledOa(exe, detectVersion(exe).orElseGet(() -> OaVersion.find(release.getVersion()))))
           .orElse(InstalledOa.NONE);
     } catch (IOException e) {
       log.warn("Could not look for Open Annihilation {}", release.getVersion(), e);
@@ -138,14 +140,68 @@ public class OaInstallationService {
     return exe;
   }
 
+  /** Versions told by {@code --version}, per executable file as it was last modified (it is a process start). */
+  private final Map<String, OaVersion> versionCache = new ConcurrentHashMap<>();
+
   /**
-   * OA 0.7.3 has no {@code --version} (upstream ask U3), so read the {@code VERSION} file TAF
-   * writes, then fall back to the release folder name.
+   * Asks the executable: {@code open-annihilation --version} prints {@code Open Annihilation 0.8.1 (windows-x64
+   * x86_64, 1a2b3c4d)} and exits 0 without opening a window (0.8.0 and later). Only an executable that does not
+   * answer (0.7.x has no such switch) falls back on the {@code VERSION} file TAF writes beside the ones it
+   * installs, then on the release folder name.
    */
   public Optional<OaVersion> detectVersion(Path exe) {
     if (exe == null) {
       return Optional.empty();
     }
+    Optional<OaVersion> asked = askVersion(exe);
+    return asked.isPresent() ? asked : detectVersionFromFiles(exe);
+  }
+
+  private Optional<OaVersion> askVersion(Path exe) {
+    try {
+      Path file = exe.toAbsolutePath();
+      String key = file + "|" + Files.size(file) + "|" + Files.getLastModifiedTime(file).toMillis();
+      OaVersion known = versionCache.get(key);
+      if (known != null) {
+        return Optional.of(known);
+      }
+      Process process = new ProcessBuilder(file.toString(), "--version")
+          .directory(file.getParent().toFile())
+          .redirectErrorStream(true)
+          .start();
+      try {
+        process.getOutputStream().close();
+        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        if (!process.waitFor(10, TimeUnit.SECONDS)) {
+          process.destroyForcibly();
+          return Optional.empty();
+        }
+        OaVersion version = process.exitValue() == 0 ? parseVersionLine(output) : null;
+        if (version != null) {
+          versionCache.put(key, version);
+        }
+        return Optional.ofNullable(version);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        process.destroyForcibly();
+        return Optional.empty();
+      }
+    } catch (IOException | RuntimeException e) {
+      log.debug("{} --version did not answer: {}", exe, e.getMessage());
+      return Optional.empty();
+    }
+  }
+
+  /** The version of {@code Open Annihilation 0.8.1 (windows-x64 x86_64, 1a2b3c4d)}; null if the text is not that. */
+  static OaVersion parseVersionLine(String output) {
+    Matcher matcher = VERSION_LINE.matcher(output == null ? "" : output);
+    return matcher.find() ? OaVersion.find(matcher.group(1)) : null;
+  }
+
+  private static final Pattern VERSION_LINE = Pattern.compile("^Open Annihilation (\\d+\\.\\d+(?:\\.\\d+)?)",
+      Pattern.MULTILINE);
+
+  private Optional<OaVersion> detectVersionFromFiles(Path exe) {
     Path dir = exe.toAbsolutePath().getParent();
     if (dir == null) {
       return Optional.empty();
@@ -193,8 +249,10 @@ public class OaInstallationService {
     if (prefs.getOaInstallation() == OaInstallationMode.EXISTING) {
       version = detectVersion(prefs.getOaExecutablePath());
     } else {
-      version = OaPolicy.pickRelease(preferencesService.getClientRemoteConfiguration(), modTechnical, OaPlatform.current())
-          .map(release -> OaVersion.find(release.getVersion()));
+      // what the installed executable says it is; the release the policy would pick only before it is installed
+      version = Optional.ofNullable(findInstalled(modTechnical).version())
+          .or(() -> OaPolicy.pickRelease(preferencesService.getClientRemoteConfiguration(), modTechnical, OaPlatform.current())
+              .map(release -> OaVersion.find(release.getVersion())));
     }
     return new EngineReport("oa", version.map(OaVersion::toString).orElse(null));
   }

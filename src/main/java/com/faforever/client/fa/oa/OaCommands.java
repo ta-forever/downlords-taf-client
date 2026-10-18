@@ -21,6 +21,17 @@ public final class OaCommands {
   private OaCommands() {
   }
 
+  /**
+   * A network game of a TAF featured mod, started from an {@code .oalaunch} file (map, rules, DirectPlay GUID and
+   * status stream). The game folder stays on the command line: the file has no content group.
+   */
+  public static List<String> launchFile(Path oaExe, Path modDir, Path launchFile, String extraArgs) {
+    List<String> command = base(oaExe, modDir, true);
+    command.addAll(List.of("-c", launchFile.toString()));
+    command.addAll(split(extraArgs));
+    return command;
+  }
+
   /** Plain single-player / skirmish launch of the mod. */
   public static List<String> offline(Path oaExe, Path modDir, boolean skipIntro, String extraArgs) {
     List<String> command = base(oaExe, modDir, skipIntro);

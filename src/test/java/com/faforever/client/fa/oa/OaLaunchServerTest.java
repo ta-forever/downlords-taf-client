@@ -143,19 +143,54 @@ public class OaLaunchServerTest {
 
     assertThat(receive(), is("RUNNING"));
     assertThat(started.size(), is(1));
-    assertThat(started.get(0), hasItems("--join", "127.0.0.1", "--player-name", "TheCoreCommander"));
-    assertThat(started.get(0), not(hasItem("--fark")));
+    List<String> command = started.get(0);
+    assertThat(command, hasItems("--game-dir", "--base-game", "-c"));
+    assertThat(command, not(hasItem("--fark")));
+    String file = Files.readString(Path.of(command.get(command.indexOf("-c") + 1)));
+    assertThat(file.contains("role: join"), is(true));
+    assertThat(file.contains("address: \"127.0.0.1\""), is(true));
+    assertThat(file.contains("application-guid: \"{guid}\""), is(true));
+    assertThat(file.contains("name: \"TheCoreCommander\""), is(true));
+    assertThat(file.contains("content:"), is(false));
+    assertThat(file.contains("secret-token"), is(false));
     assertThat(started.get(0), not(hasItem("secret-token")));
   }
 
   @Test
-  public void hostStartsOaWithTheAutomationEndpointForLaunchDetection() throws Exception {
+  public void aFeaturedModHostIsStartedFromAnOalaunchFileWithTheMapRulesGuidAndStatusStream() throws Exception {
     startServer(Mode.GAME);
+    server.setHostSettings(new OaHostSetup.Settings("[Bully] Twice Upon a Time", OaHostSetup.CommanderDeath.ENDS));
+    server.setFixedPositions(true);
 
     send("/host 196786 {guid} TheArmCommander 127.0.0.1 https://api/launch_codes secret-token");
 
     assertThat(receive(), is("RUNNING"));
-    assertThat(started.get(0), hasItems("--host", "--game-name", "TAF196786", "--fark"));
+    List<String> command = started.get(0);
+    assertThat(command, hasItems("--game-dir", "--base-game", "--skip-intro", "-c"));
+    assertThat(command, not(hasItem("--fark")));
+    String file = Files.readString(Path.of(command.get(command.indexOf("-c") + 1)));
+    assertThat(file.contains("role: host"), is(true));
+    assertThat(file.contains("name: \"TAF196786\""), is(true));
+    assertThat(file.contains("application-guid: \"{guid}\""), is(true));
+    assertThat(file.contains("map: \"[Bully] Twice Upon a Time\""), is(true));
+    assertThat(file.contains("commander-death: ends"), is(true));
+    assertThat(file.contains("start-positions: fixed"), is(true));
+    assertThat(file.contains("status:"), is(true));
+    assertThat(file.contains("content:"), is(false));
+    assertThat(file.contains("secret-token"), is(false));
+  }
+
+  @Test
+  public void aFeaturedModHostMapChosenWhileStagingIsWhatOaIsStartedWith() throws Exception {
+    startServer(Mode.GAME);
+    server.setHostSettings(new OaHostSetup.Settings("Old Map", OaHostSetup.CommanderDeath.ENDS));
+
+    assertThat(server.setLibraryMapKey("New Map"), is(true));
+    send("/host 7 {guid} Host 127.0.0.1 a b");
+
+    assertThat(receive(), is("RUNNING"));
+    List<String> command = started.get(0);
+    assertThat(Files.readString(Path.of(command.get(command.indexOf("-c") + 1))).contains("map: \"New Map\""), is(true));
   }
 
   @Test
