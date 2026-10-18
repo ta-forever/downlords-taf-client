@@ -118,7 +118,7 @@
                 <Button fx:id="libraryOpenOaButton" mnemonicParsing="false" onAction="#onLibraryOpenOaClicked"
                         text="%library.prompt.openOa" visible="false" managed="false"/>
             </HBox>
-            <HBox alignment="CENTER_LEFT" spacing="10.0">
+            <HBox fx:id="rankedEnabledContainer" alignment="CENTER_LEFT" spacing="10.0">
                 <CheckBox fx:id="rankedEnabledCheckBox">
                     <tooltip>
                         <Tooltip text="%games.create.rankedEnabled.tooltip"/>

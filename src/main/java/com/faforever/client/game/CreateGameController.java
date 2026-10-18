@@ -42,6 +42,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import javafx.application.Platform;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
@@ -192,6 +193,7 @@ public class CreateGameController implements Controller<Pane> {
   public ComboBox<LiveReplayOption> liveReplayOptionComboBox;
   public ListView<MatchmakingQueue> mapPoolListView;
 
+  public HBox rankedEnabledContainer;
   public CheckBox rankedEnabledCheckBox;
   public Label rankedEnabledLabel;
   public Button openGameFolderButton;
@@ -1377,7 +1379,15 @@ public class CreateGameController implements Controller<Pane> {
     mapPoolListView.setCellFactory(param ->
         new StringListCell<>((q) -> i18n.get(q.getLeaderboard().getNameKey()))
     );
-    mapPoolListView.visibleProperty().bind(rankedEnabledCheckBox.selectedProperty());
+    // Library games are always unrated: there is no ranked choice and no map pool to offer
+    BooleanBinding libraryModSelected = Bindings.createBooleanBinding(() -> {
+      FeaturedMod selected = featuredModListView.getSelectionModel().getSelectedItem();
+      return selected != null && (isLibraryPlaceholder(selected) || LibraryGameInfo.isLibraryMod(selected.getTechnicalName()));
+    }, featuredModListView.getSelectionModel().selectedItemProperty());
+    rankedEnabledContainer.visibleProperty().bind(libraryModSelected.not());
+    rankedEnabledContainer.managedProperty().bind(rankedEnabledContainer.visibleProperty());
+    mapPoolListView.visibleProperty().bind(rankedEnabledCheckBox.selectedProperty().and(libraryModSelected.not()));
+    mapPoolListView.managedProperty().bind(mapPoolListView.visibleProperty());
     rankedEnabledCheckBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
       if (featuredModListView.getSelectionModel().getSelectedItem() != null) {
         setAvailableMaps(featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName());
