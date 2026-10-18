@@ -29,6 +29,8 @@ public record LibraryLaunch(boolean host, String mod, String baseGame, List<Stri
 
   /** OA cuts player names to this many characters. */
   static final int MAX_NAME_LENGTH = 16;
+  /** A commander's death ends that player's game, as in TAF's featured mods; the host may change it in the room. */
+  static final String COMMANDER_DEATH = "ends";
 
   public static LibraryLaunch host(String mod, String baseGame, List<String> expansions, String playerName,
                                    String gameName, String dplayGuid, String mapKey, Path statusFile) {
@@ -67,6 +69,7 @@ public record LibraryLaunch(boolean host, String mod, String baseGame, List<Stri
         out.append("map: ").append(quote(mapKey)).append('\n');
       }
       out.append("rules:\n");
+      out.append("  commander-death: ").append(COMMANDER_DEATH).append('\n');
       // TA's usual rules. lock-options stays off on purpose (dc1c45414): the host can still adjust the room
       out.append("  line-of-sight: true\n");
       out.append("  start-positions: ").append(fixedPositions ? "fixed" : "random").append('\n');

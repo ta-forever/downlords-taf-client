@@ -173,7 +173,7 @@ public class OaLaunchServerTest {
     assertThat(file.contains("name: \"TAF196786\""), is(true));
     assertThat(file.contains("application-guid: \"{guid}\""), is(true));
     assertThat(file.contains("map: \"[Bully] Twice Upon a Time\""), is(true));
-    assertThat(file.contains("commander-death"), is(false));
+    assertThat(file.contains("commander-death: ends"), is(true));
     assertThat(file.contains("start-positions: fixed"), is(true));
     assertThat(file.contains("status:"), is(true));
     assertThat(file.contains("content:"), is(false));
