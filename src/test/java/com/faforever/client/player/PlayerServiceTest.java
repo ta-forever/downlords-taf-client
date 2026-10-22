@@ -4,6 +4,7 @@ import com.faforever.client.game.Game;
 import com.faforever.client.game.GameAddedEvent;
 import com.faforever.client.game.GameRemovedEvent;
 import com.faforever.client.game.GameUpdatedEvent;
+import com.faforever.client.player.event.PlayerJoinedGameEvent;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.PlayerLeftMessage;
@@ -29,6 +30,7 @@ import java.util.function.Consumer;
 
 import static com.faforever.client.player.SocialStatus.FOE;
 import static com.faforever.client.player.SocialStatus.FRIEND;
+import static com.faforever.client.player.SocialStatus.SELF;
 import static com.natpryce.hamcrest.reflection.HasAnnotationMatcher.hasAnnotation;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -42,6 +44,8 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -298,6 +302,55 @@ public class PlayerServiceTest {
 
     assertThat(player1.getGame(), is(nullValue()));
     assertThat(player2.getGame(), is(game));
+  }
+
+  private Player logInAs(String username) {
+    instance.onLoginSuccess(new LoginSuccessEvent(username, "password", 1));
+    Player me = instance.getCurrentPlayer().orElseThrow();
+    me.setSocialStatus(SELF);
+    return me;
+  }
+
+  /** Issue #46: the notifier needs to tell "a friend joined some lobby" apart from "someone joined our lobby". */
+  @Test
+  public void friendJoiningAnotherLobbyIsNotFlaggedAsOurGame() {
+    logInAs("me");
+    Player friend = instance.createAndGetPlayerForUsername("friend");
+    friend.setSocialStatus(FRIEND);
+    Game game = new Game();
+    game.setStatus(GameStatus.STAGING);
+    game.getTeams().put("1", List.of("friend"));
+
+    instance.onGameAdded(new GameAddedEvent(game));
+
+    verify(eventBus).post(new PlayerJoinedGameEvent(friend, game, false));
+  }
+
+  @Test
+  public void playerJoiningOurLobbyIsFlaggedAsOurGame() {
+    logInAs("me");
+    Player stranger = instance.createAndGetPlayerForUsername("stranger");
+    Game game = new Game();
+    game.setStatus(GameStatus.STAGING);
+    game.getTeams().put("1", List.of("me", "stranger"));
+
+    instance.onGameAdded(new GameAddedEvent(game));
+
+    verify(eventBus).post(new PlayerJoinedGameEvent(stranger, game, true));
+    verify(eventBus, times(1)).post(any(PlayerJoinedGameEvent.class));
+  }
+
+  @Test
+  public void strangerJoiningAnotherLobbyPostsNothing() {
+    logInAs("me");
+    instance.createAndGetPlayerForUsername("stranger");
+    Game game = new Game();
+    game.setStatus(GameStatus.STAGING);
+    game.getTeams().put("1", List.of("stranger"));
+
+    instance.onGameAdded(new GameAddedEvent(game));
+
+    verify(eventBus, never()).post(any(PlayerJoinedGameEvent.class));
   }
 
   @Test

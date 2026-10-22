@@ -222,7 +222,6 @@ compileTestJava {
   // included packages above. Don't include broken siblings of these.
   include '**/test/AbstractPlainJavaFxTest.java'
   exclude '**/PlayerBuilder.java'
-  exclude '**/PlayerJoinedGameNotifierTest.java'
 }
 
 test {
