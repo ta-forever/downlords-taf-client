@@ -349,10 +349,25 @@
   -fx-padding: 1px 8px 1px 8px;
 }
 
-.chat-user-list-category {
+.chat-user-list-category-header {
   -fx-padding: 20px 0px 10px 0px;
+}
+
+.chat-user-list-category {
   -fx-font-weight: bold;
   -fx-text-fill: -fx-text-color;
+}
+
+/* The "+" next to the Friends / Foes headers that opens the add/remove dialog. */
+.chat-category-add-button {
+  -fx-padding: 0px 6px 0px 6px;
+  -fx-font-weight: bold;
+  -fx-min-height: 0px;
+}
+
+.social-player-picker-tag {
+  -fx-opacity: 0.6;
+  -fx-font-size: 0.9em;
 }
 
 /***************** Chat User Control *****************/

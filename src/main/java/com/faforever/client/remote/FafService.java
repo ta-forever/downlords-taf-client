@@ -657,6 +657,17 @@ public class FafService {
         fafApiAccessor.findPlayersByLoginPrefix(prefix, limit));
   }
 
+  /** One page of players (offline ones included) sorted by login; second is the total page count. */
+  @Async
+  public CompletableFuture<Tuple<List<Player>, Integer>> findPlayersByLoginPrefixWithPageCount(String prefix, int count, int page) {
+    Tuple<List<com.faforever.client.api.dto.Player>, java.util.Map<String, ?>> tuple = fafApiAccessor.findPlayersByLoginPrefixWithMeta(prefix, count, page);
+    Object pageMeta = tuple.getSecond() == null ? null : tuple.getSecond().get("page");
+    int totalPages = pageMeta instanceof java.util.Map<?, ?> map && map.get("totalPages") instanceof Number number ? number.intValue() : 0;
+    return CompletableFuture.completedFuture(new Tuple<>(tuple.getFirst().stream()
+        .map(Player::fromDto)
+        .collect(toList()), totalPages));
+  }
+
   @Async
   public CompletableFuture<Void> saveGameReview(Review review, int gameId) {
     GameReview gameReview = (GameReview) new GameReview()

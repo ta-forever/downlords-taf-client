@@ -218,6 +218,8 @@ compileTestJava {
   // clearing the user list removes us too, which read as us leaving the channel.
   include '**/chat/ChatControllerTest.java'
   include '**/assetserver/**'
+  // Friend/foe dialog behind the "+" on the chat Friends / Foes headers (issue #44): paging, filtering, add/remove.
+  include '**/chat/SocialPlayerPickerControllerTest.java'
   // Test base classes / shared utilities — required by tests in the
   // included packages above. Don't include broken siblings of these.
   include '**/test/AbstractPlainJavaFxTest.java'
