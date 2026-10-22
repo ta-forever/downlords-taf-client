@@ -127,6 +127,7 @@ public class SettingsController implements Controller<Node> {
   public Toggle defaultColorsToggle;
   public CheckBox hideFoeToggle;
   public CheckBox showToxicityToggle;
+  public CheckBox showJoinLeaveMessagesToggle;
   public CheckBox forceRelayToggle;
   public TextField iceAcceptableLatencyTextField;
   public CheckBox proactiveResendToggle;
@@ -319,6 +320,7 @@ public class SettingsController implements Controller<Node> {
 
     hideFoeToggle.selectedProperty().bindBidirectional(preferences.getChat().hideFoeMessagesProperty());
     showToxicityToggle.selectedProperty().bindBidirectional(preferences.getChat().showToxicityProperty());
+    showJoinLeaveMessagesToggle.selectedProperty().bindBidirectional(preferences.getChat().showJoinLeaveMessagesProperty());
 
     disallowJoinsCheckBox.selectedProperty().bindBidirectional(preferences.disallowJoinsViaDiscordProperty());
 

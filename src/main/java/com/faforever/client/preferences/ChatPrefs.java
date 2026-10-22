@@ -53,6 +53,7 @@ public class ChatPrefs {
   private final MapProperty<ChatUserCategory, Color> groupToColor = new SimpleMapProperty<>(FXCollections.observableHashMap());
   private final BooleanProperty hideFoeMessages = new SimpleBooleanProperty(true);
   private final BooleanProperty showToxicity = new SimpleBooleanProperty(false);
+  private final BooleanProperty showJoinLeaveMessages = new SimpleBooleanProperty(true);
   private final BooleanProperty playerListShown = new SimpleBooleanProperty(true);
   private final ObjectProperty<TimeInfo> timeFormat = new SimpleObjectProperty<>(TimeInfo.AUTO);
   private final ObjectProperty<DateInfo> dateFormat = new SimpleObjectProperty<>(DateInfo.AUTO);
@@ -230,6 +231,19 @@ public class ChatPrefs {
 
   public BooleanProperty showToxicityProperty() {
     return showToxicity;
+  }
+
+  /** Whether channel tabs show a status line when another player joins or leaves the channel. */
+  public boolean getShowJoinLeaveMessages() {
+    return showJoinLeaveMessages.get();
+  }
+
+  public void setShowJoinLeaveMessages(boolean showJoinLeaveMessages) {
+    this.showJoinLeaveMessages.set(showJoinLeaveMessages);
+  }
+
+  public BooleanProperty showJoinLeaveMessagesProperty() {
+    return showJoinLeaveMessages;
   }
 
   public int getIdleThreshold() {

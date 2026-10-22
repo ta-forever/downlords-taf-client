@@ -632,6 +632,45 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
     }
   }
 
+  /**
+   * Adds a muted one-line notice such as "→ Bob joined the channel". Unlike a chat message it has no avatar, doesn't
+   * mark the tab unread and isn't checked for mentions. Dropped when the chat view isn't ready yet.
+   *
+   * @param i18nKey message with the player name as {@code {0}}
+   */
+  protected void addStatusLine(String username, String i18nKey, boolean joined) {
+    JavaFxUtil.runLater(() -> {
+      if (!isChatReady) {
+        return;
+      }
+      String escapedName = htmlEscaper().escape(username);
+      String nameMarker = "\u0000";
+      String nameHtml = "<span class=\"username\" data-name=\"" + escapedName + "\""
+          + " onclick=\"messagePlayer(this.getAttribute('data-name'))\">" + escapedName + "</span>";
+      String sentence = htmlEscaper().escape(i18n.get(i18nKey, nameMarker)).replace(nameMarker, nameHtml);
+      String text = "<span class=\"status-arrow\">" + (joined ? "&rarr;" : "&larr;") + "</span> " + sentence;
+      String time = htmlEscaper().escape(timeService.asShortTime(Instant.now()));
+      // chat-section so it's trimmed with the history; chat-section-<name> so hiding a foe's messages hides it too.
+      String classes = "chat-section chat-status-line " + (joined ? "joined" : "left") + " chat-section-" + escapedName;
+      String html;
+      if (preferencesService.getPreferences().getChat().getChatFormat() == ChatFormat.COMPACT) {
+        // Same table shape as compact chat_section.html, so the time lands in the same right-hand column.
+        html = "<table class=\"" + classes + " compact\"><tr>"
+            + "<td class=\"status-text\">" + text + "</td>"
+            + "<td class=\"time\">" + time + "</td>"
+            + "</tr></table>";
+      } else {
+        // Extended sections show the time inline after the name, so do the same here.
+        html = "<div class=\"" + classes + " extended\">" + text + " <span class=\"time\">" + time + "</span></div>";
+      }
+      insertIntoContainer(html, MESSAGE_CONTAINER_ID);
+      // The next message must start its own section below this line instead of joining the one above it.
+      lastMessage = null;
+      removeTopmostMessages();
+      scrollToBottomIfDesired();
+    });
+  }
+
   private void scrollToBottomIfDesired() {
     JavaFxUtil.assertApplicationThread();
     engine.executeScript("scrollToBottomIfDesired()");
