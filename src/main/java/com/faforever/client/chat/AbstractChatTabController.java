@@ -18,6 +18,8 @@ import com.faforever.client.preferences.ToxicitySetting;
 import com.faforever.client.reporting.ReportingService;
 import com.faforever.client.theme.UiService;
 import com.faforever.client.ui.StageHolder;
+import com.faforever.client.uploader.ImageFileTypes;
+import com.faforever.client.uploader.ImageTooLargeException;
 import com.faforever.client.uploader.ImageUploadService;
 import com.faforever.client.user.UserService;
 import com.faforever.client.util.ConcurrentUtil;
@@ -42,8 +44,10 @@ import javafx.scene.control.TextInputControl;
 import javafx.scene.control.skin.TabPaneSkin;
 import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
+import javafx.scene.input.Dragboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.TransferMode;
 import javafx.scene.paint.Color;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
@@ -60,11 +64,14 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.lang.invoke.MethodHandles;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -73,6 +80,7 @@ import static com.faforever.client.theme.UiService.CHAT_SECTION_COMPACT;
 import static com.faforever.client.theme.UiService.CHAT_SECTION_EXTENDED;
 import static com.faforever.client.theme.UiService.CHAT_TEXT_COMPACT;
 import static com.faforever.client.theme.UiService.CHAT_TEXT_EXTENDED;
+import static com.faforever.commons.io.Bytes.formatSize;
 import static com.github.nocatch.NoCatch.noCatch;
 import static com.google.common.html.HtmlEscapers.htmlEscaper;
 import static java.time.temporal.ChronoUnit.MINUTES;
@@ -338,6 +346,7 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
 
     addFocusListeners();
     addImagePasteListener();
+    addImageDropListener();
 
     JavaFxUtil.addListener(StageHolder.getStage().focusedProperty(), new WeakChangeListener<>(resetUnreadMessagesListener));
     JavaFxUtil.addListener(getRoot().selectedProperty(), new WeakChangeListener<>(resetUnreadMessagesListener));
@@ -392,22 +401,62 @@ public abstract class AbstractChatTabController implements Controller<Tab> {
         || (event.getCode() == KeyCode.INSERT && event.isShiftDown());
   }
 
+  private void addImageDropListener() {
+    TextInputControl messageTextField = messageTextField();
+    messageTextField.setOnDragOver(event -> {
+      if (droppedImageFile(event.getDragboard()) != null) {
+        event.acceptTransferModes(TransferMode.COPY);
+      }
+      event.consume();
+    });
+    messageTextField.setOnDragDropped(event -> {
+      Path file = droppedImageFile(event.getDragboard());
+      if (file != null) {
+        uploadImageAndInsertLink(imageUploadService.uploadImageFileInBackground(file));
+      }
+      event.setDropCompleted(file != null);
+      event.consume();
+    });
+  }
+
+  /** The single dragged file if it's an image type that can be uploaded as-is, otherwise null. */
+  @Nullable
+  private Path droppedImageFile(Dragboard dragboard) {
+    if (!dragboard.hasFiles() || dragboard.getFiles().size() != 1) {
+      return null;
+    }
+    Path file = dragboard.getFiles().get(0).toPath();
+    return Files.isRegularFile(file) && ImageFileTypes.isSupported(file) ? file : null;
+  }
+
   private void pasteImage() {
+    Image image = Clipboard.getSystemClipboard().getImage();
+    uploadImageAndInsertLink(imageUploadService.uploadImageInBackground(image));
+  }
+
+  private void uploadImageAndInsertLink(CompletableFuture<String> upload) {
     TextInputControl messageTextField = messageTextField();
     int currentCaretPosition = messageTextField.getCaretPosition();
 
     messageTextField.setDisable(true);
 
-    Clipboard clipboard = Clipboard.getSystemClipboard();
-    Image image = clipboard.getImage();
-
-    imageUploadService.uploadImageInBackground(image).thenAccept(url -> {
+    upload.thenAccept(url -> {
       messageTextField.insertText(currentCaretPosition, url);
       messageTextField.setDisable(false);
       messageTextField.requestFocus();
       messageTextField.positionCaret(messageTextField.getLength());
     }).exceptionally(throwable -> {
+      throwable = ConcurrentUtil.unwrapIfCompletionException(throwable);
+      if (throwable instanceof ImageTooLargeException tooLarge) {
+        notificationService.addImmediateWarnNotification("chat.imageUploadTooLarge",
+            formatSize(tooLarge.getSize(), i18n.getUserSpecificLocale()),
+            formatSize(tooLarge.getMaxSize(), i18n.getUserSpecificLocale()));
+      } else {
+        logger.warn("Image upload failed", throwable);
+        notificationService.addImmediateErrorNotification(throwable, "chat.imageUploadFailed");
+      }
       messageTextField.setDisable(false);
+      messageTextField.requestFocus();
       return null;
     });
   }
