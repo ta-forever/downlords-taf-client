@@ -208,6 +208,8 @@ compileTestJava {
   // (Kosovo/XK is GeoIP-only, so Locale.getISOCountries() misses it).
   include '**/chat/CountryFlagServiceTest.java'
   include '**/chat/KittehGhostQuitTest.java'
+  // Join/leave events behind the "→ Bob joined the channel" chat lines (issue #110).
+  include '**/chat/KittehJoinLeaveEventTest.java'
   include '**/chat/KittehRejoinOnReconnectTest.java'
   // Replacements for the two Kitteh listeners this ircd defeats (bare-prefix NICK,
   // and the 433 fallback that renames us off a nick we already hold).
