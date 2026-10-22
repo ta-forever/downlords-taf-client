@@ -218,6 +218,8 @@ compileTestJava {
   // clearing the user list removes us too, which read as us leaving the channel.
   include '**/chat/ChatControllerTest.java'
   include '**/assetserver/**'
+  // Chat image paste upload (issue #51): multipart Imgur upload, error status and max-size rejection.
+  include '**/uploader/**'
   // Test base classes / shared utilities — required by tests in the
   // included packages above. Don't include broken siblings of these.
   include '**/test/AbstractPlainJavaFxTest.java'
