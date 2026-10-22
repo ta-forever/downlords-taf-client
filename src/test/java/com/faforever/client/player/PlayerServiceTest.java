@@ -190,6 +190,66 @@ public class PlayerServiceTest {
     assertFalse("Property 'friend' is still true", player.getSocialStatus() == FRIEND);
   }
 
+  /** Issue #44: friending someone who isn't online (e.g. picked from the API player list) must not throw. */
+  @Test
+  public void testAddAndRemoveOfflineFriend() {
+    Player offline = new Player("offline");
+    offline.setId(42);
+
+    instance.addFriend(offline);
+
+    verify(fafService).addFriend(offline);
+    assertTrue(instance.isFriend(42));
+    assertThat(instance.getFriendIds(), is(List.of(42)));
+    assertTrue(offline.getSocialStatus() == FRIEND);
+
+    instance.removeFriend(offline);
+
+    verify(fafService).removeFriend(offline);
+    assertFalse(instance.isFriend(42));
+  }
+
+  @Test
+  public void testAddAndRemoveOfflineFoe() {
+    Player offline = new Player("offline");
+    offline.setId(43);
+
+    instance.addFoe(offline);
+
+    verify(fafService).addFoe(offline);
+    assertTrue(instance.isFoe(43));
+    assertThat(instance.getFoeIds(), is(List.of(43)));
+
+    instance.removeFoe(offline);
+
+    verify(fafService).removeFoe(offline);
+    assertFalse(instance.isFoe(43));
+  }
+
+  @Test
+  public void testAddFriendTwiceListsThemOnce() {
+    Player offline = new Player("offline");
+    offline.setId(44);
+
+    instance.addFriend(offline);
+    instance.addFriend(offline);
+
+    assertThat(instance.getFriendIds(), is(List.of(44)));
+  }
+
+  /** A player loaded from the API is a different instance; the one shown in chat must still change category. */
+  @Test
+  public void testAddFriendFromApiUpdatesOnlineInstance() {
+    Player online = instance.createAndGetPlayerForUsername("bob");
+    online.setId(7);
+    Player fromApi = new Player("bob");
+    fromApi.setId(7);
+
+    instance.addFriend(fromApi);
+
+    assertTrue(online.getSocialStatus() == FRIEND);
+  }
+
   @Test
   public void testRemoveFoe() throws Exception {
     Player player = instance.createAndGetPlayerForUsername("player");

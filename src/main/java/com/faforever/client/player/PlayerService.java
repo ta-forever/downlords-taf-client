@@ -279,37 +279,57 @@ public class PlayerService implements InitializingBean {
   }
 
   public void addFriend(Player player) {
-    playersByName.get(player.getUsername()).setSocialStatus(FRIEND);
-    friendList.add(player.getId());
+    Player knownPlayer = getKnownPlayer(player);
+    knownPlayer.setSocialStatus(FRIEND);
+    if (!friendList.contains(player.getId())) {
+      friendList.add(player.getId());
+    }
     foeList.remove((Integer) player.getId());
 
-    player.getChatChannelUsers().forEach(chatUser -> eventBus.post(new ChatUserCategoryChangeEvent(chatUser)));
+    knownPlayer.getChatChannelUsers().forEach(chatUser -> eventBus.post(new ChatUserCategoryChangeEvent(chatUser)));
     fafService.addFriend(player);
   }
 
   public void removeFriend(Player player) {
-    playersByName.get(player.getUsername()).setSocialStatus(OTHER);
+    Player knownPlayer = getKnownPlayer(player);
+    knownPlayer.setSocialStatus(OTHER);
     friendList.remove((Integer) player.getId());
 
-    player.getChatChannelUsers().forEach(chatUser -> eventBus.post(new ChatUserCategoryChangeEvent(chatUser)));
+    knownPlayer.getChatChannelUsers().forEach(chatUser -> eventBus.post(new ChatUserCategoryChangeEvent(chatUser)));
     fafService.removeFriend(player);
   }
 
   public void addFoe(Player player) {
-    playersByName.get(player.getUsername()).setSocialStatus(FOE);
-    foeList.add(player.getId());
+    Player knownPlayer = getKnownPlayer(player);
+    knownPlayer.setSocialStatus(FOE);
+    if (!foeList.contains(player.getId())) {
+      foeList.add(player.getId());
+    }
     friendList.remove((Integer) player.getId());
 
-    player.getChatChannelUsers().forEach(chatUser -> eventBus.post(new ChatUserCategoryChangeEvent(chatUser)));
+    knownPlayer.getChatChannelUsers().forEach(chatUser -> eventBus.post(new ChatUserCategoryChangeEvent(chatUser)));
     fafService.addFoe(player);
   }
 
   public void removeFoe(Player player) {
-    playersByName.get(player.getUsername()).setSocialStatus(OTHER);
+    Player knownPlayer = getKnownPlayer(player);
+    knownPlayer.setSocialStatus(OTHER);
     foeList.remove((Integer) player.getId());
 
-    player.getChatChannelUsers().forEach(chatUser -> eventBus.post(new ChatUserCategoryChangeEvent(chatUser)));
+    knownPlayer.getChatChannelUsers().forEach(chatUser -> eventBus.post(new ChatUserCategoryChangeEvent(chatUser)));
     fafService.removeFoe(player);
+  }
+
+  /**
+   * The instance this client already tracks for {@code player} (online, or seen in chat), so its social status
+   * and chat category update; {@code player} itself when they're offline (e.g. a player loaded from the API).
+   */
+  private Player getKnownPlayer(Player player) {
+    Player knownPlayer = playersByName.get(player.getUsername());
+    if (knownPlayer == null) {
+      knownPlayer = playersById.get(player.getId());
+    }
+    return knownPlayer != null ? knownPlayer : player;
   }
 
   public boolean isCurrentPlayer(String userName) {
@@ -464,6 +484,11 @@ public class PlayerService implements InitializingBean {
    *  reserved-slots editor's "Add friends" bulk-add. */
   public java.util.List<Integer> getFriendIds() {
     return java.util.List.copyOf(friendList);
+  }
+
+  /** Immutable snapshot of the current player's foe list, offline foes included. */
+  public java.util.List<Integer> getFoeIds() {
+    return java.util.List.copyOf(foeList);
   }
 
   /** Look up a player by id from the in-memory cache. Returns empty if the

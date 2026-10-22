@@ -351,6 +351,11 @@ public class MockFafApiAccessor implements FafApiAccessor {
   }
 
   @Override
+  public Tuple<java.util.List<Player>, java.util.Map<String, ?>> findPlayersByLoginPrefixWithMeta(String prefix, int count, int page) {
+    return new Tuple<>(java.util.Collections.emptyList(), java.util.Collections.emptyMap());
+  }
+
+  @Override
   public java.util.List<com.faforever.client.api.dto.TournamentTeam> getTournamentTeams(int tournamentId) {
     return java.util.Collections.emptyList();
   }
