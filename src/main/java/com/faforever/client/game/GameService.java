@@ -1586,7 +1586,10 @@ public class GameService implements InitializingBean {
           if (LibraryGameInfo.isLibraryMod(modTechnical) && library != null) {
             totalAnnihilationService.setLibraryPlan(new LibraryLaunchPlan(library.modId(),
                 library.baseGame() == null ? LibraryMod.DEFAULT_BASE_GAME : library.baseGame(),
-                library.expansions(), pendingLibraryHost ? libraryHostMapKey(gameLaunchMessage.getMapname()) : null));
+                // a joiner's launch file names only what it has: OA refuses one naming a missing expansion before a
+                // window opens, but lets the player into the room, where it marks the difference, without it
+                pendingLibraryHost ? library.expansions() : totalAnnihilationService.libraryJoinExpansions(library.expansions()),
+                pendingLibraryHost ? libraryHostMapKey(gameLaunchMessage.getMapname()) : null));
           }
           Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(modTechnical, uid));
           totalAnnihilationService.configureOaHost(modTechnical, libraryHostMapKey(gameLaunchMessage.getMapname()));
@@ -1935,6 +1938,20 @@ public class GameService implements InitializingBean {
         ? recentHostGameRequest.getPassword()
         : null;
 
+    // a Library mod game must carry its mod again, or the server refuses it ("needs a Library mod id")
+    LibraryGameInfo library = null;
+    if (LibraryGameInfo.isLibraryMod(prototype.getFeaturedMod())) {
+      library = prototype.getLibrary();
+      if (library == null && recentHostGameRequest != null) {
+        library = recentHostGameRequest.getLibrary();
+      }
+      if (library == null) {
+        log.warn("[rehost] not rehosting Library mod game {}: its Library mod is not known", prototype.getId());
+        return;
+      }
+    }
+    final LibraryGameInfo rehostLibrary = library;
+
     modService.getFeaturedMod(prototype.getFeaturedMod())
         .thenAccept(featuredModBean -> hostGame(new NewGameInfo(
             prototype.getTitle(),
@@ -1948,7 +1965,8 @@ public class GameService implements InitializingBean {
             prototype.getEnforceRating(), prototype.getReplayDelaySeconds(),
             prototype.getRatingType(),
             prototype.getGalacticWarPlanetName(),
-            prototype.getMaxPlayers())));
+            prototype.getMaxPlayers(),
+            rehostLibrary)));
   }
 
   private ObjectProperty<Game> autoJoinRequestedGameProperty = new SimpleObjectProperty<>();

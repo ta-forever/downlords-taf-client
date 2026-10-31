@@ -71,6 +71,8 @@ public class LibraryService {
   private final Consumer<Path> libraryNavigator;
   private final ObjectProperty<LibrarySnapshot> snapshot = new SimpleObjectProperty<>();
   private volatile long snapshotTakenAtMillis;
+  /** The expansion ids the last {@code --list-content} listed as installed; null before the first listing. */
+  private volatile List<String> installedExpansions;
   private volatile CompletableFuture<LibrarySnapshot> refreshing;
 
   /** Starts a process and returns at once with a future that completes when it exits. Replaceable for tests. */
@@ -162,7 +164,9 @@ public class LibraryService {
         log.info("[Library] --list-content exited {}: {}", result.exitCode(), result.output());
         return new LibrarySnapshot(readiness, List.of());
       }
-      List<LibraryMod> installed = LibraryDiscovery.discover(userFolder(), OaContentListing.parse(result.output()));
+      OaContentListing listing = OaContentListing.parse(result.output());
+      installedExpansions = listing.expansions().stream().map(OaContentListing.ListedItem::id).toList();
+      List<LibraryMod> installed = LibraryDiscovery.discover(userFolder(), listing);
       LibraryPolicy libraryPolicy = LibraryPolicy.from(preferencesService.getClientRemoteConfiguration());
       Path listedBy = exe;
       return new LibrarySnapshot(readiness,
@@ -295,7 +299,7 @@ public class LibraryService {
     return oaInstallationService.ensureExecutable(LibraryGameInfo.UMBRELLA_FEATURED_MOD).thenApplyAsync(exe -> {
       try {
         CommandResult result = runner.run(withExtraArgs(
-            LibraryCommands.listContent(exe, mod.folder(), mod.baseGame(), mod.requiredExpansions())));
+            LibraryCommands.listContent(exe, mod.folder(), mod.baseGame(), gameExpansions(mod))));
         if (result.exitCode() != 0) {
           throw new IllegalStateException("Open Annihilation could not list the maps of " + mod.name() + ": "
               + result.output());
@@ -320,8 +324,33 @@ public class LibraryService {
       } catch (IOException e) {
         log.warn("[Library] could not read the sim hash of {}", mod.id(), e);
       }
-      return LibraryGameInfo.of(mod, simHash);
+      return LibraryGameInfo.of(mod, simHash, gameExpansions(mod));
     });
+  }
+
+  /** The expansions a game of this mod plays with, from what the last check found installed. */
+  public List<String> gameExpansions(LibraryMod mod) {
+    List<String> installed = installedExpansions;
+    return LibraryContent.gameExpansions(mod.baseGame(), mod.requiredExpansions(),
+        installed == null ? List.of() : installed);
+  }
+
+  /**
+   * The host's expansions that this player has, for a joiner's launch file. OA refuses (status 2, before a window)
+   * a launch file naming an expansion the player lacks; leaving it out instead brings the player into the battle
+   * room, where OA marks the difference and the host cannot start until the content matches. Unchanged when OA has
+   * not been listed yet.
+   */
+  public List<String> expansionsThisPlayerHas(List<String> hostExpansions) {
+    List<String> installed = installedExpansions;
+    if (installed == null) {
+      return hostExpansions;
+    }
+    List<String> kept = LibraryContent.expansionsThisPlayerHas(hostExpansions, installed);
+    if (kept.size() < hostExpansions.size()) {
+      log.info("[Library] joining without expansions this player does not have: host {}, kept {}", hostExpansions, kept);
+    }
+    return kept;
   }
 
   private List<String> withExtraArgs(List<String> command) {

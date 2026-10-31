@@ -53,8 +53,13 @@ public record LibraryGameInfo(String modId, String name, @Nullable String regist
   }
 
   public static LibraryGameInfo of(LibraryMod mod, @Nullable String simHash) {
+    return of(mod, simHash, mod.requiredExpansions());
+  }
+
+  /** @param expansions what the game plays with ({@link LibraryContent#gameExpansions}) */
+  public static LibraryGameInfo of(LibraryMod mod, @Nullable String simHash, List<String> expansions) {
     return new LibraryGameInfo(mod.id(), mod.name(), mod.registry(), mod.version(), mod.revision(), simHash,
-        mod.baseGame(), List.copyOf(mod.requiredExpansions()));
+        mod.baseGame(), List.copyOf(expansions));
   }
 
   /** What the game list shows in place of the umbrella's name: "Talon 1.03". */

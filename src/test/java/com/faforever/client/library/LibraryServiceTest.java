@@ -35,8 +35,9 @@ public class LibraryServiceTest {
 
   private static final Path EXE = Path.of("oa", "open-annihilation.exe");
   private static final String SIM = "a5eed394ee460d28768eec0b9421a40d59796521734e220fb538d1c4a3bdb350";
-  private static final String LISTING = "{\"maps\":[{\"shown-name\":\"Acid Pools\",\"key\":\"Acid Pools\",\"players\":10,\"size\":\"32 x 23\"}],"
-      + "\"mods\":[{\"id\":\"talon\",\"name\":\"Talon\"}],\"expansions\":[]}";
+  private static final String LISTING_HEAD = "{\"maps\":[{\"shown-name\":\"Acid Pools\",\"key\":\"Acid Pools\",\"players\":10,\"size\":\"32 x 23\"}],"
+      + "\"mods\":[{\"id\":\"talon\",\"name\":\"Talon\"}],\"expansions\":[";
+  private String expansionsJson = "";
 
   @Rule
   public TemporaryFolder temp = new TemporaryFolder();
@@ -75,7 +76,7 @@ public class LibraryServiceTest {
       if (command.contains("--print-profile")) {
         return new LibraryService.CommandResult(0, "{}\nsha256-sim  " + SIM + "\nsha256-full  " + "b".repeat(64) + "\n");
       }
-      return new LibraryService.CommandResult(listContentExit, listContentExit == 0 ? "timing\n" + LISTING + "\n" : "no game folder");
+      return new LibraryService.CommandResult(listContentExit, listContentExit == 0 ? "timing\n" + LISTING_HEAD + expansionsJson + "]}\n" : "no game folder");
     };
     prefs.setOaExtraArgs("--user-folder " + userFolder);
     ClientConfiguration configuration = new Gson().fromJson(
@@ -139,6 +140,31 @@ public class LibraryServiceTest {
     assertThat(maps.get(0).key(), is("Acid Pools"));
     List<String> command = commands.get(commands.size() - 1);
     assertThat(command, hasItems("--list-content", "--json", "--mod-dir", talon.folder().toString(), "--content", "totala"));
+  }
+
+  @Test
+  public void mapsAndTheHostedGameUseTheInstalledExpansionsSoCcAndBtMapsAreListed() {
+    expansionsJson = "{\"id\":\"battle-tactics\",\"name\":\"Battle Tactics\"},{\"id\":\"campaign\",\"name\":\"Campaign\"},"
+        + "{\"id\":\"core-contingency\",\"name\":\"Core Contingency\"},{\"id\":\"music\",\"name\":\"Music\"}";
+    LibraryMod talon = service.installedMods().join().get(0);
+
+    service.mapsFor(talon).join();
+    assertThat(commands.get(commands.size() - 1),
+        hasItems("--content", "totala:campaign,core-contingency,battle-tactics"));
+    assertThat(service.hostInfo(talon).join().expansions(),
+        contains("campaign", "core-contingency", "battle-tactics"));
+  }
+
+  @Test
+  public void aJoinerDropsTheHostsExpansionsItLacksOnceOaHasBeenListed() {
+    List<String> host = List.of("campaign", "core-contingency", "battle-tactics", "cavedog-tilesets");
+    // not listed yet: nothing is known, so the host's list stands
+    assertThat(service.expansionsThisPlayerHas(host), is(host));
+
+    expansionsJson = "{\"id\":\"campaign\",\"name\":\"Campaign\"},{\"id\":\"core-contingency\",\"name\":\"Core Contingency\"}";
+    service.installedMods().join();
+
+    assertThat(service.expansionsThisPlayerHas(host), contains("campaign", "core-contingency"));
   }
 
   @Test

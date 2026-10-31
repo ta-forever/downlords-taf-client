@@ -130,12 +130,14 @@ public class LibraryMapPreviewsTest {
     Path user = temp.newFolder("user").toPath();
     Path mods = Files.createDirectories(user.resolve("Mods").resolve("rainbow"));
     Files.createDirectories(user.resolve("Games").resolve("totala"));
-    Files.createDirectories(user.resolve("Expansions").resolve("core-contingency"));
+    Path cc = Files.createDirectories(user.resolve("Expansions").resolve("totala").resolve("core-contingency"));
+    Path bt = Files.createDirectories(user.resolve("Expansions").resolve("totala").resolve("battle-tactics"));
     LibraryMod mod = new LibraryMod("rainbow", "Rainbow Edition", "1", null, "coreprime", "totala",
         List.of("core-contingency", "not-installed"), mods);
 
-    assertThat(LibraryMapPreviews.layers(user, mod), contains(mods, user.resolve("Expansions").resolve("core-contingency"),
-        user.resolve("Games").resolve("totala")));
+    assertThat(LibraryMapPreviews.layers(user, mod), contains(mods, cc, user.resolve("Games").resolve("totala")));
+    assertThat(LibraryMapPreviews.layers(user, mod, List.of("core-contingency", "battle-tactics")),
+        contains(mods, cc, bt, user.resolve("Games").resolve("totala")));
     assertThat(LibraryMapPreviews.layers(user.resolve("nowhere"), new LibraryMod("x", "X", "1", null, null, "totala",
         List.of(), user.resolve("nowhere").resolve("Mods").resolve("x"))), is(empty()));
   }

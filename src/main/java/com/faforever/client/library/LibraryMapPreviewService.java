@@ -148,7 +148,8 @@ public class LibraryMapPreviewService {
       return loose;
     }
     Path userFolder = libraryService.userFolder();
-    for (Path layer : installedMod(modId).map(mod -> LibraryMapPreviews.layers(userFolder, mod)).orElse(List.of())) {
+    for (Path layer : installedMod(modId).map(mod -> LibraryMapPreviews.layers(userFolder, mod,
+        libraryService.gameExpansions(mod))).orElse(List.of())) {
       try {
         Optional<URI> found = maptoolOutput(layer, name, folder, extension, generator);
         if (found.isPresent()) {
@@ -219,7 +220,7 @@ public class LibraryMapPreviewService {
   private Optional<URI> findUriInLayers(@Nullable String modId, @Nullable String registry, String mapKey) {
     Path userFolder = libraryService.userFolder();
     List<Path> layers = installedMod(modId)
-        .map(mod -> LibraryMapPreviews.layers(userFolder, mod))
+        .map(mod -> LibraryMapPreviews.layers(userFolder, mod, libraryService.gameExpansions(mod)))
         .orElse(List.of());
     LibraryMapPreviews previews = new LibraryMapPreviews(
         this::maptoolPreview,

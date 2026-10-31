@@ -77,13 +77,19 @@ public final class LibraryMapPreviews {
 
   /**
    * The content folders of a mod's launch in OA's layer order: the mod's own folder, the folders of the
-   * expansions it requires, then the base game. Folders that don't exist are left out.
+   * expansions the game plays with, then the base game. Folders that don't exist are left out.
    */
   public static List<Path> layers(Path userFolder, LibraryMod mod) {
+    return layers(userFolder, mod, mod.requiredExpansions());
+  }
+
+  /** @param expansions the expansions the game plays with ({@link LibraryContent#gameExpansions}) */
+  public static List<Path> layers(Path userFolder, LibraryMod mod, List<String> expansions) {
     List<Path> candidates = new ArrayList<>();
     candidates.add(mod.folder());
-    for (String expansion : mod.requiredExpansions()) {
-      candidates.add(userFolder.resolve("Expansions").resolve(expansion));
+    for (String expansion : expansions) {
+      // OA keeps each expansion under the base game it extends: Expansions/totala/core-contingency
+      candidates.add(userFolder.resolve("Expansions").resolve(mod.baseGame()).resolve(expansion));
     }
     candidates.add(userFolder.resolve("Games").resolve(mod.baseGame()));
     return candidates.stream().filter(Files::isDirectory).toList();

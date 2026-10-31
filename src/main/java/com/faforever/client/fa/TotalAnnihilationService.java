@@ -74,6 +74,11 @@ public class TotalAnnihilationService {
   public void setLibraryPlan(LibraryLaunchPlan libraryPlan) {
     this.libraryPlan = libraryPlan;
   }
+
+  /** A joiner's expansions: the host's, without those this player lacks (see {@link LibraryService#expansionsThisPlayerHas}). */
+  public java.util.List<String> libraryJoinExpansions(java.util.List<String> hostExpansions) {
+    return libraryService.expansionsThisPlayerHas(hostExpansions);
+  }
   private Timer launchServerKeepAliveTimer;
   private KeepAliveTimerTask launchServerKeepAliveTimerTask;
 
