@@ -202,6 +202,8 @@ compileTestJava {
   // Pins the replay download name against the server's TADA upload naming (tada_service.py);
   // pure formatter, no broken siblings pulled in.
   include '**/replay/CanonicalReplayNameTest.java'
+  // OA 'version not allowed' refusal text worded by Engine updates setting (#16)
+  include '**/remote/OaVersionRefusalTextTest.java'
   include '**/replay/ReplayArchiveWriterTest.java'
   include '**/replay/ReplayDownloadControlsTest.java'
   // Country flags: guards that every country we offer actually has a flag image
@@ -227,6 +229,8 @@ compileTestJava {
   include '**/game/StagingUpdateRatingTypeTest.java'
   // Install dialog: the Open Annihilation engine section is shown only when the server offers it for the mod.
   include '**/mod/FeaturedModInstallControllerEngineTest.java'
+  // Engine updates setting: saved TAF_MANAGED/EXISTING preferences migrate to TAF/OWN_INSTALL.
+  include '**/preferences/EngineUpdatesMigrationTest.java'
   include '**/assetserver/**'
   // Test base classes / shared utilities — required by tests in the
   // included packages above. Don't include broken siblings of these.

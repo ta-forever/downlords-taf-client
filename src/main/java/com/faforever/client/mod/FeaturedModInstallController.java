@@ -14,7 +14,7 @@ import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.Severity;
 import com.faforever.client.preferences.AskAlwaysOrNever;
 import com.faforever.client.preferences.GameEngine;
-import com.faforever.client.preferences.OaInstallationMode;
+import com.faforever.client.preferences.EngineUpdates;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.theme.UiService;
@@ -104,7 +104,9 @@ public class FeaturedModInstallController implements Controller<Node> {
   public RadioButton cavedogRadioButton;
   public RadioButton oaRadioButton;
   public RadioButton oaManagedRadioButton;
+  public RadioButton oaSelfUpdatingRadioButton;
   public RadioButton oaExistingRadioButton;
+  public Label oaUpdatesLabel;
   public TextField oaExecutableTextField;
   public Button oaExecutableButton;
   public Label oaStatusLabel;
@@ -135,6 +137,7 @@ public class FeaturedModInstallController implements Controller<Node> {
     oaOptionsBox.managedProperty().bind(oaRadioButton.selectedProperty());
     oaExecutableTextField.disableProperty().bind(oaExistingRadioButton.selectedProperty().not());
     oaExecutableButton.disableProperty().bind(oaExistingRadioButton.selectedProperty().not());
+    oaModeToggleGroup.selectedToggleProperty().addListener((obs, oldValue, newValue) -> updateOaUpdatesLabel());
     oaNoWineLabel.setVisible(org.bridj.Platform.isLinux());
     oaNoWineLabel.setManaged(org.bridj.Platform.isLinux());
     oaExecutableTextField.textProperty().addListener((obs, oldValue, newValue) -> updateOaStatus());
@@ -200,12 +203,24 @@ public class FeaturedModInstallController implements Controller<Node> {
 
     boolean oa = supported && taPrefs.isOpenAnnihilation();
     (oa ? oaRadioButton : cavedogRadioButton).setSelected(true);
-    (taPrefs.getOaInstallation() == OaInstallationMode.EXISTING ? oaExistingRadioButton : oaManagedRadioButton)
-        .setSelected(true);
+    switch (taPrefs.getOaInstallation()) {
+      case OWN_INSTALL -> oaExistingRadioButton.setSelected(true);
+      case OPEN_ANNIHILATION -> oaSelfUpdatingRadioButton.setSelected(true);
+      default -> oaManagedRadioButton.setSelected(true);
+    }
+    updateOaUpdatesLabel();
     if (taPrefs.getOaExecutablePath() != null) {
       oaExecutableTextField.setText(taPrefs.getOaExecutablePath().toString());
     }
     updateOaStatus();
+  }
+
+  /** One line saying who updates the engine under the current choice. */
+  private void updateOaUpdatesLabel() {
+    String key = oaExistingRadioButton.isSelected() ? "installFeaturedMod.oa.updates.own"
+        : oaSelfUpdatingRadioButton.isSelected() ? "installFeaturedMod.oa.updates.oa"
+        : "installFeaturedMod.oa.updates.taf";
+    oaUpdatesLabel.setText(i18n.get(key));
   }
 
   /** Shows whether the chosen existing Open Annihilation is a version the server allows. */
@@ -372,7 +387,8 @@ public class FeaturedModInstallController implements Controller<Node> {
     taPrefs.setEngine(openAnnihilation ? GameEngine.OPEN_ANNIHILATION : GameEngine.CAVEDOG);
     if (openAnnihilation) {
       boolean existing = oaExistingRadioButton.isSelected();
-      taPrefs.setOaInstallation(existing ? OaInstallationMode.EXISTING : OaInstallationMode.TAF_MANAGED);
+      taPrefs.setOaInstallation(existing ? EngineUpdates.OWN_INSTALL
+          : oaSelfUpdatingRadioButton.isSelected() ? EngineUpdates.OPEN_ANNIHILATION : EngineUpdates.TAF);
       taPrefs.setOaExecutablePath(existing ? Path.of(oaExecutableTextField.getText().trim()) : null);
     }
   }

@@ -56,6 +56,8 @@
                     </padding>
                     <RadioButton fx:id="oaManagedRadioButton" mnemonicParsing="false"
                                  text="%installFeaturedMod.oa.managed" toggleGroup="$oaModeToggleGroup"/>
+                    <RadioButton fx:id="oaSelfUpdatingRadioButton" mnemonicParsing="false"
+                                 text="%installFeaturedMod.oa.selfUpdating" toggleGroup="$oaModeToggleGroup"/>
                     <RadioButton fx:id="oaExistingRadioButton" mnemonicParsing="false"
                                  text="%installFeaturedMod.oa.existing" toggleGroup="$oaModeToggleGroup"/>
                     <HBox spacing="10">
@@ -63,6 +65,7 @@
                                    promptText="%installFeaturedMod.oa.exePrompt"/>
                         <Button fx:id="oaExecutableButton" mnemonicParsing="false" onAction="#onOaExecutableButton" text="..."/>
                     </HBox>
+                    <Label fx:id="oaUpdatesLabel" wrapText="true" prefWidth="480"/>
                     <Label fx:id="oaStatusLabel" wrapText="true" prefWidth="480"/>
                     <Label fx:id="oaNoWineLabel" text="%installFeaturedMod.oa.noWine" wrapText="true" prefWidth="480"/>
                 </VBox>

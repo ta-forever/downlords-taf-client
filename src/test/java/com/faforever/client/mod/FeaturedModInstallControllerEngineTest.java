@@ -82,5 +82,10 @@ public class FeaturedModInstallControllerEngineTest extends AbstractPlainJavaFxT
     runOnFxThreadAndWait(() -> instance.oaExistingRadioButton.setSelected(true));
     assertThat(instance.oaExecutableTextField.isDisabled(), is(false));
     assertThat(instance.oaStatusLabel.getText(), is(""));
+    assertThat(instance.oaUpdatesLabel.getText(), is("installFeaturedMod.oa.updates.own"));
+
+    runOnFxThreadAndWait(() -> instance.oaSelfUpdatingRadioButton.setSelected(true));
+    assertThat(instance.oaExecutableTextField.isDisabled(), is(true));
+    assertThat(instance.oaUpdatesLabel.getText(), is("installFeaturedMod.oa.updates.oa"));
   }
 }

@@ -78,7 +78,7 @@ public class OaInstallationServiceTest {
     PreferencesService preferencesService = mock(PreferencesService.class);
     com.faforever.client.preferences.TotalAnnihilationPrefs prefs =
         new com.faforever.client.preferences.TotalAnnihilationPrefs("oalibrary", null, "", null);
-    prefs.setOaInstallation(com.faforever.client.preferences.OaInstallationMode.EXISTING);
+    prefs.setOaInstallation(com.faforever.client.preferences.EngineUpdates.OWN_INSTALL);
     org.mockito.Mockito.when(preferencesService.getTotalAnnihilation("oalibrary")).thenReturn(prefs);
     Path exe = fakeExe("open-annihilation-v0.7.3-windows-x64");
     prefs.setOaExecutablePath(exe);
