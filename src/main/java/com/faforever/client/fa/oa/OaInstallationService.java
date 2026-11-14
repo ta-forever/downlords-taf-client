@@ -1,12 +1,17 @@
 package com.faforever.client.fa.oa;
 
+import com.faforever.client.i18n.I18n;
+import com.faforever.client.notification.Action;
+import com.faforever.client.notification.NotificationService;
+import com.faforever.client.notification.PersistentNotification;
+import com.faforever.client.notification.Severity;
 import com.faforever.client.preferences.EngineUpdates;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.update.ClientConfiguration.OaMod;
 import com.faforever.client.update.ClientConfiguration.OaRelease;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
@@ -22,7 +27,10 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.Optional;
@@ -30,6 +38,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -45,7 +54,6 @@ import java.util.zip.ZipInputStream;
  */
 @Lazy
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class OaInstallationService {
 
@@ -62,9 +70,32 @@ public class OaInstallationService {
     String download(URL url, Path destination) throws IOException;
   }
 
+  /** Offers the player, once, to hand updating over to OA after it replaced TAF's copies (ADR 0002). */
+  @FunctionalInterface
+  interface SwitchHint {
+    void offer(String modTechnical, Runnable switchAction);
+  }
+
   private final PreferencesService preferencesService;
 
   Downloader downloader = OaInstallationService::download;
+
+  /** Tells the version of an executable by running it with {@code --version}; replaceable by tests. */
+  Function<Path, Optional<OaVersion>> versionAsker = this::askVersion;
+
+  SwitchHint switchHint = (mod, switchAction) -> { };
+
+  @Autowired
+  public OaInstallationService(PreferencesService preferencesService, NotificationService notificationService, I18n i18n) {
+    this(preferencesService);
+    this.switchHint = (mod, switchAction) -> notificationService.addNotification(new PersistentNotification(
+        i18n.get("oa.engineUpdates.replacedHint"), Severity.INFO,
+        List.of(new Action(i18n.get("oa.engineUpdates.replacedHint.switch"), event -> switchAction.run()))));
+  }
+
+  public OaInstallationService(PreferencesService preferencesService) {
+    this.preferencesService = preferencesService;
+  }
 
   Path selfUpdatingDir(String platform) {
     return enginesRoot().resolve(SELF_UPDATING).resolve(platform);
@@ -124,9 +155,21 @@ public class OaInstallationService {
       return CompletableFuture.failedFuture(new IllegalStateException(
           "The server offers no Open Annihilation release for " + platform + " that is allowed for " + modTechnical));
     }
+    try {
+      // OA may have replaced a copy of ours: what counts is the version it reports, not its folder name
+      Optional<TafCopy> existing = findTafCopy(policy, release, platform);
+      if (existing.isPresent()) {
+        noteIfReplaced(modTechnical, prefs, existing.get());
+        Path exe = existing.get().exe();
+        return CompletableFuture.supplyAsync(() -> exe);
+      }
+    } catch (IOException e) {
+      return CompletableFuture.failedFuture(e);
+    }
     return CompletableFuture.supplyAsync(() -> {
       try {
-        return installRelease(release, platform, enginesRoot().resolve(release.getVersion()).resolve(platform), true);
+        Path target = freshCopyDir(release.getVersion(), platform);
+        return installRelease(release, platform, target, true);
       } catch (IOException e) {
         throw new IllegalStateException("Could not install Open Annihilation " + release.getVersion() + ": " + e.getMessage(), e);
       }
@@ -167,8 +210,9 @@ public class OaInstallationService {
       return InstalledOa.NONE;
     }
     try {
-      return findExecutable(enginesRoot().resolve(release.getVersion()).resolve(platform), platform)
-          .map(exe -> new InstalledOa(exe, detectVersion(exe).orElseGet(() -> OaVersion.find(release.getVersion()))))
+      OaMod policy = OaPolicy.forMod(preferencesService.getClientRemoteConfiguration(), modTechnical).orElse(null);
+      return findTafCopy(policy, release, platform)
+          .map(copy -> new InstalledOa(copy.exe(), copy.version()))
           .orElse(InstalledOa.NONE);
     } catch (IOException e) {
       log.warn("Could not look for Open Annihilation {}", release.getVersion(), e);
@@ -205,7 +249,7 @@ public class OaInstallationService {
     if (exe == null) {
       return Optional.empty();
     }
-    Optional<OaVersion> asked = askVersion(exe);
+    Optional<OaVersion> asked = versionAsker.apply(exe);
     return asked.isPresent() ? asked : detectVersionFromFiles(exe);
   }
 
@@ -420,6 +464,88 @@ public class OaInstallationService {
     }
   }
 
+  /** A copy TAF installed (or OA replaced) under {@code engines/open-annihilation/<folder>/<platform>/}. */
+  private record TafCopy(Path folder, Path exe, OaVersion version, boolean hasVersionsDir) {
+  }
+
+  /**
+   * The copy to launch for the picked release: one whose own --version is allowed and at least the picked release,
+   * the picked release's folder first. A copy outside the server's bounds, or older than the picked release, is
+   * not one.
+   */
+  private Optional<TafCopy> findTafCopy(OaMod policy, OaRelease picked, String platform) throws IOException {
+    Path root = enginesRoot();
+    if (!Files.isDirectory(root)) {
+      return Optional.empty();
+    }
+    OaVersion pickedVersion = OaVersion.find(picked.getVersion());
+    List<Path> folders;
+    try (Stream<Path> list = Files.list(root)) {
+      folders = new ArrayList<>(list.filter(Files::isDirectory)
+          .filter(dir -> !dir.getFileName().toString().equals(SELF_UPDATING))
+          .sorted(Comparator.comparing((Path dir) -> !dir.getFileName().toString().equals(picked.getVersion()))
+              .thenComparing(Comparator.comparing((Path dir) -> dir.getFileName().toString()).reversed()))
+          .toList());
+    }
+    for (Path folder : folders) {
+      Optional<Path> exe = findExecutable(folder.resolve(platform), platform);
+      if (exe.isEmpty()) {
+        continue;
+      }
+      OaVersion version = detectVersion(exe.get()).orElseGet(() -> OaVersion.find(folder.getFileName().toString()));
+      if (version == null || (policy != null && !OaPolicy.isVersionAllowed(policy, version))
+          || (pickedVersion != null && version.compareTo(pickedVersion) < 0)) {
+        continue;
+      }
+      boolean versionsDir = Files.isDirectory(folder.resolve(platform).resolve("versions"))
+          || Files.isDirectory(exe.get().getParent().resolve("versions"));
+      return Optional.of(new TafCopy(folder, exe.get(), version, versionsDir));
+    }
+    return Optional.empty();
+  }
+
+  /** A folder for a new copy of {@code version}: never one that holds an executable already (OA may own it now). */
+  private Path freshCopyDir(String version, String platform) throws IOException {
+    Path dir = enginesRoot().resolve(version);
+    for (int n = 1; findExecutable(dir.resolve(platform), platform).isPresent(); n++) {
+      dir = enginesRoot().resolve(version + "-" + n);
+    }
+    return dir.resolve(platform);
+  }
+
+  /**
+   * Notes that OA replaced a copy of ours (its --version differs from the folder name, or a versions/ folder
+   * appeared). The second distinct replacement offers, once, to switch Engine updates to Open Annihilation.
+   */
+  private void noteIfReplaced(String modTechnical, TotalAnnihilationPrefs prefs, TafCopy copy) {
+    OaVersion folderVersion = OaVersion.find(copy.folder().getFileName().toString());
+    if (!copy.hasVersionsDir() && (folderVersion == null || folderVersion.equals(copy.version()))) {
+      return;
+    }
+    String key = copy.folder().getFileName() + "=" + copy.version() + (copy.hasVersionsDir() ? "+versions" : "");
+    LinkedHashSet<String> seen = new LinkedHashSet<>();
+    String saved = prefs.getOaReplacedCopies();
+    if (!saved.isEmpty()) {
+      seen.addAll(List.of(saved.split("\\|")));
+    }
+    if (!seen.add(key)) {
+      return;
+    }
+    log.info("Open Annihilation has replaced TAF's copy {} (now {})", copy.folder(), copy.version());
+    prefs.setOaReplacedCopies(String.join("|", seen));
+    boolean offer = seen.size() >= 2 && !prefs.isOaSwitchHintShown();
+    if (offer) {
+      prefs.setOaSwitchHintShown(true);
+    }
+    preferencesService.storeInBackground();
+    if (offer) {
+      switchHint.offer(modTechnical, () -> {
+        prefs.setOaInstallation(EngineUpdates.OPEN_ANNIHILATION);
+        preferencesService.storeInBackground();
+      });
+    }
+  }
+
   private Path installRelease(OaRelease release, String platform, Path target, boolean prune) throws IOException {
     Optional<Path> existing = findExecutable(target, platform);
     if (existing.isPresent()) {
@@ -449,19 +575,32 @@ public class OaInstallationService {
       deleteRecursively(staging);
     }
     if (prune) {
-      pruneOldVersions(release.getVersion());
+      pruneOldVersions(target.getParent());
     }
     clearMacQuarantine(target);
     return findExecutable(target, platform).orElseThrow(() -> new IOException("installed executable vanished"));
   }
 
+  /**
+   * The launcher of a copy. Where OA has updated itself (Linux) the copy also holds {@code versions/<v>/open-annihilation};
+   * the launcher beside it is the one to run, so the shallowest match outside versions/ wins.
+   */
   static Optional<Path> findExecutable(Path root, String platform) throws IOException {
     if (!Files.isDirectory(root)) {
       return Optional.empty();
     }
     String name = OaPlatform.executableName(platform);
     try (Stream<Path> files = Files.walk(root, 3)) {
-      return files.filter(Files::isRegularFile).filter(p -> p.getFileName().toString().equals(name)).findFirst();
+      return files.filter(Files::isRegularFile).filter(p -> p.getFileName().toString().equals(name))
+          .min(Comparator.comparing((Path p) -> {
+            Path relative = root.relativize(p);
+            for (int i = 0; i < relative.getNameCount() - 1; i++) {
+              if (relative.getName(i).toString().equals("versions")) {
+                return 1;
+              }
+            }
+            return 0;
+          }).thenComparingInt(p -> root.relativize(p).getNameCount()).thenComparing(Path::toString));
     }
   }
 
@@ -543,17 +682,22 @@ public class OaInstallationService {
     }
   }
 
-  /** Keeps the newest few versions; the rest are garbage. */
-  private void pruneOldVersions(String keepVersion) {
+  /**
+   * Keeps the newest few copies and never {@code keepFolder} (the one about to launch). Age is what each copy's
+   * own --version says where it can tell, else its folder name: OA may have replaced the copy under an old name.
+   */
+  void pruneOldVersions(Path keepFolder) {
     Path root = enginesRoot();
     if (!Files.isDirectory(root)) {
       return;
     }
+    String platform = OaPlatform.current();
+    Path keep = keepFolder.toAbsolutePath().normalize();
     try (Stream<Path> versions = Files.list(root)) {
       versions.filter(Files::isDirectory)
-          .filter(dir -> !dir.getFileName().toString().equals(keepVersion))
+          .filter(dir -> !dir.toAbsolutePath().normalize().equals(keep))
           .filter(dir -> !dir.getFileName().toString().equals(SELF_UPDATING))
-          .sorted(Comparator.comparing((Path dir) -> OaVersion.find(dir.getFileName().toString()),
+          .sorted(Comparator.comparing((Path dir) -> copyAge(dir, platform),
               Comparator.nullsFirst(Comparator.<OaVersion>naturalOrder())).reversed())
           .skip(KEEP_VERSIONS - 1)
           .toList()
@@ -561,6 +705,21 @@ public class OaInstallationService {
     } catch (IOException e) {
       log.warn("Could not prune old Open Annihilation versions", e);
     }
+  }
+
+  private OaVersion copyAge(Path folder, String platform) {
+    try {
+      Optional<Path> exe = findExecutable(folder.resolve(platform), platform);
+      if (exe.isPresent()) {
+        Optional<OaVersion> reported = detectVersion(exe.get());
+        if (reported.isPresent()) {
+          return reported.get();
+        }
+      }
+    } catch (IOException e) {
+      log.debug("Could not tell the version of {}", folder, e);
+    }
+    return OaVersion.find(folder.getFileName().toString());
   }
 
   static void deleteRecursively(Path dir) {

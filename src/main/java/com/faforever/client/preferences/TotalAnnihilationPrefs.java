@@ -20,6 +20,9 @@ public class TotalAnnihilationPrefs {
   private final ObjectProperty<EngineUpdates> oaInstallation;
   private final ObjectProperty<Path> oaExecutablePath;
   private final StringProperty oaExtraArgs;
+  /** Copies of ours that Open Annihilation has replaced (folder=version, "|"-separated); see ADR 0002. */
+  private final StringProperty oaReplacedCopies;
+  private final BooleanProperty oaSwitchHintShown;
 
   public static final String TOTAL_ANNIHILATION_EXE = "TotalA.exe";
   public static final Path CAVEDOG_TA_PATH;
@@ -43,6 +46,8 @@ public class TotalAnnihilationPrefs {
     this.oaInstallation = new SimpleObjectProperty<>(EngineUpdates.TAF);
     this.oaExecutablePath = new SimpleObjectProperty<>();
     this.oaExtraArgs = new SimpleStringProperty("");
+    this.oaReplacedCopies = new SimpleStringProperty("");
+    this.oaSwitchHintShown = new SimpleBooleanProperty(false);
   }
 
   private TotalAnnihilationPrefs() {
@@ -54,6 +59,8 @@ public class TotalAnnihilationPrefs {
     this.oaInstallation = new SimpleObjectProperty<>(EngineUpdates.TAF);
     this.oaExecutablePath = new SimpleObjectProperty<>();
     this.oaExtraArgs = new SimpleStringProperty("");
+    this.oaReplacedCopies = new SimpleStringProperty("");
+    this.oaSwitchHintShown = new SimpleBooleanProperty(false);
   }
 
   public StringProperty getModNameProperty() { return baseGameName; }
@@ -93,6 +100,14 @@ public class TotalAnnihilationPrefs {
   public StringProperty getOaExtraArgsProperty() { return oaExtraArgs; }
   public String getOaExtraArgs() { return this.oaExtraArgs.get() == null ? "" : this.oaExtraArgs.get(); }
   public void setOaExtraArgs(String oaExtraArgs) { this.oaExtraArgs.set(oaExtraArgs); }
+
+  public StringProperty getOaReplacedCopiesProperty() { return oaReplacedCopies; }
+  public String getOaReplacedCopies() { return this.oaReplacedCopies == null || this.oaReplacedCopies.get() == null ? "" : this.oaReplacedCopies.get(); }
+  public void setOaReplacedCopies(String oaReplacedCopies) { this.oaReplacedCopies.set(oaReplacedCopies); }
+
+  public BooleanProperty getOaSwitchHintShownProperty() { return oaSwitchHintShown; }
+  public boolean isOaSwitchHintShown() { return this.oaSwitchHintShown != null && this.oaSwitchHintShown.get(); }
+  public void setOaSwitchHintShown(boolean shown) { this.oaSwitchHintShown.set(shown); }
 
   public boolean isOpenAnnihilation() {
     return getEngine() == GameEngine.OPEN_ANNIHILATION || com.faforever.client.library.LibraryGameInfo.UMBRELLA_FEATURED_MOD.equals(getBaseGameName());
