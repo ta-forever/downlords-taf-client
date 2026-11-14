@@ -129,6 +129,32 @@ public class OaToleratesReplacedCopyTest {
   }
 
   @Test
+  public void askingForTheVersionOfACopyNeverBlocksTheCallingThread() throws Exception {
+    plant("0.8.7", "0.8.14");
+    java.util.concurrent.CountDownLatch asked = new java.util.concurrent.CountDownLatch(1);
+    java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+    Thread caller = Thread.currentThread();
+    java.util.function.Function<Path, Optional<OaVersion>> slow = service.versionAsker;
+    service.versionAsker = exe -> {
+      assertThat(Thread.currentThread() == caller, is(false));
+      asked.countDown();
+      try {
+        release.await();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+      return slow.apply(exe);
+    };
+
+    java.util.concurrent.CompletableFuture<Path> future = service.ensureExecutable(MOD);
+
+    assertThat(future.isDone(), is(false));
+    assertThat(asked.await(5, java.util.concurrent.TimeUnit.SECONDS), is(true));
+    release.countDown();
+    assertThat(future.get(5, java.util.concurrent.TimeUnit.SECONDS).getFileName().toString(), is(EXE));
+  }
+
+  @Test
   public void aCopyOaReplacedWithAnAllowedNewerVersionLaunchesAsIs() throws Exception {
     Path replaced = plant("0.8.7", "0.8.14");
 

@@ -76,4 +76,16 @@ public class OaVersionRefusalTextTest {
     assertNull(OaVersionRefusalText.forNotice(notice(null, "0.8.1", "0.8.5", "0.8.9"), EngineUpdates.OPEN_ANNIHILATION, i18n));
     assertNull(OaVersionRefusalText.forNotice(notice("something_else", "0.8.1", "0.8.5", "0.8.9"), EngineUpdates.OWN_INSTALL, i18n));
   }
+
+  @Test
+  public void theServersSnakeCaseJsonBindsToTheNoticeFields() {
+    NoticeMessage m = new com.google.gson.GsonBuilder()
+        .setFieldNamingPolicy(com.google.gson.FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).create()
+        .fromJson("{\"command\":\"notice\",\"style\":\"game_join_fail\",\"text\":\"server text\","
+            + "\"reason\":\"oa_version_not_allowed\",\"your_version\":\"0.8.1\",\"min_version\":\"0.8.5\","
+            + "\"max_version\":null}", NoticeMessage.class);
+
+    assertEquals("oa.versionNotAllowed.own(0.8.1,oa.versionNotAllowed.range.min(0.8.5))",
+        OaVersionRefusalText.forNotice(m, EngineUpdates.OWN_INSTALL, i18n));
+  }
 }

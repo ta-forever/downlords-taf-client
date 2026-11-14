@@ -155,19 +155,16 @@ public class OaInstallationService {
       return CompletableFuture.failedFuture(new IllegalStateException(
           "The server offers no Open Annihilation release for " + platform + " that is allowed for " + modTechnical));
     }
-    try {
-      // OA may have replaced a copy of ours: what counts is the version it reports, not its folder name
-      Optional<TafCopy> existing = findTafCopy(policy, release, platform);
-      if (existing.isPresent()) {
-        noteIfReplaced(modTechnical, prefs, existing.get());
-        Path exe = existing.get().exe();
-        return CompletableFuture.supplyAsync(() -> exe);
-      }
-    } catch (IOException e) {
-      return CompletableFuture.failedFuture(e);
-    }
+    // Off the caller's thread: telling a copy's version runs `--version` (up to 10 s each), and the install dialog
+    // calls this on the JavaFX thread.
     return CompletableFuture.supplyAsync(() -> {
       try {
+        // OA may have replaced a copy of ours: what counts is the version it reports, not its folder name
+        Optional<TafCopy> existing = findTafCopy(policy, release, platform);
+        if (existing.isPresent()) {
+          noteIfReplaced(modTechnical, prefs, existing.get());
+          return existing.get().exe();
+        }
         Path target = freshCopyDir(release.getVersion(), platform);
         return installRelease(release, platform, target, true);
       } catch (IOException e) {
