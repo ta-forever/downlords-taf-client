@@ -38,6 +38,21 @@ public class NoticeMessage extends FafServerMessage {
    */
   private Integer gameUid;
 
+  /** Machine-readable refusal reason, e.g. "oa_version_not_allowed" (with the three version fields below). */
+  private String reason;
+  private String yourVersion;
+  private String minVersion;
+  private String maxVersion;
+
+  public String getReason() { return reason; }
+  public void setReason(String reason) { this.reason = reason; }
+  public String getYourVersion() { return yourVersion; }
+  public void setYourVersion(String yourVersion) { this.yourVersion = yourVersion; }
+  public String getMinVersion() { return minVersion; }
+  public void setMinVersion(String minVersion) { this.minVersion = minVersion; }
+  public String getMaxVersion() { return maxVersion; }
+  public void setMaxVersion(String maxVersion) { this.maxVersion = maxVersion; }
+
   public NoticeMessage() {
     super(FafServerMessageType.NOTICE);
   }
