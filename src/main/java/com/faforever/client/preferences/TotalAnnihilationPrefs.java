@@ -17,7 +17,7 @@ public class TotalAnnihilationPrefs {
   private final StringProperty commandLineOptions;
   private final ObjectProperty<AskAlwaysOrNever> autoUpdateEnable;
   private final ObjectProperty<GameEngine> engine;
-  private final ObjectProperty<OaInstallationMode> oaInstallation;
+  private final ObjectProperty<EngineUpdates> oaInstallation;
   private final ObjectProperty<Path> oaExecutablePath;
   private final StringProperty oaExtraArgs;
 
@@ -40,7 +40,7 @@ public class TotalAnnihilationPrefs {
     this.commandLineOptions = new SimpleStringProperty(commandLineOptions);
     this.autoUpdateEnable = new SimpleObjectProperty<>(autoUpdateEnable);
     this.engine = new SimpleObjectProperty<>(GameEngine.CAVEDOG);
-    this.oaInstallation = new SimpleObjectProperty<>(OaInstallationMode.TAF_MANAGED);
+    this.oaInstallation = new SimpleObjectProperty<>(EngineUpdates.TAF);
     this.oaExecutablePath = new SimpleObjectProperty<>();
     this.oaExtraArgs = new SimpleStringProperty("");
   }
@@ -51,7 +51,7 @@ public class TotalAnnihilationPrefs {
     this.commandLineOptions = new SimpleStringProperty();
     this.autoUpdateEnable = new SimpleObjectProperty<>(AskAlwaysOrNever.NEVER);
     this.engine = new SimpleObjectProperty<>(GameEngine.CAVEDOG);
-    this.oaInstallation = new SimpleObjectProperty<>(OaInstallationMode.TAF_MANAGED);
+    this.oaInstallation = new SimpleObjectProperty<>(EngineUpdates.TAF);
     this.oaExecutablePath = new SimpleObjectProperty<>();
     this.oaExtraArgs = new SimpleStringProperty("");
   }
@@ -79,11 +79,12 @@ public class TotalAnnihilationPrefs {
   public GameEngine getEngine() { return this.engine.get() == null ? GameEngine.CAVEDOG : this.engine.get(); }
   public void setEngine(GameEngine engine) { this.engine.set(engine); }
 
-  public ObjectProperty<OaInstallationMode> getOaInstallationProperty() { return oaInstallation; }
-  public OaInstallationMode getOaInstallation() {
-    return this.oaInstallation.get() == null ? OaInstallationMode.TAF_MANAGED : this.oaInstallation.get();
+  public ObjectProperty<EngineUpdates> getOaInstallationProperty() { return oaInstallation; }
+  public EngineUpdates getOaInstallation() {
+    // the property itself is null when preferences.json holds an unreadable or null value
+    return this.oaInstallation == null || this.oaInstallation.get() == null ? EngineUpdates.TAF : this.oaInstallation.get();
   }
-  public void setOaInstallation(OaInstallationMode oaInstallation) { this.oaInstallation.set(oaInstallation); }
+  public void setOaInstallation(EngineUpdates oaInstallation) { this.oaInstallation.set(oaInstallation); }
 
   public ObjectProperty<Path> getOaExecutablePathProperty() { return oaExecutablePath; }
   public Path getOaExecutablePath() { return this.oaExecutablePath.get(); }

@@ -227,6 +227,8 @@ compileTestJava {
   include '**/game/StagingUpdateRatingTypeTest.java'
   // Install dialog: the Open Annihilation engine section is shown only when the server offers it for the mod.
   include '**/mod/FeaturedModInstallControllerEngineTest.java'
+  // Engine updates setting: saved TAF_MANAGED/EXISTING preferences migrate to TAF/OWN_INSTALL.
+  include '**/preferences/EngineUpdatesMigrationTest.java'
   include '**/assetserver/**'
   // Test base classes / shared utilities — required by tests in the
   // included packages above. Don't include broken siblings of these.

@@ -1,6 +1,6 @@
 package com.faforever.client.fa.oa;
 
-import com.faforever.client.preferences.OaInstallationMode;
+import com.faforever.client.preferences.EngineUpdates;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.preferences.TotalAnnihilationPrefs;
 import com.faforever.client.update.ClientConfiguration.OaMod;
@@ -53,15 +53,30 @@ public class OaInstallationService {
   private static final int HTTP_FOLLOW_LIMIT = 5;
   private static final int KEEP_VERSIONS = 2;
 
+  /** Where {@code self-updating/<platform>/} lives under {@link #enginesRoot()}: OA's own updater owns it, TAF never prunes it. */
+  static final String SELF_UPDATING = "self-updating";
+
+  /** Streams a URL to a file and returns its lower-case hex sha256; replaceable by tests. */
+  @FunctionalInterface
+  interface Downloader {
+    String download(URL url, Path destination) throws IOException;
+  }
+
   private final PreferencesService preferencesService;
+
+  Downloader downloader = OaInstallationService::download;
+
+  Path selfUpdatingDir(String platform) {
+    return enginesRoot().resolve(SELF_UPDATING).resolve(platform);
+  }
 
   Path enginesRoot() {
     return preferencesService.getFafDataDirectory().resolve("engines").resolve("open-annihilation");
   }
 
   /**
-   * The executable to run for {@code modTechnical}: the user's own for EXISTING, the pinned download
-   * for TAF_MANAGED (downloaded now if missing). Completes exceptionally with a message fit for the user.
+   * The executable to run for {@code modTechnical}: the user's own for OWN_INSTALL, the self-updating copy for
+   * OPEN_ANNIHILATION (installed once, never touched again), the pinned download for TAF (downloaded now if missing). Completes exceptionally with a message fit for the user.
    */
   public CompletableFuture<Path> ensureExecutable(String modTechnical) {
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
@@ -70,12 +85,39 @@ public class OaInstallationService {
       return CompletableFuture.failedFuture(new IllegalStateException("Open Annihilation is not supported for " + modTechnical));
     }
 
-    if (prefs.getOaInstallation() == OaInstallationMode.EXISTING) {
+    if (prefs.getOaInstallation() == EngineUpdates.OWN_INSTALL) {
       Path exe = prefs.getOaExecutablePath();
       return CompletableFuture.supplyAsync(() -> validateExisting(exe, policy));
     }
 
     String platform = OaPlatform.current();
+    if (prefs.getOaInstallation() == EngineUpdates.OPEN_ANNIHILATION) {
+      // once installed, OA's own updater owns the folder: no download, replace or prune, whatever the server lists
+      Path dir = selfUpdatingDir(platform);
+      try {
+        Optional<Path> installed = findExecutable(dir, platform);
+        if (installed.isPresent()) {
+          Path exe = installed.get();
+          return CompletableFuture.supplyAsync(() -> validateExisting(exe, policy));
+        }
+      } catch (IOException e) {
+        return CompletableFuture.failedFuture(e);
+      }
+      OaRelease first = OaPolicy.pickRelease(preferencesService.getClientRemoteConfiguration(), modTechnical, platform)
+          .orElse(null);
+      if (first == null) {
+        return CompletableFuture.failedFuture(new IllegalStateException(
+            "The server offers no Open Annihilation release for " + platform + " that is allowed for " + modTechnical));
+      }
+      return CompletableFuture.supplyAsync(() -> {
+        try {
+          return validateExisting(installRelease(first, platform, dir, false), policy);
+        } catch (IOException e) {
+          throw new IllegalStateException("Could not install Open Annihilation " + first.getVersion() + ": " + e.getMessage(), e);
+        }
+      });
+    }
+
     OaRelease release = OaPolicy.pickRelease(preferencesService.getClientRemoteConfiguration(), modTechnical, platform)
         .orElse(null);
     if (release == null) {
@@ -84,7 +126,7 @@ public class OaInstallationService {
     }
     return CompletableFuture.supplyAsync(() -> {
       try {
-        return installRelease(release, platform);
+        return installRelease(release, platform, enginesRoot().resolve(release.getVersion()).resolve(platform), true);
       } catch (IOException e) {
         throw new IllegalStateException("Could not install Open Annihilation " + release.getVersion() + ": " + e.getMessage(), e);
       }
@@ -104,11 +146,21 @@ public class OaInstallationService {
 
   public InstalledOa findInstalled(String modTechnical) {
     TotalAnnihilationPrefs prefs = preferencesService.getTotalAnnihilation(modTechnical);
-    if (prefs.getOaInstallation() == OaInstallationMode.EXISTING) {
+    if (prefs.getOaInstallation() == EngineUpdates.OWN_INSTALL) {
       Path exe = prefs.getOaExecutablePath();
       return exe != null && Files.isRegularFile(exe) ? new InstalledOa(exe, detectVersion(exe).orElse(null)) : InstalledOa.NONE;
     }
     String platform = OaPlatform.current();
+    if (prefs.getOaInstallation() == EngineUpdates.OPEN_ANNIHILATION) {
+      try {
+        return findExecutable(selfUpdatingDir(platform), platform)
+            .map(exe -> new InstalledOa(exe, detectVersion(exe).orElse(null)))
+            .orElse(InstalledOa.NONE);
+      } catch (IOException e) {
+        log.warn("Could not look for the self-updating Open Annihilation", e);
+        return InstalledOa.NONE;
+      }
+    }
     OaRelease release = OaPolicy.pickRelease(preferencesService.getClientRemoteConfiguration(), modTechnical, platform)
         .orElse(null);
     if (release == null) {
@@ -257,7 +309,7 @@ public class OaInstallationService {
       return EngineReport.CAVEDOG;
     }
     Optional<OaVersion> version;
-    if (prefs.getOaInstallation() == OaInstallationMode.EXISTING) {
+    if (prefs.getOaInstallation() == EngineUpdates.OWN_INSTALL) {
       version = detectVersion(prefs.getOaExecutablePath());
     } else {
       // what the installed executable says it is; the release the policy would pick only before it is installed
@@ -368,8 +420,7 @@ public class OaInstallationService {
     }
   }
 
-  private Path installRelease(OaRelease release, String platform) throws IOException {
-    Path target = enginesRoot().resolve(release.getVersion()).resolve(platform);
+  private Path installRelease(OaRelease release, String platform, Path target, boolean prune) throws IOException {
     Optional<Path> existing = findExecutable(target, platform);
     if (existing.isPresent()) {
       return existing.get();
@@ -380,7 +431,7 @@ public class OaInstallationService {
     Path staging = target.resolveSibling(platform + ".part");
     try {
       log.info("Downloading Open Annihilation {} from {}", release.getVersion(), release.getUrl());
-      String sha256 = download(release.getUrl(), download);
+      String sha256 = downloader.download(release.getUrl(), download);
       if (!sha256.equalsIgnoreCase(release.getSha256().trim())) {
         throw new IOException("sha256 mismatch (expected " + release.getSha256() + ", got " + sha256 + ")");
       }
@@ -397,7 +448,9 @@ public class OaInstallationService {
       Files.deleteIfExists(download);
       deleteRecursively(staging);
     }
-    pruneOldVersions(release.getVersion());
+    if (prune) {
+      pruneOldVersions(release.getVersion());
+    }
     clearMacQuarantine(target);
     return findExecutable(target, platform).orElseThrow(() -> new IOException("installed executable vanished"));
   }
@@ -499,6 +552,7 @@ public class OaInstallationService {
     try (Stream<Path> versions = Files.list(root)) {
       versions.filter(Files::isDirectory)
           .filter(dir -> !dir.getFileName().toString().equals(keepVersion))
+          .filter(dir -> !dir.getFileName().toString().equals(SELF_UPDATING))
           .sorted(Comparator.comparing((Path dir) -> OaVersion.find(dir.getFileName().toString()),
               Comparator.nullsFirst(Comparator.<OaVersion>naturalOrder())).reversed())
           .skip(KEEP_VERSIONS - 1)
