@@ -228,6 +228,8 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
   private volatile CompletableFuture<LoginMessage> loginFuture;
   private CompletableFuture<SessionMessage> sessionFuture;
   private CompletableFuture<GameLaunchMessage> gameLaunchFuture;
+  /** Mod of the host/join request in flight; selects the Engine updates setting that words an OA version refusal. */
+  private volatile String pendingModTechnical;
   private volatile CompletableFuture<WatchTicketMessage> watchTicketFuture;
   private final ObjectProperty<Long> sessionId = new SimpleObjectProperty<>();
   private String username;
@@ -243,6 +245,14 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
 
   private void onIceServersMessage(IceServersServerMessage iceServersServerMessage) {
     iceServersFuture.complete(iceServersServerMessage.getIceServers());
+  }
+
+  private String oaVersionRefusalText(NoticeMessage noticeMessage) {
+    String mod = pendingModTechnical;
+    if (mod == null || !OaVersionRefusalText.REASON_OA_VERSION_NOT_ALLOWED.equals(noticeMessage.getReason())) {
+      return null;
+    }
+    return OaVersionRefusalText.forNotice(noticeMessage, preferencesService.getTotalAnnihilation(mod).getOaInstallation(), i18n);
   }
 
   private void onNotice(NoticeMessage noticeMessage) {
@@ -307,6 +317,10 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
     String body = noticeMessage.getI18nKey() == null
         ? noticeMessage.getText()
         : i18n.get(noticeMessage.getI18nKey());
+    String oaRefusal = oaVersionRefusalText(noticeMessage);
+    if (oaRefusal != null) {
+      body = oaRefusal;
+    }
     String title = i18n.get("messageFromServer");
 
     // Notification kind dispatch:
@@ -544,6 +558,7 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
     );
     hostGameMessage.setLibrary(newGameInfo.getLibrary());
 
+    pendingModTechnical = newGameInfo.getFeaturedMod().getTechnicalName();
     gameLaunchFuture = new CompletableFuture<>();
     writeToServer(hostGameMessage);
     return gameLaunchFuture;
@@ -554,6 +569,7 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
     EngineReport engine = oaInstallationService.engineReport(modTechnical);
     JoinGameMessage joinGameMessage = new JoinGameMessage(gameId, password, engine.engine(), engine.version());
 
+    pendingModTechnical = modTechnical;
     gameLaunchFuture = new CompletableFuture<>();
     writeToServer(joinGameMessage);
     return gameLaunchFuture;
