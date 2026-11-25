@@ -150,7 +150,7 @@ public class ClientProperties {
     public static class Upload {
       private String baseUrl = "https://api.imgur.com/3/image";
       private String clientId;
-      private int maxSize = 2097152;
+      private int maxSize = 20971520;
     }
   }
 
