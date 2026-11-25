@@ -109,8 +109,8 @@ public class FafService {
     return fafServerAccessor.connectionStateProperty();
   }
 
-  public CompletableFuture<GameLaunchMessage> requestJoinGame(int gameId, String password) {
-    return fafServerAccessor.requestJoinGame(gameId, password);
+  public CompletableFuture<GameLaunchMessage> requestJoinGame(int gameId, String password, String modTechnical) {
+    return fafServerAccessor.requestJoinGame(gameId, password, modTechnical);
   }
 
   public CompletableFuture<WatchTicketMessage> requestWatchTicket(int gameId) {
@@ -365,8 +365,11 @@ public class FafService {
     File taErrorLog = null;
     File tdrawLog = null;
     if (modTechnical != null) {
-      taErrorLog = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath().resolve("ErrorLog.txt").toFile();
-      tdrawLog = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath().resolve("tdrawlog.txt").toFile();
+      Path installedPath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledPath();
+      if (installedPath != null) { // Library games have no install folder of their own
+        taErrorLog = installedPath.resolve("ErrorLog.txt").toFile();
+        tdrawLog = installedPath.resolve("tdrawlog.txt").toFile();
+      }
     }
 
     java.util.List<File> fileList = new java.util.ArrayList<>(java.util.Arrays.asList(
@@ -378,6 +381,14 @@ public class FafService {
     // tplayx writes its own log next to TotalA.exe; it is the only place a recorder exception is
     // reported, and those can take TotalA.exe down with them (game 187889).
     fileList.addAll(collectRecentRecorderLogs(modTechnical));
+    // Open Annihilation games have no TotalA.exe logs; what OA printed, the launch file the client gave it and
+    // the status lines it reported are the equivalent (written by OaLaunchServer, named after the game id).
+    for (String name : new String[]{"oa_%d.log", "oa_%d.oalaunch", "oa_status_%d.jsonl"}) {
+      File oaFile = preferencesService.getFafLogDirectory().resolve(String.format(name, gameId)).toFile();
+      if (oaFile.isFile()) {
+        fileList.add(oaFile);
+      }
+    }
 
     File[] files = fileList.stream()
         .filter(Objects::nonNull)
@@ -655,6 +666,17 @@ public class FafService {
       findPlayersByLoginPrefix(String prefix, int limit) {
     return CompletableFuture.completedFuture(
         fafApiAccessor.findPlayersByLoginPrefix(prefix, limit));
+  }
+
+  /** One page of players (offline ones included) sorted by login; second is the total page count. */
+  @Async
+  public CompletableFuture<Tuple<List<Player>, Integer>> findPlayersByLoginPrefixWithPageCount(String prefix, int count, int page) {
+    Tuple<List<com.faforever.client.api.dto.Player>, java.util.Map<String, ?>> tuple = fafApiAccessor.findPlayersByLoginPrefixWithMeta(prefix, count, page);
+    Object pageMeta = tuple.getSecond() == null ? null : tuple.getSecond().get("page");
+    int totalPages = pageMeta instanceof java.util.Map<?, ?> map && map.get("totalPages") instanceof Number number ? number.intValue() : 0;
+    return CompletableFuture.completedFuture(new Tuple<>(tuple.getFirst().stream()
+        .map(Player::fromDto)
+        .collect(toList()), totalPages));
   }
 
   @Async

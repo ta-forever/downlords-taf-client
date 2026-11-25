@@ -15,6 +15,13 @@ import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewOverlayType;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.map.MapSize;
+import com.faforever.client.library.LibraryGameInfo;
+import com.faforever.client.library.LibraryMapPreviewService;
+import com.faforever.client.library.LibraryMod;
+import com.faforever.client.library.LibraryPrompts;
+import com.faforever.client.library.LibrarySnapshot;
+import com.faforever.client.library.LibraryService;
+import com.faforever.client.library.OaContentListing.ListedMap;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.mod.ModService;
 import com.faforever.client.notification.Action;
@@ -35,6 +42,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import javafx.application.Platform;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
@@ -45,6 +53,7 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.css.PseudoClass;
 import javafx.event.ActionEvent;
@@ -133,6 +142,19 @@ public class CreateGameController implements Controller<Pane> {
   private final UiService uiService;
   private final EventBus eventBus;
   private final PlatformService platformService;
+  private final LibraryService libraryService;
+  /** Held strongly; the service only keeps a weak reference to it. */
+  private javafx.beans.value.ChangeListener<LibrarySnapshot> librarySnapshotListener;
+  private final LibraryPrompts libraryPrompts;
+  /** Section header entries ("Open Annihilation Library") in the mod list: shown, never selectable. */
+  private final java.util.Set<FeaturedMod> libraryHeaders = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+  private final LibraryMapPreviewService libraryMapPreviewService;
+  /** The installed Library mods offered below the featured mods, each as a pseudo featured mod "oalibrary". */
+  private final Map<FeaturedMod, LibraryMod> libraryEntries = new java.util.IdentityHashMap<>();
+  /** The selectable stand-in shown when OA is ready but offers no Library mods; never hostable. */
+  private FeaturedMod libraryPlaceholder;
+  /** Shown names of the selected Library mod maps, by key (name@pack for pack maps). */
+  private final Map<String, String> libraryMapShownNames = new HashMap<>();
 
   public Label mapSizeLabel;
   public Label mapPlayersLabel;
@@ -146,6 +168,9 @@ public class CreateGameController implements Controller<Pane> {
   public TextField maxRankingTextField;
   public CheckBox enforceRankingCheckBox;
   public ListView<FeaturedMod> featuredModListView;
+  public HBox libraryNoticeBox;
+  public Label libraryNoticeLabel;
+  public Button libraryOpenOaButton;
   public ListView<MapBean> mapListView;
   public StackPane createGameRoot;
   public Button createGameButton;
@@ -168,6 +193,7 @@ public class CreateGameController implements Controller<Pane> {
   public ComboBox<LiveReplayOption> liveReplayOptionComboBox;
   public ListView<MatchmakingQueue> mapPoolListView;
 
+  public HBox rankedEnabledContainer;
   public CheckBox rankedEnabledCheckBox;
   public Label rankedEnabledLabel;
   public Button openGameFolderButton;
@@ -593,6 +619,8 @@ public class CreateGameController implements Controller<Pane> {
         return i18n.get("game.create.titleIllegal");
       } else if (featuredModListView.getSelectionModel().getSelectedItem() == null) {
         return i18n.get("game.create.featuredModMissing");
+      } else if (isLibraryPlaceholder(featuredModListView.getSelectionModel().getSelectedItem())) {
+        return i18n.get("game.create.libraryNoneSelected");
       } else if (mapListView.getSelectionModel().getSelectedItem() == null) {
         return i18n.get("game.create.mapMissing");
       }
@@ -671,7 +699,15 @@ public class CreateGameController implements Controller<Pane> {
             .or(fafService.connectionStateProperty().isNotEqualTo(CONNECTED))
             .or(mapListView.getSelectionModel().selectedItemProperty().isNull())
             .or(modVersionUpdateCompletedProperty.not())
-            .or(mapPoolListView.getSelectionModel().selectedItemProperty().isNull())
+            .or(Bindings.createBooleanBinding(
+                () -> isLibraryPlaceholder(featuredModListView.getSelectionModel().getSelectedItem()),
+                featuredModListView.getSelectionModel().selectedItemProperty()))
+            // Library mods have no map pool (they list OA's maps and are always unrated), so none is selected
+            .or(Bindings.createBooleanBinding(
+                () -> mapPoolListView.getSelectionModel().getSelectedItem() == null
+                    && !libraryEntries.containsKey(featuredModListView.getSelectionModel().getSelectedItem()),
+                mapPoolListView.getSelectionModel().selectedItemProperty(),
+                featuredModListView.getSelectionModel().selectedItemProperty()))
     );
     interactionLevelProperty.bind(Bindings.createStringBinding(
         this::calcInteractionLevel, gameService.getCurrentGameStatusProperty(), contextGameProperty, selectGalacticWarMapEvent));
@@ -810,7 +846,8 @@ public class CreateGameController implements Controller<Pane> {
 
   protected void initMapSelection(String modTechnical) {
     setAvailableMaps(modTechnical);
-    mapListView.setCellFactory(param -> new StringListCell<>(MapBean::getMapName));
+    mapListView.setCellFactory(param -> new StringListCell<>(
+        mapBean -> libraryMapShownNames.getOrDefault(mapBean.getMapName(), mapBean.getMapName())));
     ChangeListener<MapBean> selectedMapChangeListener = (observable, oldValue, newValue) -> JavaFxUtil.runLater(() -> {
       PreviewType previewType = mapPreviewTypeComboBox.getSelectionModel().getSelectedItem();
       PreviewOverlayType previewOverlayType = mapPreviewOverlayComboBox.getSelectionModel().getSelectedItem();
@@ -823,6 +860,17 @@ public class CreateGameController implements Controller<Pane> {
   final Map<String, FilteredList<MapBean> > filteredMapBeansByMod = new HashMap<>();
   final Map<String, FilteredList<MapBean> > filteredMapBeansByQueue = new HashMap<>();
   protected void setAvailableMaps(String modTechnical) {
+    if (isLibraryPlaceholder(featuredModListView.getSelectionModel().getSelectedItem())) {
+      libraryMapShownNames.clear();
+      loadingMapsProperty.set(false);
+      doSetAvailableMaps(modTechnical, new FilteredList<>(FXCollections.observableArrayList()));
+      return;
+    }
+    if (LibraryGameInfo.isLibraryMod(modTechnical)) {
+      setAvailableLibraryMaps();
+      return;
+    }
+    libraryMapShownNames.clear();
     if (rankedEnabledCheckBox.isSelected() && mapPoolListView.getSelectionModel().getSelectedItem() != null &&
         !mapService.getInstalledMaps(modTechnical).isEmpty()) {
       MatchmakingQueue selectedQueue = mapPoolListView.getSelectionModel().getSelectedItem();
@@ -869,13 +917,48 @@ public class CreateGameController implements Controller<Pane> {
     }
   }
 
+  /** The maps OA has for the selected Library mod content (not the TAF map vault). */
+  private void setAvailableLibraryMaps() {
+    LibraryMod mod = libraryEntries.get(featuredModListView.getSelectionModel().getSelectedItem());
+    if (mod == null) {
+      return;
+    }
+    loadingMapsProperty.set(true);
+    libraryService.mapsFor(mod).thenAccept(maps -> JavaFxUtil.runLater(() -> {
+      libraryMapShownNames.clear();
+      List<MapBean> beans = new ArrayList<>();
+      for (ListedMap map : maps) {
+        MapBean bean = new MapBean();
+        bean.setMapName(map.key());
+        bean.setType(MapBean.Type.SKIRMISH);
+        bean.setPlayers(map.players());
+        libraryMapShownNames.put(map.key(), map.shownName());
+        beans.add(bean);
+      }
+      beans.sort((a, b) -> libraryMapShownNames.get(a.getMapName())
+          .compareToIgnoreCase(libraryMapShownNames.get(b.getMapName())));
+      FilteredList<MapBean> items = new FilteredList<>(FXCollections.observableArrayList(beans));
+      filteredMapBeans = items;
+      setFilteredMapBeansPredicate(mapSearchTextField.getText());
+      mapListView.setItems(items);
+      selectAppropriateMap();
+      loadingMapsProperty.set(false);
+    })).exceptionally(throwable -> {
+      log.warn("Could not list the maps of {}", mod.id(), throwable);
+      JavaFxUtil.runLater(() -> loadingMapsProperty.set(false));
+      notificationService.addImmediateErrorNotification(throwable, "game.create.failed");
+      return null;
+    });
+  }
+
   protected void doSetAvailableMaps(String modTechnical, FilteredList<MapBean> items) {
     JavaFxUtil.runLater(() -> {
       filteredMapBeans = items;
       setFilteredMapBeansPredicate(mapSearchTextField.getText());
 
       Path installedExePath = preferencesService.getTotalAnnihilation(modTechnical).getInstalledExePath();
-      if (items.isEmpty() && installedExePath != null && Files.isExecutable(installedExePath)) {
+      if (items.isEmpty() && installedExePath != null && Files.isExecutable(installedExePath)
+          && !isLibraryPlaceholder(featuredModListView.getSelectionModel().getSelectedItem())) {
         mapListView.setItems(mapService.getOfficialMaps());
       } else {
         mapListView.setItems(items);
@@ -933,6 +1016,18 @@ public class CreateGameController implements Controller<Pane> {
       setMapPreviewPaneBackground(mapPreviewOverlayPane, null);
       return;
     }
+    FeaturedMod selectedMod = featuredModListView.getSelectionModel().getSelectedItem();
+    if (isLibraryPlaceholder(selectedMod)) {
+      mapPreview.setVisible(false);
+      setMapPreviewPaneBackground(mapPreviewOverlayPane, null);
+      return;
+    }
+    if (selectedMod != null && LibraryGameInfo.isLibraryMod(selectedMod.getTechnicalName())) {
+      setSelectedLibraryMap(libraryEntries.get(selectedMod), newValue,
+          Optional.ofNullable(previewType).orElse(PreviewType.MINI),
+          Optional.ofNullable(previewOverlayType).orElse(PreviewOverlayType.NONE), maxNumPlayers);
+      return;
+    }
     mapPreview.setVisible(true);
     previewType = Optional.ofNullable(previewType).orElse(PreviewType.MINI);
     previewOverlayType = Optional.ofNullable(previewOverlayType).orElse(PreviewOverlayType.NONE);
@@ -970,6 +1065,52 @@ public class CreateGameController implements Controller<Pane> {
     } else {
       versionLabel.setText(i18n.get("map.versionFormat", mapVersion));
     }
+  }
+
+  /**
+   * Shows a Library mod map. Its preview comes from {@link LibraryMapPreviewService} (maptool on the Library
+   * folders, a TAF map of the same name, the registry's PNG), so it arrives later and may not exist, in which
+   * case the pane stays empty. The vault knows nothing else about these maps beyond what OA listed.
+   */
+  private void setSelectedLibraryMap(LibraryMod mod, MapBean map, PreviewType previewType,
+                                     PreviewOverlayType overlayType, int maxNumPlayers) {
+    mapPreview.setVisible(true);
+    setMapPreviewPaneBackground(mapPreviewPane, null);
+    setMapPreviewPaneBackground(mapPreviewOverlayPane, null);
+    preferencesService.getPreferences().getLastGame().setLastMap(map.getMapName());
+    preferencesService.storeInBackground();
+
+    mapSizeLabel.setText("");
+    setSignedMapStatLabel(mapWindLabel, "", "mapPreview.wind");
+    setSignedMapStatLabel(mapTidalLabel, "", "mapPreview.tidal");
+    mapPlayersLabel.setText(i18n.number(map.getPlayers()));
+    mapDescriptionLabel.setText("");
+    versionLabel.setVisible(false);
+    MapBean titled = new MapBean();
+    titled.setMapName(libraryMapShownNames.getOrDefault(map.getMapName(), map.getMapName()));
+    setMapTitleLabels(titled);
+
+    if (mod == null) {
+      return;
+    }
+    libraryMapPreviewService.loadPreview(mod.id(), mod.registry(), map.getMapName(), previewType)
+        .thenAccept(image -> JavaFxUtil.runLater(() -> {
+          if (isSelectedLibraryMap(map)) {
+            setMapPreviewPaneBackground(mapPreviewPane, image.orElse(null));
+          }
+        }));
+    // approximate: maptool reads the Library folders one layer at a time
+    libraryMapPreviewService.loadOverlay(mod.id(), map.getMapName(), overlayType, maxNumPlayers)
+        .thenAccept(image -> JavaFxUtil.runLater(() -> {
+          if (isSelectedLibraryMap(map)) {
+            setMapPreviewPaneBackground(mapPreviewOverlayPane, image.orElse(null));
+          }
+        }));
+  }
+
+  private boolean isSelectedLibraryMap(MapBean map) {
+    MapBean current = mapListView.getSelectionModel().getSelectedItem();
+    return current != null && current.getMapName().equals(map.getMapName());
   }
 
   private String formatMapDescription(String description) {
@@ -1054,19 +1195,35 @@ public class CreateGameController implements Controller<Pane> {
         Objects.equals(mod.getTechnicalName(), KnownFeaturedMod.DEFAULT.getTechnicalName()) ?
             " " + i18n.get("game.create.defaultGameTypeMarker") : null;
 
+    Function<FeaturedMod, String> modMarker = mod -> libraryEntries.containsKey(mod)
+        ? " [" + i18n.get("game.create.libraryBadge") + "]" : isDefaultModString.apply(mod);
+
     featuredModListView.setCellFactory(param ->
         new DualStringListCell<>(
             FeaturedMod::getDisplayName,
-            isDefaultModString,
+            modMarker,
             FeaturedMod::getDescription,
             STYLE_CLASS_DUAL_LIST_CELL, uiService
-        )
+        ) {
+          @Override
+          protected void updateItem(FeaturedMod item, boolean empty) {
+            super.updateItem(item, empty);
+            setDisable(!empty && libraryHeaders.contains(item));
+          }
+        }
     );
 
     modService.getFeaturedMods().thenAccept(featuredModBeans -> JavaFxUtil.runLater(() -> {
-      featuredModListView.setItems(FXCollections.observableList(featuredModBeans).filtered(FeaturedMod::isVisible));
+      ObservableList<FeaturedMod> modSource = FXCollections.observableArrayList(featuredModBeans);
+      featuredModListView.setItems(modSource.filtered(FeaturedMod::isVisible));
+      offerLibraryMods(modSource);
       featuredModListView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-        if (newValue != null) {
+        if (newValue != null && libraryHeaders.contains(newValue)) {
+          // a section header: step over it in the direction of travel
+          int headerIndex = featuredModListView.getItems().indexOf(newValue);
+          int oldIndex = oldValue == null ? -1 : featuredModListView.getItems().indexOf(oldValue);
+          JavaFxUtil.runLater(() -> featuredModListView.getSelectionModel().select(oldIndex > headerIndex ? headerIndex - 1 : headerIndex + 1));
+        } else if (newValue != null) {
           JavaFxUtil.runLater(() -> setButtonStatesForFeaturedMod(newValue));
         }
       });
@@ -1074,7 +1231,137 @@ public class CreateGameController implements Controller<Pane> {
     }));
   }
 
+  /**
+   * Adds one entry per installed Library mod below the featured mods. Each entry is a pseudo featured mod
+   * "oalibrary" named after the Library mod; picking one lists the OA maps for that mod and hosts an unrated OA game.
+   */
+  private void offerLibraryMods(ObservableList<FeaturedMod> modSource) {
+    // the snapshot changes when OA is closed after its first-run setup, so render on every change, not once
+    librarySnapshotListener = (observable, oldValue, newValue) -> {
+      if (newValue != null) {
+        JavaFxUtil.runLater(() -> renderLibrary(modSource, newValue));
+      }
+    };
+    libraryService.snapshotProperty().addListener(new javafx.beans.value.WeakChangeListener<>(librarySnapshotListener));
+    libraryService.refresh(true).exceptionally(throwable -> {
+      log.info("Open Annihilation Library mods are not offered: {}", throwable.getMessage());
+      return null;
+    });
+  }
+
+  /**
+   * Called each time the dialog is shown: this controller lives for the whole session, so the Library would
+   * otherwise stay as it was at the first open. Never downloads (the first open already may).
+   */
+  public void recheckLibrary() {
+    if (librarySnapshotListener != null) {
+      libraryService.refresh(false).exceptionally(throwable -> {
+        log.info("Open Annihilation Library re-check failed: {}", throwable.getMessage());
+        return null;
+      });
+    }
+  }
+
+  /** Replaces the Library section (header and entries) and the notice with what the snapshot says, keeping the selection. */
+  private void renderLibrary(ObservableList<FeaturedMod> modSource, LibrarySnapshot snapshot) {
+    FeaturedMod selected = featuredModListView.getSelectionModel().getSelectedItem();
+    LibraryMod selectedLibraryMod = libraryEntries.get(selected);
+    boolean placeholderWasSelected = isLibraryPlaceholder(selected);
+    LibraryPrompts.EntryPlan plan = LibraryPrompts.entryPlan(snapshot);
+    modSource.removeAll(libraryHeaders);
+    modSource.removeAll(libraryEntries.keySet());
+    if (libraryPlaceholder != null) {
+      modSource.remove(libraryPlaceholder);
+      libraryPlaceholder = null;
+    }
+    libraryHeaders.clear();
+    libraryEntries.clear();
+    showLibraryNotice(snapshot, plan);
+    FeaturedMod reselect = null;
+    if (plan.header()) {
+      FeaturedMod header = new FeaturedMod();
+      header.setTechnicalName("");
+      header.setDisplayName(i18n.get("game.create.libraryHeader"));
+      header.setDescription("");
+      header.setVisible(true);
+      libraryHeaders.add(header);
+      modSource.add(header);
+    }
+    if (plan.placeholder()) {
+      libraryPlaceholder = new FeaturedMod();
+      libraryPlaceholder.setTechnicalName(LibraryGameInfo.UMBRELLA_FEATURED_MOD);
+      libraryPlaceholder.setDisplayName(i18n.get("game.create.libraryPlaceholder"));
+      libraryPlaceholder.setDescription(i18n.get("game.create.libraryPlaceholderDescription"));
+      libraryPlaceholder.setVisible(true);
+      modSource.add(libraryPlaceholder);
+      if (placeholderWasSelected) {
+        reselect = libraryPlaceholder;
+      }
+    }
+    for (LibraryMod mod : plan.mods()) {
+      FeaturedMod entry = new FeaturedMod();
+      entry.setTechnicalName(LibraryGameInfo.UMBRELLA_FEATURED_MOD);
+      entry.setDisplayName(mod.version().isBlank() ? mod.name() : mod.name() + " " + mod.version());
+      entry.setDescription(i18n.get("game.create.libraryDescription"));
+      entry.setVisible(true);
+      libraryEntries.put(entry, mod);
+      modSource.add(entry);
+      if (selectedLibraryMod != null && selectedLibraryMod.id().equals(mod.id())
+          && selectedLibraryMod.version().equals(mod.version())) {
+        reselect = entry;
+      }
+    }
+    if (reselect != null) {
+      featuredModListView.getSelectionModel().select(reselect);
+    } else if (selectedLibraryMod != null || placeholderWasSelected) {
+      selectLastOrDefaultGameType();
+    }
+  }
+
+  /** Whether the entry is the stand-in shown when no Library mods are installed (it can never be hosted). */
+  private boolean isLibraryPlaceholder(FeaturedMod mod) {
+    return mod != null && mod == libraryPlaceholder;
+  }
+
+  /** Says why the Library section offers nothing (no OA, OA not allowed, first-run setup not done). */
+  private void showLibraryNotice(LibrarySnapshot snapshot, LibraryPrompts.EntryPlan plan) {
+    String notice = plan.placeholder()
+        ? i18n.get("game.create.libraryNotice.noMods")
+        : libraryPrompts.noticeFor(snapshot.readiness());
+    libraryNoticeLabel.setText(notice);
+    libraryNoticeBox.setVisible(notice != null);
+    libraryNoticeBox.setManaged(notice != null);
+    boolean openOa = notice != null && (plan.placeholder() || libraryPrompts.offersOpenOa(snapshot.readiness()));
+    libraryOpenOaButton.setVisible(openOa);
+    libraryOpenOaButton.setManaged(openOa);
+  }
+
+  public void onLibraryOpenOaClicked(ActionEvent actionEvent) {
+    libraryPrompts.openOa();
+  }
+
   private void setButtonStatesForFeaturedMod(FeaturedMod featuredMod) {
+    if (isLibraryPlaceholder(featuredMod)) {
+      mapPoolListView.getItems().clear();
+      setAvailableMaps(featuredMod.getTechnicalName());
+      // nothing to host: the install button's spot offers Open Annihilation, to install a Library mod
+      installGameButton.setVisible(true);
+      installGameButton.setStyle("-fx-background-color: -fx-accent");
+      installGameButton.setText(i18n.get("library.prompt.openOa"));
+      openGameFolderButton.setVisible(false);
+      return;
+    }
+    if (libraryEntries.containsKey(featuredMod)) {
+      mapPoolListView.getItems().clear();
+      setAvailableMaps(featuredMod.getTechnicalName());
+      // the install button's spot offers Open Annihilation instead, to add Library mods and maps
+      installGameButton.setVisible(true);
+      installGameButton.setStyle("-fx-background-color: -fx-background");
+      installGameButton.setText(i18n.get("library.prompt.openOa"));
+      openGameFolderButton.setVisible(false);
+      return;
+    }
+    installGameButton.setVisible(true);
     setAvailableMapPools(featuredMod.getTechnicalName());
     setAvailableMaps(featuredMod.getTechnicalName());
     Path installedExePath = preferencesService.getTotalAnnihilation(featuredMod.getTechnicalName()).getInstalledExePath();
@@ -1092,7 +1379,15 @@ public class CreateGameController implements Controller<Pane> {
     mapPoolListView.setCellFactory(param ->
         new StringListCell<>((q) -> i18n.get(q.getLeaderboard().getNameKey()))
     );
-    mapPoolListView.visibleProperty().bind(rankedEnabledCheckBox.selectedProperty());
+    // Library games are always unrated: there is no ranked choice and no map pool to offer
+    BooleanBinding libraryModSelected = Bindings.createBooleanBinding(() -> {
+      FeaturedMod selected = featuredModListView.getSelectionModel().getSelectedItem();
+      return selected != null && (isLibraryPlaceholder(selected) || LibraryGameInfo.isLibraryMod(selected.getTechnicalName()));
+    }, featuredModListView.getSelectionModel().selectedItemProperty());
+    rankedEnabledContainer.visibleProperty().bind(libraryModSelected.not());
+    rankedEnabledContainer.managedProperty().bind(rankedEnabledContainer.visibleProperty());
+    mapPoolListView.visibleProperty().bind(rankedEnabledCheckBox.selectedProperty().and(libraryModSelected.not()));
+    mapPoolListView.managedProperty().bind(mapPoolListView.visibleProperty());
     rankedEnabledCheckBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
       if (featuredModListView.getSelectionModel().getSelectedItem() != null) {
         setAvailableMaps(featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName());
@@ -1190,7 +1485,7 @@ public class CreateGameController implements Controller<Pane> {
     }
 
     for (FeaturedMod mod : featuredModListView.getItems()) {
-      if (Objects.equals(mod.getTechnicalName(), lastGameMod)) {
+      if (!isLibraryPlaceholder(mod) && Objects.equals(mod.getTechnicalName(), lastGameMod)) {
         featuredModListView.getSelectionModel().select(mod);
         featuredModListView.scrollTo(mod);
         break;
@@ -1205,9 +1500,14 @@ public class CreateGameController implements Controller<Pane> {
   }
 
   public void onCreateButtonClicked() {
+    if (isLibraryPlaceholder(featuredModListView.getSelectionModel().getSelectedItem())) {
+      return;
+    }
     MapBean selectedMap = mapListView.getSelectionModel().getSelectedItem();
     onCloseButtonClicked();
-    if (mapService.isOfficialMap(selectedMap.getMapName())) {
+    if (libraryEntries.containsKey(featuredModListView.getSelectionModel().getSelectedItem())) {
+      hostLibraryGame(selectedMap);
+    } else if (mapService.isOfficialMap(selectedMap.getMapName())) {
       hostGame(selectedMap);
     } else {
       String modTechnical = featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName();
@@ -1219,6 +1519,39 @@ public class CreateGameController implements Controller<Pane> {
             .thenApply(ensuredMap -> ensuredMap == null ? selectedMap : ensuredMap)
             .thenAccept(this::hostGame);
     }
+  }
+
+  /** Hosts an unrated OA game of the selected Library mod, sending the mod identity and sim hash with it. */
+  private void hostLibraryGame(MapBean map) {
+    FeaturedMod entry = featuredModListView.getSelectionModel().getSelectedItem();
+    LibraryMod mod = libraryEntries.get(entry);
+    // checks the player's OA and the mod once more (it may have changed since the dialog opened) and explains if not
+    libraryPrompts.checkHost(mod, () -> hostLibraryGame(map, entry, mod));
+  }
+
+  private void hostLibraryGame(MapBean map, FeaturedMod entry, LibraryMod mod) {
+    libraryService.hostInfo(mod)
+        .thenCompose(info -> gameService.hostGame(new NewGameInfo(
+            titleTextField.getText(),
+            Strings.emptyToNull(passwordTextField.getText()),
+            entry,
+            null,
+            map.getMapName(),
+            emptySet(),
+            onlyForFriendsCheckBox.isSelected() ? GameVisibility.PRIVATE : GameVisibility.PUBLIC,
+            null,
+            null,
+            false,
+            liveReplayOptionComboBox.getSelectionModel().getSelectedItem().getDelaySeconds(),
+            DEFAULT_RATING_TYPE,
+            null,
+            maxPlayersComboBox.getValue(),
+            info)))
+        .exceptionally(throwable -> {
+          log.warn("Library game could not be hosted", throwable);
+          notificationService.addImmediateErrorNotification(throwable, "game.create.failed");
+          return null;
+        });
   }
 
   private void hostGame(MapBean map) {
@@ -1265,7 +1598,28 @@ public class CreateGameController implements Controller<Pane> {
     }
   }
 
+  /** Updating the staging game of an Open Annihilation Library mod. */
+  private boolean isLibraryStagingUpdate() {
+    Game current = gameService.getCurrentGame();
+    return "UPDATE".equals(interactionLevelProperty.get()) && current != null
+        && LibraryGameInfo.isLibraryMod(current.getFeaturedMod());
+  }
+
+  /**
+   * The rating type an Update of a staging game sends. A Library game is always unrated and has no map pools (the
+   * ranked box stays ticked but disabled), and a ranked game whose pool selection is empty falls back to global.
+   */
+  static String stagingRatingType(boolean libraryUpdate, boolean rankedEnabled, @javax.annotation.Nullable MatchmakingQueue selectedPool) {
+    if (libraryUpdate || !rankedEnabled || selectedPool == null) {
+      return DEFAULT_RATING_TYPE;
+    }
+    return selectedPool.getLeaderboard().getTechnicalName();
+  }
+
   public void onUpdateButtonClicked() {
+    if (isLibraryPlaceholder(featuredModListView.getSelectionModel().getSelectedItem())) {
+      return;
+    }
 
     if (this.selectGalacticWarMapEvent.get() != null) {
       Optional<MapBean> selectedMap = getCurrentSelectedMap();
@@ -1306,20 +1660,32 @@ public class CreateGameController implements Controller<Pane> {
       maxRating = null;
     }
 
-    mapService.optionalEnsureMap(
-        featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(),
-        mapListView.getSelectionModel().getSelectedItem(), null, null)
+    MapBean selectedMap = mapListView.getSelectionModel().getSelectedItem();
+    boolean libraryUpdate = isLibraryStagingUpdate();
+    // Read the dialog now, on the FX thread: whatever is read inside the callback below fails silently
+    String ratingType = stagingRatingType(libraryUpdate, rankedEnabledCheckBox.isSelected(),
+        mapPoolListView.getSelectionModel().getSelectedItem());
+    String title = titleTextField.getText();
+    LiveReplayOption liveReplayOption = liveReplayOptionComboBox.getSelectionModel().getSelectedItem();
+    String password = passwordTextField.getText();
+    Integer maxPlayers = maxPlayersComboBox.getValue();
+
+    // A Library game's map is OA's, not a TAF map to download
+    java.util.concurrent.CompletableFuture<?> mapReady = libraryUpdate
+        ? java.util.concurrent.CompletableFuture.completedFuture(null)
+        : mapService.optionalEnsureMap(
+            featuredModListView.getSelectionModel().getSelectedItem().getTechnicalName(),
+            selectedMap, null, null);
+    mapReady
         .thenRun(() -> gameService.updateSettingsForStagingGame(
-            titleTextField.getText(),
-            mapListView.getSelectionModel().getSelectedItem().getMapName(),
-            rankedEnabledCheckBox.isSelected()
-                ? mapPoolListView.getSelectionModel().getSelectedItem().getLeaderboard().getTechnicalName()
-                : DEFAULT_RATING_TYPE,
-            liveReplayOptionComboBox.getSelectionModel().getSelectedItem(),
-            passwordTextField.getText(),
-            maxPlayersComboBox.getValue(),
+            title, selectedMap.getMapName(), ratingType, liveReplayOption, password, maxPlayers,
             enforceRating, minRating, maxRating
-            ));
+            ))
+        .exceptionally(throwable -> {
+          log.warn("Game settings could not be updated", throwable);
+          notificationService.addImmediateErrorNotification(throwable, "game.create.failed");
+          return null;
+        });
 
     // Apply reserved-slots state. The checkbox toggle handler doesn't send
     // anything to the server (it'd be too eager); we batch the apply here on
@@ -1465,6 +1831,10 @@ public class CreateGameController implements Controller<Pane> {
     FeaturedMod fm = null;
     if (featuredModListView.getSelectionModel().getSelectedItem() != null) {
       fm = featuredModListView.getSelectionModel().getSelectedItem();
+    }
+    if (fm != null && (libraryEntries.containsKey(fm) || isLibraryPlaceholder(fm))) {
+      libraryPrompts.openOa();
+      return;
     }
     if (fm != null) {
       CompletableFuture<Path> future = new CompletableFuture();

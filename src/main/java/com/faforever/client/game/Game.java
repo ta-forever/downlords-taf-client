@@ -1,6 +1,7 @@
 package com.faforever.client.game;
 
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.library.LibraryGameInfo;
 import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.GameType;
 import com.faforever.client.remote.domain.VictoryCondition;
@@ -43,6 +44,8 @@ public class Game {
   private final StringProperty mapArchiveName;
   private final StringProperty featuredMod;
   private final StringProperty featuredModVersion;
+  /** Set for Library mod games (featured mod "oalibrary"), else null. */
+  private final ObjectProperty<LibraryGameInfo> library;
   private final IntegerProperty id;
   private final IntegerProperty numPlayers;
   private final IntegerProperty maxPlayers;
@@ -107,6 +110,7 @@ public class Game {
     mapArchiveName = new SimpleStringProperty();
     featuredMod = new SimpleStringProperty();
     featuredModVersion = new SimpleStringProperty();
+    library = new SimpleObjectProperty<>();
     numPlayers = new SimpleIntegerProperty();
     maxPlayers = new SimpleIntegerProperty();
     averageRating = new SimpleDoubleProperty(0);
@@ -266,6 +270,24 @@ public class Game {
 
   public StringProperty featuredModProperty() {
     return featuredMod;
+  }
+
+  public LibraryGameInfo getLibrary() {
+    return library.get();
+  }
+
+  public void setLibrary(LibraryGameInfo library) {
+    this.library.set(library);
+  }
+
+  public ObjectProperty<LibraryGameInfo> libraryProperty() {
+    return library;
+  }
+
+  /** The mod name the game list shows: the Library mod's name and version, else the featured mod's own name. */
+  public String getModDisplayName(String featuredModDisplayName) {
+    LibraryGameInfo info = library.get();
+    return info != null ? info.displayLabel() : featuredModDisplayName;
   }
 
   public String getFeaturedModVersion() {

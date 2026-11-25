@@ -4,11 +4,24 @@ public class JoinGameMessage extends ClientMessage {
 
   private Integer uid;
   private String password;
+  /** "cavedog" or "oa"; null from clients that predate engine reporting. */
+  private String engine;
+  private String engineVersion;
 
-  public JoinGameMessage(int uid, String password) {
+  public JoinGameMessage(int uid, String password, String engine, String engineVersion) {
     super(ClientMessageType.JOIN_GAME);
     this.setUid(uid);
     this.setPassword(password);
+    this.engine = engine;
+    this.engineVersion = engineVersion;
+  }
+
+  public String getEngine() {
+    return engine;
+  }
+
+  public String getEngineVersion() {
+    return engineVersion;
   }
 
   public Integer getUid() {

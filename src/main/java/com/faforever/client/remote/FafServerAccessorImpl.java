@@ -27,6 +27,8 @@ import com.faforever.client.notification.PersistentNotification;
 import com.faforever.client.notification.Severity;
 import com.faforever.client.notification.TransientNotification;
 import com.faforever.client.player.Player;
+import com.faforever.client.fa.oa.OaInstallationService;
+import com.faforever.client.fa.oa.OaInstallationService.EngineReport;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.rankedmatch.MatchmakerInfoClientMessage;
 import com.faforever.client.remote.domain.AcceptPartyInviteMessage;
@@ -205,6 +207,7 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
   private final HashMap<Class<? extends ServerMessage>, Collection<Consumer<ServerMessage>>> messageListeners = new HashMap<>();
 
   private final PreferencesService preferencesService;
+  private final OaInstallationService oaInstallationService;
   private final UidService uidService;
   private final NotificationService notificationService;
   private final I18n i18n;
@@ -225,6 +228,8 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
   private volatile CompletableFuture<LoginMessage> loginFuture;
   private CompletableFuture<SessionMessage> sessionFuture;
   private CompletableFuture<GameLaunchMessage> gameLaunchFuture;
+  /** Mod of the host/join request in flight; selects the Engine updates setting that words an OA version refusal. */
+  private volatile String pendingModTechnical;
   private volatile CompletableFuture<WatchTicketMessage> watchTicketFuture;
   private final ObjectProperty<Long> sessionId = new SimpleObjectProperty<>();
   private String username;
@@ -240,6 +245,14 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
 
   private void onIceServersMessage(IceServersServerMessage iceServersServerMessage) {
     iceServersFuture.complete(iceServersServerMessage.getIceServers());
+  }
+
+  private String oaVersionRefusalText(NoticeMessage noticeMessage) {
+    String mod = pendingModTechnical;
+    if (mod == null || !OaVersionRefusalText.REASON_OA_VERSION_NOT_ALLOWED.equals(noticeMessage.getReason())) {
+      return null;
+    }
+    return OaVersionRefusalText.forNotice(noticeMessage, preferencesService.getTotalAnnihilation(mod).getOaInstallation(), i18n);
   }
 
   private void onNotice(NoticeMessage noticeMessage) {
@@ -304,6 +317,10 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
     String body = noticeMessage.getI18nKey() == null
         ? noticeMessage.getText()
         : i18n.get(noticeMessage.getI18nKey());
+    String oaRefusal = oaVersionRefusalText(noticeMessage);
+    if (oaRefusal != null) {
+      body = oaRefusal;
+    }
     String title = i18n.get("messageFromServer");
 
     // Notification kind dispatch:
@@ -519,6 +536,7 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
 
   @Override
   public CompletableFuture<GameLaunchMessage> requestHostGame(NewGameInfo newGameInfo) {
+    EngineReport engine = oaInstallationService.engineReport(newGameInfo.getFeaturedMod().getTechnicalName());
     HostGameMessage hostGameMessage = new HostGameMessage(
         StringUtils.isEmpty(newGameInfo.getPassword()) ? GameAccess.PUBLIC : GameAccess.PASSWORD,
         newGameInfo.getMap(),
@@ -534,18 +552,24 @@ public class FafServerAccessorImpl extends AbstractServerAccessor implements Faf
         newGameInfo.getReplayDelaySeconds(),
         newGameInfo.getRatingType(),
         newGameInfo.getGalacticWarPlanetName(),
-        newGameInfo.getMaxPlayers()
+        newGameInfo.getMaxPlayers(),
+        engine.engine(),
+        engine.version()
     );
+    hostGameMessage.setLibrary(newGameInfo.getLibrary());
 
+    pendingModTechnical = newGameInfo.getFeaturedMod().getTechnicalName();
     gameLaunchFuture = new CompletableFuture<>();
     writeToServer(hostGameMessage);
     return gameLaunchFuture;
   }
 
   @Override
-  public CompletableFuture<GameLaunchMessage> requestJoinGame(int gameId, String password) {
-    JoinGameMessage joinGameMessage = new JoinGameMessage(gameId, password);
+  public CompletableFuture<GameLaunchMessage> requestJoinGame(int gameId, String password, String modTechnical) {
+    EngineReport engine = oaInstallationService.engineReport(modTechnical);
+    JoinGameMessage joinGameMessage = new JoinGameMessage(gameId, password, engine.engine(), engine.version());
 
+    pendingModTechnical = modTechnical;
     gameLaunchFuture = new CompletableFuture<>();
     writeToServer(joinGameMessage);
     return gameLaunchFuture;

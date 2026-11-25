@@ -22,6 +22,15 @@ public class GameInfoMessage extends FafServerMessage {
   private Map<Integer, List<List<Integer>>> pings;  // key=playerid(measuring), value=list of [playerid(measured), ping]
   private String featuredMod;
   private String featuredModVersion;
+  /** Library mod game fields (featured mod "oalibrary" only); null for every other game. */
+  private String libraryModId;
+  private String libraryModName;
+  private String libraryRegistry;
+  private String libraryModVersion;
+  private Integer libraryModRevision;
+  private String librarySimHash;
+  private String libraryBaseGame;
+  private List<String> libraryExpansions;
   private Integer uid;
   private Integer maxPlayers;
   private String title;

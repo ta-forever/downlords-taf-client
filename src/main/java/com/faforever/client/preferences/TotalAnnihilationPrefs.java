@@ -16,6 +16,13 @@ public class TotalAnnihilationPrefs {
   private final ObjectProperty<Path> installedExePath;
   private final StringProperty commandLineOptions;
   private final ObjectProperty<AskAlwaysOrNever> autoUpdateEnable;
+  private final ObjectProperty<GameEngine> engine;
+  private final ObjectProperty<EngineUpdates> oaInstallation;
+  private final ObjectProperty<Path> oaExecutablePath;
+  private final StringProperty oaExtraArgs;
+  /** Copies of ours that Open Annihilation has replaced (folder=version, "|"-separated); see ADR 0002. */
+  private final StringProperty oaReplacedCopies;
+  private final BooleanProperty oaSwitchHintShown;
 
   public static final String TOTAL_ANNIHILATION_EXE = "TotalA.exe";
   public static final Path CAVEDOG_TA_PATH;
@@ -35,6 +42,12 @@ public class TotalAnnihilationPrefs {
     this.installedExePath = new SimpleObjectProperty<>(installedExePath);
     this.commandLineOptions = new SimpleStringProperty(commandLineOptions);
     this.autoUpdateEnable = new SimpleObjectProperty<>(autoUpdateEnable);
+    this.engine = new SimpleObjectProperty<>(GameEngine.CAVEDOG);
+    this.oaInstallation = new SimpleObjectProperty<>(EngineUpdates.TAF);
+    this.oaExecutablePath = new SimpleObjectProperty<>();
+    this.oaExtraArgs = new SimpleStringProperty("");
+    this.oaReplacedCopies = new SimpleStringProperty("");
+    this.oaSwitchHintShown = new SimpleBooleanProperty(false);
   }
 
   private TotalAnnihilationPrefs() {
@@ -42,6 +55,12 @@ public class TotalAnnihilationPrefs {
     this.installedExePath = new SimpleObjectProperty<>();
     this.commandLineOptions = new SimpleStringProperty();
     this.autoUpdateEnable = new SimpleObjectProperty<>(AskAlwaysOrNever.NEVER);
+    this.engine = new SimpleObjectProperty<>(GameEngine.CAVEDOG);
+    this.oaInstallation = new SimpleObjectProperty<>(EngineUpdates.TAF);
+    this.oaExecutablePath = new SimpleObjectProperty<>();
+    this.oaExtraArgs = new SimpleStringProperty("");
+    this.oaReplacedCopies = new SimpleStringProperty("");
+    this.oaSwitchHintShown = new SimpleBooleanProperty(false);
   }
 
   public StringProperty getModNameProperty() { return baseGameName; }
@@ -62,6 +81,43 @@ public class TotalAnnihilationPrefs {
   public AskAlwaysOrNever getAutoUpdateEnable() { return this.autoUpdateEnable.get(); }
   public void setAutoUpdateEnable(AskAlwaysOrNever autoUpdateEnable) { this.autoUpdateEnable.set(autoUpdateEnable); }
 
+  public ObjectProperty<GameEngine> getEngineProperty() { return engine; }
+  /** Never null: preferences.json written before the engine choice existed has no value. */
+  public GameEngine getEngine() { return this.engine.get() == null ? GameEngine.CAVEDOG : this.engine.get(); }
+  public void setEngine(GameEngine engine) { this.engine.set(engine); }
+
+  public ObjectProperty<EngineUpdates> getOaInstallationProperty() { return oaInstallation; }
+  public EngineUpdates getOaInstallation() {
+    // the property itself is null when preferences.json holds an unreadable or null value
+    return this.oaInstallation == null || this.oaInstallation.get() == null ? EngineUpdates.TAF : this.oaInstallation.get();
+  }
+  public void setOaInstallation(EngineUpdates oaInstallation) { this.oaInstallation.set(oaInstallation); }
+
+  public ObjectProperty<Path> getOaExecutablePathProperty() { return oaExecutablePath; }
+  public Path getOaExecutablePath() { return this.oaExecutablePath.get(); }
+  public void setOaExecutablePath(Path oaExecutablePath) { this.oaExecutablePath.set(oaExecutablePath); }
+
+  public StringProperty getOaExtraArgsProperty() { return oaExtraArgs; }
+  public String getOaExtraArgs() { return this.oaExtraArgs.get() == null ? "" : this.oaExtraArgs.get(); }
+  public void setOaExtraArgs(String oaExtraArgs) { this.oaExtraArgs.set(oaExtraArgs); }
+
+  public StringProperty getOaReplacedCopiesProperty() { return oaReplacedCopies; }
+  public String getOaReplacedCopies() { return this.oaReplacedCopies == null || this.oaReplacedCopies.get() == null ? "" : this.oaReplacedCopies.get(); }
+  public void setOaReplacedCopies(String oaReplacedCopies) { this.oaReplacedCopies.set(oaReplacedCopies); }
+
+  public BooleanProperty getOaSwitchHintShownProperty() { return oaSwitchHintShown; }
+  public boolean isOaSwitchHintShown() { return this.oaSwitchHintShown != null && this.oaSwitchHintShown.get(); }
+  public void setOaSwitchHintShown(boolean shown) { this.oaSwitchHintShown.set(shown); }
+
+  public boolean isOpenAnnihilation() {
+    return getEngine() == GameEngine.OPEN_ANNIHILATION || com.faforever.client.library.LibraryGameInfo.UMBRELLA_FEATURED_MOD.equals(getBaseGameName());
+  }
+
+  /**
+   * The mod install directory, for both engines. For Cavedog it is the folder holding TotalA.exe.
+   * An Open Annihilation install needs no TotalA.exe, so the exe path only has to point at where
+   * it would be ({@code <dir>/TotalA.exe}).
+   */
   public Path getInstalledPath() {
     if (this.installedExePath.get() != null) {
       return this.installedExePath.get().getParent();

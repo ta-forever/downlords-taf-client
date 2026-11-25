@@ -10,6 +10,7 @@ import com.faforever.client.game.Game;
 import com.faforever.client.game.GameService;
 import com.faforever.client.game.JoinGameHelper;
 import com.faforever.client.game.PlayerStatus;
+import com.faforever.client.library.LibraryGameInfo;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.main.event.ShowUserReplaysEvent;
 import com.faforever.client.moderator.BanDialogController;
@@ -255,7 +256,9 @@ public class ChatUserContextMenuController implements Controller<ContextMenu> {
           .and(Bindings.createBooleanBinding(() -> !browserWatchService.isBrowserOnly(),
               gameService.getCurrentGameProperty(), gameService.getCurrentGameStatusProperty())));
       watchGameInBrowserItem.visibleProperty().bind(newValue.statusProperty().isEqualTo(PlayerStatus.PLAYING)
-          .and(Bindings.createBooleanBinding(browserWatchService::isAvailable)));
+          .and(Bindings.createBooleanBinding(() -> browserWatchService.isAvailable()
+                  && (newValue.getGame() == null || LibraryGameInfo.offersBrowserWatch(newValue.getGame().getFeaturedMod())),
+              newValue.gameProperty())));
       inviteItem.visibleProperty().bind(Bindings.createBooleanBinding(() -> isGameInviteVisible(newValue),
           newValue.socialStatusProperty(), gameService.getCurrentGameProperty(), gameService.getCurrentGameStatusProperty()));
 

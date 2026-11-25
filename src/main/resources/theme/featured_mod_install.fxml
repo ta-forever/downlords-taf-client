@@ -15,6 +15,8 @@
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.control.RadioButton?>
+<?import javafx.scene.control.ToggleGroup?>
 <StackPane xmlns:fx="http://javafx.com/fxml/1" fx:id="featuredModInstallControllerRoot" styleClass="dialog-framed"
            xmlns="http://javafx.com/javafx/8.0.111" fx:controller="com.faforever.client.mod.FeaturedModInstallController">
     <VBox spacing="10">
@@ -36,6 +38,39 @@
         <Label fx:id="descriptionLabel" text="%installFeaturedMod.description" wrapText="true" prefWidth="520"/>
         <Separator/>
         <VBox fx:id="containerLayout" spacing="10">
+            <fx:define>
+                <ToggleGroup fx:id="engineToggleGroup"/>
+                <ToggleGroup fx:id="oaModeToggleGroup"/>
+            </fx:define>
+            <VBox fx:id="engineBox" spacing="6">
+                <Label text="%installFeaturedMod.engine.label" styleClass="header"/>
+                <HBox spacing="20">
+                    <RadioButton fx:id="cavedogRadioButton" mnemonicParsing="false"
+                                 text="%installFeaturedMod.engine.cavedog" toggleGroup="$engineToggleGroup"/>
+                    <RadioButton fx:id="oaRadioButton" mnemonicParsing="false"
+                                 text="%installFeaturedMod.engine.openAnnihilation" toggleGroup="$engineToggleGroup"/>
+                </HBox>
+                <VBox fx:id="oaOptionsBox" spacing="6">
+                    <padding>
+                        <Insets left="24.0"/>
+                    </padding>
+                    <RadioButton fx:id="oaManagedRadioButton" mnemonicParsing="false"
+                                 text="%installFeaturedMod.oa.managed" toggleGroup="$oaModeToggleGroup"/>
+                    <RadioButton fx:id="oaSelfUpdatingRadioButton" mnemonicParsing="false"
+                                 text="%installFeaturedMod.oa.selfUpdating" toggleGroup="$oaModeToggleGroup"/>
+                    <RadioButton fx:id="oaExistingRadioButton" mnemonicParsing="false"
+                                 text="%installFeaturedMod.oa.existing" toggleGroup="$oaModeToggleGroup"/>
+                    <HBox spacing="10">
+                        <TextField fx:id="oaExecutableTextField" HBox.hgrow="ALWAYS" maxWidth="1.7976931348623157E308"
+                                   promptText="%installFeaturedMod.oa.exePrompt"/>
+                        <Button fx:id="oaExecutableButton" mnemonicParsing="false" onAction="#onOaExecutableButton" text="..."/>
+                    </HBox>
+                    <Label fx:id="oaUpdatesLabel" wrapText="true" prefWidth="480"/>
+                    <Label fx:id="oaStatusLabel" wrapText="true" prefWidth="480"/>
+                    <Label fx:id="oaNoWineLabel" text="%installFeaturedMod.oa.noWine" wrapText="true" prefWidth="480"/>
+                </VBox>
+                <Separator/>
+            </VBox>
             <CheckBox fx:id="useExistingCheckBox" mnemonicParsing="false" text="%installFeaturedMod.useExistingCheckBox"
                       GridPane.rowIndex="0" GridPane.columnIndex="1">
               <tooltip><Tooltip text="%installFeaturedMod.useExistingCheckBox.tooltip"/></tooltip>

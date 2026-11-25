@@ -7,6 +7,7 @@ import com.faforever.client.i18n.I18n;
 import com.faforever.client.notification.NotificationService;
 import com.faforever.client.notification.TransientNotification;
 import com.faforever.client.player.event.PlayerJoinedGameEvent;
+import com.faforever.client.preferences.NotificationsPrefs;
 import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.util.IdenticonUtil;
 import com.google.common.eventbus.EventBus;
@@ -40,16 +41,20 @@ public class PlayerJoinedGameNotifier implements InitializingBean {
   public void onPlayerJoinedGame(PlayerJoinedGameEvent event) {
     Player player = event.getPlayer();
     Game game = event.getGame();
+    NotificationsPrefs notificationPrefs = preferencesService.getPreferences().getNotification();
+    boolean friend = player.getSocialStatus() == SocialStatus.FRIEND;
+    // "Player joins game" is about our own lobby; it must not re-enable "Friend joins game" for other lobbies.
+    boolean joinedOurGame = event.isJoinedCurrentPlayersGame();
 
-    if (player.getSocialStatus() == SocialStatus.FRIEND && preferencesService.getPreferences().getNotification().isFriendJoinsGameSoundEnabled()) {
+    if (friend && notificationPrefs.isFriendJoinsGameSoundEnabled()) {
       audioService.playFriendJoinsGameSound();
     }
-    else if (preferencesService.getPreferences().getNotification().isPlayerJoinsGameSoundEnabled()) {
+    else if (joinedOurGame && notificationPrefs.isPlayerJoinsGameSoundEnabled()) {
       audioService.playPlayerJoinsGameSound();
     }
 
-    if (preferencesService.getPreferences().getNotification().isPlayerJoinsGameToastEnabled() ||
-        player.getSocialStatus() == SocialStatus.FRIEND && preferencesService.getPreferences().getNotification().isFriendJoinsGameToastEnabled()) {
+    if (friend && notificationPrefs.isFriendJoinsGameToastEnabled()
+        || joinedOurGame && notificationPrefs.isPlayerJoinsGameToastEnabled()) {
       notificationService.addNotification(new TransientNotification(
           i18n.get("friend.joinedGameNotification.title", player.getUsername(), game.getTitle()),
           i18n.get("friend.joinedGameNotification.action"),

@@ -54,6 +54,8 @@ public class JoinGameHelperTest extends AbstractPlainJavaFxTest {
   private UiService uiService;
   @Mock
   private EventBus eventBus;
+  @Mock
+  private com.faforever.client.library.LibraryPrompts libraryPrompts;
 
   private Game game;
 
@@ -65,7 +67,7 @@ public class JoinGameHelperTest extends AbstractPlainJavaFxTest {
         .maxRating(1000)
         .get();
 
-    instance = new JoinGameHelper(i18n, playerService, gameService, preferencesService, notificationService, reportingService, uiService, eventBus);
+    instance = new JoinGameHelper(i18n, playerService, gameService, preferencesService, notificationService, reportingService, uiService, eventBus, libraryPrompts);
 
     when(playerService.getCurrentPlayer()).thenReturn(Optional.ofNullable(currentPlayer));
 

@@ -1,0 +1,305 @@
+package com.faforever.client.library;
+
+import com.faforever.client.fa.oa.OaInstallationService;
+import com.faforever.client.fa.oa.OaInstallationService.InstalledOa;
+import com.faforever.client.fa.oa.OaVersion;
+import com.faforever.client.library.LibraryJoinVerdict.Outcome;
+import com.faforever.client.library.LibraryReadiness.Status;
+import com.faforever.client.library.OaContentListing.ListedMap;
+import com.faforever.client.preferences.PreferencesService;
+import com.faforever.client.preferences.TotalAnnihilationPrefs;
+import com.faforever.client.update.ClientConfiguration;
+import com.google.gson.Gson;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.is;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+public class LibraryServiceTest {
+
+  private static final Path EXE = Path.of("oa", "open-annihilation.exe");
+  private static final String SIM = "a5eed394ee460d28768eec0b9421a40d59796521734e220fb538d1c4a3bdb350";
+  private static final String LISTING_HEAD = "{\"maps\":[{\"shown-name\":\"Acid Pools\",\"key\":\"Acid Pools\",\"players\":10,\"size\":\"32 x 23\"}],"
+      + "\"mods\":[{\"id\":\"talon\",\"name\":\"Talon\"}],\"expansions\":[";
+  private String expansionsJson = "";
+
+  @Rule
+  public TemporaryFolder temp = new TemporaryFolder();
+
+  private final List<List<String>> commands = new ArrayList<>();
+  private LibraryService service;
+  private TotalAnnihilationPrefs prefs;
+  private Path userFolder;
+  private LibraryService.CommandRunner runner;
+  private int listContentExit = 0;
+  private OaInstallationService oa;
+  private final List<List<String>> started = new ArrayList<>();
+  private CompletableFuture<Void> oaExit = CompletableFuture.completedFuture(null);
+  private final List<String> fetches = new ArrayList<>();
+  private final List<Path> navigated = new ArrayList<>();
+  private Path logDir;
+  private static final String CATALOGUE = "{\"packages\":[{\"kind\":\"oamod\",\"id\":\"talon\",\"version\":\"1.03\"}]}";
+
+  @Before
+  public void setUp() throws IOException {
+    PreferencesService preferencesService = mock(PreferencesService.class);
+    oa = mock(OaInstallationService.class);
+    prefs = new TotalAnnihilationPrefs("oalibrary", null, "", null);
+    when(preferencesService.getTotalAnnihilation("oalibrary")).thenReturn(prefs);
+    when(oa.ensureExecutable("oalibrary")).thenReturn(CompletableFuture.completedFuture(EXE));
+    when(oa.findInstalled("oalibrary")).thenReturn(new InstalledOa(EXE, new OaVersion(0, 8, 1)));
+    logDir = temp.newFolder("logs").toPath();
+    when(preferencesService.getFafLogDirectory()).thenReturn(logDir);
+    userFolder = temp.newFolder("oa-user").toPath();
+    Path mod = userFolder.resolve("Mods").resolve("talon");
+    Files.createDirectories(mod);
+    Files.writeString(mod.resolve("oamod.yaml"), "oamod: 1\nid: talon\nname: Talon\nversion: \"1.03\"\n"
+        + "author: {name: A}\npackaging: {revision: 2, date: 2026-10-04, packager: P}\n");
+    runner = command -> {
+      commands.add(command);
+      if (command.contains("--print-profile")) {
+        return new LibraryService.CommandResult(0, "{}\nsha256-sim  " + SIM + "\nsha256-full  " + "b".repeat(64) + "\n");
+      }
+      return new LibraryService.CommandResult(listContentExit, listContentExit == 0 ? "timing\n" + LISTING_HEAD + expansionsJson + "]}\n" : "no game folder");
+    };
+    prefs.setOaExtraArgs("--user-folder " + userFolder);
+    ClientConfiguration configuration = new Gson().fromJson(
+        "{\"openAnnihilation\":{\"mods\":[{\"modTechnical\":\"oalibrary\",\"support\":\"OA_ONLY\",\"minVersion\":\"0.8.0\"}],"
+            + "\"trustedRegistries\":[{\"id\":\"coreprime\",\"catalogueUrl\":\"http://catalogue\"}],"
+            + "\"hiddenLibraryMods\":[\"escalation\"]}}", ClientConfiguration.class);
+    when(preferencesService.getClientRemoteConfiguration()).thenReturn(configuration);
+    service = new LibraryService(preferencesService, oa, runner, url -> {
+      fetches.add(url);
+      return CATALOGUE;
+    }, command -> {
+      started.add(command);
+      return oaExit;
+    }, navigated::add);
+  }
+
+  @Test
+  public void aLocalModFolderIsOnlyOfferedWhenTheTrustedCatalogueListsIt() throws IOException {
+    Path local = userFolder.resolve("Mods").resolve("talon");
+    Files.writeString(local.resolve("oamod.yaml"), "oamod: 1\nid: talon\nname: Talon\nversion: \"7.7\"\n");
+
+    assertThat(service.installedMods().join().isEmpty(), is(true));
+    assertThat(fetches, contains("http://catalogue"));
+  }
+
+  @Test
+  public void aModMatchingTheCatalogueByIdAndVersionIsOffered() {
+    assertThat(service.installedMods().join().stream().map(LibraryMod::id).toList(), contains("talon"));
+  }
+
+  @Test
+  public void aModOaInstalledFromTheTrustedRegistryNeedsNoDownload() throws IOException {
+    Files.writeString(userFolder.resolve("Mods").resolve("talon").resolve(".oa-origin.yaml"), "registry: coreprime\n");
+
+    assertThat(service.installedMods().join().stream().map(LibraryMod::id).toList(), contains("talon"));
+    assertThat(fetches.isEmpty(), is(true));
+  }
+
+  @Test
+  public void installedModsAreDiscoveredInTheUserFolderAndCheckedAgainstListContent() {
+    List<LibraryMod> mods = service.installedMods().join();
+
+    assertThat(mods.stream().map(LibraryMod::id).toList(), contains("talon"));
+    assertThat(commands.get(0), hasItems(EXE.toString(), "--list-content", "--json", "--user-folder", userFolder.toString()));
+    assertThat(commands.get(0).contains("--game-dir"), is(false));
+  }
+
+  @Test
+  public void aFailedListContentMeansOaIsNotReadyAndNothingIsOffered() {
+    listContentExit = 1;
+
+    assertThat(service.installedMods().join().isEmpty(), is(true));
+  }
+
+  @Test
+  public void mapsForAModComeFromListContentForThatModsFolderAndContent() {
+    LibraryMod talon = service.installedMods().join().get(0);
+
+    List<ListedMap> maps = service.mapsFor(talon).join();
+
+    assertThat(maps.get(0).key(), is("Acid Pools"));
+    List<String> command = commands.get(commands.size() - 1);
+    assertThat(command, hasItems("--list-content", "--json", "--mod-dir", talon.folder().toString(), "--content", "totala"));
+  }
+
+  @Test
+  public void mapsAndTheHostedGameUseTheInstalledExpansionsSoCcAndBtMapsAreListed() {
+    expansionsJson = "{\"id\":\"battle-tactics\",\"name\":\"Battle Tactics\"},{\"id\":\"campaign\",\"name\":\"Campaign\"},"
+        + "{\"id\":\"core-contingency\",\"name\":\"Core Contingency\"},{\"id\":\"music\",\"name\":\"Music\"}";
+    LibraryMod talon = service.installedMods().join().get(0);
+
+    service.mapsFor(talon).join();
+    assertThat(commands.get(commands.size() - 1),
+        hasItems("--content", "totala:campaign,core-contingency,battle-tactics"));
+    assertThat(service.hostInfo(talon).join().expansions(),
+        contains("campaign", "core-contingency", "battle-tactics"));
+  }
+
+  @Test
+  public void aJoinerDropsTheHostsExpansionsItLacksOnceOaHasBeenListed() {
+    List<String> host = List.of("campaign", "core-contingency", "battle-tactics", "cavedog-tilesets");
+    // not listed yet: nothing is known, so the host's list stands
+    assertThat(service.expansionsThisPlayerHas(host), is(host));
+
+    expansionsJson = "{\"id\":\"campaign\",\"name\":\"Campaign\"},{\"id\":\"core-contingency\",\"name\":\"Core Contingency\"}";
+    service.installedMods().join();
+
+    assertThat(service.expansionsThisPlayerHas(host), contains("campaign", "core-contingency"));
+  }
+
+  @Test
+  public void theHostInfoCarriesTheModsVersionRevisionAndSimHashFromPrintProfile() {
+    LibraryMod talon = service.installedMods().join().get(0);
+
+    LibraryGameInfo info = service.hostInfo(talon).join();
+
+    assertThat(info.modId(), is("talon"));
+    assertThat(info.version(), is("1.03"));
+    assertThat(info.revision(), is(2));
+    assertThat(info.simHash(), is(SIM));
+    List<String> command = commands.get(commands.size() - 1);
+    assertThat(command, hasItems("--print-profile", "--mod-dir", talon.folder().toString()));
+  }
+
+  @Test
+  public void theUserFolderIsOasDocumentsFolderUnlessExtraArgsNameAnother() {
+    Path home = Path.of("home", "alex");
+
+    assertThat(LibraryService.userFolder("", home), is(home.resolve("Documents").resolve("Open Annihilation")));
+    assertThat(LibraryService.userFolder("--mute --user-folder D:/oa", home), is(Path.of("D:/oa")));
+  }
+
+  private static LibraryGameInfo hosted(String modId, String version) {
+    return new LibraryGameInfo(modId, "Talon", "coreprime", version, 2, null, "totala", List.of());
+  }
+
+  @Test
+  public void withoutAnOaOnDiskTheSnapshotSaysNoOaAndDoesNotRunOrDownloadAnything() {
+    when(oa.findInstalled("oalibrary")).thenReturn(InstalledOa.NONE);
+
+    LibrarySnapshot snapshot = service.refresh(false).join();
+
+    assertThat(snapshot.readiness().status(), is(Status.NO_OA));
+    assertThat(snapshot.mods().isEmpty(), is(true));
+    assertThat(commands.isEmpty(), is(true));
+    verify(oa, never()).ensureExecutable("oalibrary");
+  }
+
+  @Test
+  public void whenAllowedToDownloadAMissingManagedOaIsFetchedFirst() {
+    when(oa.findInstalled("oalibrary")).thenReturn(InstalledOa.NONE);
+    when(oa.detectVersion(EXE)).thenReturn(java.util.Optional.of(new OaVersion(0, 8, 1)));
+
+    LibrarySnapshot snapshot = service.refresh(true).join();
+
+    assertThat(snapshot.readiness().status(), is(Status.READY));
+    assertThat(snapshot.mods().size(), is(1));
+  }
+
+  @Test
+  public void anOaOutsideTheAllowedRangeIsReportedWithoutRunningIt() {
+    when(oa.findInstalled("oalibrary")).thenReturn(new InstalledOa(EXE, new OaVersion(0, 7, 3)));
+
+    LibrarySnapshot snapshot = service.refresh(false).join();
+
+    assertThat(snapshot.readiness().status(), is(Status.OA_VERSION_NOT_ALLOWED));
+    assertThat(commands.isEmpty(), is(true));
+  }
+
+  @Test
+  public void aListContentFailureMeansSetupIsNotDone() {
+    listContentExit = 1;
+
+    LibrarySnapshot snapshot = service.refresh(false).join();
+
+    assertThat(snapshot.readiness().status(), is(Status.SETUP_NOT_DONE));
+    assertThat(snapshot.mods().isEmpty(), is(true));
+  }
+
+  @Test
+  public void theSnapshotGivesAJoinVerdictPerHostedGameAndIsPublishedAsAProperty() {
+    LibrarySnapshot snapshot = service.refresh(false).join();
+
+    assertThat(service.snapshotProperty().get(), is(snapshot));
+    assertThat(snapshot.verdictFor(hosted("talon", "1.03")).outcome(), is(Outcome.JOINABLE));
+    assertThat(snapshot.verdictFor(hosted("rhyoss", "1.0")).outcome(), is(Outcome.NEEDS_MOD));
+    assertThat(snapshot.verdictFor(hosted("talon", "1.02")).outcome(), is(Outcome.JOINABLE_WITH_VERSION_HINT));
+  }
+
+  @Test
+  public void openingOaStartsItsExecutableWithTheUserFoldersExtraArgsAndNothingElse() {
+    service.openOa().join();
+
+    assertThat(started.size(), is(1));
+    assertThat(started.get(0), contains(EXE.toString(), "--user-folder", userFolder.toString()));
+  }
+
+  @Test
+  public void whenOaExitsTheLibraryIsCheckedAgainSoSetupDoneInOaIsPickedUp() {
+    listContentExit = 1;
+    assertThat(service.refresh(false).join().readiness().status(), is(Status.SETUP_NOT_DONE));
+    oaExit = new CompletableFuture<>();
+
+    CompletableFuture<Void> opened = service.openOa();
+    listContentExit = 0;
+    assertThat(opened.isDone(), is(false));
+    assertThat(service.snapshotProperty().get().readiness().status(), is(Status.SETUP_NOT_DONE));
+    oaExit.complete(null);
+    opened.join();
+
+    assertThat(service.snapshotProperty().get().readiness().status(), is(Status.READY));
+    assertThat(service.snapshotProperty().get().mods().size(), is(1));
+  }
+
+  @Test
+  public void openingAtTheLibraryStartsOaWithItsAutomationEndpointAndHandsTheEndpointToTheNavigator() throws IOException {
+    Path endpoint = logDir.resolve("oa_fark_library.json");
+    Files.writeString(endpoint, "{\"address\":\"127.0.0.1:1\",\"token\":\"stale\"}");
+
+    service.openOaAtLibrary().join();
+
+    assertThat(started.size(), is(1));
+    assertThat(started.get(0), contains(EXE.toString(), "--skip-intro", "--fark", "--fark-file", endpoint.toString(),
+        "--user-folder", userFolder.toString()));
+    assertThat(navigated, contains(endpoint));
+    assertThat(Files.exists(endpoint), is(false));
+  }
+
+  @Test
+  public void openingPlainlyNeverTouchesTheAutomationEndpoint() {
+    service.openOa().join();
+
+    assertThat(navigated.isEmpty(), is(true));
+  }
+
+  @Test
+  public void openingAtTheLibraryStillChecksTheLibraryAgainWhenOaExits() {
+    listContentExit = 1;
+    assertThat(service.refresh(false).join().readiness().status(), is(Status.SETUP_NOT_DONE));
+    listContentExit = 0;
+
+    service.openOaAtLibrary().join();
+
+    assertThat(service.snapshotProperty().get().readiness().status(), is(Status.READY));
+  }
+}

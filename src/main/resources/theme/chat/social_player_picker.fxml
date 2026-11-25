@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<VBox fx:id="socialPlayerPickerRoot" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.faforever.client.chat.SocialPlayerPickerController"
+      spacing="8.0" prefWidth="420.0" prefHeight="520.0">
+    <TextField fx:id="filterTextField" promptText="%chat.socialPicker.filterPrompt"/>
+    <CheckBox fx:id="onlyMineCheckBox" text="%chat.socialPicker.onlyFriends"/>
+    <StackPane VBox.vgrow="ALWAYS">
+        <ListView fx:id="playersListView" styleClass="empty-cells-transparent"/>
+        <Label fx:id="statusLabel" mouseTransparent="true" text="%chat.socialPicker.loading"/>
+    </StackPane>
+    <HBox alignment="CENTER" spacing="10.0">
+        <Button fx:id="previousPageButton" text="&lt;" onAction="#onPreviousPage"/>
+        <Label fx:id="pageLabel"/>
+        <Button fx:id="nextPageButton" text="&gt;" onAction="#onNextPage"/>
+    </HBox>
+    <HBox alignment="CENTER_RIGHT">
+        <Button fx:id="closeButton" text="%close" onAction="#onCloseButtonClicked" cancelButton="true"/>
+    </HBox>
+    <padding>
+        <Insets top="2.0" right="2.0" bottom="2.0" left="2.0"/>
+    </padding>
+</VBox>

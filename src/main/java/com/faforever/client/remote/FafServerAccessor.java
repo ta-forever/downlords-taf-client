@@ -40,7 +40,7 @@ public interface FafServerAccessor {
 
   CompletableFuture<GameLaunchMessage> requestHostGame(NewGameInfo newGameInfo);
 
-  CompletableFuture<GameLaunchMessage> requestJoinGame(int gameId, String password);
+  CompletableFuture<GameLaunchMessage> requestJoinGame(int gameId, String password, String modTechnical);
 
   CompletableFuture<WatchTicketMessage> requestWatchTicket(int gameId);
 

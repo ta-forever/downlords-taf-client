@@ -74,6 +74,17 @@ public class WatchButtonControllerTest extends AbstractPlainJavaFxTest {
   }
 
   @Test
+  public void menuOmitsBrowserItemForLibraryModGames() {
+    when(browserWatchService.isAvailable()).thenReturn(true);
+    when(game.getFeaturedMod()).thenReturn("oalibrary");
+    initialize();
+    runOnFxThreadAndWait(() -> instance.setGame(game));
+    openMenu();
+
+    assertThat(instance.getWatchMenu().getItems(), hasSize(1));
+  }
+
+  @Test
   public void menuOmitsBrowserItemWhenViewerNotConfigured() {
     when(browserWatchService.isAvailable()).thenReturn(false);
     initialize();
