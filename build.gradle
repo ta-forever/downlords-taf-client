@@ -232,6 +232,8 @@ compileTestJava {
   // Engine updates setting: saved TAF_MANAGED/EXISTING preferences migrate to TAF/OWN_INSTALL.
   include '**/preferences/EngineUpdatesMigrationTest.java'
   include '**/assetserver/**'
+  // Friend/foe dialog behind the "+" on the chat Friends / Foes headers (issue #44): paging, filtering, add/remove.
+  include '**/chat/SocialPlayerPickerControllerTest.java'
   // Chat image paste upload (issue #51): multipart Imgur upload, error status and max-size rejection.
   include '**/uploader/**'
   // Test base classes / shared utilities — required by tests in the

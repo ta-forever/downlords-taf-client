@@ -196,6 +196,9 @@ public interface FafApiAccessor {
    *  set so we don't pull thousands of "player1234" hits. */
   List<Player> findPlayersByLoginPrefix(String prefix, int limit);
 
+  /** One page of players (offline ones included) sorted by login, filtered by login prefix unless it's blank. */
+  Tuple<List<Player>, java.util.Map<String, ?>> findPlayersByLoginPrefixWithMeta(String prefix, int count, int page);
+
   List<com.faforever.client.api.dto.TournamentTeam> getTournamentTeams(int tournamentId);
 
   List<com.faforever.client.api.dto.TournamentTeamInvite> getPendingInvitesForPlayer(int playerId);

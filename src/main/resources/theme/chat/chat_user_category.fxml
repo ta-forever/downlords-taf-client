@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 
+<?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.layout.VBox?>
-<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.faforever.client.chat.ChatCategoryItemController"
+<?import javafx.scene.layout.HBox?>
+<HBox fx:id="chatUserCategoryRoot" alignment="CENTER_LEFT" spacing="6.0" onContextMenuRequested="#onContextMenuRequested"
+      styleClass="chat-user-list-category-header"
+      xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.faforever.client.chat.ChatCategoryItemController"
       xmlns="http://javafx.com/javafx/8.0.141">
-    <Label fx:id="chatUserCategoryRoot" text="Label" onContextMenuRequested="#onContextMenuRequested"
-           styleClass="chat-user-list-category"/>
-</VBox>
+    <Label fx:id="categoryLabel" text="Label" styleClass="chat-user-list-category"/>
+    <Button fx:id="addPlayerButton" text="+" focusTraversable="false" onAction="#onAddPlayerClicked"
+            styleClass="chat-category-add-button" visible="false" managed="false"/>
+</HBox>

@@ -665,6 +665,23 @@ public class FafApiAccessorImpl implements FafApiAccessor, InitializingBean {
   }
 
   @Override
+  public Tuple<List<Player>, java.util.Map<String, ?>> findPlayersByLoginPrefixWithMeta(String prefix, int count, int page) {
+    java.util.Map<String, Serializable> params = new HashMap<>();
+    params.put(SORT, "login");
+    if (prefix != null && !prefix.isBlank()) {
+      // Logins are letters, digits, '_' and '-'; dropping anything else keeps the typed text from
+      // adding RSQL syntax or wildcards of its own.
+      String safePrefix = prefix.replaceAll("[^A-Za-z0-9_-]", "");
+      if (safePrefix.isEmpty()) {
+        return new Tuple<>(Collections.emptyList(), Collections.emptyMap());
+      }
+      params.put(FILTER, rsql(qBuilder().string("login").eq(safePrefix + "*")));
+    }
+    JSONAPIDocument<List<Player>> jsonApiDoc = getPageWithMeta("/data/player", count, page, params);
+    return new Tuple<>(jsonApiDoc.get(), jsonApiDoc.getMeta());
+  }
+
+  @Override
   public List<com.faforever.client.api.dto.TournamentTeam> getTournamentTeams(int tournamentId) {
     return getAll("/data/tournamentTeam", java.util.Map.of(
         FILTER, rsql(qBuilder().string("tournament.id").eq(String.valueOf(tournamentId))),
