@@ -216,16 +216,12 @@ public class PlayerService implements InitializingBean {
     if (!playersByGame.get(game.getId()).contains(player)) {
       player.setGame(game);
       playersByGame.get(game.getId()).add(player);
-      if (player.getSocialStatus() == FRIEND
+      boolean joinedCurrentPlayersGame = player.getSocialStatus() != SELF
+          && playersByGame.get(game.getId()).contains(currentPlayer.get());
+      if ((player.getSocialStatus() == FRIEND || joinedCurrentPlayersGame)
           && game.getStatus() == GameStatus.STAGING
           && game.getGameType() != GameType.MATCHMAKER) {
-        eventBus.post(new PlayerJoinedGameEvent(player, game));
-      }
-      else if (player.getSocialStatus() != SELF
-          && game.getStatus() == GameStatus.STAGING
-          && playersByGame.get(game.getId()).contains(currentPlayer.get())
-          && game.getGameType() != GameType.MATCHMAKER) {
-        eventBus.post(new PlayerJoinedGameEvent(player, game));
+        eventBus.post(new PlayerJoinedGameEvent(player, game, joinedCurrentPlayersGame));
       }
     }
     updatePlayerChatUsers(player);
