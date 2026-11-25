@@ -179,6 +179,48 @@ img.country-flag {
   font-style: italic;
 }
 
+/* "→ Bob joined the channel" / "← Bob left the channel" lines in channel chat: quieter than messages. */
+.chat-status-line {
+  /* Between -fx-mid-text-color and -fx-light-text-color */
+  color: #9E9E9E;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* Takes the remaining width like .messages-wrapper does, leaving the time cell its natural width. */
+.chat-status-line td.status-text {
+  width: 100%;
+  vertical-align: top;
+}
+
+.chat-status-line .time {
+  font-style: normal;
+}
+
+/* An extended section's 1em padding and divider would make a one-line notice look like a message. */
+.chat-section.extended.chat-status-line {
+  padding: .25em 1em;
+  border-bottom: none;
+}
+
+.chat-status-line .username {
+  cursor: pointer;
+}
+
+.chat-status-line .username:hover {
+  text-decoration: underline;
+}
+
+.chat-status-line.joined .status-arrow {
+  color: #66BB6A;
+  font-style: normal;
+}
+
+.chat-status-line.left .status-arrow {
+  color: #757575;
+  font-style: normal;
+}
+
 .chat-section.text.unread {
   font-style: bold;
 }

@@ -2,6 +2,8 @@ package com.faforever.client.chat;
 
 import com.faforever.client.audio.AudioService;
 import com.faforever.client.chat.event.ChatUserCategoryChangeEvent;
+import com.faforever.client.chat.event.ChatUserJoinedChannelEvent;
+import com.faforever.client.chat.event.ChatUserLeftChannelEvent;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.fx.PlatformService;
 import com.faforever.client.fx.WebViewConfigurer;
@@ -686,6 +688,36 @@ public class ChannelTabController extends AbstractChatTabController {
 
   void setUserFilter(Predicate<CategoryOrChatUserListItem> predicate) {
     filteredChatUserList.setPredicate(predicate);
+  }
+
+  @Subscribe
+  public void onChatUserJoinedChannel(ChatUserJoinedChannelEvent event) {
+    if (shouldShowJoinLeaveLine(event.getChannelName(), event.getUsername())) {
+      addStatusLine(event.getUsername(), "chat.userJoinedChannel", true);
+    }
+  }
+
+  @Subscribe
+  public void onChatUserLeftChannel(ChatUserLeftChannelEvent event) {
+    if (shouldShowJoinLeaveLine(event.getChannelName(), event.getUsername())) {
+      addStatusLine(event.getUsername(), "chat.userLeftChannel", false);
+    }
+  }
+
+  @VisibleForTesting
+  boolean shouldShowJoinLeaveLine(String channelName, String username) {
+    if (chatChannel == null || !chatChannel.getName().equalsIgnoreCase(channelName)) {
+      return false;
+    }
+    ChatPrefs chatPrefs = preferencesService.getPreferences().getChat();
+    if (!chatPrefs.getShowJoinLeaveMessages()) {
+      return false;
+    }
+    // Foes' messages are hidden; their comings and goings would be just as unwelcome.
+    boolean foe = playerService.getPlayerForUsername(username)
+        .map(player -> player.getSocialStatus() == FOE)
+        .orElse(false);
+    return !(foe && chatPrefs.getHideFoeMessages());
   }
 
   @Subscribe

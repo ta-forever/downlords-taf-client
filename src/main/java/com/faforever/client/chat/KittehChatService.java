@@ -3,6 +3,8 @@ package com.faforever.client.chat;
 import com.faforever.client.FafClientApplication;
 import com.faforever.client.chat.event.ChatMessageEvent;
 import com.faforever.client.chat.event.ChatUserCategoryChangeEvent;
+import com.faforever.client.chat.event.ChatUserJoinedChannelEvent;
+import com.faforever.client.chat.event.ChatUserLeftChannelEvent;
 import com.faforever.client.chat.messagetags.Toxicity;
 import com.faforever.client.config.ClientProperties;
 import com.faforever.client.config.ClientProperties.Irc;
@@ -325,6 +327,9 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     User user = event.getActor();
     log.debug("[onJoinEvent] User joined channel: {}", user);
     addUserToChannel(event.getChannel().getName(), getOrCreateChatUser(user, event.getChannel()));
+    if (!user.getNick().equalsIgnoreCase(userService.getUsername())) {
+      eventBus.post(new ChatUserJoinedChannelEvent(event.getChannel().getName(), user.getNick()));
+    }
   }
 
   @Handler
@@ -664,6 +669,9 @@ public class KittehChatService implements ChatService, InitializingBean, Disposa
     }
     synchronized (chatChannelUsersByChannelAndName) {
       chatChannelUsersByChannelAndName.remove(mapKey(username, channelName));
+    }
+    if (!weLeft && !username.equalsIgnoreCase(userService.getUsername())) {
+      eventBus.post(new ChatUserLeftChannelEvent(channelName, username));
     }
     // The server doesn't yet tell us when a user goes offline, so we have to rely on the user leaving IRC.
     if (preferencesService.getClientRemoteConfiguration().getAllChatChannels().stream()
