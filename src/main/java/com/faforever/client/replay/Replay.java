@@ -8,6 +8,7 @@ import com.faforever.client.api.dto.Validity;
 import com.faforever.client.fa.DemoFileInfo;
 import com.faforever.client.game.Faction;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.library.LibraryGameInfo;
 import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.map.MapBean;
 import com.faforever.client.mod.FeaturedMod;
@@ -77,6 +78,9 @@ public class Replay {
    */
   @Nullable
   private ReplayMeta replayMeta;
+  /** What the game was recorded with, for a Library mod game (featured mod "oalibrary"); null otherwise. */
+  @Nullable
+  private LibraryGameInfo library;
 
   public Replay(String title) {
     this();
@@ -142,6 +146,10 @@ public class Replay {
     replay.setReplayHidden(dto.getReplayHidden());
     replay.setHostId(Integer.parseInt(dto.getHost().getId()));
 
+    replay.setLibrary(LibraryGameInfo.fromStored(dto.getLibraryModId(), dto.getLibraryModName(),
+        dto.getLibraryRegistry(), dto.getLibraryModVersion(), dto.getLibraryModRevision(), dto.getLibrarySimHash(),
+        dto.getLibraryBaseGame(), dto.getLibraryExpansions()).orElse(null));
+
     if (dto.getReplayMeta() != null) {
       ReplayMeta replayMeta = new Gson().fromJson(dto.getReplayMeta(), ReplayMeta.class);
       replay.setReplayMeta(replayMeta);
@@ -189,6 +197,15 @@ public class Replay {
 
   public void setReplayMeta(@Nullable ReplayMeta replayMeta) {
     this.replayMeta = replayMeta;
+  }
+
+  @Nullable
+  public LibraryGameInfo getLibrary() {
+    return library;
+  }
+
+  public void setLibrary(@Nullable LibraryGameInfo library) {
+    this.library = library;
   }
 
   public static String getReplayUrl(int replayId, String baseUrlFormat) {

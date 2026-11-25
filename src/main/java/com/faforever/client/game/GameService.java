@@ -7,6 +7,7 @@ import com.faforever.client.fa.CloseGameEvent;
 import com.faforever.client.fa.DemoFileInfo;
 import com.faforever.client.fa.MapTool;
 import com.faforever.client.fa.TotalAnnihilationService;
+import com.faforever.client.fa.oa.OaLaunchServer;
 import com.faforever.client.fa.relay.GpgGameMessage;
 import com.faforever.client.fa.relay.event.AutoJoinRequestEvent;
 import com.faforever.client.fa.relay.event.RehostRequestEvent;
@@ -40,6 +41,10 @@ import com.faforever.client.preferences.PreferencesService;
 import com.faforever.client.rating.RatingService;
 import com.faforever.client.remote.FafService;
 import com.faforever.client.remote.ReconnectTimerService;
+import com.faforever.client.library.LibraryGameInfo;
+import com.faforever.client.library.LibraryLaunchPlan;
+import com.faforever.client.library.LibraryMod;
+import com.faforever.client.library.LibraryPrompts;
 import com.faforever.client.remote.domain.GameInfoMessage;
 import com.faforever.client.remote.domain.GameLaunchMessage;
 import com.faforever.client.remote.domain.GameStatus;
@@ -154,6 +159,7 @@ public class GameService implements InitializingBean {
   private final RatingService ratingService;
   private final HotfixService hotfixService;
   private final LadderPointsService ladderPointsService;
+  private final LibraryPrompts libraryPrompts;
 
   private final ObservableList<Game> games;
   private final String faWindowTitle;
@@ -213,7 +219,8 @@ public class GameService implements InitializingBean {
                      ChatService chatService,
                      RatingService ratingService,
                      HotfixService hotfixService,
-                     LadderPointsService ladderPointsService) {
+                     LadderPointsService ladderPointsService,
+                     LibraryPrompts libraryPrompts) {
 
     this.clientProperties = clientProperties;
     this.fafService = fafService;
@@ -235,6 +242,7 @@ public class GameService implements InitializingBean {
     this.ratingService = ratingService;
     this.hotfixService = hotfixService;
     this.ladderPointsService = ladderPointsService;
+    this.libraryPrompts = libraryPrompts;
 
     ircHostAndPort = String.format("%s:%d", clientProperties.getIrc().getHost(), 6667);//clientProperties.getIrc().getPort());
     faWindowTitle = clientProperties.getForgedAlliance().getWindowTitle();
@@ -542,6 +550,10 @@ public class GameService implements InitializingBean {
     preferencesService.storeInBackground();
   }
 
+  /** The Library mod of the game being hosted or joined; read when its launch server is started. */
+  private volatile LibraryGameInfo pendingLibrary;
+  private volatile boolean pendingLibraryHost;
+
   public CompletableFuture<Void> hostGame(NewGameInfo newGameInfo) {
     log.info("[hostGame] title={}", newGameInfo.getTitle());
 
@@ -552,7 +564,8 @@ public class GameService implements InitializingBean {
     }
 
     String modTechnicalName = newGameInfo.getFeaturedMod().getTechnicalName();
-    if (!preferencesService.isGameExeValid(modTechnicalName)) {
+    boolean libraryGame = LibraryGameInfo.isLibraryMod(modTechnicalName);
+    if (!libraryGame && !preferencesService.isGameExeValid(modTechnicalName)) {
       CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(modTechnicalName);
       return gameDirectoryFuture.thenCompose(path -> hostGame(newGameInfo));
     }
@@ -565,7 +578,11 @@ public class GameService implements InitializingBean {
 
     autoJoinRequestedGameProperty.set(null);
     recentHostGameRequest = newGameInfo;
-    return updateGameIfNecessary(newGameInfo.getFeaturedMod(), newGameInfo.getFeaturedModVersionKey())
+    pendingLibrary = libraryGame ? newGameInfo.getLibrary() : null;
+    pendingLibraryHost = true;
+    // TAF never installs or updates a Library mod: OA's Library does
+    return (libraryGame ? completedFuture((String) null)
+        : updateGameIfNecessary(newGameInfo.getFeaturedMod(), newGameInfo.getFeaturedModVersionKey()))
         .thenCompose(modVersionKey -> {
           newGameInfo.setFeaturedModVersionKey(modVersionKey);
           return fafService.requestHostGame(newGameInfo);
@@ -607,7 +624,8 @@ public class GameService implements InitializingBean {
       return completedFuture(null);
     }
 
-    if (!preferencesService.isGameExeValid(game.getFeaturedMod())) {
+    boolean libraryGame = LibraryGameInfo.isLibraryMod(game.getFeaturedMod());
+    if (!libraryGame && !preferencesService.isGameExeValid(game.getFeaturedMod())) {
       CompletableFuture<Path> gameDirectoryFuture = postGameDirectoryChooseEvent(game.getFeaturedMod());
       return gameDirectoryFuture.thenCompose(path -> joinGame(game, password));
     }
@@ -624,17 +642,22 @@ public class GameService implements InitializingBean {
     autoJoinRequestedGameProperty.set(null);
     setRunningGameUid(game.getId());  // set it early so create-game button disabled during setup
 
-    return
-        modService.getFeaturedMod(game.getFeaturedMod())
+    pendingLibrary = libraryGame ? game.getLibrary() : null;
+    pendingLibraryHost = false;
+    CompletableFuture<?> prepared = libraryGame
+        // OA's battle room fetches a missing pack map (GET MAP); the Library installs the mod
+        ? completedFuture((Object) null)
+        : modService.getFeaturedMod(game.getFeaturedMod())
         .thenCompose(featuredModBean -> updateGameIfNecessary(featuredModBean, game.getFeaturedModVersion() != null
             ? game.getFeaturedModVersion() : featuredModBean.getGitBranch()))
-        .thenCompose(aVoid -> mapService.optionalEnsureMap(game.getFeaturedMod(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null))
+        .thenCompose(aVoid -> mapService.optionalEnsureMap(game.getFeaturedMod(), game.getMapName(), game.getMapCrc(), game.getMapArchiveName(), null, null));
+    return prepared
         .exceptionally(throwable -> {
           log.warn("Exception preparing to join game", throwable);
           notificationService.addImmediateErrorNotification(throwable, "games.errorInPreparing");
           return null;
         })
-        .thenCompose(ensuredMap -> fafService.requestJoinGame(game.getId(), password))
+        .thenCompose(ensuredMap -> fafService.requestJoinGame(game.getId(), password, game.getFeaturedMod()))
         .thenAccept(gameLaunchMessage -> {
           if (gameLaunchMessage != null) {
             // Store password in case we rehost
@@ -726,6 +749,9 @@ public class GameService implements InitializingBean {
   }
 
   public CompletableFuture<Void> runWithReplay(String replayFileOrUrl, Game game) {
+    if (LibraryGameInfo.isLibraryMod(game.getFeaturedMod()) && game.getLibrary() != null) {
+      return runWithLibraryReplay(replayFileOrUrl, game.getId(), game.getLibrary());
+    }
     if (game.getFeaturedModVersion() != null) {
       return runWithReplay(
           replayFileOrUrl, game.getId(), game.getFeaturedMod(), game.getFeaturedModVersion(),
@@ -737,6 +763,32 @@ public class GameService implements InitializingBean {
               replayFileOrUrl, game.getId(), game.getFeaturedMod(), featuredModBean.getGitBranch(),
               game.getMapName(), game.getMapCrc(), game.getMapArchiveName()));
     }
+  }
+
+  /**
+   * Watches a Library mod game, live or from the vault, through Open Annihilation with the mod the game was
+   * recorded with. TAF installs nothing: a missing mod gets the "install it from OA's Library" prompt and a
+   * different version gets the version hint before OA is started.
+   *
+   * @param replayFileOrUrl Either a path to a locally available file, or a url eg taforever.com:15000/1234
+   */
+  public CompletableFuture<Void> runWithLibraryReplay(String replayFileOrUrl, Integer replayId, LibraryGameInfo recorded) {
+    if (!canStartReplay()) {
+      return completedFuture(null);
+    }
+    libraryPrompts.checkReplay(recorded, installed -> {
+      try {
+        if (isGameRunning()) {
+          return;
+        }
+        onMatchmakerSearchStopped();
+        totalAnnihilationService.setLibraryPlan(LibraryLaunchPlan.forReplay(installed, recorded));
+        launchReplayProcess(LibraryGameInfo.UMBRELLA_FEATURED_MOD, replayFileOrUrl, replayId);
+      } catch (IOException | RuntimeException e) {
+        notifyCantPlayReplay(replayId, e);
+      }
+    });
+    return completedFuture(null);
   }
 
   /**
@@ -773,17 +825,7 @@ public class GameService implements InitializingBean {
               return;
             }
 
-            Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(modTechnical, replayId));
-            spawnGenericTerminationListener(launchServerProcess);
-
-            this.process = totalAnnihilationService.startReplay(modTechnical, replayFileOrUrl, replayId, getCurrentPlayer().getUsername());
-            setRunningGameUid(-1);
-
-            BooleanProperty dismissTrigger = openProcessRunningDialog(this.process,
-                i18n.get("replay.running.title", replayId, replayFileOrUrl),
-                new File(replayFileOrUrl).exists() ? i18n.get("replay.running.text.local") : i18n.get("replay.running.text.live"));
-            spawnGameTerminationListener(this.process, replayId, modTechnical, dismissTrigger);
-
+            launchReplayProcess(modTechnical, replayFileOrUrl, replayId);
           } catch (IOException e) {
             notifyCantPlayReplay(replayId, e);
           }
@@ -792,6 +834,23 @@ public class GameService implements InitializingBean {
           notifyCantPlayReplay(replayId, throwable);
           return null;
         });
+  }
+
+  private void launchReplayProcess(String modTechnical, String replayFileOrUrl, Integer replayId) throws IOException {
+    // Open Annihilation plays a local .tad by itself; only a live watch needs a launch server
+    if (!totalAnnihilationService.isOpenAnnihilation(modTechnical) || !TotalAnnihilationService.isLocalDemo(replayFileOrUrl)) {
+      Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(
+          modTechnical, replayId, OaLaunchServer.Mode.REPLAY_VIEWER));
+      spawnGenericTerminationListener(launchServerProcess);
+    }
+
+    this.process = totalAnnihilationService.startReplay(modTechnical, replayFileOrUrl, replayId, getCurrentPlayer().getUsername());
+    setRunningGameUid(-1);
+
+    BooleanProperty dismissTrigger = openProcessRunningDialog(this.process,
+        i18n.get("replay.running.title", replayId, replayFileOrUrl),
+        new File(replayFileOrUrl).exists() ? i18n.get("replay.running.text.local") : i18n.get("replay.running.text.live"));
+    spawnGameTerminationListener(this.process, replayId, modTechnical, dismissTrigger);
   }
 
   private BooleanProperty openProcessRunningDialog(Process process, String title, String text) {
@@ -1031,6 +1090,18 @@ public class GameService implements InitializingBean {
     return process != null && process.isAlive();
   }
 
+  /** Whether the game's own Open Annihilation is up. */
+  public boolean isOaRunning() {
+    return totalAnnihilationService.isOaRunning();
+  }
+
+  /** Opens Open Annihilation for browsing and installing, unless the game's own OA is up (never a second one). */
+  public void openOaLibrary() {
+    if (!isOaRunning()) {
+      libraryPrompts.openOa();
+    }
+  }
+
   /**
    * True while the local player is parked in a staging room that has not been launched yet.
    *
@@ -1117,6 +1188,7 @@ public class GameService implements InitializingBean {
             // TAForever.ini location (1=fixed, 2=random).
             boolean fixedPositions = game.isFixedPositionsEnabled();
             this.totalAnnihilationService.sendToConsole("/fixed_positions " + (fixedPositions ? "1" : "0"));
+            this.totalAnnihilationService.setOaFixedPositions(fixedPositions);
             if (sequenced) {
               this.totalAnnihilationService.sendToConsole("/launch " +
                   String.join(",", joinOrder.stream().map(p -> String.valueOf(p.getId())).toList()));
@@ -1381,41 +1453,79 @@ public class GameService implements InitializingBean {
   public void setMaxPlayersForStagingGame(int maxPlayers) {
     Game currentGame = getCurrentGame();
     if (isGameRunning() && currentGame != null && currentGame.getStatus() == GameStatus.STAGING
+        && !LibraryGameInfo.isLibraryMod(currentGame.getFeaturedMod())
         && maxPlayers > 0 && maxPlayers <= 10) {
       this.totalAnnihilationService.sendToConsole(String.format("/max_players %d", maxPlayers));
     }
   }
 
+  /**
+   * The gpgnet4ta console commands that apply a staging-lobby update. A Library mod (Open Annihilation) game has
+   * no TA lobby: its map and slot count are fixed in OA's own battle room (the client has no channel to a running
+   * room: fark is not enabled for Library games) and it is always unrated, so only the replay delay is sent.
+   *
+   * @param mapDetails the unit-separator joined maptool details of the new map, or null for none
+   */
+  static List<String> stagingConsoleCommands(boolean libraryGame, @Nullable String mapDetails, @Nullable String ratingType,
+                                             @Nullable LiveReplayOption liveReplayOption, int maxPlayers) {
+    List<String> commands = new ArrayList<>();
+    if (!libraryGame) {
+      if (mapDetails != null) {
+        commands.add(String.format("/map %s", mapDetails));
+      }
+      if (ratingType != null && ratingType.length() > 0) {
+        commands.add(String.format("/rating_type %s", ratingType));
+        commands.add(ratingType.equals(DEFAULT_RATING_TYPE)
+            ? "/disable_game_file_version_verify" : "/enable_game_file_version_verify");
+      }
+    }
+    if (liveReplayOption != null) {
+      commands.add(String.format("/replay_delay_seconds %s", liveReplayOption.getDelaySeconds()));
+    }
+    if (!libraryGame && maxPlayers > 0 && maxPlayers <= 10) {
+      commands.add(String.format("/max_players %d", maxPlayers));
+    }
+    return commands;
+  }
+
   public void updateSettingsForStagingGame(String title, String mapName, String ratingType, LiveReplayOption liveReplayOption, String password, int maxPlayers, boolean enforceRating, Integer minRating, Integer maxRating) {
     Game currentGame = getCurrentGame();
     if (isGameRunning() && currentGame != null && currentGame.getStatus()==GameStatus.STAGING) {
+      boolean libraryGame = LibraryGameInfo.isLibraryMod(currentGame.getFeaturedMod());
       try {
-        List<String[]> mapsDetails = MapTool.listMap(preferencesService.getTotalAnnihilation(currentGame.getFeaturedMod()).getInstalledPath(), mapName);
-        if (mapsDetails.size() > 0) {
-          final String UNIT_SEPARATOR = Character.toString((char) 0x1f);
-          String mapDetails = String.join(UNIT_SEPARATOR, mapsDetails.get(0));
-          this.totalAnnihilationService.sendToConsole(String.format("/map %s", mapDetails));
-        }
-        if (ratingType != null && ratingType.length() > 0) {
-          this.totalAnnihilationService.sendToConsole(String.format("/rating_type %s", ratingType));
-          if (ratingType.equals(DEFAULT_RATING_TYPE)) {
-            this.totalAnnihilationService.sendToConsole("/disable_game_file_version_verify");
-          }
-          else {
-            this.totalAnnihilationService.sendToConsole("/enable_game_file_version_verify");
+        String mapDetails = null;
+        if (!libraryGame) {
+          List<String[]> mapsDetails = MapTool.listMap(preferencesService.getTotalAnnihilation(currentGame.getFeaturedMod()).getInstalledPath(), mapName);
+          if (mapsDetails.size() > 0) {
+            mapDetails = String.join(Character.toString((char) 0x1f), mapsDetails.get(0));
           }
         }
-        if (liveReplayOption != null) {
-          this.totalAnnihilationService.sendToConsole(String.format("/replay_delay_seconds %s", liveReplayOption.getDelaySeconds()));
+        if (libraryGame && mapName != null && !mapName.equals(currentGame.getMapName())) {
+          // the host's OA has not been started yet: it will be launched with the new map, and the server's game
+          // card follows (a Library map has no TAF archive or CRC, so only its key is reported)
+          if (totalAnnihilationService.setLibraryHostMap(mapName)) {
+            log.info("[updateSettingsForStagingGame] Library game map changed from {} to {}", currentGame.getMapName(), mapName);
+            fafService.setGameMapDetails(mapName, "", "");
+          } else {
+            log.info("[updateSettingsForStagingGame] Open Annihilation is already running; cannot change the map to {}", mapName);
+            notificationService.addImmediateWarnNotification("game.create.libraryMapLocked");
+          }
         }
+        if (!libraryGame && mapName != null && !mapName.equals(currentGame.getMapName())
+            && totalAnnihilationService.isOpenAnnihilation(currentGame.getFeaturedMod())) {
+          // a TAF featured mod on OA: the host's OA is started (later) with the map named in its launch file
+          totalAnnihilationService.setLibraryHostMap(mapName);
+        }
+        stagingConsoleCommands(libraryGame, mapDetails, ratingType, liveReplayOption, maxPlayers)
+            .forEach(this.totalAnnihilationService::sendToConsole);
         if (password != null) {
           this.fafService.setGamePassword(password);
         }
-        if (maxPlayers > 0 && maxPlayers <= 10) {
-          this.totalAnnihilationService.sendToConsole(String.format("/max_players %d", maxPlayers));
-        }
 
-        if (minRating != null && maxRating != null) {
+        if (libraryGame) {
+          // always unrated: there is no rating range to send
+        }
+        else if (minRating != null && maxRating != null) {
           this.fafService.sendGpgGameMessage(new GpgGameMessage("SetGameRatingRange", List.of(minRating, maxRating, enforceRating)));
         }
         else if (minRating != null) {
@@ -1436,6 +1546,15 @@ public class GameService implements InitializingBean {
     else {
       log.info("[setMapForStagingGame] attempt to update settings while current game is not in STAGING state. ignoring");
     }
+  }
+
+  /** The server does not echo a Library host's map back, so fall back on the one the host chose. */
+  private String libraryHostMapKey(@Nullable String launchMapname) {
+    if (launchMapname != null && !launchMapname.isBlank()) {
+      return launchMapname;
+    }
+    NewGameInfo request = recentHostGameRequest;
+    return request == null ? null : request.getMap();
   }
 
   /**
@@ -1463,7 +1582,17 @@ public class GameService implements InitializingBean {
           }
           List<String> args = fixMalformedArgs(gameLaunchMessage.getArgs());
 
+          LibraryGameInfo library = pendingLibrary;
+          if (LibraryGameInfo.isLibraryMod(modTechnical) && library != null) {
+            totalAnnihilationService.setLibraryPlan(new LibraryLaunchPlan(library.modId(),
+                library.baseGame() == null ? LibraryMod.DEFAULT_BASE_GAME : library.baseGame(),
+                // a joiner's launch file names only what it has: OA refuses one naming a missing expansion before a
+                // window opens, but lets the player into the room, where it marks the difference, without it
+                pendingLibraryHost ? library.expansions() : totalAnnihilationService.libraryJoinExpansions(library.expansions()),
+                pendingLibraryHost ? libraryHostMapKey(gameLaunchMessage.getMapname()) : null));
+          }
           Process launchServerProcess = noCatch(() -> totalAnnihilationService.startLaunchServer(modTechnical, uid));
+          totalAnnihilationService.configureOaHost(modTechnical, libraryHostMapKey(gameLaunchMessage.getMapname()));
           spawnGenericTerminationListener(launchServerProcess);
 
           String demoCompilerUrl = String.format("%s:%s/%s",
@@ -1809,6 +1938,20 @@ public class GameService implements InitializingBean {
         ? recentHostGameRequest.getPassword()
         : null;
 
+    // a Library mod game must carry its mod again, or the server refuses it ("needs a Library mod id")
+    LibraryGameInfo library = null;
+    if (LibraryGameInfo.isLibraryMod(prototype.getFeaturedMod())) {
+      library = prototype.getLibrary();
+      if (library == null && recentHostGameRequest != null) {
+        library = recentHostGameRequest.getLibrary();
+      }
+      if (library == null) {
+        log.warn("[rehost] not rehosting Library mod game {}: its Library mod is not known", prototype.getId());
+        return;
+      }
+    }
+    final LibraryGameInfo rehostLibrary = library;
+
     modService.getFeaturedMod(prototype.getFeaturedMod())
         .thenAccept(featuredModBean -> hostGame(new NewGameInfo(
             prototype.getTitle(),
@@ -1822,7 +1965,8 @@ public class GameService implements InitializingBean {
             prototype.getEnforceRating(), prototype.getReplayDelaySeconds(),
             prototype.getRatingType(),
             prototype.getGalacticWarPlanetName(),
-            prototype.getMaxPlayers())));
+            prototype.getMaxPlayers(),
+            rehostLibrary)));
   }
 
   private ObjectProperty<Game> autoJoinRequestedGameProperty = new SimpleObjectProperty<>();
@@ -1862,7 +2006,13 @@ public class GameService implements InitializingBean {
         currentGame == null &&
         getRunningGameUid() == 0) {
       log.info("[checkAutoJoin] auto-joining {}!", gameOptional.get());
-      JavaFxUtil.runLater(() -> this.joinGame(gameOptional.get(), prototype.getPassword()));
+      Game autoJoinGame = gameOptional.get();
+      if (LibraryGameInfo.isLibraryMod(autoJoinGame.getFeaturedMod()) && autoJoinGame.getLibrary() != null) {
+        // same Library checks as a manual join: explains what is missing, offers "Join anyway" on a version hint
+        libraryPrompts.checkJoin(autoJoinGame.getLibrary(), () -> this.joinGame(autoJoinGame, prototype.getPassword()));
+        return;
+      }
+      JavaFxUtil.runLater(() -> this.joinGame(autoJoinGame, prototype.getPassword()));
     }
   }
 
@@ -2072,6 +2222,11 @@ public class GameService implements InitializingBean {
       String hostOriginalTitle = hostOriginalTitles.get(gameInfoMessage.getUid());
       game.setTitle(hostOriginalTitle != null ? hostOriginalTitle : serverTitle);
       game.setMapName(gameInfoMessage.getMapName());
+      game.setLibrary(gameInfoMessage.getLibraryModId() == null ? null : new LibraryGameInfo(
+          gameInfoMessage.getLibraryModId(), gameInfoMessage.getLibraryModName(), gameInfoMessage.getLibraryRegistry(),
+          gameInfoMessage.getLibraryModVersion(), gameInfoMessage.getLibraryModRevision(),
+          gameInfoMessage.getLibrarySimHash(), gameInfoMessage.getLibraryBaseGame(),
+          gameInfoMessage.getLibraryExpansions() == null ? List.of() : gameInfoMessage.getLibraryExpansions()));
       game.setFeaturedMod(gameInfoMessage.getFeaturedMod());
       game.setGalacticWarPlanetName(gameInfoMessage.getGalacticWarPlanetName());
       game.setNumPlayers(gameInfoMessage.getNumPlayers());

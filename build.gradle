@@ -202,6 +202,8 @@ compileTestJava {
   // Pins the replay download name against the server's TADA upload naming (tada_service.py);
   // pure formatter, no broken siblings pulled in.
   include '**/replay/CanonicalReplayNameTest.java'
+  // OA 'version not allowed' refusal text worded by Engine updates setting (#16)
+  include '**/remote/OaVersionRefusalTextTest.java'
   include '**/replay/ReplayArchiveWriterTest.java'
   include '**/replay/ReplayDownloadControlsTest.java'
   // Country flags: guards that every country we offer actually has a flag image
@@ -217,9 +219,23 @@ compileTestJava {
   // Pins that a dropped connection keeps the channel tab (and its message history) open:
   // clearing the user list removes us too, which read as us leaving the channel.
   include '**/chat/ChatControllerTest.java'
+  // Open Annihilation engine support: policy, command lines, installer, launch-server protocol.
+  include '**/fa/oa/**'
+  // Library mods (OA Library games): discovery over temp folders and canned --list-content output, .oalaunch writer, commands.
+  include '**/library/**'
+  // Which games the custom games list shows (Library mod games have no map archive).
+  include '**/game/CustomGamesListingTest.java'
+  include '**/game/StagingConsoleCommandsTest.java'
+  include '**/game/StagingUpdateRatingTypeTest.java'
+  // Install dialog: the Open Annihilation engine section is shown only when the server offers it for the mod.
+  include '**/mod/FeaturedModInstallControllerEngineTest.java'
+  // Engine updates setting: saved TAF_MANAGED/EXISTING preferences migrate to TAF/OWN_INSTALL.
+  include '**/preferences/EngineUpdatesMigrationTest.java'
   include '**/assetserver/**'
   // Friend/foe dialog behind the "+" on the chat Friends / Foes headers (issue #44): paging, filtering, add/remove.
   include '**/chat/SocialPlayerPickerControllerTest.java'
+  // Chat image paste upload (issue #51): multipart Imgur upload, error status and max-size rejection.
+  include '**/uploader/**'
   // Test base classes / shared utilities — required by tests in the
   // included packages above. Don't include broken siblings of these.
   include '**/test/AbstractPlainJavaFxTest.java'

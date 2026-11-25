@@ -301,6 +301,8 @@ public class ReplayDetailController implements Controller<Node> {
     modLabel.setText(
         Optional.ofNullable(replay.getFeaturedMod())
             .map(FeaturedMod::getDisplayName)
+            .map(name -> replay.getLibrary() != null && replay.getLibrary().name() != null
+                ? "OA " + replay.getLibrary().name() : name)
             .orElseGet(() -> i18n.get("unknown"))
     );
 
@@ -751,7 +753,8 @@ public class ReplayDetailController implements Controller<Node> {
   private ContextMenu watchMenu;
 
   public void onWatchButtonClicked() {
-    if (!browserWatchService.isAvailable()) {
+    // the browser viewer cannot draw a Library mod's units, so those replays only play in the game
+    if (!browserWatchService.isAvailable() || replay.getLibrary() != null) {
       replayService.runDownloadReplay(replay);
       return;
     }

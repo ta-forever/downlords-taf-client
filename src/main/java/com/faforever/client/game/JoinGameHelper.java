@@ -4,6 +4,8 @@ import com.faforever.client.discord.DiscordJoinEvent;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.LeaderboardRating;
+import com.faforever.client.library.LibraryGameInfo;
+import com.faforever.client.library.LibraryPrompts;
 import com.faforever.client.notification.Action;
 import com.faforever.client.notification.ImmediateNotification;
 import com.faforever.client.notification.NotificationService;
@@ -44,8 +46,9 @@ public class JoinGameHelper {
   private final ReportingService reportingService;
   private final UiService uiService;
   private final EventBus eventBus;
+  private final LibraryPrompts libraryPrompts;
 
-  public JoinGameHelper(I18n i18n, PlayerService playerService, GameService gameService, PreferencesService preferencesService, NotificationService notificationService, ReportingService reportingService, UiService uiService, EventBus eventBus) {
+  public JoinGameHelper(I18n i18n, PlayerService playerService, GameService gameService, PreferencesService preferencesService, NotificationService notificationService, ReportingService reportingService, UiService uiService, EventBus eventBus, LibraryPrompts libraryPrompts) {
     this.i18n = i18n;
     this.playerService = playerService;
     this.gameService = gameService;
@@ -54,6 +57,7 @@ public class JoinGameHelper {
     this.reportingService = reportingService;
     this.uiService = uiService;
     this.eventBus = eventBus;
+    this.libraryPrompts = libraryPrompts;
   }
 
   public void join(Game game) {
@@ -61,6 +65,20 @@ public class JoinGameHelper {
   }
 
   public void join(Game game, String password, boolean ignoreRating) {
+    join(game, password, ignoreRating, false);
+  }
+
+  /**
+   * @param libraryChecked whether a Library mod game has already been checked against the player's Open Annihilation
+   *                       (so the password and rating steps do not ask again)
+   */
+  private void join(Game game, String password, boolean ignoreRating, boolean libraryChecked) {
+    boolean libraryGame = LibraryGameInfo.isLibraryMod(game.getFeaturedMod()) && game.getLibrary() != null;
+    if (libraryGame && !libraryChecked) {
+      // can the player's OA play it? Explains what to install or finish in OA if not. TAF never installs Library mods.
+      libraryPrompts.checkJoin(game.getLibrary(), () -> join(game, password, ignoreRating, true));
+      return;
+    }
     Player currentPlayer = playerService.getCurrentPlayer().orElseThrow(() -> new IllegalStateException("Player has not been set"));
     int playerRating = RatingUtil.getRoundedLeaderboardRating(currentPlayer, game.getRatingType());
     // Quoting a placement player's own number back at them is meaningless — with the prior at
@@ -69,10 +87,10 @@ public class JoinGameHelper {
     LeaderboardRating currentRating = currentPlayer.getLeaderboardRatings().get(game.getRatingType());
     boolean ratingUnestablished = currentRating == null || RatingUtil.isInPlacement(currentRating);
 
-    if (!preferencesService.isGameExeValid(game.getFeaturedMod())) {
+    if (!libraryGame && !preferencesService.isGameExeValid(game.getFeaturedMod())) {
       CompletableFuture<Path> gameDirectoryFuture = new CompletableFuture<>();
       eventBus.post(new GameDirectoryChooseEvent(game.getFeaturedMod(), gameDirectoryFuture));
-      gameDirectoryFuture.thenAccept(path -> Optional.ofNullable(path).ifPresent(path1 -> join(game, password, ignoreRating)));
+      gameDirectoryFuture.thenAccept(path -> Optional.ofNullable(path).ifPresent(path1 -> join(game, password, ignoreRating, libraryChecked)));
       return;
     }
 
@@ -80,13 +98,13 @@ public class JoinGameHelper {
     boolean maxRatingViolated = game.getMaxRating() != null && playerRating > game.getMaxRating();
 
     if (!ignoreRating && (minRatingViolated || maxRatingViolated)) {
-      showRatingOutOfBoundsConfirmation(playerRating, ratingUnestablished, game, password);
+      showRatingOutOfBoundsConfirmation(playerRating, ratingUnestablished, game, password, libraryGame);
       return;
     }
 
     if (game.isPasswordProtected() && password == null) {
       EnterPasswordController enterPasswordController = uiService.loadFxml("theme/enter_password.fxml");
-      enterPasswordController.setOnPasswordEnteredListener(this::join);
+      enterPasswordController.setOnPasswordEnteredListener((g, p, ignore) -> join(g, p, ignore, libraryGame));
       enterPasswordController.setGame(game);
       enterPasswordController.setIgnoreRating(ignoreRating);
       enterPasswordController.showPasswordDialog(StageHolder.getStage());
@@ -101,7 +119,7 @@ public class JoinGameHelper {
   }
 
   private void showRatingOutOfBoundsConfirmation(int playerRating, boolean ratingUnestablished,
-                                                Game game, String password) {
+                                                Game game, String password, boolean libraryChecked) {
     notificationService.addNotification(new ImmediateNotification(
         i18n.get("game.joinGameRatingConfirmation.title"),
         ratingUnestablished
@@ -109,7 +127,7 @@ public class JoinGameHelper {
             : i18n.get("game.joinGameRatingConfirmation.text", game.getMinRating(), game.getMaxRating(), playerRating),
         Severity.INFO,
         asList(
-            new Action(i18n.get("game.join"), event -> this.join(game, password, true)),
+            new Action(i18n.get("game.join"), event -> this.join(game, password, true, libraryChecked)),
             new Action(i18n.get("game.cancel"))
         )
     ));

@@ -5,6 +5,7 @@ import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.galacticwar.GwMapSelectStrategy;
 import com.faforever.client.game.GamesTilesContainerController.TilesSortingOrder;
 import com.faforever.client.i18n.I18n;
+import com.faforever.client.library.LibraryGameInfo;
 import com.faforever.client.main.event.HostGameEvent;
 import com.faforever.client.main.event.NavigateEvent;
 import com.faforever.client.main.event.OpenGalacticWarEvent;
@@ -44,11 +45,13 @@ import java.util.function.Predicate;
 @Slf4j
 public class CustomGamesController extends AbstractViewController<Node> {
 
-  private static final Predicate<Game> CUSTOM_GAMES_PREDICATE = gameInfoBean ->
+  // A Library mod game never has a map archive: its map is not an HPI the TAF maptool can read, so the host's
+  // MapDetails option is empty and the server never learns an archive. It is listed all the same.
+  static final Predicate<Game> CUSTOM_GAMES_PREDICATE = gameInfoBean ->
       (gameInfoBean.getGameType() != GameType.MATCHMAKER || gameInfoBean.isInProgress()) &&
           (gameInfoBean.getReplayDelaySeconds() >= 0 || gameInfoBean.isOpen()) &&
           (gameInfoBean.getNumPlayers() > 1 || gameInfoBean.isOpen()) &&
-          (gameInfoBean.getMapArchiveName() != null);
+          (gameInfoBean.getMapArchiveName() != null || LibraryGameInfo.isLibraryMod(gameInfoBean.getFeaturedMod()));
 
   private final UiService uiService;
   private final GameService gameService;
@@ -206,6 +209,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
       createGameController = uiService.loadFxml("theme/play/create_game.fxml");
     }
     createGameController.setContextGame(contextGame);
+    createGameController.recheckLibrary();
     createGameController.setSelectingGalacticWarMap(null);
 
     if (mapFolderName != null) {
@@ -250,6 +254,7 @@ public class CustomGamesController extends AbstractViewController<Node> {
     }
 
     createGameController.resetMapSearch();
+    createGameController.recheckLibrary();
     createGameController.setRankedEnabled(true);
     createGameController.setSelectedMod(selectGalacticWarMapEvent.getPlanet().getModTechnical())
         .thenRun(() -> {

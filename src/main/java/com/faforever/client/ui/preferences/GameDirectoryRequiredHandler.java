@@ -32,6 +32,7 @@ public class GameDirectoryRequiredHandler implements InitializingBean {
   private final EventBus eventBus;
   private final ModService modService;
   private final UiService uiService;
+  private final com.faforever.client.library.LibraryPrompts libraryPrompts;
   private  FeaturedModInstallController featuredModInstallController;
 
   @Override
@@ -41,6 +42,11 @@ public class GameDirectoryRequiredHandler implements InitializingBean {
 
   @Subscribe
   public void onChooseGameDirectory(GameDirectoryChooseEvent event) {
+    if (com.faforever.client.library.LibraryGameInfo.isLibraryMod(event.getModTechnicalName())) {
+      // the Library has no install folder of its own to locate: OA is where its mods live
+      libraryPrompts.openOa();
+      return;
+    }
     JavaFxUtil.runLater(() -> {
       modService.getFeaturedMod(event.getModTechnicalName())
           .thenAccept(fm -> JavaFxUtil.runLater(() -> {

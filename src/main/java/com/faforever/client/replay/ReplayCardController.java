@@ -138,7 +138,9 @@ public class ReplayCardController implements Controller<Node> {
 
     dateLabel.setText(timeService.asDate(replay.getStartTime()));
     timeLabel.setText(timeService.asShortTime(replay.getStartTime()));
-    modLabel.setText(replay.getFeaturedMod().getDisplayName());
+    modLabel.setText(replay.getLibrary() != null && replay.getLibrary().name() != null
+        ? "OA " + replay.getLibrary().name()
+        : replay.getFeaturedMod().getDisplayName());
     populateModVersion(replay);
     double gameQuality = ratingService.calculateQuality(replay);
     if (!Double.isNaN(gameQuality)) {
@@ -279,7 +281,8 @@ public class ReplayCardController implements Controller<Node> {
   private ContextMenu watchMenu;
 
   public void onWatchButtonClicked() {
-    if (!browserWatchService.isAvailable()) {
+    // the browser viewer cannot draw a Library mod's units, so those replays only play in the game
+    if (!browserWatchService.isAvailable() || replay.getLibrary() != null) {
       replayService.runDownloadReplay(replay);
       return;
     }

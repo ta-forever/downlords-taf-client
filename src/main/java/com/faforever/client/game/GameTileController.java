@@ -7,7 +7,10 @@ import com.faforever.client.fx.Controller;
 import com.faforever.client.fx.JavaFxUtil;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.Leaderboard;
+import com.faforever.client.library.LibraryPrompts;
 import com.faforever.client.leaderboard.LeaderboardService;
+import com.faforever.client.library.LibraryGameInfo;
+import com.faforever.client.library.LibraryMapPreviewService;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.FeaturedMod;
@@ -33,8 +36,11 @@ import javafx.event.ActionEvent;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectBinding;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -64,6 +70,7 @@ import static javafx.beans.binding.Bindings.createStringBinding;
 public class GameTileController implements Controller<Node> {
 
   private final MapService mapService;
+  private final LibraryMapPreviewService libraryMapPreviewService;
   private final I18n i18n;
   private final JoinGameHelper joinGameHelper;
   private final ModService modService;
@@ -74,6 +81,9 @@ public class GameTileController implements Controller<Node> {
   private final UiService uiService;
   private final LeaderboardService leaderboardService;
   private final BrowserWatchService browserWatchService;
+  private final LibraryPrompts libraryPrompts;
+  private final InvalidationListener libraryListener = observable -> JavaFxUtil.runLater(this::updateLibraryState);
+  private String modDisplayName;
   public Node lockIconLabel;
   public Label gameTypeLabel;
   public Node gameCardRoot;
@@ -213,7 +223,7 @@ public class GameTileController implements Controller<Node> {
     // Watching is normally for idle players only, but a player waiting in a staging room can still
     // watch in the browser (BrowserWatchService#isBrowserOnly) — the button stays up for them and
     // its menu drops the "in game" option.
-    boolean canWatchNow = (!isGameProcessRunning && isPlayerIdle) || browserWatchService.isBrowserOnly();
+    boolean canWatchNow = (!isGameProcessRunning && isPlayerIdle) || (browserWatchService.isBrowserOnly() && LibraryGameInfo.offersBrowserWatch(game.getFeaturedMod()));
     watchButton.setVisible(!isOwnGame && canWatchNow && !isStagingRoomOpen && !isBattleRoomOpen && game.getReplayDelaySeconds() >= 0);
 
     final String activatedStyleClass = "autojoin-game-button-active";
@@ -233,6 +243,14 @@ public class GameTileController implements Controller<Node> {
     return gameCardRoot;
   }
 
+  private void updateLibraryState() {
+    if (modDisplayName == null) {
+      return;
+    }
+    gameTypeLabel.setText(modDisplayName + libraryPrompts.listSuffix(game.getLibrary()));
+    gameCardRoot.setOpacity(libraryPrompts.isUnavailable(game.getLibrary()) ? 0.5 : 1);
+  }
+
   public void setGame(Game game) {
     Assert.isNull(this.game, "Game has already been set");
     this.game = game;
@@ -245,8 +263,15 @@ public class GameTileController implements Controller<Node> {
 
     CompletableFuture<FeaturedMod> featuredModFuture = modService.getFeaturedMod(game.getFeaturedMod());
     featuredModFuture.thenAccept(featuredModBean ->
-        JavaFxUtil.runLater(() -> gameTypeLabel.setText(featuredModBean.getDisplayName()))
+        JavaFxUtil.runLater(() -> {
+          modDisplayName = game.getModDisplayName(featuredModBean.getDisplayName());
+          updateLibraryState();
+        })
     );
+    if (game.getLibrary() != null) {
+      // Library mod games are listed for everyone; the reason one cannot be joined follows the mod name, dimmed
+      JavaFxUtil.addListener(libraryPrompts.snapshotProperty(), new WeakInvalidationListener(libraryListener));
+    }
 
     CompletableFuture<List<Leaderboard>> leaderboardsFuture = this.leaderboardService.getLeaderboards();
     gameRatingTypeLabel.textProperty().bind(
@@ -338,10 +363,16 @@ public class GameTileController implements Controller<Node> {
     ObservableMap<String, String> simMods = game.getSimMods();
     modsLabel.textProperty().bind(createStringBinding(() -> getSimModsLabelContent(simMods), simMods));
 
-    mapImageView.backgroundLoadingImageProperty().bind(createObjectBinding(
-        () -> mapService.loadPreview(game.getFeaturedMod(), game.getMapName(), PreviewType.MINI, 10),
-        game.mapNameProperty()
-    ));
+    ObjectBinding<Image> tafMapPreview = createObjectBinding(
+        () -> game.getLibrary() == null
+            ? mapService.loadPreview(game.getFeaturedMod(), game.getMapName(), PreviewType.MINI, 10)
+            : null,
+        game.mapNameProperty(), game.libraryProperty()
+    );
+    mapImageView.backgroundLoadingImageProperty().bind(
+        Bindings.when(game.libraryProperty().isNotNull())
+            .then(libraryMapPreviewService.previewProperty(game))
+            .otherwise(tafMapPreview));
     mapImageView.visibleProperty().bind(
         game.replayDelaySecondsProperty().greaterThanOrEqualTo(0).or(
             gameService.getCurrentGameProperty().isEqualTo(game)));

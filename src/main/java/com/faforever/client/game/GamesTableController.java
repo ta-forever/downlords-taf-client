@@ -8,6 +8,8 @@ import com.faforever.client.fx.StringCell;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.Leaderboard;
 import com.faforever.client.leaderboard.LeaderboardService;
+import com.faforever.client.library.LibraryMapPreviewService;
+import com.faforever.client.library.LibraryPrompts;
 import com.faforever.client.map.MapService;
 import com.faforever.client.map.MapService.PreviewType;
 import com.faforever.client.mod.ModService;
@@ -18,8 +20,11 @@ import com.faforever.client.remote.domain.GameStatus;
 import com.faforever.client.remote.domain.RatingRange;
 import com.faforever.client.theme.UiService;
 import javafx.beans.Observable;
+import javafx.beans.InvalidationListener;
+import javafx.beans.WeakInvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
@@ -63,6 +68,7 @@ import static com.faforever.client.leaderboard.LeaderboardService.DEFAULT_RATING
 public class GamesTableController implements Controller<Node> {
 
   private final MapService mapService;
+  private final LibraryMapPreviewService libraryMapPreviewService;
   private final JoinGameHelper joinGameHelper;
   private final GameService gameService;
   private final ModService modService;
@@ -71,6 +77,7 @@ public class GamesTableController implements Controller<Node> {
   private final PlayerService playerService;
   private final PreferencesService preferencesService;
   private final LeaderboardService leaderboardService;
+  private final LibraryPrompts libraryPrompts;
   public TableView<Game> gamesTable;
   public TableColumn<Game, Image> mapPreviewColumn;
   public TableColumn<Game, String> modsColumn;
@@ -130,12 +137,20 @@ public class GamesTableController implements Controller<Node> {
     mapPreviewColumn.setCellFactory(param -> new MapPreviewTableCell(uiService).setDefaultImage(
         uiService.getThemeImage(UiService.UNKNOWN_MAP_IMAGE)));
 
-    mapPreviewColumn.setCellValueFactory(param -> Bindings.createObjectBinding(
-        () -> param.getValue().getReplayDelaySeconds() >= 0
-          ? mapService.loadPreview(param.getValue().getFeaturedMod(), param.getValue().getMapName(), PreviewType.MINI, 10)
-          : null,
-        param.getValue().mapNameProperty(), param.getValue().replayDelaySecondsProperty()
-    ));
+    mapPreviewColumn.setCellValueFactory(param -> {
+      Game game = param.getValue();
+      ObjectProperty<Image> libraryPreview = libraryMapPreviewService.previewProperty(game);
+      ObjectBinding<Image> tafMapPreview = Bindings.createObjectBinding(
+          () -> game.getReplayDelaySeconds() >= 0 && game.getLibrary() == null
+            ? mapService.loadPreview(game.getFeaturedMod(), game.getMapName(), PreviewType.MINI, 10)
+            : null,
+          game.mapNameProperty(), game.replayDelaySecondsProperty(), game.libraryProperty()
+      );
+      ObjectBinding<Image> libraryMapPreview = Bindings.createObjectBinding(
+          () -> game.getReplayDelaySeconds() >= 0 ? libraryPreview.get() : null,
+          game.replayDelaySecondsProperty(), libraryPreview);
+      return Bindings.when(game.libraryProperty().isNotNull()).then(libraryMapPreview).otherwise(tafMapPreview);
+    });
 
     gameTitleColumn.setCellValueFactory(param -> {
       Optional<Player> host = playerService.getPlayerForUsername(param.getValue().getHost());
@@ -287,8 +302,14 @@ public class GamesTableController implements Controller<Node> {
   @NotNull
   private ObservableValue<String> modCell(CellDataFeatures<Game, String> param) {
     String modTechnical = param.getValue().getFeaturedMod();
-    String displayName = modService.getFeaturedModDisplayName(modTechnical);
-    return new SimpleStringProperty(displayName);
+    Game game = param.getValue();
+    String displayName = game.getModDisplayName(modService.getFeaturedModDisplayName(modTechnical));
+    if (game.getLibrary() == null) {
+      return new SimpleStringProperty(displayName);
+    }
+    // Library mod games are listed for everyone; the reason a game cannot be joined (or a version hint) follows the name
+    return Bindings.createStringBinding(() -> displayName + libraryPrompts.listSuffix(game.getLibrary()),
+        game.libraryProperty(), libraryPrompts.snapshotProperty());
   }
 
   private void selectFirstGame() {
@@ -316,6 +337,12 @@ public class GamesTableController implements Controller<Node> {
   @NotNull
   private TableRow<Game> gamesRowFactory() {
     TableRow<Game> row = new TableRow<>() {
+      private final InvalidationListener libraryListener = observable -> JavaFxUtil.runLater(this::greyOutIfUnjoinable);
+
+      {
+        JavaFxUtil.addListener(libraryPrompts.snapshotProperty(), new WeakInvalidationListener(libraryListener));
+      }
+
       @Override
       protected void updateItem(Game game, boolean empty) {
         super.updateItem(game, empty);
@@ -324,6 +351,13 @@ public class GamesTableController implements Controller<Node> {
         } else {
           setTooltip(tooltip);
         }
+        greyOutIfUnjoinable();
+      }
+
+      /** A Library mod game this player's Open Annihilation cannot play is shown dimmed. */
+      private void greyOutIfUnjoinable() {
+        Game game = getItem();
+        setOpacity(!isEmpty() && game != null && libraryPrompts.isUnavailable(game.getLibrary()) ? 0.5 : 1);
       }
     };
     row.setOnMouseClicked(event -> {

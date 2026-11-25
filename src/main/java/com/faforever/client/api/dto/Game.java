@@ -28,6 +28,16 @@ public class Game {
   private Validity validity;
   private VictoryCondition victoryCondition;
   private Boolean replayHidden;
+  /** Library mod game fields (featured mod "oalibrary" only); null for every other game. */
+  private String libraryModId;
+  private String libraryModName;
+  private String libraryRegistry;
+  private String libraryModVersion;
+  private Integer libraryModRevision;
+  private String librarySimHash;
+  private String libraryBaseGame;
+  /** A JSON array of the expansion ids, as the database stores it. */
+  private String libraryExpansions;
 
   @Relationship("reviews")
   private List<GameReview> reviews;

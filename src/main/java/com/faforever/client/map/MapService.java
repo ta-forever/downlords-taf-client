@@ -10,6 +10,7 @@ import com.faforever.client.game.KnownFeaturedMod;
 import com.faforever.client.i18n.I18n;
 import com.faforever.client.leaderboard.LeaderboardRating;
 import com.faforever.client.io.FileUtils;
+import com.faforever.client.library.LibraryGameInfo;
 import com.faforever.client.map.MapBean.Type;
 import com.faforever.client.mod.FeaturedMod;
 import com.faforever.client.notification.Action;
@@ -883,6 +884,10 @@ public class MapService implements InitializingBean, DisposableBean {
       @Nullable String mapName, @Nullable String mapCrc, @Nullable String downloadHpiArchiveName,
       @Nullable DoubleProperty progressProperty, @Nullable StringProperty titleProperty) {
 
+    if (LibraryGameInfo.isLibraryMod(modTechnicalName)) {
+      // Library maps live in OA's Library; TAF has no installation path for them and downloads nothing
+      return CompletableFuture.completedFuture(null);
+    }
     Path installationPath = preferencesService.getTotalAnnihilation(modTechnicalName).getInstalledPath();
     List<String> downloadList = new ArrayList<>();
     if (!Files.exists(installationPath.resolve(HPI_ARCHIVE_TA_FEATURES_2013))) {
@@ -1194,9 +1199,14 @@ public class MapService implements InitializingBean, DisposableBean {
     if (!Files.exists(cachedFile)) {
       return List.of();
     }
+    return readStartPositions(cachedFile);
+  }
+
+  /** Reads maptool's {@code positions-coords} side-car: one {@code number x y} line per start position. */
+  public static List<MapService.StartPosition> readStartPositions(Path coordsFile) {
     List<MapService.StartPosition> positions = new ArrayList<>();
     try {
-      for (String line : Files.readAllLines(cachedFile)) {
+      for (String line : Files.readAllLines(coordsFile)) {
         String[] parts = line.trim().split("\\s+");
         if (parts.length >= 3) {
           positions.add(new MapService.StartPosition(
@@ -1205,7 +1215,7 @@ public class MapService implements InitializingBean, DisposableBean {
       }
     }
     catch (IOException | NumberFormatException e) {
-      logger.warn("Could not read start positions for map '{}' ({} players)", mapName, maxPositions, e);
+      logger.warn("Could not read start positions from '{}'", coordsFile, e);
     }
     return positions;
   }
